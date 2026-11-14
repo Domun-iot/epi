@@ -3,6 +3,7 @@ import { connect } from './service.js';
 import { escapeHtml as e, formatDate, nameKey, sortByName, userIcon } from './format.js';
 import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
+import { viewPresetHeader, viewPresetTitles } from './view-presets.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
 import './styles.css';
 
@@ -75,8 +76,11 @@ function render() {
   const detail = page === 'measurements' ? reading : null;
   dataActions.hidden = Boolean(detail);
   backButton.hidden = !detail;
-  const nextMain = detail ? [page, detail, state.selectedProfile, state.methodColumnOrder, state.detailSectionOrder] : [page, state.selectedProfile, ...(page === 'measurements'
-    ? [state.measurements, state.columns, state.splitColumns, state.columnOrder]
+  const kind = detail ? 'details' : 'measurements';
+  const layout = page === 'measurements' ? state.viewLayouts?.[kind] : undefined;
+  const layoutKey = layout ? [layout.presets, layout.preset, layout.modified, ...Object.values(layout.layout)] : [];
+  const nextMain = detail ? [page, detail, state.selectedProfile, ...layoutKey] : [page, state.selectedProfile, ...(page === 'measurements'
+    ? [state.measurements, ...layoutKey]
     : page === 'profiles' ? [state.profiles] : [state.devices, state.addressFilter])];
   if (changed(lastMain, nextMain)) {
     lastMain = nextMain;
@@ -101,11 +105,17 @@ function render() {
     const detailScroll = previousComparison?.scrollLeft;
     if (previousComparison) comparisonResize.unobserve(previousComparison);
     stopReorder();
-    view.innerHTML = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen)
-      : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, columnsOpen, columnQuery)
+    const header = layout && viewPresetHeader(kind, layout);
+    const focusedPresetAction = active?.closest('.view-preset-header') && active.dataset.action;
+    view.innerHTML = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
+      : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, columnsOpen, columnQuery, header)
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile) : devicesView(state.devices, state.addressFilter, state.rawOpen);
     for (const panel of view.querySelectorAll('details[data-expand="raw"], details[data-detail-section]')) {
       panelStates.set(panel, panel.open);
+    }
+    if (focusedPresetAction || active?.matches('.view-preset-picker summary')) {
+      const control = view.querySelector(`.view-preset-header [data-action="${CSS.escape(focusedPresetAction)}"]:not(:disabled)`);
+      (control ?? view.querySelector('.view-preset-picker summary'))?.focus({ preventScroll: true });
     }
     renderFrames();
     if (detail) {
@@ -166,7 +176,31 @@ function addProfile(item) {
   });
 }
 
+function changeViewPreset(action, id) {
+  const kind = reading ? 'details' : 'measurements';
+  const profile = state.selectedProfile;
+  const { preset, modified } = state.viewLayouts[kind];
+  if (action === 'select') {
+    const picker = view.querySelector('.view-preset-picker');
+    picker.open = false;
+    picker.querySelector('summary').focus();
+    return session.changeViewPreset(profile, kind, action, { id: id || null });
+  }
+  if (action === 'delete' && preset) {
+    editor.deleteViewEditor(preset.name, () => session.changeViewPreset(profile, kind, action, { id: preset.id }));
+  } else if (action === 'rename' && !preset && modified) {
+    editor.viewNameEditor('create', '', name => session.changeViewPreset(profile, kind, 'create', { name }));
+  } else if (action === 'save' || preset) {
+    editor.viewNameEditor(action, preset?.name ?? viewPresetTitles[kind], name =>
+      session.changeViewPreset(profile, kind, action, { id: preset?.id, name }));
+  }
+}
+
 const actions = {
+  'select-view-preset': id => changeViewPreset('select', id),
+  'save-view-preset': () => changeViewPreset('save'),
+  'rename-view-preset': () => changeViewPreset('rename'),
+  'delete-view-preset': () => changeViewPreset('delete'),
   'new-profile': () => addProfile(),
   'edit-profile': name => editor.profileEditor(state.profiles.find(profile => profile.name === name), profile => session.saveProfile(profile)),
   'select-profile': name => session.selectProfile(name),
@@ -240,6 +274,18 @@ main.addEventListener('click', event => {
   const action = control && actions[control.dataset.action];
   if (action) void perform(() => action(control.dataset.value));
 });
+document.addEventListener('click', event => {
+  const picker = view.querySelector('.view-preset-picker[open]');
+  if (picker && !picker.contains(event.target)) picker.open = false;
+});
+view.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  const picker = event.target.closest('.view-preset-picker[open]');
+  if (!picker) return;
+  picker.open = false;
+  picker.querySelector('summary').focus();
+});
+
 function positionComparisonHeader() {
   const panel = view.querySelector('.comparison-scroll');
   if (!panel) return;

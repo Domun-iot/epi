@@ -64,6 +64,97 @@ const choosePage = (page, label) => page.getByRole('navigation').getByRole('butt
 const chosenProfile = page => page.getByRole('combobox', { name: 'Profil actif' }).inputValue();
 const feed = (page, line) => page.evaluate(value => window.dispatchEvent(new CustomEvent('epi:frame', { detail: value })), line);
 
+test('les configurations de vue sont partagées et leur sélection persiste par profil', async t => {
+  const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Alice', measurements: [record] });
+  const profile = page.getByRole('combobox', { name: 'Profil actif' });
+  const title = page.locator('.view-preset-title h1');
+  const picker = page.locator('.view-preset-picker summary');
+  const chevron = page.locator('.view-preset-chevron');
+  const dialog = page.getByRole('dialog');
+  const options = page.getByRole('list', { name: 'Configurations de vue' });
+  const save = async name => {
+    await page.getByRole('button', { name: 'Sauvegarder la configuration' }).click();
+    if (name) await dialog.getByLabel('Nom').fill(name);
+    await dialog.getByRole('button', { name: 'Sauvegarder', exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
+  };
+  await page.getByText('Colonnes', { exact: true }).click();
+  const fat = page.getByLabel('Masse grasse (%)', { exact: true });
+  const rename = page.getByRole('button', { name: 'Renommer la configuration' });
+  assert.equal(await picker.count(), 0);
+  assert.equal(await rename.isDisabled(), true);
+  await fat.check();
+  assert.equal((await title.textContent()).trim(), 'Pesée *');
+  assert.equal(await chevron.count(), 0);
+  await title.click();
+  const reload = options.getByRole('button', { name: 'Pesée *', exact: true });
+  assert.equal(await reload.locator('svg').count(), 1);
+  await reload.click();
+  assert.equal(await fat.isChecked(), false);
+  await fat.check();
+  await page.getByRole('button', { name: 'Éclater Masse grasse (%)' }).click();
+  await rename.click();
+  await dialog.getByRole('heading', { name: 'Créer une configuration' }).waitFor();
+  await dialog.getByLabel('Nom').fill('Composition');
+  await dialog.getByRole('button', { name: 'Sauvegarder', exact: true }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  assert.equal(await chevron.count(), 1);
+  const icon = page.getByRole('button', { name: 'Sauvegarder la configuration' });
+  const { width, height } = await icon.boundingBox();
+  await title.click();
+  const option = await options.getByRole('button', { name: 'Pesée', exact: true }).boundingBox();
+  assert.equal(width, height);
+  assert.equal(height, option.height);
+  assert.deepEqual(await options.getByRole('button').allTextContents(), ['Pesée']);
+  await title.click();
+
+  await profile.selectOption('Bob');
+  await title.click();
+  await options.getByRole('button', { name: 'Composition', exact: true }).click();
+  assert.equal(await fat.isChecked(), true);
+  await page.getByRole('button', { name: 'Renommer la configuration' }).click();
+  assert.equal(await dialog.getByLabel('Nom').inputValue(), 'Composition');
+  await dialog.getByLabel('Nom').fill('Compact');
+  await dialog.getByRole('button', { name: 'Renommer', exact: true }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  await profile.selectOption('Alice');
+  await page.reload();
+  await page.getByText('Mode simulation', { exact: true }).waitFor();
+  assert.equal((await title.textContent()).trim(), 'Compact');
+
+  await page.getByText('Colonnes', { exact: true }).click();
+  await fat.uncheck();
+  assert.equal((await title.textContent()).trim(), 'Compact *');
+  await title.click();
+  assert.deepEqual(await options.getByRole('button').allTextContents(), ['Pesée', 'Compact *']);
+  await options.getByRole('button', { name: 'Compact *', exact: true }).click();
+  assert.equal(await fat.isChecked(), true);
+  await fat.uncheck();
+  await save();
+  await profile.selectOption('Bob');
+  assert.equal(await fat.isChecked(), false);
+  await profile.selectOption('Alice');
+
+  await page.getByRole('cell', { name: '70 kg', exact: true }).click();
+  assert.equal((await title.textContent()).trim(), 'Détails de la pesée');
+  const sections = page.locator('[data-detail-section] > summary');
+  await sections.last().dragTo(sections.first());
+  assert.equal((await title.textContent()).trim(), 'Détails de la pesée *');
+  await save('Compact');
+  await title.click();
+  await options.getByRole('button', { name: 'Détails de la pesée', exact: true }).click();
+  assert.equal((await title.textContent()).trim(), 'Détails de la pesée');
+  await title.click();
+  await options.getByRole('button', { name: 'Compact', exact: true }).click();
+  assert.equal(await sections.first().textContent(), 'Fiche de la balance à la pesée');
+  await page.getByRole('button', { name: 'Supprimer la configuration' }).click();
+  await dialog.getByRole('button', { name: 'Supprimer', exact: true }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  assert.equal((await title.textContent()).trim(), 'Détails de la pesée');
+  await page.locator('#back-to-measurements').click();
+  assert.equal((await title.textContent()).trim(), 'Compact');
+});
+
 test('sélection et mise à jour du profil, persistance des colonnes et comparaison des méthodes', async t => {
   const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Bob', devices: [device], measurements: [record] });
   await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('Alice');

@@ -89,7 +89,7 @@ function averageValue(row, id, sources) {
   return composition.average(values);
 }
 
-export function measurementsView(rows, profile, columns, splitColumns, columnOrder, expanded, query) {
+export function measurementsView(rows, profile, columns, splitColumns, columnOrder, expanded, query, header) {
   const selected = new Set(columns);
   const split = new Set(splitColumns);
   const sourcesByMetric = new Map(METRICS.map(([id]) => [
@@ -141,10 +141,10 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
         </tr>`).join('')}</tbody>
       </table>
     </div>` : `${settings}<p class="panel empty">${emptyText}</p>`;
-  return pageHeader('Pesées') + content;
+  return (header ?? pageHeader('Pesée')) + content;
 }
 
-export function measurementDetails(row, methodOrder = [], sectionOrder = [], sectionsOpen = {}) {
+export function measurementDetails(row, methodOrder = [], sectionOrder = [], sectionsOpen = {}, header) {
   const byId = new Map(methods.map(method => [method.id, method]));
   const activeMethods = [...new Set([...methodOrder, ...byId.keys()])].map(id => byId.get(id))
     .filter(Boolean).filter(({ id }) => METRICS.some(([metric]) => Number.isFinite(row.calculations?.[id]?.[metric])))
@@ -188,7 +188,7 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
   }
   const bySection = new Map(sections.filter(([, , body]) => body).map(([id, ...section]) => [id, section]));
   const orderedSections = [...new Set([...sectionOrder, ...bySection.keys()])].filter(id => bySection.has(id));
-  return pageHeader('Détails de la pesée')
+  return (header ?? pageHeader('Détails de la pesée'))
     + `<div class="measurement-details">${readings}${comparison}${orderedSections.map(id => {
       const [title, body, defaultOpen] = bySection.get(id);
       const open = sectionsOpen[id] ?? defaultOpen;

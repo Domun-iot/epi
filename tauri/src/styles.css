@@ -46,12 +46,25 @@ p { line-height: 1.55; }
 .muted, .empty { color: var(--muted); }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
 .page-header p { margin-bottom: 0; }
+.view-preset-header { align-items: center; flex-wrap: nowrap; }
+.view-preset-title, .view-preset-actions { display: flex; align-items: center; gap: 6px; }
+.view-preset-title { min-width: 0; overflow-wrap: anywhere; }
+.view-preset-picker { position: relative; min-width: 0; }
+.view-preset-picker summary { display: flex; align-items: center; gap: 6px; cursor: pointer; overflow-wrap: anywhere; }
+.view-preset-picker summary::-webkit-details-marker { display: none; }
+.view-preset-title h1 { margin: 0; }
+.view-preset-chevron::after { content: ''; flex: none; border: solid currentColor; border-width: 0 2px 2px 0; padding: 3px; transform: rotate(45deg); margin: 0 4px 4px; }
+.view-preset-picker ul { position: absolute; z-index: 5; inset: calc(100% + 4px) auto auto 0; width: max-content; max-width: min(300px, 80vw); max-height: 50vh; overflow: auto; margin: 0; padding: 6px; list-style: none; background: white; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 14px rgb(15 29 49 / 20%); }
+.view-preset-picker li .button { width: 100%; justify-content: space-between; gap: 12px; text-align: left; overflow-wrap: anywhere; }
+.button.view-preset-icon { flex: none; width: var(--action-button-height); height: var(--action-button-height); padding: 0; }
+.view-preset-header svg { flex: none; width: 18px; height: 18px; }
 .button {
+  --action-button-height: 42px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 9px 13px;
-  min-height: 42px;
+  min-height: var(--action-button-height);
   color: var(--ink);
   font-weight: 620;
   border: 1px solid #c8d4e3;

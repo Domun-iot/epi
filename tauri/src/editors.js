@@ -90,5 +90,19 @@ export function createEditor(dialog, onError) {
     values => submit(values.address), 'Appliquer le filtre');
   }
 
-  return { profileEditor, deviceEditor, assignmentEditor, filterEditor };
+  function viewNameEditor(action, current, submit) {
+    const rename = action === 'rename';
+    const title = action === 'create' ? 'Créer une configuration' :
+      rename ? 'Renommer la configuration' : 'Sauvegarder la configuration';
+    open(title,
+      field('Nom', 'name', `value="${e(current)}" maxlength="64" required autofocus`),
+      ({ name }) => submit(name), rename ? 'Renommer' : 'Sauvegarder');
+    dialog.querySelector('[name="name"]').select();
+  }
+
+  function deleteViewEditor(name, submit) {
+    open('Supprimer la configuration', `<p>Supprimer « ${e(name)} » pour tous les profils ?</p>`, submit, 'Supprimer');
+  }
+
+  return { profileEditor, deviceEditor, assignmentEditor, filterEditor, viewNameEditor, deleteViewEditor };
 }

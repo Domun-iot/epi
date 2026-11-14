@@ -7,10 +7,10 @@ const { createAcquisition } = require('./acquisition.cjs');
 const { applyObservation, enrollmentRequest, findDevice } = require('./devices.cjs');
 const { ADDRESS, findProfile, profileFields, mergeLegacy } = require('./records.cjs');
 
-const defaultColumns = ['impedanceOhms', 'bmi'];
-const defaultSplitColumns = [];
-const defaultColumnOrder = [];
-const defaultDetailSectionOrder = [];
+const viewDefaults = {
+  measurements: { columns: ['impedanceOhms', 'bmi'], splitColumns: [], columnOrder: [] },
+  details: { methodColumnOrder: [], detailSectionOrder: [] },
+};
 const emptyState = () => ({
   profiles: [],
   devices: [],
@@ -18,6 +18,7 @@ const emptyState = () => ({
   pending: [],
   selectedProfile: null,
   profilePreferences: {},
+  viewPresets: { measurements: [], details: [] },
   addressFilter: null,
 });
 
@@ -33,6 +34,30 @@ function restore(snapshot) {
     state.profilePreferences = { ...state.profilePreferences, [state.selectedProfile]: { columns } };
   }
   return state;
+}
+
+function layoutFor(state, prefs, kind) {
+  const defaults = viewDefaults[kind];
+  const presets = state.viewPresets[kind];
+  const id = prefs.viewPresetIds?.[kind];
+  const preset = presets.find(entry => entry.id === id);
+  const baseline = preset?.layout ?? defaults;
+  const layout = {};
+  let modified = false;
+  for (const [key, fallback] of Object.entries(defaults)) {
+    const original = baseline[key] ?? fallback;
+    const value = layout[key] = (!id || preset ? prefs[key] : undefined) ?? original;
+    const ordered = key !== 'columns' && key !== 'splitColumns';
+    modified ||= value.length !== original.length
+      || value.some((item, index) => ordered ? item !== original[index] : !original.includes(item));
+  }
+  return { presets, preset, layout, modified };
+}
+
+function selectLayout(prefs, kind, id) {
+  const next = { ...prefs, viewPresetIds: { ...prefs.viewPresetIds, [kind]: id } };
+  for (const key of Object.keys(viewDefaults[kind])) delete next[key];
+  return next;
 }
 
 function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
@@ -59,11 +84,11 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   });
 
   function view() {
-    const { columns = defaultColumns, splitColumns = defaultSplitColumns, columnOrder = defaultColumnOrder,
-      methodColumnOrder = defaultColumnOrder, detailSectionOrder = defaultDetailSectionOrder,
-      rawOpen = false, detailSectionsOpen } = preferencesFor(saved);
-    return { ...saved, columns, splitColumns, columnOrder, methodColumnOrder, detailSectionOrder,
-      rawOpen, detailSectionsOpen, enrollment, acquisitionError };
+    const prefs = preferencesFor(saved);
+    const measurements = layoutFor(saved, prefs, 'measurements');
+    const details = layoutFor(saved, prefs, 'details');
+    return { ...saved, ...measurements.layout, ...details.layout, viewLayouts: { measurements, details },
+      rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: prefs.detailSectionsOpen, enrollment, acquisitionError };
   }
 
   function publish() {
@@ -157,8 +182,8 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
           || typeof enabled !== 'boolean') {
         throw Error('Préférence de colonne invalide.');
       }
-      const prefs = preferencesFor(draft, target?.name ?? null);
-      const values = new Set(prefs[setting] ?? (setting === 'columns' ? defaultColumns : defaultSplitColumns));
+      const { prefs, layout } = editableLayout(draft, target?.name ?? null, 'measurements');
+      const values = new Set(layout[setting]);
       if (enabled) values.add(id);
       else values.delete(id);
       savePreferences(draft, target?.name, { ...prefs, [setting]: [...values] });
@@ -168,6 +193,53 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   function savePreferences(draft, profile, prefs) {
     if (profile) draft.profilePreferences = { ...draft.profilePreferences, [profile]: prefs };
     else draft.anonymousPreferences = prefs;
+  }
+
+  function editableLayout(draft, profile, kind) {
+    const prefs = preferencesFor(draft, profile);
+    const current = layoutFor(draft, prefs, kind);
+    return { ...current, prefs: prefs.viewPresetIds?.[kind] && !current.preset
+      ? selectLayout(prefs, kind, null) : prefs };
+  }
+
+  function changeViewPreset(profile, kind, action, { id = null, name } = {}) {
+    return mutate(draft => {
+      const target = profile == null ? null : findProfile(draft, profile);
+      if (profile != null && !target) throw Error('Profil introuvable.');
+      if (!Object.hasOwn(viewDefaults, kind)) throw Error('Vue inconnue.');
+      const { prefs, presets, layout } = editableLayout(draft, target?.name ?? null, kind);
+      const existing = presets.find(entry => entry.id === id);
+      if (id && !existing) throw Error('Configuration introuvable.');
+      const replace = entries => { draft.viewPresets = { ...draft.viewPresets, [kind]: entries }; };
+      const select = selected => savePreferences(draft, target?.name, selectLayout(prefs, kind, selected));
+      if (action === 'select') {
+        select(id);
+        return;
+      }
+      if (action === 'delete' && existing) {
+        replace(presets.filter(entry => entry.id !== id));
+        select(null);
+        return;
+      }
+      if (!['save', 'create', 'rename'].includes(action) || (action === 'rename' && !existing)) {
+        throw Error('Action invalide.');
+      }
+      const label = name?.trim().normalize('NFC');
+      const defaultName = kind === 'measurements' ? 'Pesée' : 'Détails de la pesée';
+      if (!label || label.length > 64) throw Error('Saisis un nom de 1 à 64 caractères.');
+      if (label.toLowerCase() === defaultName.toLowerCase()) throw Error('Ce nom est réservé à la vue par défaut.');
+      const matching = presets.find(entry => entry.name.toLowerCase() === label.toLowerCase());
+      if (matching && action !== 'save' && (action === 'create' || matching.id !== id)) {
+        throw Error('Ce nom est déjà utilisé.');
+      }
+      if (action === 'rename') {
+        replace(presets.map(entry => entry.id === id ? { ...entry, name: label } : entry));
+        return;
+      }
+      const preset = { id: matching?.id ?? globalThis.crypto.randomUUID(), name: label, layout };
+      replace(matching ? presets.map(entry => entry === matching ? preset : entry) : [...presets, preset]);
+      select(preset.id);
+    });
   }
 
   function setPanelOpen(profile, section, open) {
@@ -186,8 +258,9 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       const current = profile == null ? null : findProfile(draft, profile);
       if (profile != null && !current) throw Error('Profil introuvable.');
       if (source === target || !visibleOrder.includes(source) || !visibleOrder.includes(target)) return;
-      const prefs = preferencesFor(draft, current?.name ?? null);
-      const order = [...new Set([...(prefs[setting] ?? []), ...visibleOrder])];
+      const kind = setting === 'columnOrder' ? 'measurements' : 'details';
+      const { prefs, layout } = editableLayout(draft, current?.name ?? null, kind);
+      const order = [...new Set([...layout[setting], ...visibleOrder])];
       const from = order.indexOf(source);
       const to = order.indexOf(target);
       order.splice(from, 1);
@@ -309,7 +382,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       return () => observers.delete(observer);
     },
     selectProfile, saveProfile, setColumnPreference, beginDevice, cancelDevice, confirmProfile,
-    setPanelOpen,
+    setPanelOpen, changeViewPreset,
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
     moveDetailSection: (...args) => movePreference('detailSectionOrder', ...args),

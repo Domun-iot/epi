@@ -9,6 +9,10 @@ use tauri::{AppHandle, Manager};
 
 const PREFS: &str = "prefs/global.json";
 const LEGACY_PREFS: &str = "interface.json";
+const VIEW_PRESET_FOLDERS: [(&str, &str); 2] = [
+    ("measurements", "prefs/measurements"),
+    ("details", "prefs/measurement-details"),
+];
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct DataFile {
@@ -189,6 +193,46 @@ fn profile_prefs_path(root: &Path, profile: &str) -> PathBuf {
     root.join("prefs").join(file)
 }
 
+fn valid_view_preset_id(id: &str) -> bool {
+    id.len() == 36
+        && id.bytes().enumerate().all(|(index, byte)| match index {
+            8 | 13 | 18 | 23 => byte == b'-',
+            _ => byte.is_ascii_hexdigit(),
+        })
+}
+
+fn read_view_presets(root: &Path) -> Result<Value, String> {
+    let mut presets = json!({});
+    for (kind, folder) in VIEW_PRESET_FOLDERS {
+        let mut items = Vec::new();
+        for entry in entries(&root.join(folder))? {
+            let path = entry.path();
+            if !entry.file_type().map_err(message)?.is_file()
+                || path.extension().is_none_or(|ext| ext != "json")
+            {
+                continue;
+            }
+            let Some(id) = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .filter(|id| valid_view_preset_id(id))
+            else {
+                continue;
+            };
+            if let Some(item) = read_json(&path)? {
+                if item["id"].as_str() == Some(id)
+                    && item["name"].is_string()
+                    && item["layout"].is_object()
+                {
+                    items.push(item);
+                }
+            }
+        }
+        presets[kind] = json!(items);
+    }
+    Ok(presets)
+}
+
 fn read_session(root: &Path) -> Result<Value, String> {
     let mut session = match read_json(&root.join(PREFS))? {
         Some(prefs) => prefs,
@@ -218,6 +262,7 @@ fn read_session(root: &Path) -> Result<Value, String> {
         }
     }
     session["profilePreferences"] = Value::Object(preferences);
+    session["viewPresets"] = read_view_presets(root)?;
     session["profiles"] = json!(profiles);
     session["devices"] = json!(devices);
     session["measurements"] = json!(measurements);
@@ -416,7 +461,49 @@ pub fn save_session(
         rows(&session, "measurements"),
         rows(&previous, "measurements"),
     )?;
+    if session["viewPresets"] != previous["viewPresets"] {
+        save_view_presets(&root, &session["viewPresets"], &previous["viewPresets"])?;
+    }
     save_preferences(&root, &session, &previous)
+}
+
+fn save_view_presets(root: &Path, current: &Value, previous: &Value) -> Result<(), String> {
+    for (kind, folder) in VIEW_PRESET_FOLDERS {
+        let before = rows(previous, kind);
+        let after = rows(current, kind);
+        let mut processed = HashSet::new();
+        for item in before.iter().chain(after.iter()) {
+            let id = item["id"]
+                .as_str()
+                .filter(|id| valid_view_preset_id(id))
+                .ok_or("Identifiant de configuration invalide.")?;
+            if !processed.insert(id) {
+                continue;
+            }
+            let old = before.iter().find(|item| item["id"].as_str() == Some(id));
+            let new = after.iter().find(|item| item["id"].as_str() == Some(id));
+            if old == new {
+                continue;
+            }
+            let path = root.join(folder).join(format!("{id}.json"));
+            let stored = read_json(&path)?;
+            if stored.as_ref() == new {
+                continue;
+            }
+            let conflict = "Une configuration a été modifiée. Recharge les données avant de réessayer.";
+            if stored.as_ref() != old {
+                return Err(conflict.into());
+            }
+            if let Some(new) = new {
+                if !json_write(&path, new, old.is_some())? {
+                    return Err(conflict.into());
+                }
+            } else {
+                fs::remove_file(path).map_err(message)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn save_preferences(root: &Path, session: &Value, previous: &Value) -> Result<(), String> {
@@ -527,6 +614,29 @@ mod tests {
         assert!(reopened.get("columns").is_none());
         assert!(root.join("prefs/profil-Alice.json").is_file());
         assert!(root.join("prefs/profil-Bob.json").is_file());
+    }
+
+    #[test]
+    fn view_presets_use_separate_folders_and_keep_their_uuid_on_rename() {
+        let root = tempfile::tempdir().unwrap();
+        let root = root.path();
+        let id = "a2788c87-ab0a-44f7-aeea-6e3d37442ae7";
+        let empty = json!({});
+        let mut presets = json!({
+            "measurements": [{ "id": id, "name": "Compact", "layout": { "columns": [] } }],
+            "details": [{ "id": id, "name": "Comparaison", "layout": { "detailSectionOrder": ["device"] } }],
+        });
+        save_view_presets(root, &presets, &empty).unwrap();
+        assert_eq!(read_session(root).unwrap()["viewPresets"], presets);
+        assert!(root.join(format!("prefs/measurements/{id}.json")).is_file());
+        assert!(root.join(format!("prefs/measurement-details/{id}.json")).is_file());
+
+        let previous = presets.clone();
+        presets["measurements"][0]["name"] = json!("Rapide");
+        presets["details"] = json!([]);
+        save_view_presets(root, &presets, &previous).unwrap();
+        save_view_presets(root, &presets, &previous).unwrap();
+        assert_eq!(read_session(root).unwrap()["viewPresets"], presets);
     }
 
     #[test]
