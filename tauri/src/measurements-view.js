@@ -67,7 +67,9 @@ function textValue(value) {
 function columnSettings(selected, split, sourcesByMetric, open, query) {
   return `<details class="panel settings" data-expand="columns"${open ? ' open' : ''}>
     <summary>Colonnes</summary>
-    <input class="column-search" type="search" aria-label="Recherche" placeholder="Recherche" value="${e(query)}">
+    <div class="column-search-field">
+      <input class="column-search" type="search" aria-label="Recherche" placeholder="Recherche" value="${e(query)}">
+    </div>
     <div class="column-options">${options.map(([id, label]) => {
       const toggle = split.has(id) ? 'Rassembler' : 'Éclater';
       const canSplit = sourcesByMetric.get(id)?.length > 1;

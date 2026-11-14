@@ -348,14 +348,23 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
 });
 
-test('ouvrir Colonnes sur Android laisse le champ Recherche sans focus', async t => {
+test('sur Android, Recherche apparaît à droite de Colonnes sans prendre le focus', async t => {
   const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice' }, {
     userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36',
+    viewport: { width: 360, height: 800 },
   });
-  await page.getByText('Colonnes', { exact: true }).click();
+  const columns = page.getByText('Colonnes', { exact: true });
   const search = page.getByRole('searchbox', { name: 'Recherche' });
+  await search.waitFor({ state: 'hidden' });
+  await columns.click();
   await search.waitFor();
+  const heading = await columns.boundingBox();
+  const field = await search.boundingBox();
+  assert.ok(field.x >= heading.x + heading.width);
+  assert.equal(field.y, heading.y);
   assert.equal(await search.evaluate(input => document.activeElement === input), false);
+  await columns.click();
+  await search.waitFor({ state: 'hidden' });
 });
 
 test('la liste des pesées fixe les deux lignes d’en-tête pendant le défilement', async t => {
