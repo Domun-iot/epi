@@ -31,8 +31,11 @@ function findOrCreateProfile(now) {
 
 function generateMeasurements(now, profile, device) {
   const monthCount = 24;
+  const dietStartIndex = monthCount - 6;
+  const reboundMonths = [dietStartIndex + 1, dietStartIndex + 3];
   const counts = Array(monthCount).fill(1);
-  for (let remaining = monthCount; remaining > 0;) {
+  for (const index of reboundMonths) counts[index]++;
+  for (let remaining = monthCount - reboundMonths.length; remaining > 0;) {
     const index = randomInt(monthCount);
     if (counts[index] < 8) {
       counts[index]++;
@@ -42,21 +45,43 @@ function generateMeasurements(now, profile, device) {
   const startMonth = now.getMonth() - monthCount + 1;
   const baseline = (profile.heightCm / 100) ** 2 * randomInt(23, 29);
   const trend = randomInt(-50, 51) / 10;
+  const dietStart = +new Date(now.getFullYear(), startMonth + dietStartIndex, 1);
+  const dietStartWeight = baseline + trend;
   const impedance = randomInt(420, 611);
   const user = { ...profile, user: profile.name };
   return counts.flatMap((count, index) => {
     const start = +new Date(now.getFullYear(), startMonth + index, 1);
     const end = Math.min(+now, +new Date(now.getFullYear(), startMonth + index + 1, 1));
-    return Array.from({ length: count }, () => historyRecord({
-      receivedAt: new Date(start + randomInt(Math.max(1, end - start))).toISOString(),
-      weight: Math.round((baseline + trend * index / (monthCount - 1) + randomInt(-15, 16) / 10) * 20) / 20,
-      unit: 'kg',
-      impedanceOhms: impedance + randomInt(-35, 36),
-      address: device.bluetooth.address,
-      serviceUuid: device.bluetooth.serviceUuid,
-      stable: true,
-      removed: false,
-    }, user, device));
+    const dates = Array.from({ length: count }, () => start + randomInt(Math.max(1, end - start)))
+      .sort((a, b) => a - b);
+    if (index === dietStartIndex) dates[0] = dietStart;
+    if (index === monthCount - 1) dates[count - 1] = +now;
+
+    const hasRebound = reboundMonths.includes(index);
+    // The first two weigh-ins in these months are close enough to show a temporary gain.
+    if (hasRebound) dates[1] = Math.min(dates[1], dates[0] + 12 * 60 * 60 * 1000);
+
+    return dates.map((date, position) => {
+      let weight = baseline + trend * index / dietStartIndex + randomInt(-15, 16) / 10;
+      if (date >= dietStart) {
+        const progress = (date - dietStart) / (+now - dietStart);
+        let variation = randomInt(-35, 36) / 100;
+        if (hasRebound && position === 0) variation = -0.2;
+        if (hasRebound && position === 1) variation = 0.2;
+        if (date === dietStart || date === +now) variation = 0;
+        weight = dietStartWeight * (1 - 0.1 * progress) + variation;
+      }
+      return historyRecord({
+        receivedAt: new Date(date).toISOString(),
+        weight: Math.round(weight * 20) / 20,
+        unit: 'kg',
+        impedanceOhms: impedance + randomInt(-35, 36),
+        address: device.bluetooth.address,
+        serviceUuid: device.bluetooth.serviceUuid,
+        stable: true,
+        removed: false,
+      }, user, device);
+    });
   });
 }
 
