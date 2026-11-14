@@ -1,87 +1,65 @@
 # éPI
 
-éPI collecte les données Bluetooth Low Energy (BLE) des appareils à proximité. La version actuelle prend en charge les pesées. Il écoute les annonces Bluetooth de la Xiaomi (`0x181B`) et peut se connecter aux balances qui annoncent le service GATT Weight Scale (`0x181D`) pour recevoir la caractéristique Weight Measurement (`0x2A9D`).
+éPI reçoit les pesées Bluetooth de balances Xiaomi (service 181B) et de balances compatibles Weight Scale (service 181D, indication 2A9D).
 
-## Démarrer
-
-Sous Windows 10 ou 11 (64 bits), avec Node.js 20 ou plus et le Bluetooth activé :
-
-```powershell
-node index.cjs
-```
-
-Aucune dépendance npm à installer. Node compile le petit lecteur C# avec le compilateur .NET Framework fourni par Windows et le lance dans un dossier temporaire. Le lecteur accède à l'[API Bluetooth LE de Windows](https://learn.microsoft.com/en-us/windows/uwp/devices-sensors/ble-beacon).
-
-Attends « Écoute Bluetooth active », puis monte sur la balance à proximité du PC. Reste pieds nus sur les électrodes jusqu'à la fin de la mesure si tu veux récupérer l'impédance. Quitte avec Ctrl+C.
-
-Le programme enregistre automatiquement un relevé par lancement dans `data/measures/<profil>/AAAA-MM-JJ-HH-MM-SS.json`, y compris en mode `--raw`. Le nom du fichier est en UTC. Les relevés reçus dans la même seconde prennent un suffixe (`-2`, `-3`, etc.). Chaque fichier contient `receivedAt` (heure de réception du PC en UTC), `profile`, `device` (copie de la fiche de la balance), puis `measures` (poids, unité et impédance), `calculations` et enfin `reception`. Cette section commence par `raw.hex` (octets de la charge utile Xiaomi dans leur ordre d’origine), puis contient `bluetooth` (`serviceUuid`, nom `service`, adresse de provenance et puissance `rssiDbm`) et `scale` (poids stabilisé `stable`, charge retirée `removed` et horloge de la balance `scaleTime`). Les données indisponibles dans les anciens relevés valent `null`. Un profil temporaire sans nom utilise le dossier `_sans-profil`. Un premier relevé avec impédance est enregistré immédiatement. Un relevé Weight Scale est enregistré dès réception. Pour la Xiaomi, un relevé sans impédance attend jusqu’à quinze secondes avant d’être écrit. Si un relevé avec impédance arrive dans ce délai avec la même adresse, le même horodatage de balance, le même poids et la même unité, seul le relevé complet est enregistré. Il écarte les annonces qui suivent le retrait de la charge et regroupe les mesures identiques pour une même adresse et un même horodatage de la balance dans une fenêtre glissante de 30 secondes. À l’expiration du délai, le programme enregistre le poids seul si nécessaire. Il rend la main dès que la pesée est enregistrée.
-
-- `weight` et `unit` : poids et unité émise (`kg` ou `lb`).
-- `impedanceOhms` : impédance en ohms, ou `null` si elle n'est pas disponible. Les pourcentages de graisse ou de muscle ne sont pas dans ces annonces.
-- `receivedAt` : date de réception du PC en UTC. `scaleTime` est l'horloge embarquée, sans fuseau ; elle peut ne pas être à l'heure.
-- `address` et `rssi` : adresse Bluetooth et puissance du signal en dBm.
-
-```powershell
-node index.cjs --seconds 30
-node index.cjs --mac AA:BB:CC:DD:EE:FF
-node index.cjs --raw --seconds 30
-node index.cjs > sortie-console.txt
-npm test
-```
-
-`--raw` montre les trames du service `0x181B`, y compris celles en cours de pesée et les doublons. En cas de silence, vérifie que le Bluetooth est activé, rapproche la balance et relance une pesée. Si l'application du téléphone se connecte à la balance, ferme-la le temps de l'essai.
-
-## Enregistrer ou sélectionner une balance
-
-```powershell
-node index.cjs -d "Salle de bain"
-node index.cjs Malik --appareil "Salle de bain"
-```
-
-La première pesée faite avec un nouveau nom crée une fiche dans `data/devices/`. Utilise uniquement la nouvelle balance pendant cet enregistrement. Quand le nom existe déjà, seules les annonces de son adresse Bluetooth sont acceptées. Sans option, le programme reconnaît les balances enregistrées par leur adresse. Si la pesée provient d’une balance inconnue, il demande son nom après réception, avant de demander le profil utilisateur. Les réponses BLE enrichissent la fiche par adresse Bluetooth. Le nom annoncé et les identifiants fabricant sont mis à jour quand ils sont reçus. La pesée conserve une copie de la fiche au moment de l’écriture. La table des fabricants est générée depuis Nordic Bluetooth Numbers Database, avec sa notice BSD-3-Clause dans licenses/. Le modèle Xiaomi est déduit du nom `MIBFS` et de l’identifiant Huami. Chaque mesure stable distincte est signalée dans le terminal avec le nom de la balance ou son adresse, et l’impédance lorsqu’elle est disponible. `--mac` peut restreindre l’écoute à une adresse connue à l’avance.
-
-La fiche contient l’adresse, le service BLE, le nom annoncé s’il figure dans la trame et le type d’annonce. Le service et le nom annoncé ne suffisent pas à distinguer deux balances identiques. Si une balance change d’adresse, il faut l’enregistrer sous un nouveau nom. Le RSSI reste une donnée de réception de chaque pesée.
-
-## Comparer les estimations de composition
-
-```powershell
-node index.cjs Camille --sexe F --naissance 15/06/1991 --taille 170
-node index.cjs cam
-node index.cjs Camille --taille 171
-node index.cjs
-```
-
-Les options acceptent les formes suivantes.
-
-| Paramètre | Options |
+| Version | Démarrage |
 | --- | --- |
-| Utilisateur | `-u`, `--user`, `--utilisateur` |
-| Sexe | `-s`, `--sex`, `--sexe` |
-| Âge | `-a`, `--age`, `--âge` |
-| Date de naissance | `-b`, `-n`, `--birthdate`, `--birthday`, `--birth`, `--naissance` |
-| Taille | `-t`, `--height`, `--taille` |
-| Aide | `-h`, `--help`, `--aide` |
+| Interface de release | `éPI.bat` sous Windows ou `sh éPI.sh` sous Linux |
+| Interface en développement | `run\dev-éPI.bat` sous Windows ou `sh run/dev-éPI.sh` sous Linux |
+| CLI de release | `run\cli.bat` sous Windows ou `sh run/cli.sh` sous Linux. Si la release manque, le lanceur la construit. |
+| CLI en développement | `run\dev-cli.bat` sous Windows ou `sh run/dev-cli.sh` sous Linux |
+| Tests CLI | `npm --prefix cli test` |
+| Tests du domaine Tauri | `npm --prefix tauri test` |
+| Tests interactifs | `npm --prefix tauri run test:ui` |
 
-Les profils sont conservés dans `data/profiles/`. Le nom peut être donné sans option et abrégé avec un préfixe qui ignore la casse et les accents. Le terminal propose un choix si le nom est ambigu ou introuvable. Si le nom est introuvable, tape `0` pour créer le profil avec ce nom. Tu peux aussi fournir ses informations en arguments. La date de naissance accepte `JJ/MM/AAAA` ou `AAAA-MM-JJ`. Tu peux aussi saisir un âge fixe. Avec une date de naissance, l’âge est calculé à la date de chaque pesée en heure de Paris et enregistré avec les résultats. Si un profil est incomplet, le programme demande les valeurs manquantes dans le terminal avant d’ouvrir le Bluetooth. Hors terminal interactif, il indique quels paramètres ajouter. Les trois caractéristiques peuvent aussi être fournies sans nom pour une seule session.
+## Données
 
-Le tableau de la pesée retenue affiche une donnée par ligne et une méthode par colonne. Le poids et l’impédance sont signalés dès leur réception. Le mode `--raw` affiche les trames en JSON. Un profil passé en argument s’applique à toute la session. Sans argument de profil, le programme compare le poids au dernier relevé de chaque profil et choisit le plus faible écart en pourcentage parmi les profils à ±10 %. Si aucun ne correspond, il liste les profils et propose aussi `0. Créer un profil`. Tape `0`, puis renseigne le nom, le sexe, la date de naissance ou l’âge, et la taille. La pesée en cours est enregistrée sous ce nouveau profil. Le relevé enregistré devient la nouvelle référence du profil. La table locale `bluetooth-services.json` reprend les services GATT standard de la section 3.4 du [registre du Bluetooth SIG](https://www.bluetooth.com/specifications/assigned-numbers/).
+Sur PC, le CLI et l’interface utilisent `EPI_DATA_DIR` quand la variable est définie. Sinon, ils cherchent un dossier `data/` contenant les trois sous-dossiers `devices/`, `measures/` et `profiles/`. La recherche commence à côté de l’exécutable ou de l’AppImage et remonte jusqu’à la racine.
 
-| Colonne | Méthode | Données nécessaires |
+Si aucun dossier partagé n’est trouvé, ils utilisent ou créent le dossier de données utilisateur commun. Sous Windows, c’est `%APPDATA%\fr.epi.balance\data`. Sous Linux, c’est `${XDG_DATA_HOME:-$HOME/.local/share}/fr.epi.balance/data`.
+
+Sur mobile, Tauri utilise son répertoire privé. Les trois sous-dossiers et le JSON sont les mêmes sur toutes les plateformes. Le dernier profil chargé, le filtre BLE et les pesées en attente sont sauvegardés dans `data/prefs/global.json`. Les colonnes visibles et leur affichage groupé ou éclaté sont enregistrés dans `data/prefs/profil-<nom>.json` pour chaque profil personnalisé.
+
+L’export prépare un ZIP avec les profils, appareils et pesées sous `data/`. L’import accepte cette arborescence ou `profiles/`, `devices/` et `measures/` placés directement à la racine. Il ajoute les fichiers absents et ignore les chemins déjà présents et les fichiers identiques. Sur PC, si le CLI écrit pendant que l’interface est ouverte, recharge les données de l’interface ou redémarre-la pour lire ces changements.
+
+## Compiler
+
+Sur un PC x64, choisis le script de préparation correspondant au build.
+
+| Cible | Préparation |
+| --- | --- |
+| Windows 10/11 | `run\prep-windows.bat` |
+| Ubuntu et AppImage sur une base Ubuntu/Debian | `sh run/prep-linux.sh` ou `sh run/prep-ubuntu.sh` |
+| Android depuis Windows | `run\prep-android.bat` |
+| Android depuis Ubuntu/Debian | `sh run/prep-android.sh` |
+| CLI | `run\prep-cli.bat` sous Windows ou `sh run/prep-cli.sh` sous Linux |
+
+La préparation de l’interface installe Node.js, Rust et les dépendances npm nécessaires. La préparation du CLI installe Node.js et vérifie sous Windows la présence du compilateur C# et des références WinRT. La préparation Android ajoute le JDK et le SDK/NDK et demande d’accepter les licences nécessaires. Sous Windows, elle vérifie aussi le Mode développeur et propose d’ouvrir les paramètres. Les composants système peuvent demander une élévation UAC sous Windows ou `sudo` sous Linux. Aucun installateur Git n’est lancé.
+
+Tu peux lancer directement le script de build ou le lanceur de développement. Si le marqueur de sa cible manque dans `tmp/prep/`, le script lance la préparation correspondante. Chaque préparation vérifie les prérequis et réutilise ceux déjà installés. Elle enregistre son succès dans `tmp/prep/`, un dossier local ignoré par Git. Pour vérifier les prérequis à nouveau, relance le script de préparation ou supprime le marqueur de la cible avant le prochain build.
+
+Les lanceurs `éPI.bat` et `sh éPI.sh` ouvrent le binaire autonome dans `release/windows/` ou `release/linux/`. S’il manque, ils exécutent le build de bureau avec `--portable`. Les lanceurs `run\dev-éPI.bat` et `sh run/dev-éPI.sh` démarrent la version de développement via `tauri dev`.
+
+| Plateforme | Génération | Résultat |
 | --- | --- | --- |
-| IMC | Poids divisé par la taille au carré | Poids, taille |
-| Mi | Formules communautaires [Mi Fit](https://github.com/lolouk44/xiaomi_mi_scale/blob/master/src/Xiaomi_Scale_Body_Metrics.py), avec les seuils du code source | Poids, taille, âge, sexe et, selon la ligne, impédance |
-| Sun* | [Sun et al. (2003)](https://pubmed.ncbi.nlm.nih.gov/12540391/), masse maigre et eau totale | Poids, taille, sexe, impédance |
-| Jan* | [Janssen et al. (2000)](https://pubmed.ncbi.nlm.nih.gov/10926627/), muscle squelettique | Taille, âge, sexe, impédance |
-| D60* | [Deurenberg et al. (1990)](https://www.inner-image.com/assets/2015/05/4.-Deurenberg-van-der-Kooij-Evers-Hulshof-1990.pdf), masse maigre après 60 ans | Poids, taille, sexe, impédance |
-| Deu | [Deurenberg et al. (1991)](https://pubmed.ncbi.nlm.nih.gov/2043597/), formule adulte de masse grasse | IMC, âge, sexe |
-| CUN | [Gómez-Ambrosi et al. (2012)](https://pubmed.ncbi.nlm.nih.gov/22179957/), CUN-BAE | IMC, âge, sexe |
-| Wat | [Watson et al. (1980)](https://doi.org/10.1093/ajcn/33.1.27), eau totale | Poids, taille, âge, sexe |
-| HW | [Hume et Weyers (1971)](https://pmc.ncbi.nlm.nih.gov/articles/PMC476961/), eau totale | Poids, taille, sexe |
-| MSJ | [Mifflin–St Jeor et al. (1990)](https://doi.org/10.1093/ajcn/51.2.241), dépense au repos | Poids, taille, âge, sexe |
-| HB | [Roza et Shizgal (1984)](https://pubmed.ncbi.nlm.nih.gov/6741850/), révision de Harris–Benedict | Poids, taille, âge, sexe |
-| Owe | Owen et al., dépense au repos selon le poids pour les [hommes](https://pubmed.ncbi.nlm.nih.gov/3687821/) et les [femmes non athlètes](https://pubmed.ncbi.nlm.nih.gov/3728346/) | Poids, sexe |
-| Cun* | [Cunningham (1980)](https://pubmed.ncbi.nlm.nih.gov/7435418/), dépense au repos estimée à partir de la masse maigre de Sun | Masse maigre Sun |
+| Windows | `run\build-windows.bat` | `release/windows/` contient `epi.exe` et les installateurs NSIS (EXE) et MSI. |
+| Ubuntu | `sh run/build-ubuntu.sh` | `release/linux/` contient le binaire `epi` et le paquet `.deb`. |
+| Linux, AppImage | `sh run/build-linux.sh` | `release/linux/` contient le binaire `epi` et l’AppImage. |
+| Android | `run\build-android.bat` ou `sh run/build-android.sh` | `release/android/epi-debug.apk` |
+| CLI | `run\build-cli.bat` ou `sh run/build-cli.sh` | `release/cli/windows/` ou `release/cli/linux/`. Un fichier par plateforme, `epi-cli.exe` sous Windows et `epi-cli` sous Linux, avec Node.js embarqué. Le scan Bluetooth du CLI est disponible sous Windows. |
 
-Ces comparaisons sont destinées aux adultes. Dans les colonnes marquées d’un astérisque, l’impédance Xiaomi pieds à pieds remplace la résistance mesurée avec les appareils de référence. Cette substitution n’a pas été validée pour ce modèle de balance. La masse musculaire Mi Fit et le muscle squelettique Janssen sont affichés sur deux lignes, car les modèles estiment des grandeurs différentes. Le score viscéral Mi Fit est sans unité et dépend du poids et du profil. L’âge métabolique et les protéines sont des estimations communautaires. Les valeurs osseuses ne donnent pas une densité minérale. Des formules comme [Kyle et al.](https://www.sciencedirect.com/science/article/pii/S0899900700005530) demandent la réactance, absente de la trame Bluetooth.
+Le lanceur de développement du CLI utilise Node.js pour exécuter les sources.
 
-Le décodage s'appuie sur le [code ESPHome](https://github.com/esphome/esphome/blob/dev/esphome/components/xiaomi_miscale/xiaomi_miscale.cpp) et est vérifié avec une [capture réelle de la XMTZC05HM](https://github.com/lolouk44/hassio-addons/issues/14).
+Sous Windows, active le [Mode développeur](https://learn.microsoft.com/windows/advanced-settings/developer-mode) pour permettre à Tauri de créer les liens symboliques de ses bibliothèques Android.
+
+L’APK est signé avec la clé de débogage Gradle pour l’installation directe sur un téléphone. Le module Bluetooth requiert Android 8.0 ou plus récent.
+
+Les lanceurs de bureau acceptent `--portable` pour compiler uniquement le binaire et un ou plusieurs noms de formats, par exemple `sh run/build-linux.sh rpm`.
+
+L’AppImage se lance directement sur des distributions compatibles de même architecture. Tauri recommande de compiler sur la plus ancienne distribution que tu veux prendre en charge, par exemple Ubuntu 22.04 ou Debian 12. La version de glibc du poste de build peut exclure les distributions plus anciennes. Pour la balance Bluetooth, BlueZ doit être disponible sur le poste qui exécute éPI. [Limites de l’AppImage Tauri](https://v2.tauri.app/distribute/appimage/#limitations)
+
+Sur Android, transfère l’APK sur le téléphone et ouvre-le depuis le gestionnaire de fichiers. Si Android le demande, autorise l’installation depuis ce gestionnaire. Lance éPI et accorde-lui l’autorisation Bluetooth. Le SDK fournit `adb` dans `platform-tools`, sous `%LOCALAPPDATA%\epi-dev\android-sdk` sur Windows ou `~/.local/share/epi-dev/android-sdk` sur Linux. Avec le débogage USB activé et le téléphone autorisé, utilise `adb install -r release/android/epi-debug.apk`. Pour Google Play, prépare un AAB signé pour la distribution.
+
+Sur iOS, depuis `tauri/` sous macOS avec Xcode, lance `npm ci`, `npm run tauri -- ios init`, puis `npm run tauri -- ios build`. Accorde l’autorisation Bluetooth. CoreBluetooth identifie l’appareil par un UUID local. Sur un iPhone, associe de nouveau la balance si les fiches importées proviennent d’un PC.
+
+La [documentation détaillée du CLI](cli/README.md) décrit les mesures, la réception et les méthodes de composition. Le [plan et l’inventaire](docs/SPECIFICATIONS.md) décrivent leur transposition dans l’interface.
