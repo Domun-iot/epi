@@ -38,7 +38,7 @@ export function viewPresetHeader(kind, { presets, preset, modified }) {
     </div>
     <div class="view-preset-actions">
       ${preset ? iconButton('delete', 'Supprimer la configuration') : ''}
-      ${iconButton('save', 'Sauvegarder la configuration')}
+      ${modified ? iconButton('save', 'Sauvegarder la configuration') : ''}
     </div>
   </header>`;
 }
