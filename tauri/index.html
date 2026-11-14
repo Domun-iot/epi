@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f5f7fa" />
+    <title>éPI — Pesées Bluetooth</title>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <a class="brand" href="#measurements" aria-label="éPI, accès aux mesures"><span aria-hidden="true">é</span>éPI</a>
+        <nav id="navigation" aria-label="Navigation principale">
+          <button type="button" data-page="measurements"><span aria-hidden="true">▤</span>Mesures</button>
+          <button type="button" data-page="profiles"><span aria-hidden="true">◉</span>Profils</button>
+          <button type="button" data-page="devices"><span aria-hidden="true">⌁</span>Appareils</button>
+        </nav>
+        <div class="bluetooth" id="status" role="status"><span class="status-dot"></span><span>Initialisation du Bluetooth…</span></div>
+        <button type="button" id="retry-bluetooth" hidden>Relancer le Bluetooth</button>
+      </aside>
+      <div class="workspace">
+        <header class="toolbar">
+          <div class="actions data-actions">
+            <button class="button" type="button" id="reload-data" hidden>Recharger</button>
+            <button class="button" type="button" id="import-data">Importer un ZIP</button>
+            <input id="import-files" type="file" accept=".zip,application/zip" aria-label="Importer une archive ZIP" hidden>
+            <button class="button" type="button" id="export-data">Exporter en ZIP</button>
+          </div>
+          <div class="profile-select">
+            <label for="profile">Profil actif</label>
+            <select id="profile"></select>
+          </div>
+        </header>
+        <main>
+          <div id="notices" aria-live="polite"></div>
+          <section id="view" aria-label="Mesures"></section>
+        </main>
+      </div>
+    </div>
+    <dialog id="editor" aria-labelledby="dialog-title"></dialog>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "productName": "epi",
+  "bundle": {
+    "linux": {
+      "deb": { "depends": ["bluez"] },
+      "rpm": { "depends": ["bluez"] }
+    }
+  }
+}
