@@ -13,9 +13,9 @@ function icon(action) {
     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[action]}</svg>`;
 }
 
-function iconButton(action, label, disabled = false) {
+function iconButton(action, label) {
   return `<button type="button" class="button view-preset-icon" data-action="${action}-view-preset"
-    title="${label}" aria-label="${label}"${disabled ? ' disabled' : ''}>${icon(action)}</button>`;
+    title="${label}" aria-label="${label}">${icon(action)}</button>`;
 }
 
 export function viewPresetHeader(kind, { presets, preset, modified }) {
@@ -34,11 +34,11 @@ export function viewPresetHeader(kind, { presets, preset, modified }) {
         <summary${modified ? '' : ' class="view-preset-chevron"'}>${heading}</summary>
         <ul aria-label="Configurations de vue">${options}</ul>
       </details>` : heading}
-      ${iconButton('rename', 'Renommer la configuration', !preset && !modified)}
+      ${preset || modified ? iconButton('rename', 'Renommer la configuration') : ''}
     </div>
     <div class="view-preset-actions">
+      ${preset ? iconButton('delete', 'Supprimer la configuration') : ''}
       ${iconButton('save', 'Sauvegarder la configuration')}
-      ${iconButton('delete', 'Supprimer la configuration', !preset)}
     </div>
   </header>`;
 }

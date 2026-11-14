@@ -82,10 +82,14 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   const fat = page.getByLabel('Masse grasse (%)', { exact: true });
   const rename = page.getByRole('button', { name: 'Renommer la configuration' });
   assert.equal(await picker.count(), 0);
-  assert.equal(await rename.isDisabled(), true);
+  const remove = page.getByRole('button', { name: 'Supprimer la configuration' });
+  assert.equal(await rename.count(), 0);
+  assert.equal(await remove.count(), 0);
   await fat.check();
   assert.equal((await title.textContent()).trim(), 'Pesée *');
   assert.equal(await chevron.count(), 0);
+  assert.equal(await rename.isEnabled(), true);
+  assert.equal(await remove.count(), 0);
   await title.click();
   const reload = options.getByRole('button', { name: 'Pesée *', exact: true });
   assert.equal(await reload.locator('svg').count(), 1);
@@ -100,7 +104,8 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   await dialog.waitFor({ state: 'hidden' });
   assert.equal(await chevron.count(), 1);
   const icon = page.getByRole('button', { name: 'Sauvegarder la configuration' });
-  const { width, height } = await icon.boundingBox();
+  const { x, width, height } = await icon.boundingBox();
+  assert.ok((await remove.boundingBox()).x < x);
   await title.click();
   const option = await options.getByRole('button', { name: 'Pesée', exact: true }).boundingBox();
   assert.equal(width, height);
