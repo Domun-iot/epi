@@ -88,12 +88,12 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await search.fill('% GRASSE masse');
   assert.equal(await options.count(), 1);
   await page.getByLabel('Masse grasse (%)', { exact: true }).check();
-  await table.getByText('32,45', { exact: true }).waitFor();
+  await table.getByText('32,5', { exact: true }).waitFor();
   await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).waitFor();
   await table.getByRole('button', { name: 'Masse grasse (%)', exact: true }).click();
   await table.getByRole('columnheader', { name: 'Mi', exact: true }).waitFor();
   assert.deepEqual(await table.locator('thead tr').nth(1).locator('th').allTextContents(), ['Moyenne', '● Mi', '⬣ Deu']);
-  assert.equal(await table.getByText('32,45', { exact: true }).count(), 1);
+  assert.equal(await table.getByText('32,5', { exact: true }).count(), 1);
   await table.getByText('31,8', { exact: true }).dragTo(table.getByText('70 kg', { exact: true }));
   const columnOrder = () => table.locator('thead tr').first().locator('th').evaluateAll(headers =>
     headers.map(header => header.dataset.dragColumn));
@@ -101,7 +101,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await table.getByRole('columnheader', { name: 'Deu', exact: true }).waitFor();
   await table.getByText('31,8').waitFor();
   await page.getByRole('button', { name: 'Rassembler Masse grasse (%)', exact: true }).click();
-  await table.getByText('32,45', { exact: true }).waitFor();
+  await table.getByText('32,5', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Éclater Masse grasse (%)', exact: true }).click();
   await search.fill('');
   await page.getByLabel('Impédance (Ω)', { exact: true }).uncheck();
@@ -141,7 +141,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
   assert.equal(await legend.first().isVisible(), true);
   const fatRow = comparison.getByRole('row').filter({ hasText: 'Masse grasse (%)' });
-  assert.equal(await fatRow.getByRole('cell').first().textContent(), '32,45');
+  assert.equal(await fatRow.getByRole('cell').first().textContent(), '32,5');
   const toolbar = page.locator('.toolbar');
   assert.equal(await toolbar.getByRole('button', { name: 'Export ZIP' }).count(), 0);
   assert.equal(await toolbar.getByRole('button', { name: 'Import ZIP' }).count(), 0);
@@ -237,8 +237,8 @@ test('capture et renommage, attribution automatique et flux brut horodaté', asy
   await page.getByRole('button', { name: 'Écouter tous les appareils' }).click();
   await page.getByRole('button', { name: 'Écouter tous les appareils' }).waitFor({ state: 'hidden' });
   await choosePage(page, 'Mesures');
-  await page.getByRole('table').getByText('70,85 kg', { exact: true }).waitFor();
-  assert.equal(await page.getByRole('table').getByText('70,85 kg', { exact: true }).count(), 1);
+  await page.getByRole('table').getByText('70,9 kg', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('table').getByText('70,9 kg', { exact: true }).count(), 1);
 });
 
 test('confirmation sur smartphone, création de profil depuis une pesée et historique redimensionnable', async t => {
@@ -257,14 +257,14 @@ test('confirmation sur smartphone, création de profil depuis une pesée et hist
   await dialog.waitFor({ state: 'hidden' });
   assert.equal(await chosenProfile(page), 'Camille');
   const table = page.getByRole('table', { name: 'Pesées' });
-  await table.getByText('70,85 kg', { exact: true }).waitFor();
+  await table.getByText('70,9 kg', { exact: true }).waitFor();
   await page.getByText('Colonnes', { exact: true }).click();
   for (const label of ['Masse grasse (%)', 'Énergie au repos (kcal/j)', 'Horloge de la balance']) {
     await page.getByLabel(label, { exact: true }).check();
   }
   const scroll = page.getByRole('region', { name: 'Pesées' });
   assert.equal(await scroll.evaluate(node => node.scrollWidth > node.clientWidth), true);
-  await table.getByRole('cell', { name: '70,85 kg', exact: true }).tap();
+  await table.getByRole('cell', { name: '70,9 kg', exact: true }).tap();
   const comparison = page.getByRole('region', { name: 'Comparaison des méthodes' });
   assert.ok(await comparison.evaluate(node => node.scrollWidth > node.clientWidth));
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth === window.innerWidth), true);
@@ -313,7 +313,7 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   await dialog.getByRole('button', { name: 'Confirmer' }).click();
   await dialog.waitFor({ state: 'hidden' });
   assert.equal(await chosenProfile(page), 'Bob');
-  await page.getByRole('table').getByText('70,85 kg').waitFor();
+  await page.getByRole('table').getByText('70,9 kg').waitFor();
 
   await feed(page, 'AABBCCDDEEFF -62 181D 00404C');
   await page.getByRole('button', { name: 'Attribuer la pesée' }).click();

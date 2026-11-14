@@ -180,8 +180,11 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = []) {
   ];
   const known = new Set(['receivedAt', 'profile', 'device', 'measures', 'calculations', 'reception']);
   if (!row.measures) for (const key of ['weight', 'unit', 'impedanceOhms']) known.add(key);
+  const jsonNumber = new Intl.NumberFormat("en-US", { useGrouping: false, maximumFractionDigits: 1 });
   for (const [key, value] of Object.entries(row)) {
-    if (!known.has(key) && value != null) sections.push(['extra:' + key, key, `<pre>${e(JSON.stringify(value, null, 2))}</pre>`, false]);
+    if (known.has(key) || value == null) continue;
+    const json = JSON.stringify(value, (_key, field) => typeof field === "number" ? Number(jsonNumber.format(field)) : field, 2);
+    sections.push(['extra:' + key, key, `<pre>${e(json)}</pre>`, false]);
   }
   const bySection = new Map(sections.filter(([, , body]) => body).map(([id, ...section]) => [id, section]));
   const orderedSections = [...new Set([...sectionOrder, ...bySection.keys()])].filter(id => bySection.has(id));

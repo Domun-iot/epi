@@ -19,9 +19,9 @@ export const formatCalendarDate = value => format(value, calendarDate);
 // The scale sends a wall-clock time with no time zone.
 export const formatScaleTime = value => format(value ? value + 'Z' : null, wallTime);
 
-export function number(value, digits = 2) {
+export function number(value, digits = 1) {
   return Number.isFinite(value)
-    ? value.toLocaleString('fr-FR', { maximumFractionDigits: digits })
+    ? value.toLocaleString('fr-FR', { maximumFractionDigits: Math.min(digits, 1) })
     : '—';
 }
 

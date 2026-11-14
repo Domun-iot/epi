@@ -39,7 +39,8 @@ test('renders one row per metric and keeps anthropometric estimates without impe
   assert.equal(methods.Mi.fatPercent, undefined);
   assert.ok(methods.Deu.fatPercent > 0);
   assert.ok(methods.Mi.restingEnergy > 0);
-  const table = formatComposition(event, profile);
+  const table = formatComposition({ ...event, weight: 80.85 }, profile);
+  assert.match(table, /80,9 kg/);
   assert.match(table, /Sun\* = Sun et al/);
   assert.match(table, /^Donnée .*\| .*Mi .*\| .*Sun\*/m);
   assert.match(table, /^Masse grasse \(%\).*—/m);
