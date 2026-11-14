@@ -12,6 +12,8 @@
 | Tests du domaine Tauri | `npm --prefix tauri test` |
 | Tests interactifs | `npm --prefix tauri run test:ui` |
 
+Les [tests de démarrage](docs/TEST-DEMARRAGE.md) couvrent les lanceurs et décrivent les essais sur les paquets installés.
+
 ## Données
 
 Sur PC, le CLI et l’interface utilisent `EPI_DATA_DIR` quand la variable est définie. Sinon, ils cherchent un dossier `data/` contenant les trois sous-dossiers `devices/`, `measures/` et `profiles/`. La recherche commence à côté de l’exécutable ou de l’AppImage et remonte jusqu’à la racine.
