@@ -9,6 +9,21 @@ const colors = [
   ['✚','#672e2e','#fde1e1'], ['▣','#344767','#e1e9f3'], ['◉','#3c501a','#e8efda'],
   ['✦','#4b3476','#eae5ff'],
 ];
+const methodSources = {
+  IMC: 'https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight',
+  Mi: 'https://github.com/lolouk44/xiaomi_mi_scale/blob/master/src/Xiaomi_Scale_Body_Metrics.py',
+  'Sun*': 'https://doi.org/10.1093/ajcn/77.2.331',
+  'Jan*': 'https://doi.org/10.1152/jappl.2000.89.2.465',
+  'D60*': 'https://doi.org/10.1093/ajcn/51.1.3',
+  Deu: 'https://doi.org/10.1079/bjn19910073',
+  CUN: 'https://doi.org/10.2337/dc11-1334',
+  Wat: 'https://doi.org/10.1093/ajcn/33.1.27',
+  HW: 'https://doi.org/10.1136/jcp.24.3.234',
+  MSJ: 'https://doi.org/10.1093/ajcn/51.2.241',
+  HB: 'https://doi.org/10.1093/ajcn/40.1.168',
+  Owe: 'https://doi.org/10.1093/ajcn/44.1.1',
+  'Cun*': 'https://doi.org/10.1093/ajcn/33.11.2372',
+};
 const methods = METHOD_COLUMNS.map(([id, label], index) => {
   const [icon, ink, bg] = colors[index % colors.length];
   return { id, label, icon, style: `--method-ink:${ink};--method-bg:${bg}` };
@@ -62,7 +77,11 @@ function columnSettings(selected, split, sourcesByMetric, open, query) {
 }
 
 const columnDrag = id => ` data-drag-column="${id}" draggable="true"`;
-const methodHeader = ({ id, icon, label, style }, drag = '') => `<th scope="col"${drag} class="method-header" style="${style}" title="${e(label)}"><span aria-hidden="true">${icon}</span> ${e(id)}</th>`;
+const sourceLink = (url, text) => `<a class="method-source" href="${e(url)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const methodHeader = ({ id, icon, label, style, source }, drag = '') => {
+  const title = `<span aria-hidden="true">${icon}</span> ${e(id)}`;
+  return `<th scope="col"${drag} class="method-header" style="${style}" title="${e(label)}">${source ? sourceLink(source, title) : title}</th>`;
+};
 const methodValue = (row, id, { id: method, style }, precision, drag = '') => `<td${drag} class="method-value numeric" style="${style}">${number(row.calculations?.[method]?.[id], precision)}</td>`;
 
 function averageValue(row, id, sources) {
@@ -126,13 +145,18 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
 }
 
 export function measurementDetails(row) {
-  const activeMethods = methods.filter(({ id }) => METRICS.some(([metric]) => Number.isFinite(row.calculations?.[id]?.[metric])));
+  const activeMethods = methods.filter(({ id }) => METRICS.some(([metric]) => Number.isFinite(row.calculations?.[id]?.[metric])))
+    .map(method => ({
+      ...method,
+      source: method.id === 'Owe' && row.profile?.sex === 'H'
+        ? 'https://doi.org/10.1093/ajcn/46.6.875' : methodSources[method.id],
+    }));
   const readings = `<p><strong>${weight(row.measures)}</strong> · ${formatDate(row.receivedAt)}</p>`;
   const comparison = activeMethods.length ? `<div class="panel table-scroll comparison-scroll" role="region" aria-label="Comparaison des méthodes" tabindex="0">
     <table aria-label="Comparaison des méthodes"><thead><tr><th scope="col">Donnée</th><th scope="col">Moyenne</th>${activeMethods.map(method => methodHeader(method)).join('')}</tr></thead>
     <tbody>${METRICS.filter(([id]) => activeMethods.some(method => Number.isFinite(row.calculations?.[method.id]?.[id])))
       .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th><td class="numeric">${number(averageValue(row, id, activeMethods), precision)}</td>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>
-    <details><summary>Méthodes de calcul</summary><div class="legend">${activeMethods.map(({ icon, id, label, style }) => `<span style="${style}">${icon} ${e(id)} · ${e(label)}</span>`).join('')}</div>
+    <details><summary>Méthodes de calcul</summary><div class="legend">${activeMethods.map(({ icon, id, label, style, source }) => `<span style="${style}">${sourceLink(source, `${icon} ${e(id)} · ${e(label)}`)}</span>`).join('')}</div>
     <p class="muted">Les méthodes marquées d’un astérisque utilisent l’impédance pieds à pieds de la balance.</p></details>` : '';
   return pageHeader('Détails de la pesée')
     + `<div class="measurement-details">${readings}${comparison}<details open><summary>Données de réception</summary>${pairs(extras.map(([, label, read]) => [label, textValue(read(row))]))}</details>`

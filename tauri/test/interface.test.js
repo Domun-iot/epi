@@ -120,6 +120,15 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await page.setViewportSize({ width: 1800, height: 900 });
   assert.ok(await comparison.evaluate(node => node.clientWidth > 1340));
   assert.equal(await comparison.getByRole('columnheader').nth(1).textContent(), 'Moyenne');
+  const source = 'https://doi.org/10.1079/bjn19910073';
+  await page.context().route(source, route => route.fulfill({ body: 'Publication Deurenberg' }));
+  await detail.getByText('Méthodes de calcul', { exact: true }).click();
+  const popupReady = page.waitForEvent('popup');
+  await detail.getByRole('link', { name: /Deurenberg et al\. \(1991\)/ }).click();
+  const popup = await popupReady;
+  await popup.waitForURL(source);
+  await popup.getByText('Publication Deurenberg').waitFor();
+  await popup.close();
   const fatRow = comparison.getByRole('row').filter({ hasText: 'Masse grasse (%)' });
   assert.equal(await fatRow.getByRole('cell').first().textContent(), '32,45');
   const toolbar = page.locator('.toolbar');

@@ -1,3 +1,4 @@
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { connect } from './service.js';
 import { escapeHtml as e, formatDate, nameKey, sortProfiles, userIcon } from './format.js';
 import { createEditor } from './editors.js';
@@ -205,6 +206,12 @@ navigation.addEventListener('click', event => {
 });
 backButton.addEventListener('click', () => actions['back-to-measurements']());
 main.addEventListener('click', event => {
+  const source = event.target.closest('a.method-source');
+  if (source && session?.native) {
+    event.preventDefault();
+    void perform(() => openUrl(source.href));
+    return;
+  }
   const control = event.target.closest('[data-action]') ?? event.target.closest('th')?.querySelector('.column-toggle');
   const action = control && actions[control.dataset.action];
   if (action) void perform(() => action(control.dataset.value));
