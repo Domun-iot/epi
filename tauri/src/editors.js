@@ -38,7 +38,7 @@ export function createEditor(dialog, onError) {
       <label>Sexe utilisé par les formules<select name="sex" required>${option('', 'Choisir', false)}${option('H', 'Homme', profile?.sex === 'H')}${option('F', 'Femme', profile?.sex === 'F')}</select></label>
       <label>Âge utilisé par les formules<select name="ageType">${option('birthDate', 'Date de naissance', ageType === 'birthDate')}${option('age', 'Âge fixe', ageType === 'age')}</select></label>
       ${field('Date de naissance', 'birthDate', `type="date" value="${e(profile?.birthDate)}"`)}
-      ${field('Âge (ans)', 'age', `type="number" min="18" max="120" step="1" value="${e(profile?.age)}"`)}
+      ${field('Âge (ans)', 'age', `type="number" min="0" max="120" step="1" value="${e(profile?.age)}"`)}
       ${field('Taille (cm)', 'heightCm', `type="number" min="100" max="250" step="any" inputmode="decimal" value="${e(profile?.heightCm)}" required`)}
     `, async ({ name, sex, age, birthDate, ageType: source, heightCm }) => {
       const data = { sex, heightCm: Number(heightCm) };

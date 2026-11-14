@@ -55,7 +55,7 @@ test('creates a named profile, reloads it and applies only supplied overrides', 
   const initial = await prepareProfile({ utilisateur: 'Camille', sexe: 'H', age: '40', taille: '180' }, options);
   assert.deepEqual(initial, { ...profile, user: 'Camille' });
   assert.deepEqual(await prepareProfile({ utilisateur: 'Camille' }, options), initial);
-  await assert.rejects(prepareProfile({ utilisateur: 'Camille', age: '0' }, options), /--age/);
+  await assert.rejects(prepareProfile({ utilisateur: 'Camille', age: '-1' }, options), /--age/);
   await prepareProfile({ utilisateur: 'Camille', taille: '181,5' }, options);
   const stored = JSON.parse(await readFile(join(directory, 'profil-camille.json'), 'utf8'));
   assert.deepEqual(stored, { ...profile, heightCm: 181.5, name: 'Camille' });

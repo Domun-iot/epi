@@ -12,8 +12,8 @@ function normalize(key, value) {
   const input = String(value).trim().replace(',', '.');
   const number = /^\d+(?:\.\d+)?$/.test(input) ? Number(input) : NaN;
   if (key === 'age') {
-    if (Number.isInteger(number) && number >= 18 && number <= 120) return number;
-    throw Error('Indique --age en années entières, entre 18 et 120.');
+    if (Number.isInteger(number) && number >= 0 && number <= 120) return number;
+    throw Error('Indique --age en années entières, entre 0 et 120.');
   }
   if (number >= 100 && number <= 250) return number;
   throw Error('Indique --taille en centimètres, entre 100 et 250.');
@@ -35,8 +35,8 @@ function normalizeBirth(value) {
   const iso = french ? [french[3], french[2].padStart(2, '0'), french[1].padStart(2, '0')].join('-') : input;
   const date = new Date(iso + 'T00:00:00Z');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || !Number.isFinite(+date)
-      || date.toISOString().slice(0, 10) !== iso || ageAt(iso) < 18 || ageAt(iso) > 120) {
-    throw Error('Indique une date de naissance valide (JJ/MM/AAAA ou AAAA-MM-JJ), pour un âge de 18 à 120 ans.');
+      || date.toISOString().slice(0, 10) !== iso || ageAt(iso) < 0 || ageAt(iso) > 120) {
+    throw Error('Indique une date de naissance valide (JJ/MM/AAAA ou AAAA-MM-JJ), pour un âge de 0 à 120 ans.');
   }
   return iso;
 }
