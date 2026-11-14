@@ -91,7 +91,7 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   assert.equal(await rename.isEnabled(), true);
   assert.equal(await remove.count(), 0);
   await title.click();
-  const reload = options.getByRole('button', { name: 'Pesées *', exact: true });
+  const reload = options.getByRole('button', { name: 'Pesées', exact: true });
   assert.equal(await reload.locator('svg').count(), 1);
   await reload.click();
   assert.equal(await fat.isChecked(), false);
@@ -131,8 +131,8 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   await fat.uncheck();
   assert.equal((await title.textContent()).trim(), 'Compact *');
   await title.click();
-  assert.deepEqual(await options.getByRole('button').allTextContents(), ['Pesées', 'Compact *']);
-  await options.getByRole('button', { name: 'Compact *', exact: true }).click();
+  assert.deepEqual(await options.getByRole('button').allTextContents(), ['Pesées', 'Compact']);
+  await options.getByRole('button', { name: 'Compact', exact: true }).click();
   assert.equal(await fat.isChecked(), true);
   await fat.uncheck();
   await save();
