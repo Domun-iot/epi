@@ -89,5 +89,6 @@ test('resolves a prefix without accents and records the age on the Paris date of
   const profile = { user: entry.name, age: 37, birthDate: '1989-09-17', sex: 'F', heightCm: 163 };
   const event = { weight: 62.35, unit: 'kg', impedanceOhms: null, receivedAt: '2026-09-16T21:59:59Z' };
   assert.equal(historyRecord(event, profile).profile.age, 36);
+  assert.equal(historyRecord(event, profile).profile.ageAtWeighIn, 36);
   assert.equal(historyRecord({ ...event, receivedAt: '2026-09-16T23:00:00Z' }, profile).profile.age, 37);
 });

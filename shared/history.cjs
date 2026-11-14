@@ -26,7 +26,8 @@ function historyRecord(event, profile, device = null) {
   return {
     receivedAt,
     profile: profile ? {
-      name: profile.user ?? null, sex: profile.sex, age: profile.age, heightCm: profile.heightCm,
+      name: profile.user ?? null, sex: profile.sex, age: profile.age,
+      ageAtWeighIn: profile.age, heightCm: profile.heightCm,
       ...(profile.birthDate ? { birthDate: profile.birthDate } : {}),
     } : null,
     device,
