@@ -57,7 +57,7 @@ nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
 .profile-select label { color: var(--muted); display: flex; }
 input, select { min-height: 42px; border: 1px solid var(--control-border); color: var(--ink); border-radius: 8px; background: var(--surface); padding: 8px 10px; }
 select { max-width: min(280px, 100%); }
-main { --view-header-spacing: 12px; padding: var(--view-header-spacing) var(--view-inline-padding) 48px; }
+main { --view-header-spacing: 12px; padding: var(--view-header-spacing) var(--view-inline-padding) var(--view-inline-padding); }
 h1, h2, p { margin-top: 0; }
 h1 { font-size: clamp(1.65rem, 3vw, 2.45rem); line-height: 1.12; letter-spacing: -.045em; margin-bottom: 0; }
 h2 { font-size: 1.12rem; margin-bottom: 12px; }
