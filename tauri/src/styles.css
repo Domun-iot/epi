@@ -101,6 +101,7 @@ tbody tr:hover { background: #edf4ff; }
 .method-icon { color: var(--method-ink); }
 .legend { display: flex; gap: 6px 10px; flex-wrap: wrap; padding: 9px 0 4px; font-size: .83rem; }
 .method-source { color: inherit; }
+.measurement-details .method-source { text-decoration: none; }
 .legend span { background: var(--method-bg); color: var(--method-ink); padding: 4px 7px; border-radius: 5px; }
 .measurement-details-page { max-width: none; padding-inline: clamp(12px, 2vw, 32px); }
 tr[data-action="reading"] { cursor: pointer; }
