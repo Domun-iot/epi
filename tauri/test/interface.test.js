@@ -60,6 +60,41 @@ async function pageWith(t, snapshot, options = {}) {
   return page;
 }
 
+test('theme follows the browser until a profile saves a selection', async t => {
+  const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Alice' }, { colorScheme: 'dark' });
+  const picker = page.getByRole('combobox', { name: 'Profil actif' });
+  const light = page.getByRole('button', { name: 'Activer le mode clair' });
+  const dark = page.getByRole('button', { name: 'Activer le mode sombre' });
+  const scheme = () => page.locator('html').evaluate(root => getComputedStyle(root).colorScheme);
+
+  await light.waitFor();
+  assert.equal(await scheme(), 'dark');
+  assert.equal(await light.locator('svg:visible').getAttribute('class'), 'theme-sun');
+  await light.click();
+  await dark.waitFor();
+  assert.equal(await scheme(), 'light');
+  assert.equal(await dark.locator('svg:visible').getAttribute('class'), 'theme-moon');
+
+  await picker.selectOption('Bob');
+  await light.waitFor();
+  await page.emulateMedia({ colorScheme: 'light' });
+  await dark.waitFor();
+  await dark.click();
+  await light.waitFor();
+
+  await picker.selectOption('Alice');
+  await dark.waitFor();
+  await page.reload();
+  await dark.waitFor();
+  await page.emulateMedia({ colorScheme: 'dark' });
+  assert.equal(await scheme(), 'light');
+
+  await picker.selectOption('Bob');
+  await light.waitFor();
+  await page.emulateMedia({ colorScheme: 'light' });
+  assert.equal(await scheme(), 'dark');
+});
+
 const choosePage = (page, label) => page.getByRole('navigation').getByRole('button', { name: label, exact: true }).click();
 const chosenProfile = page => page.getByRole('combobox', { name: 'Profil actif' }).inputValue();
 const feed = (page, line) => page.evaluate(value => window.dispatchEvent(new CustomEvent('epi:frame', { detail: value })), line);
@@ -266,7 +301,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   assert.equal(await toolbar.getByRole('button', { name: 'Import ZIP' }).count(), 0);
   await toolbar.getByRole('button', { name: 'Retour' }).click();
   assert.equal(await table.getByRole('button', { name: /^Voir la pesée du/ }).evaluate(el => el === document.activeElement), true);
-  assert.deepEqual(await toolbar.locator('button:visible').allTextContents(), ['Export ZIP', 'Import ZIP']);
+  assert.deepEqual(await toolbar.locator('#data-actions button:visible').allTextContents(), ['Export ZIP', 'Import ZIP']);
   assert.equal(await detail.count(), 0);
   await table.getByRole('columnheader', { name: 'Mi', exact: true }).waitFor();
 

@@ -88,7 +88,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     const measurements = layoutFor(saved, prefs, 'measurements');
     const details = layoutFor(saved, prefs, 'details');
     return { ...saved, ...measurements.layout, ...details.layout, viewLayouts: { measurements, details },
-      rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: prefs.detailSectionsOpen, enrollment, acquisitionError };
+      theme: prefs.theme, rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: prefs.detailSectionsOpen, enrollment, acquisitionError };
   }
 
   function publish() {
@@ -171,6 +171,17 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
         draft.profiles = [...draft.profiles, profile];
         draft.selectedProfile ??= profile.name;
       }
+    });
+  }
+
+  function setTheme(profile, theme) {
+    return mutate(draft => {
+      const target = profile == null ? null : findProfile(draft, profile);
+      if (profile != null && !target) throw Error('Profil introuvable.');
+      if (theme !== 'light' && theme !== 'dark') throw Error('Thème invalide.');
+      const name = target?.name ?? null;
+      const prefs = preferencesFor(draft, name);
+      if (prefs.theme !== theme) savePreferences(draft, name, { ...prefs, theme });
     });
   }
 
@@ -382,7 +393,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       return () => observers.delete(observer);
     },
     selectProfile, saveProfile, setColumnPreference, beginDevice, cancelDevice, confirmProfile,
-    setPanelOpen, changeViewPreset,
+    setPanelOpen, changeViewPreset, setTheme,
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
     moveDetailSection: (...args) => movePreference('detailSectionOrder', ...args),

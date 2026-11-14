@@ -8,6 +8,9 @@ import { devicesView, noticesView, profilesView } from './management-view.js';
 
 const navigation = document.querySelector('#navigation');
 const profilePicker = document.querySelector('#profile');
+const themeToggle = document.querySelector('#theme-toggle');
+const themeColor = document.querySelector('meta[name=theme-color]');
+const preferredTheme = window.matchMedia('(prefers-color-scheme: dark)');
 document.querySelector('#profile-icon').innerHTML = userIcon;
 const dataActions = document.querySelector('#data-actions');
 const backButton = document.querySelector('#back-to-measurements');
@@ -66,6 +69,7 @@ function renderProfilePicker() {
 function render() {
   const page = currentPage();
   renderProfilePicker();
+  renderTheme();
   const nextNotices = [state.pending, state.enrollment, errorText || state.acquisitionError, feedback];
   if (changed(lastNotices, nextNotices)) {
     lastNotices = nextNotices;
@@ -402,6 +406,33 @@ view.addEventListener('change', event => {
     if (checkbox.isConnected) checkbox.checked = state.columns?.includes(id) ?? false;
   });
 });
+function isDarkTheme() {
+  return state.theme === 'dark' || (state.theme !== 'light' && preferredTheme.matches);
+}
+
+function renderTheme() {
+  if (state.theme === 'light' || state.theme === 'dark') document.documentElement.dataset.theme = state.theme;
+  else delete document.documentElement.dataset.theme;
+  const dark = isDarkTheme();
+  const label = dark ? 'Activer le mode clair' : 'Activer le mode sombre';
+  themeColor.content = dark ? '#101827' : '#f5f7fa';
+  themeToggle.setAttribute('aria-label', label);
+  themeToggle.title = label;
+}
+
+renderTheme();
+preferredTheme.addEventListener('change', renderTheme);
+themeToggle.addEventListener('click', async () => {
+  const profile = state.selectedProfile ?? null;
+  const theme = isDarkTheme() ? 'light' : 'dark';
+  themeToggle.disabled = true;
+  try {
+    await perform(() => session.setTheme(profile, theme));
+  } finally {
+    themeToggle.disabled = false;
+  }
+});
+
 profilePicker.addEventListener('change', () => {
   reading = null;
   const name = profilePicker.value || null;
@@ -463,6 +494,7 @@ try {
     frames = [`[${formatDate(Date.now())}] ${line}`, ...frames].slice(0, 50);
     renderFrames();
   });
+  themeToggle.disabled = false;
   reloadButton.hidden = !session.native;
   canRetryBluetooth = Boolean(session.retryBluetooth) && status.textContent !== 'Mode simulation';
   renderBluetooth();
