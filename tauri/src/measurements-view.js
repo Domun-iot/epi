@@ -40,7 +40,7 @@ const extras = [
   ['stable', 'Poids stabilisé', row => row.reception?.scale?.stable],
   ['removed', 'Charge retirée', row => row.reception?.scale?.removed],
   ['hex', 'Trame brute', row => row.reception?.raw?.hex],
-  ['age', 'Âge utilisé', row => row.profile?.age],
+  ['age', 'Âge à la pesée', row => row.profile?.ageAtWeighIn ?? row.profile?.age],
   ['heightCm', 'Taille utilisée (cm)', row => row.profile?.heightCm],
   ['sex', 'Sexe utilisé', row => row.profile?.sex],
   ['birthDate', 'Naissance du profil', row => formatCalendarDate(row.profile?.birthDate)],
@@ -158,7 +158,27 @@ export function measurementDetails(row) {
       .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th><td class="numeric">${number(averageValue(row, id, activeMethods), precision)}</td>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>
     <details><summary>Méthodes de calcul</summary><div class="legend">${activeMethods.map(({ icon, id, label, style, source }) => `<span style="${style}">${sourceLink(source, `${icon} ${e(id)} · ${e(label)}`)}</span>`).join('')}</div>
     <p class="muted">Les méthodes marquées d’un astérisque utilisent l’impédance pieds à pieds de la balance.</p></details>` : '';
+  const sections = [
+    ['Mesures', pairs([
+      ['Poids', number(row.measures?.weight)],
+      ['Unité', row.measures?.unit],
+      ['Impédance (Ω)', number(row.measures?.impedanceOhms)],
+    ]), false],
+    ['Profil à la pesée', row.profile && pairs([
+      ['Nom', row.profile.name ?? 'Temporaire'],
+      ['Sexe utilisé', row.profile.sex],
+      ['Âge à la pesée', number(row.profile.ageAtWeighIn ?? row.profile.age)],
+      ['Taille utilisée (cm)', number(row.profile.heightCm)],
+      ['Naissance du profil', formatCalendarDate(row.profile.birthDate)],
+    ]), true],
+    ['Données de réception', row.reception && pairs(extras.slice(3, 11).map(([, label, read]) => [label, textValue(read(row))])), true],
+    ['Fiche de la balance à la pesée', row.device && pairs([['Nom', row.device.name], ...deviceFields(row.device)]), false],
+  ];
+  const known = new Set(['receivedAt', 'profile', 'device', 'measures', 'calculations', 'reception']);
+  for (const [key, value] of Object.entries(row)) {
+    if (!known.has(key) && value != null) sections.push([key, `<pre>${e(JSON.stringify(value, null, 2))}</pre>`, false]);
+  }
   return pageHeader('Détails de la pesée')
-    + `<div class="measurement-details">${readings}${comparison}<details open><summary>Données de réception</summary>${pairs(extras.map(([, label, read]) => [label, textValue(read(row))]))}</details>`
-    + (row.device ? `<details><summary>Fiche de la balance à la pesée</summary>${pairs(deviceFields(row.device))}</details>` : '') + '</div>';
+    + `<div class="measurement-details">${readings}${comparison}${sections.filter(([, body]) => body)
+      .map(([title, body, open]) => `<details${open ? ' open' : ''}><summary>${e(title)}</summary>${body}</details>`).join('')}</div>`;
 }
