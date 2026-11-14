@@ -90,8 +90,14 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await page.getByLabel('Masse grasse (%)', { exact: true }).check();
   await table.getByText('32,45', { exact: true }).waitFor();
   await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Éclater Masse grasse (%)', exact: true }).click();
+  await table.getByRole('button', { name: 'Masse grasse (%)', exact: true }).click();
   await table.getByRole('columnheader', { name: 'Mi', exact: true }).waitFor();
+  assert.deepEqual(await table.locator('thead tr').nth(1).locator('th').allTextContents(), ['Moyenne', '● Mi', '⬣ Deu']);
+  assert.equal(await table.getByText('32,45', { exact: true }).count(), 1);
+  await table.getByText('31,8', { exact: true }).dragTo(table.getByText('70 kg', { exact: true }));
+  const columnOrder = () => table.locator('thead tr').first().locator('th').evaluateAll(headers =>
+    headers.map(header => header.dataset.dragColumn));
+  assert.deepEqual(await columnOrder(), ['date', 'fatPercent', 'weight', 'impedanceOhms', 'bmi']);
   await table.getByRole('columnheader', { name: 'Deu', exact: true }).waitFor();
   await table.getByText('31,8').waitFor();
   await page.getByRole('button', { name: 'Rassembler Masse grasse (%)', exact: true }).click();
@@ -137,6 +143,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await choosePage(page, 'Mesures');
   await table.getByRole('columnheader', { name: 'Masse grasse (%)', exact: true }).waitFor();
   await table.getByRole('columnheader', { name: 'Deu', exact: true }).waitFor();
+  assert.deepEqual(await columnOrder(), ['date', 'fatPercent', 'weight', 'bmi']);
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
 });
 

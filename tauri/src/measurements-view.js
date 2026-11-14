@@ -61,31 +61,51 @@ function columnSettings(selected, split, sourcesByMetric, open, query) {
   </details>`;
 }
 
-const methodHeader = ({ id, icon, label, style }) => `<th scope="col" class="method-header" style="${style}" title="${e(label)}"><span aria-hidden="true">${icon}</span> ${e(id)}</th>`;
-const methodValue = (row, id, { id: method, style }, precision) => `<td class="method-value numeric" style="${style}">${number(row.calculations?.[method]?.[id], precision)}</td>`;
+const columnDrag = id => ` data-drag-column="${id}" draggable="true"`;
+const methodHeader = ({ id, icon, label, style }, drag = '') => `<th scope="col"${drag} class="method-header" style="${style}" title="${e(label)}"><span aria-hidden="true">${icon}</span> ${e(id)}</th>`;
+const methodValue = (row, id, { id: method, style }, precision, drag = '') => `<td${drag} class="method-value numeric" style="${style}">${number(row.calculations?.[method]?.[id], precision)}</td>`;
 
 function averageValue(row, id, sources) {
   const values = sources.map(({ id: method }) => row.calculations?.[method]?.[id]);
   return composition.average(values);
 }
 
-export function measurementsView(rows, profile, columns, splitColumns, expanded, query) {
+export function measurementsView(rows, profile, columns, splitColumns, columnOrder, expanded, query) {
   const selected = new Set(columns);
   const split = new Set(splitColumns);
   const sourcesByMetric = new Map(METRICS.map(([id]) => [
     id, methods.filter(method => rows.some(row => Number.isFinite(row.calculations?.[method.id]?.[id]))),
   ]));
-  const visibleExtras = extras.filter(([id]) => selected.has(id));
+  const extraColumns = [
+    { id: 'date', label: 'Date', cells: row => `<td${columnDrag('date')} class="numeric"><button class="reading-date" type="button" aria-label="Voir la pesée du ${formatDate(row.receivedAt)}">${formatDate(row.receivedAt)}</button></td>` },
+    { id: 'weight', label: 'Poids', cells: row => `<td${columnDrag('weight')} class="numeric"><strong>${weight(row.measures)}</strong></td>` },
+    ...extras.filter(([id]) => selected.has(id)).map(([id, label, read]) => ({
+      id, label, cells: row => `<td${columnDrag(id)}>${e(textValue(read(row)))}</td>`,
+    })),
+  ];
   const visibleMetrics = METRICS.filter(([id]) => selected.has(id)).map(([id, label, precision]) => {
     const sources = sourcesByMetric.get(id);
-    return { id, label, precision, sources, separate: split.has(id) && sources.length > 1 };
+    const separate = split.has(id) && sources.length > 1;
+    const drag = columnDrag(id);
+    return {
+      id, label, separate, canSplit: sources.length > 1,
+      subheaders: sources.map(method => methodHeader(method, drag)),
+      cells: row => `<td${drag} class="numeric">${number(averageValue(row, id, sources), precision)}</td>${
+        separate ? sources.map(method => methodValue(row, id, method, precision, drag)).join('') : ''
+      }`,
+    };
   });
-  const twoRows = visibleMetrics.some(({ separate }) => separate);
-  const metricGroups = visibleMetrics.map(({ label, sources, separate }) => separate
-    ? `<th scope="colgroup" colspan="${sources.length}">${e(label)}</th>`
-    : `<th scope="col"${twoRows ? ' rowspan="2"' : ''}>${e(label)}</th>`).join('');
-  const headers = ['Date', 'Poids', ...visibleExtras.map(([, label]) => label)]
-    .map(label => `<th scope="col"${twoRows ? ' rowspan="2"' : ''}>${e(label)}</th>`).join('');
+  const byId = new Map([...extraColumns, ...visibleMetrics].map(column => [column.id, column]));
+  const ordered = [...new Set([...(columnOrder ?? []), ...byId.keys()])].filter(id => byId.has(id)).map(id => byId.get(id));
+  const twoRows = ordered.some(({ separate }) => separate);
+  const headers = ordered.map(({ id, label, canSplit, separate, subheaders }) => {
+    const title = canSplit
+      ? `<button class="column-toggle" type="button" data-action="split-column" data-value="${id}" aria-expanded="${Boolean(separate)}">${e(label)}</button>`
+      : e(label);
+    const scope = separate ? `scope="colgroup" colspan="${subheaders.length + 1}"`
+      : `scope="col"${twoRows ? ' rowspan="2"' : ''}`;
+    return `<th${columnDrag(id)} ${scope}>${title}</th>`;
+  }).join('');
   const settings = profile ? columnSettings(selected, split, sourcesByMetric, expanded, query) : '';
   const last = rows[0];
   const emptyText = profile ? 'Aucune pesée enregistrée pour ce profil.' : 'Sélectionnez un profil pour afficher ses pesées.';
@@ -93,15 +113,12 @@ export function measurementsView(rows, profile, columns, splitColumns, expanded,
       <p>Dernier poids <strong>${weight(last.measures)}</strong></p><p class="muted">${formatDate(last.receivedAt)}</p>
     </div>${settings}
     <div class="panel table-scroll" tabindex="0" role="region" aria-label="Pesées">
-      <table aria-label="Pesées">
-        <thead><tr>${headers}${metricGroups}</tr>
-        ${twoRows ? `<tr>${visibleMetrics.flatMap(({ sources, separate }) => separate ? sources.map(methodHeader) : []).join('')}</tr>` : ''}</thead>
+      <table class="measurements-table" aria-label="Pesées">
+        <thead><tr>${headers}</tr>
+        ${twoRows ? `<tr>${ordered.map(({ id, separate, subheaders }) => separate
+          ? `<th scope="col"${columnDrag(id)}>Moyenne</th>${subheaders.join('')}` : '').join('')}</tr>` : ''}</thead>
         <tbody>${rows.map((row, index) => `<tr data-action="reading" data-value="${index}">
-          <td class="numeric"><button class="reading-date" type="button" aria-label="Voir la pesée du ${formatDate(row.receivedAt)}">${formatDate(row.receivedAt)}</button></td><td class="numeric"><strong>${weight(row.measures)}</strong></td>
-          ${visibleExtras.map(([, , read]) => `<td>${e(textValue(read(row)))}</td>`).join('')}
-          ${visibleMetrics.map(({ id, precision, sources, separate }) => separate
-            ? sources.map(method => methodValue(row, id, method, precision)).join('')
-            : `<td class="numeric">${number(averageValue(row, id, sources), precision)}</td>`).join('')}
+          ${ordered.map(({ cells }) => cells(row)).join('')}
         </tr>`).join('')}</tbody>
       </table>
     </div>` : `${settings}<p class="panel empty">${emptyText}</p>`;
@@ -112,7 +129,7 @@ export function measurementDetails(row) {
   const activeMethods = methods.filter(({ id }) => METRICS.some(([metric]) => Number.isFinite(row.calculations?.[id]?.[metric])));
   const readings = `<p><strong>${weight(row.measures)}</strong> · ${formatDate(row.receivedAt)}</p>`;
   const comparison = activeMethods.length ? `<div class="panel table-scroll" role="region" aria-label="Comparaison des méthodes" tabindex="0">
-    <table aria-label="Comparaison des méthodes"><thead><tr><th scope="col">Donnée</th><th scope="col">Moyenne</th>${activeMethods.map(methodHeader).join('')}</tr></thead>
+    <table aria-label="Comparaison des méthodes"><thead><tr><th scope="col">Donnée</th><th scope="col">Moyenne</th>${activeMethods.map(method => methodHeader(method)).join('')}</tr></thead>
     <tbody>${METRICS.filter(([id]) => activeMethods.some(method => Number.isFinite(row.calculations?.[method.id]?.[id])))
       .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th><td class="numeric">${number(averageValue(row, id, activeMethods), precision)}</td>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>
     <details><summary>Méthodes de calcul</summary><div class="legend">${activeMethods.map(({ icon, id, label, style }) => `<span style="${style}">${icon} ${e(id)} · ${e(label)}</span>`).join('')}</div>

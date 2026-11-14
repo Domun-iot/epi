@@ -434,6 +434,7 @@ fn save_preferences(root: &Path, session: &Value, previous: &Value) -> Result<()
         "selectedProfile": session["selectedProfile"],
         "pending": session["pending"],
         "addressFilter": session["addressFilter"],
+        "anonymousPreferences": session["anonymousPreferences"],
     });
     json_write(&root.join(PREFS), &global, true)?;
     Ok(())

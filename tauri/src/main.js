@@ -32,6 +32,8 @@ let rows = [];
 let reading = null;
 let historyScroll;
 let columnQuery = '';
+let draggedColumn;
+let dropColumn;
 let errorText = '';
 let feedback = '';
 let frames = [];
@@ -72,7 +74,7 @@ function render() {
   dataActions.hidden = Boolean(detail);
   backButton.hidden = !detail;
   const nextMain = detail ? [page, detail] : [page, state.selectedProfile, ...(page === 'measurements'
-    ? [state.measurements, state.columns, state.splitColumns]
+    ? [state.measurements, state.columns, state.splitColumns, state.columnOrder]
     : page === 'profiles' ? [state.profiles] : [state.devices, state.addressFilter])];
   if (changed(lastMain, nextMain)) {
     lastMain = nextMain;
@@ -91,13 +93,14 @@ function render() {
     const active = document.activeElement;
     const focusedColumn = active?.dataset.column;
     const focusedToggle = active?.dataset.action === 'split-column' ? active.dataset.value : undefined;
+    const toggleScope = active?.classList.contains('column-toggle') ? '.column-toggle' : '.column-option button';
     const searchFocused = active?.matches('.column-search');
     view.innerHTML = detail ? measurementDetails(detail)
-      : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, expanded.has('columns'), columnQuery)
+      : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, expanded.has('columns'), columnQuery)
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile) : devicesView(state.devices, state.addressFilter, expanded.has('raw'));
     if (detail) return;
     if (page === 'measurements') filterColumnOptions(view, columnQuery);
-    if (focusedToggle) view.querySelector(`[data-action="split-column"][data-value="${CSS.escape(focusedToggle)}"]`)?.focus({ preventScroll: true });
+    if (focusedToggle) view.querySelector(`${toggleScope}[data-action="split-column"][data-value="${CSS.escape(focusedToggle)}"]`)?.focus({ preventScroll: true });
     if (searchFocused) view.querySelector('.column-search')?.focus({ preventScroll: true });
     if (scroll && page === 'measurements') view.querySelector('.table-scroll')?.scrollTo({ left: scroll });
     if (focusedColumn) view.querySelector(`[data-column="${CSS.escape(focusedColumn)}"]`)?.focus({ preventScroll: true });
@@ -202,9 +205,45 @@ navigation.addEventListener('click', event => {
 });
 backButton.addEventListener('click', () => actions['back-to-measurements']());
 main.addEventListener('click', event => {
-  const control = event.target.closest('[data-action]');
+  const control = event.target.closest('[data-action]') ?? event.target.closest('th')?.querySelector('.column-toggle');
   const action = control && actions[control.dataset.action];
   if (action) void perform(() => action(control.dataset.value));
+});
+function markDropColumn(column) {
+  if (column === dropColumn) return;
+  dropColumn = column;
+  for (const cell of view.querySelectorAll('[data-drag-column]')) {
+    cell.classList.toggle('column-drop', cell.dataset.dragColumn === column);
+  }
+}
+
+view.addEventListener('dragstart', event => {
+  const column = event.target.closest('[data-drag-column]')?.dataset.dragColumn;
+  if (!column) return;
+  draggedColumn = column;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', column);
+});
+view.addEventListener('dragover', event => {
+  const column = event.target.closest('[data-drag-column]')?.dataset.dragColumn;
+  if (!draggedColumn || !column) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  markDropColumn(column === draggedColumn ? undefined : column);
+});
+view.addEventListener('drop', event => {
+  const target = event.target.closest('[data-drag-column]')?.dataset.dragColumn;
+  const source = draggedColumn;
+  if (!source || !target) return;
+  event.preventDefault();
+  const order = Array.from(view.querySelectorAll('.measurements-table thead tr:first-child th'), cell => cell.dataset.dragColumn);
+  markDropColumn(undefined);
+  draggedColumn = undefined;
+  if (source !== target) void perform(() => session.moveColumn(state.selectedProfile, source, target, order));
+});
+view.addEventListener('dragend', () => {
+  draggedColumn = undefined;
+  markDropColumn(undefined);
 });
 view.addEventListener('toggle', event => {
   const group = event.target.dataset.expand;

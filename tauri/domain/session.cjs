@@ -9,6 +9,7 @@ const { ADDRESS, findProfile, profileFields, mergeLegacy } = require('./records.
 
 const defaultColumns = ['impedanceOhms', 'bmi'];
 const defaultSplitColumns = [];
+const defaultColumnOrder = [];
 const emptyState = () => ({
   profiles: [],
   devices: [],
@@ -20,7 +21,8 @@ const emptyState = () => ({
 });
 
 function preferencesFor(state, profile = state.selectedProfile) {
-  return profile && Object.hasOwn(state.profilePreferences, profile) ? state.profilePreferences[profile] : {};
+  if (!profile) return state.anonymousPreferences ?? {};
+  return Object.hasOwn(state.profilePreferences, profile) ? state.profilePreferences[profile] : {};
 }
 
 function restore(snapshot) {
@@ -56,8 +58,8 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   });
 
   function view() {
-    const { columns = defaultColumns, splitColumns = defaultSplitColumns } = preferencesFor(saved);
-    return { ...saved, columns, splitColumns, enrollment, acquisitionError };
+    const { columns = defaultColumns, splitColumns = defaultSplitColumns, columnOrder = defaultColumnOrder } = preferencesFor(saved);
+    return { ...saved, columns, splitColumns, columnOrder, enrollment, acquisitionError };
   }
 
   function publish() {
@@ -146,19 +148,34 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   function setColumnPreference(profile, id, setting, enabled) {
     return mutate(draft => {
       const target = profile == null ? null : findProfile(draft, profile);
-      if (!target) throw Error('Profil introuvable.');
+      if (profile != null && !target) throw Error('Profil introuvable.');
       if (typeof id !== 'string' || !id || !['columns', 'splitColumns'].includes(setting)
           || typeof enabled !== 'boolean') {
         throw Error('Préférence de colonne invalide.');
       }
-      const prefs = preferencesFor(draft, target.name);
+      const prefs = preferencesFor(draft, target?.name ?? null);
       const values = new Set(prefs[setting] ?? (setting === 'columns' ? defaultColumns : defaultSplitColumns));
       if (enabled) values.add(id);
       else values.delete(id);
-      draft.profilePreferences = {
-        ...draft.profilePreferences,
-        [target.name]: { ...prefs, [setting]: [...values] },
-      };
+      saveColumnPreferences(draft, target?.name, { ...prefs, [setting]: [...values] });
+    });
+  }
+
+  function saveColumnPreferences(draft, profile, prefs) {
+    if (profile) draft.profilePreferences = { ...draft.profilePreferences, [profile]: prefs };
+    else draft.anonymousPreferences = prefs;
+  }
+
+  function moveColumn(profile, source, target, visibleOrder) {
+    return mutate(draft => {
+      const prefs = preferencesFor(draft, profile);
+      const order = [...new Set([...(prefs.columnOrder ?? []), ...visibleOrder])];
+      const from = order.indexOf(source);
+      const to = order.indexOf(target);
+      if (from < 0 || to < 0 || from === to) return;
+      order.splice(from, 1);
+      order.splice(to, 0, source);
+      saveColumnPreferences(draft, profile, { ...prefs, columnOrder: order });
     });
   }
 
@@ -274,7 +291,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       observers.add(observer);
       return () => observers.delete(observer);
     },
-    selectProfile, saveProfile, setColumnPreference, beginDevice, cancelDevice, confirmProfile,
+    selectProfile, saveProfile, setColumnPreference, moveColumn, beginDevice, cancelDevice, confirmProfile,
     discardPending, ingest, importLegacy, setAddressFilter,
   };
 }
