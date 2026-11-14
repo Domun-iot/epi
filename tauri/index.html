@@ -22,9 +22,11 @@
       <div class="workspace">
         <header class="toolbar">
           <div class="actions data-actions" id="data-actions">
-            <button class="button" type="button" id="reload-data" hidden>Actualiser</button>
-            <button class="button" type="button" id="export-data">Export ZIP</button>
-            <button class="button" type="button" id="import-data">Import ZIP</button>
+            <button class="button" type="button" id="reload-data" aria-label="Actualiser" title="Actualiser" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4v5h-5M4 20v-5h5M5.1 9a7.5 7.5 0 0 1 12.4-2.5L20 9M4 15l2.5 2.5A7.5 7.5 0 0 0 18.9 15"/></svg>
+            </button>
+            <button class="button" type="button" id="export-data" aria-labelledby="export-label"><span id="export-label">Export ZIP</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg></button>
+            <button class="button" type="button" id="import-data" aria-labelledby="import-label"><span id="import-label">Import ZIP</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-5 5 5-5 5 5M4 16v4h16v-4"/></svg></button>
             <input id="import-files" type="file" accept=".zip,application/zip" aria-label="Importer une archive ZIP" hidden>
           </div>
           <button class="button" type="button" id="back-to-measurements" hidden>Retour</button>

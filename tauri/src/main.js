@@ -496,6 +496,21 @@ async function importArchive(importer) {
   }
 }
 
+const archiveButtons = [exportButton, importButton];
+const dataActionsResize = new ResizeObserver(() => {
+  if (dataActions.hidden) return;
+  dataActions.classList.remove('compact');
+  const compact = importButton.getBoundingClientRect().right > dataActions.getBoundingClientRect().right;
+  dataActions.classList.toggle('compact', compact);
+  for (const button of archiveButtons) {
+    if (compact) button.title = button.firstElementChild.textContent;
+    else button.removeAttribute('title');
+  }
+});
+dataActionsResize.observe(dataActions);
+dataActionsResize.observe(reloadButton);
+for (const button of archiveButtons) dataActionsResize.observe(button.firstElementChild);
+
 reloadButton.addEventListener('click', () => void perform(async () => {
   await session.reload();
   feedback = 'Données rechargées.';

@@ -60,6 +60,35 @@ async function pageWith(t, snapshot, options = {}) {
   return page;
 }
 
+test('archive actions switch to icons when their labels do not fit', async t => {
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice' });
+  const reload = page.locator('#reload-data');
+  const download = page.getByRole('button', { name: 'Export ZIP' });
+  const upload = page.getByRole('button', { name: 'Import ZIP' });
+  await reload.evaluate(button => { button.hidden = false; });
+  await reload.locator('svg').waitFor();
+  await download.locator('span').waitFor();
+  await upload.locator('span').waitFor();
+
+  await page.setViewportSize({ width: 300, height: 800 });
+  await download.locator('svg').waitFor();
+  await upload.locator('svg').waitFor();
+  assert.equal(await download.getAttribute('title'), 'Export ZIP');
+  assert.equal(await upload.getAttribute('title'), 'Import ZIP');
+  assert.equal((await reload.boundingBox()).y, (await download.boundingBox()).y);
+  assert.equal((await reload.boundingBox()).y, (await upload.boundingBox()).y);
+
+  const longerLabel = 'Télécharger une archive ZIP avec toutes les données';
+  await download.locator('span').evaluate((label, text) => { label.textContent = text; }, longerLabel);
+  await page.waitForFunction(text => document.querySelector('#export-data').title === text, longerLabel);
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const translated = page.getByRole('button', { name: longerLabel });
+  await translated.locator('span').waitFor();
+  assert.equal(await translated.getAttribute('title'), null);
+  await upload.locator('span').waitFor();
+});
+
 test('theme follows the browser until a profile saves a selection', async t => {
   const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Alice' }, { colorScheme: 'dark' });
   const picker = page.getByRole('combobox', { name: 'Profil actif' });
