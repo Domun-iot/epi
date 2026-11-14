@@ -105,8 +105,8 @@ tbody tr:hover { background: #edf4ff; }
 .measurement-details-page { max-width: none; padding-inline: clamp(12px, 2vw, 32px); }
 tr[data-action="reading"] { cursor: pointer; }
 tr[data-action="reading"]:focus-within { background: #edf4ff; }
-.measurements-table [data-drag-column] { cursor: grab; }
-.measurements-table .column-drop { outline: 2px solid var(--blue); outline-offset: -2px; }
+[data-drag-column] { cursor: grab; }
+.column-drop { outline: 2px solid var(--blue); outline-offset: -2px; }
 .column-toggle { padding: 0; border: 0; background: none; color: inherit; font-weight: inherit; }
 .column-toggle:hover { text-decoration: underline; }
 .reading-date { padding: 0; border: 0; background: none; color: inherit; }

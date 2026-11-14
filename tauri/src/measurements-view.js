@@ -77,7 +77,7 @@ function columnSettings(selected, split, sourcesByMetric, open, query) {
 }
 
 const columnDrag = id => ` data-drag-column="${id}" draggable="true"`;
-const sourceLink = (url, text) => `<a class="method-source" href="${e(url)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const sourceLink = (url, text) => `<a class="method-source" href="${e(url)}" target="_blank" rel="noopener noreferrer" draggable="false">${text}</a>`;
 const methodHeader = ({ id, icon, label, style, source }, drag = '') => {
   const title = `<span aria-hidden="true">${icon}</span> ${e(id)}`;
   return `<th scope="col"${drag} class="method-header" style="${style}" title="${e(label)}">${source ? sourceLink(source, title) : title}</th>`;
@@ -144,8 +144,10 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
   return pageHeader('Pesées') + content;
 }
 
-export function measurementDetails(row) {
-  const activeMethods = methods.filter(({ id }) => METRICS.some(([metric]) => Number.isFinite(row.calculations?.[id]?.[metric])))
+export function measurementDetails(row, methodOrder = []) {
+  const byId = new Map(methods.map(method => [method.id, method]));
+  const activeMethods = [...new Set([...methodOrder, ...byId.keys()])].map(id => byId.get(id))
+    .filter(Boolean).filter(({ id }) => METRICS.some(([metric]) => Number.isFinite(row.calculations?.[id]?.[metric])))
     .map(method => ({
       ...method,
       source: method.id === 'Owe' && row.profile?.sex === 'H'
@@ -153,7 +155,7 @@ export function measurementDetails(row) {
     }));
   const readings = `<p><strong>${weight(row.measures)}</strong> · ${formatDate(row.receivedAt)}</p>`;
   const comparison = activeMethods.length ? `<div class="panel table-scroll comparison-scroll" role="region" aria-label="Comparaison des méthodes" tabindex="0">
-    <table aria-label="Comparaison des méthodes"><thead><tr><th scope="col">Donnée</th><th scope="col">Moyenne</th>${activeMethods.map(method => methodHeader(method)).join('')}</tr></thead>
+    <table aria-label="Comparaison des méthodes"><thead><tr><th scope="col">Donnée</th><th scope="col">Moyenne</th>${activeMethods.map(method => methodHeader(method, columnDrag(method.id))).join('')}</tr></thead>
     <tbody>${METRICS.filter(([id]) => activeMethods.some(method => Number.isFinite(row.calculations?.[method.id]?.[id])))
       .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th><td class="numeric">${number(averageValue(row, id, activeMethods), precision)}</td>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>
     <details><summary>Méthodes de calcul</summary><div class="legend">${activeMethods.map(({ icon, id, label, style, source }) => `<span style="${style}">${sourceLink(source, `${icon} ${e(id)} · ${e(label)}`)}</span>`).join('')}</div>

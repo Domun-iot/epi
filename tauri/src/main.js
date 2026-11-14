@@ -33,6 +33,7 @@ let rows = [];
 let reading = null;
 let historyScroll;
 let columnQuery = '';
+let detailMethodOrder = [];
 let draggedColumn;
 let dropColumn;
 let errorText = '';
@@ -74,7 +75,7 @@ function render() {
   const detail = page === 'measurements' ? reading : null;
   dataActions.hidden = Boolean(detail);
   backButton.hidden = !detail;
-  const nextMain = detail ? [page, detail] : [page, state.selectedProfile, ...(page === 'measurements'
+  const nextMain = detail ? [page, detail, detailMethodOrder] : [page, state.selectedProfile, ...(page === 'measurements'
     ? [state.measurements, state.columns, state.splitColumns, state.columnOrder]
     : page === 'profiles' ? [state.profiles] : [state.devices, state.addressFilter])];
   if (changed(lastMain, nextMain)) {
@@ -96,10 +97,21 @@ function render() {
     const focusedToggle = active?.dataset.action === 'split-column' ? active.dataset.value : undefined;
     const toggleScope = active?.classList.contains('column-toggle') ? '.column-toggle' : '.column-option button';
     const searchFocused = active?.matches('.column-search');
-    view.innerHTML = detail ? measurementDetails(detail)
+    const previousComparison = view.querySelector('.comparison-scroll');
+    const detailScroll = previousComparison && { left: previousComparison.scrollLeft, top: previousComparison.scrollTop };
+    const openSections = new Map(Array.from(view.querySelectorAll('.measurement-details > details'),
+      section => [section.querySelector('summary').textContent, section.open]));
+    view.innerHTML = detail ? measurementDetails(detail, detailMethodOrder)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, expanded.has('columns'), columnQuery)
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile) : devicesView(state.devices, state.addressFilter, expanded.has('raw'));
-    if (detail) return;
+    if (detail) {
+      view.querySelector('.comparison-scroll')?.scrollTo(detailScroll ?? {});
+      for (const section of view.querySelectorAll('.measurement-details > details')) {
+        const title = section.querySelector('summary').textContent;
+        if (openSections.has(title)) section.open = openSections.get(title);
+      }
+      return;
+    }
     if (page === 'measurements') filterColumnOptions(view, columnQuery);
     if (focusedToggle) view.querySelector(`${toggleScope}[data-action="split-column"][data-value="${CSS.escape(focusedToggle)}"]`)?.focus({ preventScroll: true });
     if (searchFocused) view.querySelector('.column-search')?.focus({ preventScroll: true });
@@ -183,6 +195,7 @@ const actions = {
     const row = rows[Number(index)];
     if (!row) return;
     historyScroll = { left: view.querySelector('.table-scroll').scrollLeft, top: window.scrollY };
+    detailMethodOrder = [];
     reading = row;
     render();
     backButton.focus({ preventScroll: true });
@@ -216,42 +229,64 @@ main.addEventListener('click', event => {
   const action = control && actions[control.dataset.action];
   if (action) void perform(() => action(control.dataset.value));
 });
+const dragSelector = '[data-drag-column]';
+let draggedTable;
+
+function dragColumnAt(event) {
+  const cell = event.target.closest(dragSelector);
+  return cell?.closest('table') === draggedTable ? cell?.dataset.dragColumn : undefined;
+}
+
 function markDropColumn(column) {
   if (column === dropColumn) return;
   dropColumn = column;
-  for (const cell of view.querySelectorAll('[data-drag-column]')) {
+  for (const cell of draggedTable.querySelectorAll(dragSelector)) {
     cell.classList.toggle('column-drop', cell.dataset.dragColumn === column);
   }
 }
 
+function clearColumnDrag() {
+  markDropColumn(undefined);
+  draggedColumn = undefined;
+  draggedTable = undefined;
+}
+
 view.addEventListener('dragstart', event => {
-  const column = event.target.closest('[data-drag-column]')?.dataset.dragColumn;
-  if (!column) return;
-  draggedColumn = column;
+  const cell = event.target.closest(dragSelector);
+  if (!cell) return;
+  draggedColumn = cell.dataset.dragColumn;
+  draggedTable = cell.closest('table');
   event.dataTransfer.effectAllowed = 'move';
-  event.dataTransfer.setData('text/plain', column);
+  event.dataTransfer.setData('text/plain', draggedColumn);
 });
 view.addEventListener('dragover', event => {
-  const column = event.target.closest('[data-drag-column]')?.dataset.dragColumn;
+  const column = dragColumnAt(event);
   if (!draggedColumn || !column) return;
   event.preventDefault();
   event.dataTransfer.dropEffect = 'move';
   markDropColumn(column === draggedColumn ? undefined : column);
 });
 view.addEventListener('drop', event => {
-  const target = event.target.closest('[data-drag-column]')?.dataset.dragColumn;
+  const target = dragColumnAt(event);
   const source = draggedColumn;
   if (!source || !target) return;
   event.preventDefault();
-  const order = Array.from(view.querySelectorAll('.measurements-table thead tr:first-child th'), cell => cell.dataset.dragColumn);
-  markDropColumn(undefined);
-  draggedColumn = undefined;
-  if (source !== target) void perform(() => session.moveColumn(state.selectedProfile, source, target, order));
+  const isComparison = draggedTable.matches('.comparison-scroll table');
+  const order = Array.from(draggedTable.querySelectorAll('thead tr:first-child th[data-drag-column]'),
+    cell => cell.dataset.dragColumn);
+  clearColumnDrag();
+  if (source === target) return;
+  if (isComparison) {
+    const to = order.indexOf(target);
+    order.splice(order.indexOf(source), 1);
+    order.splice(to, 0, source);
+    detailMethodOrder = order;
+    render();
+  } else {
+    void perform(() => session.moveColumn(state.selectedProfile, source, target, order));
+  }
 });
-view.addEventListener('dragend', () => {
-  draggedColumn = undefined;
-  markDropColumn(undefined);
-});
+view.addEventListener('dragend', clearColumnDrag);
 view.addEventListener('toggle', event => {
   const group = event.target.dataset.expand;
   if (!group) return;
