@@ -1,13 +1,14 @@
 import { connect } from './service.js';
 import { escapeHtml as e, nameKey } from './format.js';
 import { createEditor } from './editors.js';
-import { filterColumnOptions, measurementsView } from './measurements-view.js';
+import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
 import './styles.css';
 
 const navigation = document.querySelector('#navigation');
 const profilePicker = document.querySelector('#profile');
 const view = document.querySelector('#view');
+const main = view.closest('main');
 const notices = document.querySelector('#notices');
 const dialog = document.querySelector('#editor');
 const status = document.querySelector('#status span:last-child');
@@ -25,6 +26,8 @@ const pages = { measurements: 'Mesures', profiles: 'Profils', devices: 'Appareil
 let session;
 let state = { profiles: [], devices: [], measurements: [], pending: [] };
 let rows = [];
+let reading = null;
+let historyScroll;
 let columnQuery = '';
 let errorText = '';
 let feedback = '';
@@ -62,7 +65,8 @@ function render() {
     notices.innerHTML = noticesView(state, errorText || state.acquisitionError)
       + (feedback ? `<p class="notice" role="status">${e(feedback)}</p>` : '');
   }
-  const nextMain = [page, state.selectedProfile, ...(page === 'measurements'
+  const detail = page === 'measurements' ? reading : null;
+  const nextMain = detail ? [page, detail] : [page, state.selectedProfile, ...(page === 'measurements'
     ? [state.measurements, state.columns, state.splitColumns]
     : page === 'profiles' ? [state.profiles] : [state.devices, state.addressFilter])];
   if (changed(lastMain, nextMain)) {
@@ -76,14 +80,17 @@ function render() {
       if (button.dataset.page === page) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     }
-    view.setAttribute('aria-label', pages[page]);
+    view.setAttribute('aria-label', detail ? 'Détails de la pesée' : pages[page]);
+    main.classList.toggle('measurement-details-page', Boolean(detail));
     const scroll = view.querySelector('.table-scroll')?.scrollLeft;
     const active = document.activeElement;
     const focusedColumn = active?.dataset.column;
     const focusedToggle = active?.dataset.action === 'split-column' ? active.dataset.value : undefined;
     const searchFocused = active?.matches('.column-search');
-    view.innerHTML = page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, expanded.has('columns'), columnQuery)
+    view.innerHTML = detail ? measurementDetails(detail)
+      : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, expanded.has('columns'), columnQuery)
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile) : devicesView(state.devices, state.addressFilter, expanded.has('raw'));
+    if (detail) return;
     if (page === 'measurements') filterColumnOptions(view, columnQuery);
     if (focusedToggle) view.querySelector(`[data-action="split-column"][data-value="${CSS.escape(focusedToggle)}"]`)?.focus({ preventScroll: true });
     if (searchFocused) view.querySelector('.column-search')?.focus({ preventScroll: true });
@@ -165,15 +172,30 @@ const actions = {
     !state.splitColumns.includes(id)),
   reading: index => {
     const row = rows[Number(index)];
-    if (row) editor.reading(row);
+    if (!row) return;
+    historyScroll = { left: view.querySelector('.table-scroll').scrollLeft, top: window.scrollY };
+    reading = row;
+    render();
+    view.querySelector('[data-action="back-to-measurements"]').focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  },
+  'back-to-measurements': () => {
+    const row = reading;
+    reading = null;
+    render();
+    const index = rows.indexOf(row);
+    view.querySelector(`[data-action="reading"][data-value="${index}"]`)?.focus({ preventScroll: true });
+    view.querySelector('.table-scroll')?.scrollTo({ left: historyScroll.left });
+    window.scrollTo({ top: historyScroll.top });
   },
 };
 
 navigation.addEventListener('click', event => {
   const page = event.target.closest('[data-page]')?.dataset.page;
-  if (page) go(page);
+  if (page === 'measurements' && reading) actions['back-to-measurements']();
+  else if (page) go(page);
 });
-document.querySelector('main').addEventListener('click', event => {
+main.addEventListener('click', event => {
   const control = event.target.closest('[data-action]');
   const action = control && actions[control.dataset.action];
   if (action) void perform(() => action(control.dataset.value));
@@ -199,10 +221,12 @@ view.addEventListener('change', event => {
   });
 });
 profilePicker.addEventListener('change', () => {
+  reading = null;
   const name = profilePicker.value || null;
   void perform(() => session.selectProfile(name)).then(renderProfilePicker);
 });
 window.addEventListener('hashchange', () => {
+  reading = null;
   render();
   renderFrames();
 });

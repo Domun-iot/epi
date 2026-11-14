@@ -107,8 +107,15 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
   await table.getByRole('button', { name: 'Voir la pesée' }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('table', { name: 'Comparaison des méthodes' }).waitFor();
-  await dialog.getByRole('button', { name: 'Fermer' }).click();
+  const detail = page.getByRole('region', { name: 'Détails de la pesée' });
+  const comparison = detail.getByRole('table', { name: 'Comparaison des méthodes' });
+  assert.equal(await dialog.count(), 0);
+  assert.equal(await table.count(), 0);
+  await page.setViewportSize({ width: 1800, height: 900 });
+  assert.ok(await comparison.evaluate(node => node.clientWidth > 1340));
+  await detail.getByRole('button', { name: 'Retour' }).click();
+  assert.equal(await detail.count(), 0);
+  await table.getByRole('columnheader', { name: 'Mi', exact: true }).waitFor();
 
   await choosePage(page, 'Profils');
   await page.getByRole('article').filter({ hasText: 'Alice' }).getByRole('button', { name: 'Modifier' }).click();
@@ -180,6 +187,9 @@ test('confirmation sur smartphone, création de profil depuis une pesée et hist
   }
   const scroll = page.getByRole('region', { name: 'Historique des pesées' });
   assert.equal(await scroll.evaluate(node => node.scrollWidth > node.clientWidth), true);
+  await table.getByRole('button', { name: 'Voir la pesée' }).click();
+  const comparison = page.getByRole('region', { name: 'Comparaison des méthodes' });
+  assert.ok(await comparison.evaluate(node => node.scrollWidth > node.clientWidth));
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth === window.innerWidth), true);
 });
 

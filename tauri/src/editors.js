@@ -1,5 +1,4 @@
 import { button, deviceFields, escapeHtml as e, pairs, weight } from './format.js';
-import { measurementDetails } from './measurements-view.js';
 
 const field = (label, name, attributes) => `<label>${label}<input name="${name}" ${attributes}></label>`;
 const option = (value, label, selected) => `<option value="${e(value)}"${selected ? ' selected' : ''}>${e(label)}</option>`;
@@ -8,29 +7,25 @@ export function createEditor(dialog, onError) {
   function open(title, content, submit, submitLabel = 'Enregistrer') {
     if (dialog.open) dialog.close();
     dialog.innerHTML = `<h2 id="dialog-title">${title}</h2>`;
-    if (submit) {
-      dialog.insertAdjacentHTML('beforeend', `<form>${content}<p class="notice error" role="alert" hidden></p>
-        <div class="actions">${button('Annuler', 'close-dialog')}<button class="button primary" type="submit">${submitLabel}</button></div></form>`);
-      dialog.querySelector('form').addEventListener('submit', async event => {
-        event.preventDefault();
-        const form = event.currentTarget;
-        const error = form.querySelector('[role="alert"]');
-        const save = form.querySelector('[type="submit"]');
-        save.disabled = true;
-        error.hidden = true;
-        try {
-          await submit(Object.fromEntries(new FormData(form)));
-          if (dialog.contains(form)) dialog.close();
-        } catch (exception) {
-          error.textContent = exception?.message || String(exception);
-          error.hidden = false;
-        } finally {
-          save.disabled = false;
-        }
-      });
-    } else {
-      dialog.insertAdjacentHTML('beforeend', `<div class="dialog-body">${content}<div class="actions">${button('Fermer', 'close-dialog')}</div></div>`);
-    }
+    dialog.insertAdjacentHTML('beforeend', `<form>${content}<p class="notice error" role="alert" hidden></p>
+      <div class="actions">${button('Annuler', 'close-dialog')}<button class="button primary" type="submit">${submitLabel}</button></div></form>`);
+    dialog.querySelector('form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const error = form.querySelector('[role="alert"]');
+      const save = form.querySelector('[type="submit"]');
+      save.disabled = true;
+      error.hidden = true;
+      try {
+        await submit(Object.fromEntries(new FormData(form)));
+        if (dialog.contains(form)) dialog.close();
+      } catch (exception) {
+        error.textContent = exception?.message || String(exception);
+        error.hidden = false;
+      } finally {
+        save.disabled = false;
+      }
+    });
     dialog.querySelector('[data-action="close-dialog"]').addEventListener('click', () => dialog.close());
     dialog.showModal();
   }
@@ -95,6 +90,5 @@ export function createEditor(dialog, onError) {
     values => submit(values.address), 'Appliquer le filtre');
   }
 
-  return { profileEditor, deviceEditor, assignmentEditor, filterEditor,
-    reading: row => open('Détails de la pesée', measurementDetails(row)) };
+  return { profileEditor, deviceEditor, assignmentEditor, filterEditor };
 }

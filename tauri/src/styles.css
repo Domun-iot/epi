@@ -101,7 +101,12 @@ tbody tr:hover { background: #edf4ff; }
 .method-icon { color: var(--method-ink); }
 .legend { display: flex; gap: 6px 10px; flex-wrap: wrap; padding: 9px 0 4px; font-size: .83rem; }
 .legend span { background: var(--method-bg); color: var(--method-ink); padding: 4px 7px; border-radius: 5px; }
-.dialog-body { display: grid; gap: 12px; }
+.measurement-details-page { max-width: none; padding-inline: clamp(12px, 2vw, 32px); }
+.detail-navigation { margin-bottom: 16px; }
+.measurement-details { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.measurement-details > p { margin: 0; }
+.measurement-details th, .measurement-details td { padding-inline: clamp(6px, .65vw, 13px); }
+.measurement-details th[scope=row] { white-space: normal; }
 dialog { border: 1px solid var(--line); border-radius: 14px; color: var(--ink); padding: 20px; max-width: min(540px, calc(100vw - 28px)); max-height: calc(100dvh - 28px); width: 100%; }
 dialog::backdrop { background: rgb(15 29 49 / 54%); }
 dialog h2 { font-size: 1.3rem; }

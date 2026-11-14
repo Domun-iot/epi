@@ -117,6 +117,8 @@ export function measurementDetails(row) {
       .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>
     <details><summary>Méthodes de calcul</summary><div class="legend">${activeMethods.map(({ icon, id, label, style }) => `<span style="${style}">${icon} ${e(id)} · ${e(label)}</span>`).join('')}</div>
     <p class="muted">Les méthodes marquées d’un astérisque utilisent l’impédance pieds à pieds de la balance.</p></details>` : '';
-  return readings + comparison + `<details open><summary>Données de réception</summary>${pairs(extras.map(([, label, read]) => [label, textValue(read(row))]))}</details>`
-    + (row.device ? `<details><summary>Fiche de la balance à la pesée</summary>${pairs(deviceFields(row.device))}</details>` : '');
+  return `<div class="actions detail-navigation">${button('Retour', 'back-to-measurements')}</div>`
+    + pageHeader('Détails de la pesée')
+    + `<div class="measurement-details">${readings}${comparison}<details open><summary>Données de réception</summary>${pairs(extras.map(([, label, read]) => [label, textValue(read(row))]))}</details>`
+    + (row.device ? `<details><summary>Fiche de la balance à la pesée</summary>${pairs(deviceFields(row.device))}</details>` : '') + '</div>';
 }
