@@ -1,3 +1,4 @@
+import composition from 'virtual:epi-composition';
 import { METHOD_COLUMNS, METRICS } from './service.js';
 import { button, deviceFields, escapeHtml as e, formatDate, nameKey, number, pairs, pageHeader, weight } from './format.js';
 
@@ -64,8 +65,8 @@ const methodHeader = ({ id, icon, label, style }) => `<th scope="col" class="met
 const methodValue = (row, id, { id: method, style }, precision) => `<td class="method-value numeric" style="${style}">${number(row.calculations?.[method]?.[id], precision)}</td>`;
 
 function averageValue(row, id, sources) {
-  const values = sources.map(({ id: method }) => row.calculations?.[method]?.[id]).filter(Number.isFinite);
-  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+  const values = sources.map(({ id: method }) => row.calculations?.[method]?.[id]);
+  return composition.average(values);
 }
 
 export function measurementsView(rows, profile, columns, splitColumns, expanded, query) {
@@ -112,9 +113,9 @@ export function measurementDetails(row) {
   const activeMethods = methods.filter(({ id }) => METRICS.some(([metric]) => Number.isFinite(row.calculations?.[id]?.[metric])));
   const readings = `<p><strong>${weight(row.measures)}</strong> · ${formatDate(row.receivedAt)}</p>`;
   const comparison = activeMethods.length ? `<div class="panel table-scroll" role="region" aria-label="Comparaison des méthodes" tabindex="0">
-    <table aria-label="Comparaison des méthodes"><thead><tr><th scope="col">Donnée</th>${activeMethods.map(methodHeader).join('')}</tr></thead>
+    <table aria-label="Comparaison des méthodes"><thead><tr><th scope="col">Donnée</th><th scope="col">Moyenne</th>${activeMethods.map(methodHeader).join('')}</tr></thead>
     <tbody>${METRICS.filter(([id]) => activeMethods.some(method => Number.isFinite(row.calculations?.[method.id]?.[id])))
-      .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>
+      .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th><td class="numeric">${number(averageValue(row, id, activeMethods), precision)}</td>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>
     <details><summary>Méthodes de calcul</summary><div class="legend">${activeMethods.map(({ icon, id, label, style }) => `<span style="${style}">${icon} ${e(id)} · ${e(label)}</span>`).join('')}</div>
     <p class="muted">Les méthodes marquées d’un astérisque utilisent l’impédance pieds à pieds de la balance.</p></details>` : '';
   return `<div class="actions detail-navigation">${button('Retour', 'back-to-measurements')}</div>`

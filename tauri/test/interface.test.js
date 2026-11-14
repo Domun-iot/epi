@@ -113,6 +113,9 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   assert.equal(await table.count(), 0);
   await page.setViewportSize({ width: 1800, height: 900 });
   assert.ok(await comparison.evaluate(node => node.clientWidth > 1340));
+  assert.equal(await comparison.getByRole('columnheader').nth(1).textContent(), 'Moyenne');
+  const fatRow = comparison.getByRole('row').filter({ hasText: 'Masse grasse (%)' });
+  assert.equal(await fatRow.getByRole('cell').first().textContent(), '32,45');
   await detail.getByRole('button', { name: 'Retour' }).click();
   assert.equal(await detail.count(), 0);
   await table.getByRole('columnheader', { name: 'Mi', exact: true }).waitFor();

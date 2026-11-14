@@ -141,6 +141,11 @@ function calculateComposition(event, { sex, age, heightCm: h }) {
   return result;
 }
 
+function average(values) {
+  const available = values.filter(Number.isFinite);
+  return available.length ? available.reduce((sum, value) => sum + value, 0) / available.length : null;
+}
+
 function formatComposition(event, profile) {
   const { weightKg, impedanceOhms, methods } = calculateComposition(event, profile);
   const number = (n, digits) => n.toLocaleString('fr-FR', { maximumFractionDigits: digits });
@@ -151,10 +156,14 @@ function formatComposition(event, profile) {
     ...columns.map(([short, name]) => `  ${short} = ${name}`),
     '  * Impédance pieds à pieds utilisée en approximation de la résistance corps entier. — = indisponible.',
   ];
-  const rows = [['Donnée', ...columns.map(([id]) => id)]];
+  const rows = [['Donnée', 'Moyenne', ...columns.map(([id]) => id)]];
   for (const [metric, label, digits = 1] of metrics) {
-    const values = columns.map(([id]) => methods[id][metric]);
-    rows.push([label, ...values.map(n => Number.isFinite(n) && n > 0 ? number(n, digits) : '—')]);
+    const values = columns.map(([id]) => {
+      const value = methods[id][metric];
+      return value > 0 ? value : null;
+    });
+    const format = value => Number.isFinite(value) ? number(value, digits) : '—';
+    rows.push([label, format(average(values)), ...values.map(format)]);
   }
   const widths = rows[0].map((_, i) => Math.max(...rows.map(row => row[i].length)));
   const rowText = ([label, ...values]) => [label.padEnd(widths[0]),
@@ -163,4 +172,4 @@ function formatComposition(event, profile) {
     ...rows.slice(1).map(rowText)].join('\n');
 }
 
-module.exports = { calculateComposition, formatComposition, columns, metrics };
+module.exports = { calculateComposition, formatComposition, average, columns, metrics };
