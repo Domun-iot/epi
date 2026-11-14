@@ -19,7 +19,7 @@ export function profilesView(profiles, selected) {
 export function devicesView(devices, filter, rawOpen) {
   const action = button('Ajouter un appareil', 'new-device', { primary: true });
   const entries = devices.map(device => `<article class="panel list-item"><header>
-    <h2>${e(device.name)}</h2><div class="actions">${button('Actualiser la fiche', 'refresh-device', { value: device.bluetooth.address })}
+    <h2>${e(device.name)}</h2><div class="actions">${button('Renommer', 'refresh-device', { value: device.bluetooth.address })}
     ${device.bluetooth.address === filter ? '' : button('Écouter seulement cet appareil', 'filter-address', { value: device.bluetooth.address })}</div></header>
     ${pairs(deviceFields(device))}</article>`).join('');
   const filterInfo = filter ? `<div class="notice"><p>Écoute limitée à ${e(filter)}.</p>${button('Écouter tous les appareils', 'clear-filter')}</div>` : '';

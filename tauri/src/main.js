@@ -1,5 +1,5 @@
 import { connect } from './service.js';
-import { escapeHtml as e, nameKey, sortProfiles, userIcon } from './format.js';
+import { escapeHtml as e, formatDate, nameKey, sortProfiles, userIcon } from './format.js';
 import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
@@ -285,7 +285,7 @@ try {
     bluetoothUnavailable = /indisponible|erreur|désactiv|aucun|déconnect|échec|simulation|permission/i.test(message);
     renderBluetooth();
   }, line => {
-    frames = [line, ...frames].slice(0, 50);
+    frames = [`[${formatDate(Date.now())}] ${line}`, ...frames].slice(0, 50);
     renderFrames();
   });
   reloadButton.hidden = !session.native;

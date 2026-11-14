@@ -140,7 +140,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
 });
 
-test('capture et actualisation en lecture seule, attribution automatique et flux brut', async t => {
+test('capture et renommage, attribution automatique et flux brut horodaté', async t => {
   const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Bob', measurements: [record] });
   await choosePage(page, 'Appareils');
   await page.getByRole('button', { name: 'Ajouter un appareil' }).click();
@@ -153,8 +153,8 @@ test('capture et actualisation en lecture seule, attribution automatique et flux
   await page.getByRole('heading', { name: 'Balance Xiaomi', exact: true }).waitFor();
   assert.equal(await chosenProfile(page), 'Alice');
   await page.getByText('Flux Bluetooth brut').click();
-  await page.locator('#raw-frames').filter({ hasText: /AABBCCDDEEFF -58/ }).waitFor();
-  await page.getByRole('button', { name: 'Actualiser la fiche' }).click();
+  await page.locator('#raw-frames').filter({ hasText: /\[\d[^\]]*\d{2}:\d{2}:\d{2}\] AABBCCDDEEFF -58/ }).waitFor();
+  await page.getByRole('button', { name: 'Renommer' }).click();
   dialog = page.getByRole('dialog');
   assert.equal(await dialog.getByRole('textbox').count(), 1);
   await dialog.getByText(address, { exact: true }).waitFor();

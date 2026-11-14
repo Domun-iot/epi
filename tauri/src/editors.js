@@ -61,7 +61,7 @@ export function createEditor(dialog, onError) {
   }
 
   function deviceEditor({ address, device, pending }, submit) {
-    const title = device ? 'Actualiser la fiche' : 'Ajouter un appareil';
+    const title = device ? 'Renommer' : 'Ajouter un appareil';
     const explanation = pending ? 'La trame de cette balance a déjà été reçue.'
       : 'Après validation, montez sur la balance pour transmettre ses données Bluetooth.';
     const captured = device ?? (pending ? {
