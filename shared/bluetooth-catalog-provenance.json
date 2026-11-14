@@ -1,0 +1,4135 @@
+{
+  "schema": 1,
+  "sources": {
+    "nordic-companies": {
+      "repository": "nordicsemi/bluetooth-numbers-database",
+      "commit": "5c795f597125b7be0d5033fb648e9b6f5e09d9c9",
+      "path": "v1/company_ids.json",
+      "license": "BSD-3-Clause",
+      "sha256": "fd6f15c1a4a675d60da88f1467d78ff0542d97cc86589452c37589a7d083d59a"
+    },
+    "nordic-services": {
+      "repository": "nordicsemi/bluetooth-numbers-database",
+      "commit": "5c795f597125b7be0d5033fb648e9b6f5e09d9c9",
+      "path": "v1/service_uuids.json",
+      "license": "BSD-3-Clause",
+      "sha256": "fec38d7a1d24f18a3241a4cc226949be699dccb8abe804df92017a170b041a82"
+    },
+    "swift-members": {
+      "repository": "PureSwift/Bluetooth",
+      "commit": "033e52c56ce97ae4232ebb0b91522dbe385582d3",
+      "path": "Sources/BluetoothMetadata/Resources/MemberUUID.json",
+      "license": "MIT",
+      "sha256": "ceb7d6d6adc5cdc0725d3d59b49204e3b343c61805a82ec4137916c66c664470"
+    },
+    "swift-services": {
+      "repository": "PureSwift/Bluetooth",
+      "commit": "033e52c56ce97ae4232ebb0b91522dbe385582d3",
+      "path": "Sources/BluetoothMetadata/Resources/ServiceUUID.json",
+      "license": "MIT",
+      "sha256": "fd685f4a0a9e0261ebb9043ba8ad78a3dd21580ee93b911e6367eaf4222914d3"
+    },
+    "bluez-uuids": {
+      "repository": "bluez/bluez",
+      "commit": "923d95d0c2fb001b545fa8a8b2e3a8a9bf0dbabf",
+      "path": "src/shared/util.c",
+      "license": "LGPL-2.1-or-later",
+      "sha256": "e3179c23b078c3e727916f25c23ad41d445c535d1b406338c2347e4f5318bd7a"
+    }
+  },
+  "company_selection": {
+    "source": "nordic-companies",
+    "maximum_code": "0x114C",
+    "entries": 4075
+  },
+  "service_scope": "Compatibility identifiers only; not a source of names",
+  "services": {
+    "0x1800": {
+      "source": "swift-services",
+      "name": "GAP",
+      "append_service": true
+    },
+    "0x1801": {
+      "source": "swift-services",
+      "name": "GATT",
+      "append_service": true
+    },
+    "0x1802": {
+      "source": "swift-services",
+      "name": "Immediate Alert",
+      "append_service": true
+    },
+    "0x1803": {
+      "source": "swift-services",
+      "name": "Link Loss",
+      "append_service": true
+    },
+    "0x1804": {
+      "source": "swift-services",
+      "name": "Tx Power",
+      "append_service": true
+    },
+    "0x1805": {
+      "source": "swift-services",
+      "name": "Current Time",
+      "append_service": true
+    },
+    "0x1806": {
+      "source": "swift-services",
+      "name": "Reference Time Update",
+      "append_service": true
+    },
+    "0x1807": {
+      "source": "swift-services",
+      "name": "Next DST Change",
+      "append_service": true
+    },
+    "0x1808": {
+      "source": "swift-services",
+      "name": "Glucose",
+      "append_service": true
+    },
+    "0x1809": {
+      "source": "swift-services",
+      "name": "Health Thermometer",
+      "append_service": true
+    },
+    "0x180A": {
+      "source": "swift-services",
+      "name": "Device Information",
+      "append_service": true
+    },
+    "0x180D": {
+      "source": "swift-services",
+      "name": "Heart Rate",
+      "append_service": true
+    },
+    "0x180E": {
+      "source": "swift-services",
+      "name": "Phone Alert Status",
+      "append_service": true
+    },
+    "0x180F": {
+      "source": "swift-services",
+      "name": "Battery",
+      "append_service": true
+    },
+    "0x1810": {
+      "source": "swift-services",
+      "name": "Blood Pressure",
+      "append_service": true
+    },
+    "0x1811": {
+      "source": "swift-services",
+      "name": "Alert Notification",
+      "append_service": true
+    },
+    "0x1812": {
+      "source": "swift-services",
+      "name": "Human Interface Device",
+      "append_service": true
+    },
+    "0x1813": {
+      "source": "swift-services",
+      "name": "Scan Parameters",
+      "append_service": true
+    },
+    "0x1814": {
+      "source": "swift-services",
+      "name": "Running Speed and Cadence",
+      "append_service": true
+    },
+    "0x1815": {
+      "source": "swift-services",
+      "name": "Automation IO",
+      "append_service": true
+    },
+    "0x1816": {
+      "source": "swift-services",
+      "name": "Cycling Speed and Cadence",
+      "append_service": true
+    },
+    "0x1818": {
+      "source": "swift-services",
+      "name": "Cycling Power",
+      "append_service": true
+    },
+    "0x1819": {
+      "source": "swift-services",
+      "name": "Location and Navigation",
+      "append_service": true
+    },
+    "0x181A": {
+      "source": "swift-services",
+      "name": "Environmental Sensing",
+      "append_service": true
+    },
+    "0x181B": {
+      "source": "swift-services",
+      "name": "Body Composition",
+      "append_service": true
+    },
+    "0x181C": {
+      "source": "swift-services",
+      "name": "User Data",
+      "append_service": true
+    },
+    "0x181D": {
+      "source": "swift-services",
+      "name": "Weight Scale",
+      "append_service": true
+    },
+    "0x181E": {
+      "source": "swift-services",
+      "name": "Bond Management",
+      "append_service": true
+    },
+    "0x181F": {
+      "source": "swift-services",
+      "name": "Continuous Glucose Monitoring",
+      "append_service": true
+    },
+    "0x1820": {
+      "source": "swift-services",
+      "name": "Internet Protocol Support",
+      "append_service": true
+    },
+    "0x1821": {
+      "source": "swift-services",
+      "name": "Indoor Positioning",
+      "append_service": true
+    },
+    "0x1822": {
+      "source": "swift-services",
+      "name": "Pulse Oximeter",
+      "append_service": true
+    },
+    "0x1823": {
+      "source": "swift-services",
+      "name": "HTTP Proxy",
+      "append_service": true
+    },
+    "0x1824": {
+      "source": "swift-services",
+      "name": "Transport Discovery",
+      "append_service": true
+    },
+    "0x1825": {
+      "source": "swift-services",
+      "name": "Object Transfer",
+      "append_service": true
+    },
+    "0x1826": {
+      "source": "swift-services",
+      "name": "Fitness Machine",
+      "append_service": true
+    },
+    "0x1827": {
+      "source": "swift-services",
+      "name": "Mesh Provisioning",
+      "append_service": true
+    },
+    "0x1828": {
+      "source": "swift-services",
+      "name": "Mesh Proxy",
+      "append_service": true
+    },
+    "0x1829": {
+      "source": "swift-services",
+      "name": "Reconnection Configuration",
+      "append_service": true
+    },
+    "0x183A": {
+      "source": "swift-services",
+      "name": "Insulin Delivery",
+      "append_service": true
+    },
+    "0x183B": {
+      "source": "swift-services",
+      "name": "Binary Sensor",
+      "append_service": true
+    },
+    "0x183C": {
+      "source": "swift-services",
+      "name": "Emergency Configuration",
+      "append_service": true
+    },
+    "0x183D": {
+      "source": "swift-services",
+      "name": "Authorization Control",
+      "append_service": true
+    },
+    "0x183E": {
+      "source": "swift-services",
+      "name": "Physical Activity Monitor",
+      "append_service": true
+    },
+    "0x183F": {
+      "source": "swift-services",
+      "name": "Elapsed Time",
+      "append_service": true
+    },
+    "0x1840": {
+      "source": "swift-services",
+      "name": "Generic Health Sensor",
+      "append_service": true
+    },
+    "0x1843": {
+      "source": "swift-services",
+      "name": "Audio Input Control",
+      "append_service": true
+    },
+    "0x1844": {
+      "source": "swift-services",
+      "name": "Volume Control",
+      "append_service": true
+    },
+    "0x1845": {
+      "source": "swift-services",
+      "name": "Volume Offset Control",
+      "append_service": true
+    },
+    "0x1846": {
+      "source": "swift-services",
+      "name": "Coordinated Set Identification",
+      "append_service": true
+    },
+    "0x1847": {
+      "source": "swift-services",
+      "name": "Device Time",
+      "append_service": true
+    },
+    "0x1848": {
+      "source": "swift-services",
+      "name": "Media Control",
+      "append_service": true
+    },
+    "0x1849": {
+      "source": "swift-services",
+      "name": "Generic Media Control",
+      "append_service": true
+    },
+    "0x184A": {
+      "source": "swift-services",
+      "name": "Constant Tone Extension",
+      "append_service": true
+    },
+    "0x184B": {
+      "source": "swift-services",
+      "name": "Telephone Bearer",
+      "append_service": true
+    },
+    "0x184C": {
+      "source": "swift-services",
+      "name": "Generic Telephone Bearer",
+      "append_service": true
+    },
+    "0x184D": {
+      "source": "swift-services",
+      "name": "Microphone Control",
+      "append_service": true
+    },
+    "0x184E": {
+      "source": "swift-services",
+      "name": "Audio Stream Control",
+      "append_service": true
+    },
+    "0x184F": {
+      "source": "swift-services",
+      "name": "Broadcast Audio Scan",
+      "append_service": true
+    },
+    "0x1850": {
+      "source": "swift-services",
+      "name": "Published Audio Capabilities",
+      "append_service": true
+    },
+    "0x1851": {
+      "source": "swift-services",
+      "name": "Basic Audio Announcement",
+      "append_service": true
+    },
+    "0x1852": {
+      "source": "swift-services",
+      "name": "Broadcast Audio Announcement",
+      "append_service": true
+    },
+    "0x1853": {
+      "source": "swift-services",
+      "name": "Common Audio",
+      "append_service": true
+    },
+    "0x1854": {
+      "source": "swift-services",
+      "name": "Hearing Access",
+      "append_service": true
+    },
+    "0x1855": {
+      "source": "swift-services",
+      "name": "Telephony and Media Audio",
+      "append_service": true
+    },
+    "0x1856": {
+      "source": "swift-services",
+      "name": "Public Broadcast Announcement",
+      "append_service": true
+    },
+    "0x1857": {
+      "source": "swift-services",
+      "name": "Electronic Shelf Label",
+      "append_service": true
+    },
+    "0x1858": {
+      "source": "swift-services",
+      "name": "Gaming Audio",
+      "append_service": true
+    },
+    "0x1859": {
+      "source": "swift-services",
+      "name": "Mesh Proxy Solicitation",
+      "append_service": true
+    },
+    "0x185A": {
+      "source": "swift-services",
+      "name": "Industrial Measurement Device",
+      "append_service": true
+    },
+    "0x185B": {
+      "source": "swift-services",
+      "name": "Ranging",
+      "append_service": true
+    },
+    "0x185C": {
+      "source": "swift-services",
+      "name": "HID ISO",
+      "append_service": true
+    },
+    "0x185D": {
+      "source": "swift-services",
+      "name": "Cookware",
+      "append_service": true
+    },
+    "0x185E": {
+      "source": "swift-services",
+      "name": "Voice Assistant",
+      "append_service": true
+    },
+    "0x185F": {
+      "source": "swift-services",
+      "name": "Generic Voice Assistant",
+      "append_service": true
+    },
+    "0x1860": {
+      "source": "nordic-services",
+      "name": "Tire Pressure Monitoring System Service",
+      "append_service": false
+    },
+    "0xFC1E": {
+      "source": "local-supplement",
+      "name": "Atomis Inc."
+    },
+    "0xFC1F": {
+      "source": "local-supplement",
+      "name": "Eight Sleep Inc."
+    },
+    "0xFC20": {
+      "source": "local-supplement",
+      "name": "PreStartGo Pty Ltd"
+    },
+    "0xFC21": {
+      "source": "local-supplement",
+      "name": "Plejd AB"
+    },
+    "0xFC22": {
+      "source": "local-supplement",
+      "name": "InPlay, Inc."
+    },
+    "0xFC23": {
+      "source": "local-supplement",
+      "name": "Helvar Oy Ab"
+    },
+    "0xFC24": {
+      "source": "local-supplement",
+      "name": "Electronics and Telecommunications Research Institute"
+    },
+    "0xFC25": {
+      "source": "local-supplement",
+      "name": "Trackonomy Systems, Inc."
+    },
+    "0xFC26": {
+      "source": "local-supplement",
+      "name": "Hudl, Inc."
+    },
+    "0xFC27": {
+      "source": "local-supplement",
+      "name": "Barking Labs Corp."
+    },
+    "0xFC28": {
+      "source": "local-supplement",
+      "name": "TechnoPartner Tecnologia Ltda."
+    },
+    "0xFC29": {
+      "source": "local-supplement",
+      "name": "Google LLC"
+    },
+    "0xFC2A": {
+      "source": "local-supplement",
+      "name": "Troo Corporation"
+    },
+    "0xFC2B": {
+      "source": "local-supplement",
+      "name": "Elder Technologies, Inc"
+    },
+    "0xFC2C": {
+      "source": "local-supplement",
+      "name": "Verkada Inc."
+    },
+    "0xFC2D": {
+      "source": "local-supplement",
+      "name": "Arashi Vision Inc."
+    },
+    "0xFC2E": {
+      "source": "local-supplement",
+      "name": "Arashi Vision Inc."
+    },
+    "0xFC2F": {
+      "source": "local-supplement",
+      "name": "Arashi Vision Inc."
+    },
+    "0xFC30": {
+      "source": "swift-members",
+      "name": "Arashi Vision Inc.",
+      "append_service": false
+    },
+    "0xFC31": {
+      "source": "swift-members",
+      "name": "Ford Motor Company",
+      "append_service": false
+    },
+    "0xFC32": {
+      "source": "swift-members",
+      "name": "InPlay, Inc.",
+      "append_service": false
+    },
+    "0xFC34": {
+      "source": "swift-members",
+      "name": "Mitsubishi Electric Corporation",
+      "append_service": false
+    },
+    "0xFC35": {
+      "source": "swift-members",
+      "name": "Metabowerke GmbH",
+      "append_service": false
+    },
+    "0xFC36": {
+      "source": "swift-members",
+      "name": "PharmaSens AG",
+      "append_service": false
+    },
+    "0xFC37": {
+      "source": "swift-members",
+      "name": "TANlock GmbH",
+      "append_service": false
+    },
+    "0xFC38": {
+      "source": "swift-members",
+      "name": "SetPoint Medical",
+      "append_service": false
+    },
+    "0xFC39": {
+      "source": "swift-members",
+      "name": "Harman International",
+      "append_service": false
+    },
+    "0xFC3A": {
+      "source": "swift-members",
+      "name": "C.O.B.O. SpA",
+      "append_service": false
+    },
+    "0xFC3B": {
+      "source": "swift-members",
+      "name": "BONX INC.",
+      "append_service": false
+    },
+    "0xFC3C": {
+      "source": "swift-members",
+      "name": "Eforthink Technology Co., Ltd.",
+      "append_service": false
+    },
+    "0xFC3D": {
+      "source": "swift-members",
+      "name": "Reelables, Inc.",
+      "append_service": false
+    },
+    "0xFC3E": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFC3F": {
+      "source": "swift-members",
+      "name": "Milwaukee Electric Tools",
+      "append_service": false
+    },
+    "0xFC40": {
+      "source": "local-supplement",
+      "name": "Yoto Limited"
+    },
+    "0xFC41": {
+      "source": "swift-members",
+      "name": "Yoto Limited",
+      "append_service": false
+    },
+    "0xFC42": {
+      "source": "local-supplement",
+      "name": "Atmosic Technologies, Inc."
+    },
+    "0xFC43": {
+      "source": "swift-members",
+      "name": "Atmosic Technologies, Inc.",
+      "append_service": false
+    },
+    "0xFC44": {
+      "source": "swift-members",
+      "name": "Block, Inc.",
+      "append_service": false
+    },
+    "0xFC45": {
+      "source": "swift-members",
+      "name": "Mitsubishi Electric Corporation",
+      "append_service": false
+    },
+    "0xFC46": {
+      "source": "swift-members",
+      "name": "Xiaomi",
+      "append_service": false
+    },
+    "0xFC47": {
+      "source": "swift-members",
+      "name": "Shanghai Ingeek Technology Co., Ltd.",
+      "append_service": false
+    },
+    "0xFC48": {
+      "source": "swift-members",
+      "name": "Michelin",
+      "append_service": false
+    },
+    "0xFC49": {
+      "source": "swift-members",
+      "name": "Golioth, Inc.",
+      "append_service": false
+    },
+    "0xFC4A": {
+      "source": "swift-members",
+      "name": "Shenzhen Shokz Co.,Ltd.",
+      "append_service": false
+    },
+    "0xFC4B": {
+      "source": "swift-members",
+      "name": "WinMagic Inc.",
+      "append_service": false
+    },
+    "0xFC4C": {
+      "source": "swift-members",
+      "name": "HP Inc.",
+      "append_service": false
+    },
+    "0xFC4D": {
+      "source": "swift-members",
+      "name": "Lodestar Technology Inc.",
+      "append_service": false
+    },
+    "0xFC4E": {
+      "source": "swift-members",
+      "name": "Lodestar Technology Inc.",
+      "append_service": false
+    },
+    "0xFC4F": {
+      "source": "swift-members",
+      "name": "WaveRF, Corp.",
+      "append_service": false
+    },
+    "0xFC50": {
+      "source": "swift-members",
+      "name": "Ant Group Co., Ltd.",
+      "append_service": false
+    },
+    "0xFC51": {
+      "source": "swift-members",
+      "name": "Ant Group Co., Ltd.",
+      "append_service": false
+    },
+    "0xFC52": {
+      "source": "swift-members",
+      "name": "LG Electronics Inc.",
+      "append_service": false
+    },
+    "0xFC53": {
+      "source": "swift-members",
+      "name": "LEGIC Identsystems AG",
+      "append_service": false
+    },
+    "0xFC54": {
+      "source": "swift-members",
+      "name": "Shenzhen Yinwang Intelligent Technologies Co., Ltd.",
+      "append_service": false
+    },
+    "0xFC55": {
+      "source": "swift-members",
+      "name": "BYD Company Limited",
+      "append_service": false
+    },
+    "0xFC56": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFC57": {
+      "source": "swift-members",
+      "name": "Ambient Life Inc.",
+      "append_service": false
+    },
+    "0xFC58": {
+      "source": "swift-members",
+      "name": "Shenzhen Minew Technologies Co., Ltd.",
+      "append_service": false
+    },
+    "0xFC59": {
+      "source": "swift-members",
+      "name": "Ant Group Co., Ltd.",
+      "append_service": false
+    },
+    "0xFC5A": {
+      "source": "swift-members",
+      "name": "LAST LOCK INC.",
+      "append_service": false
+    },
+    "0xFC5B": {
+      "source": "swift-members",
+      "name": "Time Location Systems AS",
+      "append_service": false
+    },
+    "0xFC5C": {
+      "source": "swift-members",
+      "name": "PLASTIC RESEARCH AND DEVELOPMENT CORPORATION",
+      "append_service": false
+    },
+    "0xFC5D": {
+      "source": "swift-members",
+      "name": "GP Acoustics International Limited",
+      "append_service": false
+    },
+    "0xFC5E": {
+      "source": "swift-members",
+      "name": "KUBU SMART LIMITED",
+      "append_service": false
+    },
+    "0xFC5F": {
+      "source": "swift-members",
+      "name": "PI-CRYSTAL INC.",
+      "append_service": false
+    },
+    "0xFC60": {
+      "source": "swift-members",
+      "name": "Ohme Operations UK Limited",
+      "append_service": false
+    },
+    "0xFC61": {
+      "source": "swift-members",
+      "name": "QIKCONNEX LLC",
+      "append_service": false
+    },
+    "0xFC62": {
+      "source": "swift-members",
+      "name": "SPRiNTUS GmbH",
+      "append_service": false
+    },
+    "0xFC63": {
+      "source": "swift-members",
+      "name": "Volvo Technology AB",
+      "append_service": false
+    },
+    "0xFC64": {
+      "source": "swift-members",
+      "name": "Volvo Technology AB",
+      "append_service": false
+    },
+    "0xFC65": {
+      "source": "swift-members",
+      "name": "Robor Electronics B.V.",
+      "append_service": false
+    },
+    "0xFC66": {
+      "source": "swift-members",
+      "name": "Xiaomi Inc.",
+      "append_service": false
+    },
+    "0xFC67": {
+      "source": "swift-members",
+      "name": "Guangdong Hengqin Xingtong Technology Co.,ltd.",
+      "append_service": false
+    },
+    "0xFC68": {
+      "source": "swift-members",
+      "name": "RIGH, INC.",
+      "append_service": false
+    },
+    "0xFC69": {
+      "source": "swift-members",
+      "name": "Harman International",
+      "append_service": false
+    },
+    "0xFC6A": {
+      "source": "swift-members",
+      "name": "Sonos Inc",
+      "append_service": false
+    },
+    "0xFC6B": {
+      "source": "swift-members",
+      "name": "Sonos Inc",
+      "append_service": false
+    },
+    "0xFC6C": {
+      "source": "swift-members",
+      "name": "Powerstick.com",
+      "append_service": false
+    },
+    "0xFC6D": {
+      "source": "swift-members",
+      "name": "MOTIVE TECHNOLOGIES, INC.",
+      "append_service": false
+    },
+    "0xFC6E": {
+      "source": "swift-members",
+      "name": "stryker",
+      "append_service": false
+    },
+    "0xFC6F": {
+      "source": "swift-members",
+      "name": "NextSense, Inc.",
+      "append_service": false
+    },
+    "0xFC70": {
+      "source": "swift-members",
+      "name": "MOTIVE TECHNOLOGIES, INC.",
+      "append_service": false
+    },
+    "0xFC71": {
+      "source": "swift-members",
+      "name": "Hive-Zox International SA",
+      "append_service": false
+    },
+    "0xFC72": {
+      "source": "swift-members",
+      "name": "iodyne, LLC",
+      "append_service": false
+    },
+    "0xFC73": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFC74": {
+      "source": "swift-members",
+      "name": "EMBEINT INC",
+      "append_service": false
+    },
+    "0xFC75": {
+      "source": "swift-members",
+      "name": "Xiaomi Inc.",
+      "append_service": false
+    },
+    "0xFC76": {
+      "source": "swift-members",
+      "name": "Weber-Stephen Products LLC",
+      "append_service": false
+    },
+    "0xFC77": {
+      "source": "swift-members",
+      "name": "SING SUN TECHNOLOGY (INTERNATIONAL) LIMITED",
+      "append_service": false
+    },
+    "0xFC78": {
+      "source": "swift-members",
+      "name": "DHL",
+      "append_service": false
+    },
+    "0xFC79": {
+      "source": "swift-members",
+      "name": "LG Electronics Inc.",
+      "append_service": false
+    },
+    "0xFC7A": {
+      "source": "swift-members",
+      "name": "Outshiny India Private Limited",
+      "append_service": false
+    },
+    "0xFC7B": {
+      "source": "swift-members",
+      "name": "Testo SE & Co. KGaA",
+      "append_service": false
+    },
+    "0xFC7C": {
+      "source": "swift-members",
+      "name": "Motorola Mobility, LLC",
+      "append_service": false
+    },
+    "0xFC7D": {
+      "source": "swift-members",
+      "name": "MML US, Inc",
+      "append_service": false
+    },
+    "0xFC7E": {
+      "source": "swift-members",
+      "name": "Harman International",
+      "append_service": false
+    },
+    "0xFC7F": {
+      "source": "swift-members",
+      "name": "Southco",
+      "append_service": false
+    },
+    "0xFC80": {
+      "source": "swift-members",
+      "name": "TELE System Communications Pte. Ltd.",
+      "append_service": false
+    },
+    "0xFC81": {
+      "source": "swift-members",
+      "name": "Axon Enterprise, Inc.",
+      "append_service": false
+    },
+    "0xFC82": {
+      "source": "swift-members",
+      "name": "Zwift, Inc.",
+      "append_service": false
+    },
+    "0xFC83": {
+      "source": "swift-members",
+      "name": "iHealth Labs, Inc.",
+      "append_service": false
+    },
+    "0xFC84": {
+      "source": "swift-members",
+      "name": "NINGBO FOTILE KITCHENWARE CO., LTD.",
+      "append_service": false
+    },
+    "0xFC85": {
+      "source": "swift-members",
+      "name": "Zhejiang Huanfu Technology Co., LTD",
+      "append_service": false
+    },
+    "0xFC86": {
+      "source": "swift-members",
+      "name": "Samsara Networks, Inc",
+      "append_service": false
+    },
+    "0xFC87": {
+      "source": "swift-members",
+      "name": "Samsara Networks, Inc",
+      "append_service": false
+    },
+    "0xFC88": {
+      "source": "swift-members",
+      "name": "CCC del Uruguay",
+      "append_service": false
+    },
+    "0xFC89": {
+      "source": "swift-members",
+      "name": "Intel Corporation",
+      "append_service": false
+    },
+    "0xFC8A": {
+      "source": "swift-members",
+      "name": "Intel Corporation",
+      "append_service": false
+    },
+    "0xFC8B": {
+      "source": "swift-members",
+      "name": "Kaspersky Lab Middle East FZ-LLC",
+      "append_service": false
+    },
+    "0xFC8C": {
+      "source": "swift-members",
+      "name": "VusionGroup",
+      "append_service": false
+    },
+    "0xFC8D": {
+      "source": "swift-members",
+      "name": "Caire Inc.",
+      "append_service": false
+    },
+    "0xFC8E": {
+      "source": "swift-members",
+      "name": "Blue Iris Labs, Inc.",
+      "append_service": false
+    },
+    "0xFC8F": {
+      "source": "swift-members",
+      "name": "Bose Corporation",
+      "append_service": false
+    },
+    "0xFC90": {
+      "source": "swift-members",
+      "name": "Wiliot LTD.",
+      "append_service": false
+    },
+    "0xFC91": {
+      "source": "swift-members",
+      "name": "Samsung Electronics Co., Ltd.",
+      "append_service": false
+    },
+    "0xFC92": {
+      "source": "swift-members",
+      "name": "Furuno Electric Co., Ltd.",
+      "append_service": false
+    },
+    "0xFC93": {
+      "source": "swift-members",
+      "name": "Komatsu Ltd.",
+      "append_service": false
+    },
+    "0xFC94": {
+      "source": "swift-members",
+      "name": "Apple Inc.",
+      "append_service": false
+    },
+    "0xFC95": {
+      "source": "swift-members",
+      "name": "Hippo Camp Software Ltd.",
+      "append_service": false
+    },
+    "0xFC96": {
+      "source": "swift-members",
+      "name": "LEGO System A/S",
+      "append_service": false
+    },
+    "0xFC97": {
+      "source": "swift-members",
+      "name": "Japan Display Inc.",
+      "append_service": false
+    },
+    "0xFC98": {
+      "source": "swift-members",
+      "name": "Ruuvi Innovations Ltd.",
+      "append_service": false
+    },
+    "0xFC99": {
+      "source": "swift-members",
+      "name": "Badger Meter",
+      "append_service": false
+    },
+    "0xFC9A": {
+      "source": "swift-members",
+      "name": "Koppli AB",
+      "append_service": false
+    },
+    "0xFC9B": {
+      "source": "swift-members",
+      "name": "Merry Electronics (S) Pte Ltd",
+      "append_service": false
+    },
+    "0xFC9D": {
+      "source": "swift-members",
+      "name": "Lenovo (Singapore) Pte Ltd.",
+      "append_service": false
+    },
+    "0xFC9E": {
+      "source": "swift-members",
+      "name": "Dell Computer Corporation",
+      "append_service": false
+    },
+    "0xFC9F": {
+      "source": "swift-members",
+      "name": "Delta Development Team, Inc",
+      "append_service": false
+    },
+    "0xFCA0": {
+      "source": "swift-members",
+      "name": "Apple Inc.",
+      "append_service": false
+    },
+    "0xFCA1": {
+      "source": "swift-members",
+      "name": "PF SCHWEISSTECHNOLOGIE GMBH",
+      "append_service": false
+    },
+    "0xFCA2": {
+      "source": "swift-members",
+      "name": "Meizu Technology Co., Ltd.",
+      "append_service": false
+    },
+    "0xFCA3": {
+      "source": "swift-members",
+      "name": "Gunnebo Aktiebolag",
+      "append_service": false
+    },
+    "0xFCA4": {
+      "source": "swift-members",
+      "name": "HP Inc.",
+      "append_service": false
+    },
+    "0xFCA5": {
+      "source": "swift-members",
+      "name": "HAYWARD INDUSTRIES, INC.",
+      "append_service": false
+    },
+    "0xFCA6": {
+      "source": "swift-members",
+      "name": "Hubble Network Inc.",
+      "append_service": false
+    },
+    "0xFCA7": {
+      "source": "swift-members",
+      "name": "Hubble Network Inc.",
+      "append_service": false
+    },
+    "0xFCA8": {
+      "source": "swift-members",
+      "name": "Medtronic Inc.",
+      "append_service": false
+    },
+    "0xFCA9": {
+      "source": "swift-members",
+      "name": "Medtronic Inc.",
+      "append_service": false
+    },
+    "0xFCAA": {
+      "source": "swift-members",
+      "name": "Spintly, Inc.",
+      "append_service": false
+    },
+    "0xFCAB": {
+      "source": "swift-members",
+      "name": "IRISS INC.",
+      "append_service": false
+    },
+    "0xFCAC": {
+      "source": "swift-members",
+      "name": "IRISS INC.",
+      "append_service": false
+    },
+    "0xFCAD": {
+      "source": "swift-members",
+      "name": "Beijing 99help Safety Technology Co., Ltd",
+      "append_service": false
+    },
+    "0xFCAE": {
+      "source": "swift-members",
+      "name": "Imagine Marketing Limited",
+      "append_service": false
+    },
+    "0xFCAF": {
+      "source": "swift-members",
+      "name": "AltoBeam Inc.",
+      "append_service": false
+    },
+    "0xFCB0": {
+      "source": "swift-members",
+      "name": "Ford Motor Company",
+      "append_service": false
+    },
+    "0xFCB1": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFCB2": {
+      "source": "swift-members",
+      "name": "Apple Inc.",
+      "append_service": false
+    },
+    "0xFCB3": {
+      "source": "swift-members",
+      "name": "SWEEN",
+      "append_service": false
+    },
+    "0xFCB4": {
+      "source": "swift-members",
+      "name": "OMRON HEALTHCARE Co., Ltd.",
+      "append_service": false
+    },
+    "0xFCB5": {
+      "source": "swift-members",
+      "name": "OMRON HEALTHCARE Co., Ltd.",
+      "append_service": false
+    },
+    "0xFCB6": {
+      "source": "swift-members",
+      "name": "OMRON HEALTHCARE Co., Ltd.",
+      "append_service": false
+    },
+    "0xFCB7": {
+      "source": "swift-members",
+      "name": "T-Mobile USA",
+      "append_service": false
+    },
+    "0xFCB8": {
+      "source": "swift-members",
+      "name": "Ribbiot, INC.",
+      "append_service": false
+    },
+    "0xFCB9": {
+      "source": "swift-members",
+      "name": "Lumi United Technology Co., Ltd",
+      "append_service": false
+    },
+    "0xFCBA": {
+      "source": "swift-members",
+      "name": "BlueID GmbH",
+      "append_service": false
+    },
+    "0xFCBB": {
+      "source": "swift-members",
+      "name": "SharkNinja Operating LLC",
+      "append_service": false
+    },
+    "0xFCBC": {
+      "source": "swift-members",
+      "name": "Drowsy Digital, Inc.",
+      "append_service": false
+    },
+    "0xFCBD": {
+      "source": "swift-members",
+      "name": "Toshiba Corporation",
+      "append_service": false
+    },
+    "0xFCBE": {
+      "source": "swift-members",
+      "name": "Musen Connect, Inc.",
+      "append_service": false
+    },
+    "0xFCBF": {
+      "source": "swift-members",
+      "name": "ASSA ABLOY Opening Solutions Sweden AB",
+      "append_service": false
+    },
+    "0xFCC0": {
+      "source": "swift-members",
+      "name": "Xiaomi Inc.",
+      "append_service": false
+    },
+    "0xFCC1": {
+      "source": "swift-members",
+      "name": "TIMECODE SYSTEMS LIMITED",
+      "append_service": false
+    },
+    "0xFCC2": {
+      "source": "swift-members",
+      "name": "Qualcomm Technologies, Inc.",
+      "append_service": false
+    },
+    "0xFCC3": {
+      "source": "swift-members",
+      "name": "HP Inc.",
+      "append_service": false
+    },
+    "0xFCC4": {
+      "source": "swift-members",
+      "name": "OMRON(DALIAN) CO,.LTD.",
+      "append_service": false
+    },
+    "0xFCC5": {
+      "source": "swift-members",
+      "name": "OMRON(DALIAN) CO,.LTD.",
+      "append_service": false
+    },
+    "0xFCC6": {
+      "source": "swift-members",
+      "name": "Wiliot LTD.",
+      "append_service": false
+    },
+    "0xFCC7": {
+      "source": "swift-members",
+      "name": "PB INC.",
+      "append_service": false
+    },
+    "0xFCC8": {
+      "source": "swift-members",
+      "name": "Allthenticate, Inc.",
+      "append_service": false
+    },
+    "0xFCC9": {
+      "source": "swift-members",
+      "name": "SkyHawke Technologies",
+      "append_service": false
+    },
+    "0xFCCA": {
+      "source": "swift-members",
+      "name": "Cosmed s.r.l.",
+      "append_service": false
+    },
+    "0xFCCB": {
+      "source": "swift-members",
+      "name": "TOTO LTD.",
+      "append_service": false
+    },
+    "0xFCCC": {
+      "source": "bluez-uuids",
+      "name": "Wi-Fi Easy Connect Specification",
+      "append_service": false
+    },
+    "0xFCCD": {
+      "source": "swift-members",
+      "name": "Marshall Group AB",
+      "append_service": false
+    },
+    "0xFCCE": {
+      "source": "swift-members",
+      "name": "Luna Health, Inc.",
+      "append_service": false
+    },
+    "0xFCCF": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFCD0": {
+      "source": "swift-members",
+      "name": "Laerdal Medical AS",
+      "append_service": false
+    },
+    "0xFCD1": {
+      "source": "swift-members",
+      "name": "Shenzhen Benwei Media Co.,Ltd.",
+      "append_service": false
+    },
+    "0xFCD2": {
+      "source": "swift-members",
+      "name": "Allterco Robotics ltd",
+      "append_service": false
+    },
+    "0xFCD3": {
+      "source": "swift-members",
+      "name": "Fisher & Paykel Healthcare",
+      "append_service": false
+    },
+    "0xFCD4": {
+      "source": "swift-members",
+      "name": "OMRON HEALTHCARE",
+      "append_service": false
+    },
+    "0xFCD5": {
+      "source": "swift-members",
+      "name": "Nortek Security & Control",
+      "append_service": false
+    },
+    "0xFCD6": {
+      "source": "swift-members",
+      "name": "SWISSINNO SOLUTIONS AG",
+      "append_service": false
+    },
+    "0xFCD7": {
+      "source": "swift-members",
+      "name": "PowerPal Pty Ltd",
+      "append_service": false
+    },
+    "0xFCD8": {
+      "source": "swift-members",
+      "name": "Appex Factory S.L.",
+      "append_service": false
+    },
+    "0xFCD9": {
+      "source": "swift-members",
+      "name": "Huso, INC",
+      "append_service": false
+    },
+    "0xFCDA": {
+      "source": "swift-members",
+      "name": "Draeger",
+      "append_service": false
+    },
+    "0xFCDB": {
+      "source": "swift-members",
+      "name": "aconno GmbH",
+      "append_service": false
+    },
+    "0xFCDC": {
+      "source": "swift-members",
+      "name": "Amazon.com Services, LLC",
+      "append_service": false
+    },
+    "0xFCDD": {
+      "source": "swift-members",
+      "name": "Mobilaris AB",
+      "append_service": false
+    },
+    "0xFCDE": {
+      "source": "swift-members",
+      "name": "ARCTOP, INC.",
+      "append_service": false
+    },
+    "0xFCDF": {
+      "source": "swift-members",
+      "name": "NIO USA, Inc.",
+      "append_service": false
+    },
+    "0xFCE0": {
+      "source": "swift-members",
+      "name": "Akciju sabiedriba \"SAF TEHNIKA\"",
+      "append_service": false
+    },
+    "0xFCE1": {
+      "source": "swift-members",
+      "name": "Sony Group Corporation",
+      "append_service": false
+    },
+    "0xFCE2": {
+      "source": "swift-members",
+      "name": "Baracoda Daily Healthtech",
+      "append_service": false
+    },
+    "0xFCE3": {
+      "source": "swift-members",
+      "name": "Smith & Nephew Medical Limited",
+      "append_service": false
+    },
+    "0xFCE4": {
+      "source": "swift-members",
+      "name": "Samsara Networks, Inc",
+      "append_service": false
+    },
+    "0xFCE5": {
+      "source": "swift-members",
+      "name": "Samsara Networks, Inc",
+      "append_service": false
+    },
+    "0xFCE6": {
+      "source": "swift-members",
+      "name": "Guard RFID Solutions Inc.",
+      "append_service": false
+    },
+    "0xFCE7": {
+      "source": "swift-members",
+      "name": "TKH Security B.V.",
+      "append_service": false
+    },
+    "0xFCE8": {
+      "source": "swift-members",
+      "name": "ITT Industries",
+      "append_service": false
+    },
+    "0xFCE9": {
+      "source": "swift-members",
+      "name": "MindRhythm, Inc.",
+      "append_service": false
+    },
+    "0xFCEA": {
+      "source": "swift-members",
+      "name": "Chess Wise B.V.",
+      "append_service": false
+    },
+    "0xFCEB": {
+      "source": "swift-members",
+      "name": "Avi-On",
+      "append_service": false
+    },
+    "0xFCEC": {
+      "source": "swift-members",
+      "name": "Griffwerk GmbH",
+      "append_service": false
+    },
+    "0xFCED": {
+      "source": "swift-members",
+      "name": "Workaround Gmbh",
+      "append_service": false
+    },
+    "0xFCEE": {
+      "source": "swift-members",
+      "name": "Velentium, LLC",
+      "append_service": false
+    },
+    "0xFCEF": {
+      "source": "swift-members",
+      "name": "Divesoft s.r.o.",
+      "append_service": false
+    },
+    "0xFCF0": {
+      "source": "swift-members",
+      "name": "Security Enhancement Systems, LLC",
+      "append_service": false
+    },
+    "0xFCF1": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFCF2": {
+      "source": "swift-members",
+      "name": "Bitwards Oy",
+      "append_service": false
+    },
+    "0xFCF3": {
+      "source": "swift-members",
+      "name": "Armatura LLC",
+      "append_service": false
+    },
+    "0xFCF4": {
+      "source": "swift-members",
+      "name": "Allegion",
+      "append_service": false
+    },
+    "0xFCF5": {
+      "source": "swift-members",
+      "name": "Trident Communication Technology, LLC",
+      "append_service": false
+    },
+    "0xFCF6": {
+      "source": "swift-members",
+      "name": "The Linux Foundation",
+      "append_service": false
+    },
+    "0xFCF7": {
+      "source": "swift-members",
+      "name": "Honor Device Co., Ltd.",
+      "append_service": false
+    },
+    "0xFCF8": {
+      "source": "swift-members",
+      "name": "Honor Device Co., Ltd.",
+      "append_service": false
+    },
+    "0xFCF9": {
+      "source": "swift-members",
+      "name": "Leupold & Stevens, Inc.",
+      "append_service": false
+    },
+    "0xFCFA": {
+      "source": "swift-members",
+      "name": "Leupold & Stevens, Inc.",
+      "append_service": false
+    },
+    "0xFCFB": {
+      "source": "swift-members",
+      "name": "Shenzhen Benwei Media Co., Ltd.",
+      "append_service": false
+    },
+    "0xFCFC": {
+      "source": "swift-members",
+      "name": "Barrot Technology Co.,Ltd.",
+      "append_service": false
+    },
+    "0xFCFD": {
+      "source": "swift-members",
+      "name": "Barrot Technology Co.,Ltd.",
+      "append_service": false
+    },
+    "0xFCFE": {
+      "source": "swift-members",
+      "name": "Sonova Consumer Hearing GmbH",
+      "append_service": false
+    },
+    "0xFCFF": {
+      "source": "swift-members",
+      "name": "701x",
+      "append_service": false
+    },
+    "0xFD00": {
+      "source": "swift-members",
+      "name": "FUTEK Advanced Sensor Technology, Inc.",
+      "append_service": false
+    },
+    "0xFD01": {
+      "source": "swift-members",
+      "name": "Sanvita Medical Corporation",
+      "append_service": false
+    },
+    "0xFD02": {
+      "source": "swift-members",
+      "name": "LEGO System A/S",
+      "append_service": false
+    },
+    "0xFD03": {
+      "source": "swift-members",
+      "name": "Quuppa Oy",
+      "append_service": false
+    },
+    "0xFD04": {
+      "source": "swift-members",
+      "name": "Shure Inc.",
+      "append_service": false
+    },
+    "0xFD05": {
+      "source": "swift-members",
+      "name": "Qualcomm Technologies, Inc.",
+      "append_service": false
+    },
+    "0xFD06": {
+      "source": "swift-members",
+      "name": "RACE-AI LLC",
+      "append_service": false
+    },
+    "0xFD07": {
+      "source": "swift-members",
+      "name": "Swedlock AB",
+      "append_service": false
+    },
+    "0xFD08": {
+      "source": "swift-members",
+      "name": "Bull Group Incorporated Company",
+      "append_service": false
+    },
+    "0xFD09": {
+      "source": "swift-members",
+      "name": "Cousins and Sears LLC",
+      "append_service": false
+    },
+    "0xFD0A": {
+      "source": "swift-members",
+      "name": "Luminostics, Inc.",
+      "append_service": false
+    },
+    "0xFD0B": {
+      "source": "swift-members",
+      "name": "Luminostics, Inc.",
+      "append_service": false
+    },
+    "0xFD0C": {
+      "source": "swift-members",
+      "name": "OSM HK Limited",
+      "append_service": false
+    },
+    "0xFD0D": {
+      "source": "swift-members",
+      "name": "Blecon Ltd",
+      "append_service": false
+    },
+    "0xFD0E": {
+      "source": "swift-members",
+      "name": "HerdDogg, Inc",
+      "append_service": false
+    },
+    "0xFD0F": {
+      "source": "swift-members",
+      "name": "AEON MOTOR CO.,LTD.",
+      "append_service": false
+    },
+    "0xFD10": {
+      "source": "swift-members",
+      "name": "AEON MOTOR CO.,LTD.",
+      "append_service": false
+    },
+    "0xFD11": {
+      "source": "swift-members",
+      "name": "AEON MOTOR CO.,LTD.",
+      "append_service": false
+    },
+    "0xFD12": {
+      "source": "swift-members",
+      "name": "AEON MOTOR CO.,LTD.",
+      "append_service": false
+    },
+    "0xFD13": {
+      "source": "swift-members",
+      "name": "BRG Sports, Inc.",
+      "append_service": false
+    },
+    "0xFD14": {
+      "source": "swift-members",
+      "name": "BRG Sports, Inc.",
+      "append_service": false
+    },
+    "0xFD15": {
+      "source": "swift-members",
+      "name": "Panasonic Corporation",
+      "append_service": false
+    },
+    "0xFD16": {
+      "source": "swift-members",
+      "name": "Sensitech, Inc.",
+      "append_service": false
+    },
+    "0xFD17": {
+      "source": "swift-members",
+      "name": "LEGIC Identsystems AG",
+      "append_service": false
+    },
+    "0xFD18": {
+      "source": "swift-members",
+      "name": "LEGIC Identsystems AG",
+      "append_service": false
+    },
+    "0xFD19": {
+      "source": "swift-members",
+      "name": "Smith & Nephew Medical Limited",
+      "append_service": false
+    },
+    "0xFD1A": {
+      "source": "swift-members",
+      "name": "CSIRO",
+      "append_service": false
+    },
+    "0xFD1B": {
+      "source": "swift-members",
+      "name": "Helios Sports, Inc.",
+      "append_service": false
+    },
+    "0xFD1C": {
+      "source": "swift-members",
+      "name": "Brady Worldwide Inc.",
+      "append_service": false
+    },
+    "0xFD1D": {
+      "source": "swift-members",
+      "name": "Samsung Electronics Co., Ltd",
+      "append_service": false
+    },
+    "0xFD1E": {
+      "source": "swift-members",
+      "name": "Plume Design Inc.",
+      "append_service": false
+    },
+    "0xFD1F": {
+      "source": "swift-members",
+      "name": "3M",
+      "append_service": false
+    },
+    "0xFD20": {
+      "source": "swift-members",
+      "name": "GN Hearing A/S",
+      "append_service": false
+    },
+    "0xFD21": {
+      "source": "swift-members",
+      "name": "Huawei Technologies Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD22": {
+      "source": "swift-members",
+      "name": "Huawei Technologies Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD23": {
+      "source": "swift-members",
+      "name": "DOM Sicherheitstechnik GmbH & Co. KG",
+      "append_service": false
+    },
+    "0xFD24": {
+      "source": "swift-members",
+      "name": "GD Midea Air-Conditioning Equipment Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD25": {
+      "source": "swift-members",
+      "name": "GD Midea Air-Conditioning Equipment Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD26": {
+      "source": "swift-members",
+      "name": "Novo Nordisk A/S",
+      "append_service": false
+    },
+    "0xFD27": {
+      "source": "swift-members",
+      "name": "Integrated Illumination Systems, Inc.",
+      "append_service": false
+    },
+    "0xFD28": {
+      "source": "swift-members",
+      "name": "Julius Blum GmbH",
+      "append_service": false
+    },
+    "0xFD29": {
+      "source": "swift-members",
+      "name": "Asahi Kasei Corporation",
+      "append_service": false
+    },
+    "0xFD2A": {
+      "source": "swift-members",
+      "name": "Sony Corporation",
+      "append_service": false
+    },
+    "0xFD2B": {
+      "source": "swift-members",
+      "name": "The Access Technologies",
+      "append_service": false
+    },
+    "0xFD2C": {
+      "source": "swift-members",
+      "name": "The Access Technologies",
+      "append_service": false
+    },
+    "0xFD2D": {
+      "source": "swift-members",
+      "name": "Xiaomi Inc.",
+      "append_service": false
+    },
+    "0xFD2E": {
+      "source": "swift-members",
+      "name": "Bitstrata Systems Inc.",
+      "append_service": false
+    },
+    "0xFD2F": {
+      "source": "swift-members",
+      "name": "Bitstrata Systems Inc.",
+      "append_service": false
+    },
+    "0xFD30": {
+      "source": "swift-members",
+      "name": "Sesam Solutions BV",
+      "append_service": false
+    },
+    "0xFD31": {
+      "source": "swift-members",
+      "name": "LG Electronics Inc.",
+      "append_service": false
+    },
+    "0xFD32": {
+      "source": "swift-members",
+      "name": "Gemalto Holding BV",
+      "append_service": false
+    },
+    "0xFD33": {
+      "source": "swift-members",
+      "name": "DashLogic, Inc.",
+      "append_service": false
+    },
+    "0xFD34": {
+      "source": "swift-members",
+      "name": "Aerosens LLC.",
+      "append_service": false
+    },
+    "0xFD35": {
+      "source": "swift-members",
+      "name": "Transsion Holdings Limited",
+      "append_service": false
+    },
+    "0xFD36": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFD37": {
+      "source": "swift-members",
+      "name": "TireCheck GmbH",
+      "append_service": false
+    },
+    "0xFD38": {
+      "source": "swift-members",
+      "name": "Danfoss A/S",
+      "append_service": false
+    },
+    "0xFD39": {
+      "source": "swift-members",
+      "name": "PREDIKTAS",
+      "append_service": false
+    },
+    "0xFD3A": {
+      "source": "swift-members",
+      "name": "Verkada Inc.",
+      "append_service": false
+    },
+    "0xFD3B": {
+      "source": "swift-members",
+      "name": "Verkada Inc.",
+      "append_service": false
+    },
+    "0xFD3C": {
+      "source": "swift-members",
+      "name": "Redline Communications Inc.",
+      "append_service": false
+    },
+    "0xFD3D": {
+      "source": "swift-members",
+      "name": "Woan Technology (Shenzhen) Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD3E": {
+      "source": "swift-members",
+      "name": "Pure Watercraft, inc.",
+      "append_service": false
+    },
+    "0xFD3F": {
+      "source": "swift-members",
+      "name": "Cognosos, Inc",
+      "append_service": false
+    },
+    "0xFD40": {
+      "source": "swift-members",
+      "name": "Beflex Inc.",
+      "append_service": false
+    },
+    "0xFD41": {
+      "source": "swift-members",
+      "name": "Amazon Lab126",
+      "append_service": false
+    },
+    "0xFD42": {
+      "source": "swift-members",
+      "name": "Globe (Jiangsu) Co.,Ltd",
+      "append_service": false
+    },
+    "0xFD43": {
+      "source": "swift-members",
+      "name": "Apple Inc.",
+      "append_service": false
+    },
+    "0xFD44": {
+      "source": "swift-members",
+      "name": "Apple Inc.",
+      "append_service": false
+    },
+    "0xFD45": {
+      "source": "swift-members",
+      "name": "GB Solution co.,Ltd",
+      "append_service": false
+    },
+    "0xFD46": {
+      "source": "swift-members",
+      "name": "Lemco IKE",
+      "append_service": false
+    },
+    "0xFD47": {
+      "source": "swift-members",
+      "name": "Liberty Global Inc.",
+      "append_service": false
+    },
+    "0xFD48": {
+      "source": "swift-members",
+      "name": "Geberit International AG",
+      "append_service": false
+    },
+    "0xFD49": {
+      "source": "swift-members",
+      "name": "Panasonic Corporation",
+      "append_service": false
+    },
+    "0xFD4A": {
+      "source": "swift-members",
+      "name": "Sigma Elektro GmbH",
+      "append_service": false
+    },
+    "0xFD4B": {
+      "source": "swift-members",
+      "name": "Samsung Electronics Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD4C": {
+      "source": "swift-members",
+      "name": "Adolf Wuerth GmbH & Co KG",
+      "append_service": false
+    },
+    "0xFD4D": {
+      "source": "swift-members",
+      "name": "70mai Co.,Ltd.",
+      "append_service": false
+    },
+    "0xFD4E": {
+      "source": "swift-members",
+      "name": "70mai Co.,Ltd.",
+      "append_service": false
+    },
+    "0xFD4F": {
+      "source": "swift-members",
+      "name": "SONITOR TECHNOLOGIES AS",
+      "append_service": false
+    },
+    "0xFD50": {
+      "source": "swift-members",
+      "name": "Hangzhou Tuya Information  Technology Co., Ltd",
+      "append_service": false
+    },
+    "0xFD51": {
+      "source": "swift-members",
+      "name": "UTC Fire and Security",
+      "append_service": false
+    },
+    "0xFD52": {
+      "source": "swift-members",
+      "name": "UTC Fire and Security",
+      "append_service": false
+    },
+    "0xFD53": {
+      "source": "swift-members",
+      "name": "PCI Private Limited",
+      "append_service": false
+    },
+    "0xFD54": {
+      "source": "swift-members",
+      "name": "Qingdao Haier Technology Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD55": {
+      "source": "swift-members",
+      "name": "Braveheart Wireless, Inc.",
+      "append_service": false
+    },
+    "0xFD56": {
+      "source": "swift-members",
+      "name": "Resmed Ltd",
+      "append_service": false
+    },
+    "0xFD57": {
+      "source": "swift-members",
+      "name": "Volvo Car Corporation",
+      "append_service": false
+    },
+    "0xFD58": {
+      "source": "swift-members",
+      "name": "Volvo Car Corporation",
+      "append_service": false
+    },
+    "0xFD59": {
+      "source": "swift-members",
+      "name": "Samsung Electronics Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD5A": {
+      "source": "swift-members",
+      "name": "Samsung Electronics Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD5B": {
+      "source": "swift-members",
+      "name": "V2SOFT INC.",
+      "append_service": false
+    },
+    "0xFD5C": {
+      "source": "swift-members",
+      "name": "React Mobile",
+      "append_service": false
+    },
+    "0xFD5D": {
+      "source": "swift-members",
+      "name": "maxon motor ltd.",
+      "append_service": false
+    },
+    "0xFD5E": {
+      "source": "swift-members",
+      "name": "Tapkey GmbH",
+      "append_service": false
+    },
+    "0xFD5F": {
+      "source": "swift-members",
+      "name": "Meta Platforms Technologies, LLC",
+      "append_service": false
+    },
+    "0xFD60": {
+      "source": "swift-members",
+      "name": "Sercomm Corporation",
+      "append_service": false
+    },
+    "0xFD61": {
+      "source": "swift-members",
+      "name": "Arendi AG",
+      "append_service": false
+    },
+    "0xFD62": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFD63": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFD64": {
+      "source": "swift-members",
+      "name": "INRIA",
+      "append_service": false
+    },
+    "0xFD65": {
+      "source": "swift-members",
+      "name": "Razer Inc.",
+      "append_service": false
+    },
+    "0xFD66": {
+      "source": "swift-members",
+      "name": "Zebra Technologies Corporation",
+      "append_service": false
+    },
+    "0xFD67": {
+      "source": "swift-members",
+      "name": "Montblanc Simplo GmbH",
+      "append_service": false
+    },
+    "0xFD68": {
+      "source": "swift-members",
+      "name": "Ubique Innovation AG",
+      "append_service": false
+    },
+    "0xFD69": {
+      "source": "swift-members",
+      "name": "Samsung Electronics Co., Ltd",
+      "append_service": false
+    },
+    "0xFD6A": {
+      "source": "swift-members",
+      "name": "Emerson",
+      "append_service": false
+    },
+    "0xFD6B": {
+      "source": "swift-members",
+      "name": "rapitag GmbH",
+      "append_service": false
+    },
+    "0xFD6C": {
+      "source": "swift-members",
+      "name": "Samsung Electronics Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD6D": {
+      "source": "swift-members",
+      "name": "Sigma Elektro GmbH",
+      "append_service": false
+    },
+    "0xFD6E": {
+      "source": "swift-members",
+      "name": "Polidea sp. z o.o.",
+      "append_service": false
+    },
+    "0xFD6F": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFD70": {
+      "source": "swift-members",
+      "name": "GuangDong Oppo Mobile Telecommunications Corp., Ltd",
+      "append_service": false
+    },
+    "0xFD71": {
+      "source": "swift-members",
+      "name": "GN Hearing A/S",
+      "append_service": false
+    },
+    "0xFD72": {
+      "source": "swift-members",
+      "name": "Logitech International SA",
+      "append_service": false
+    },
+    "0xFD73": {
+      "source": "swift-members",
+      "name": "BRControls Products BV",
+      "append_service": false
+    },
+    "0xFD74": {
+      "source": "swift-members",
+      "name": "BRControls Products BV",
+      "append_service": false
+    },
+    "0xFD75": {
+      "source": "swift-members",
+      "name": "Insulet Corporation",
+      "append_service": false
+    },
+    "0xFD76": {
+      "source": "swift-members",
+      "name": "Insulet Corporation",
+      "append_service": false
+    },
+    "0xFD77": {
+      "source": "swift-members",
+      "name": "Withings",
+      "append_service": false
+    },
+    "0xFD78": {
+      "source": "swift-members",
+      "name": "Withings",
+      "append_service": false
+    },
+    "0xFD79": {
+      "source": "swift-members",
+      "name": "Withings",
+      "append_service": false
+    },
+    "0xFD7A": {
+      "source": "swift-members",
+      "name": "Withings",
+      "append_service": false
+    },
+    "0xFD7B": {
+      "source": "swift-members",
+      "name": "WYZE LABS, INC.",
+      "append_service": false
+    },
+    "0xFD7C": {
+      "source": "swift-members",
+      "name": "Toshiba Information Systems(Japan) Corporation",
+      "append_service": false
+    },
+    "0xFD7D": {
+      "source": "swift-members",
+      "name": "Center for Advanced Research Wernher Von Braun",
+      "append_service": false
+    },
+    "0xFD7E": {
+      "source": "swift-members",
+      "name": "Samsung Electronics Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD7F": {
+      "source": "swift-members",
+      "name": "Husqvarna AB",
+      "append_service": false
+    },
+    "0xFD80": {
+      "source": "swift-members",
+      "name": "Phindex Technologies, Inc",
+      "append_service": false
+    },
+    "0xFD81": {
+      "source": "swift-members",
+      "name": "CANDY HOUSE, Inc.",
+      "append_service": false
+    },
+    "0xFD82": {
+      "source": "swift-members",
+      "name": "Sony Corporation",
+      "append_service": false
+    },
+    "0xFD83": {
+      "source": "swift-members",
+      "name": "iNFORM Technology GmbH",
+      "append_service": false
+    },
+    "0xFD84": {
+      "source": "swift-members",
+      "name": "Tile, Inc.",
+      "append_service": false
+    },
+    "0xFD85": {
+      "source": "swift-members",
+      "name": "Husqvarna AB",
+      "append_service": false
+    },
+    "0xFD86": {
+      "source": "swift-members",
+      "name": "Abbott",
+      "append_service": false
+    },
+    "0xFD87": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFD88": {
+      "source": "swift-members",
+      "name": "Urbanminded LTD",
+      "append_service": false
+    },
+    "0xFD89": {
+      "source": "swift-members",
+      "name": "Urbanminded LTD",
+      "append_service": false
+    },
+    "0xFD8A": {
+      "source": "swift-members",
+      "name": "Signify Netherlands B.V.",
+      "append_service": false
+    },
+    "0xFD8B": {
+      "source": "swift-members",
+      "name": "Jigowatts Inc.",
+      "append_service": false
+    },
+    "0xFD8C": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFD8D": {
+      "source": "swift-members",
+      "name": "quip NYC Inc.",
+      "append_service": false
+    },
+    "0xFD8E": {
+      "source": "swift-members",
+      "name": "Motorola Solutions",
+      "append_service": false
+    },
+    "0xFD90": {
+      "source": "swift-members",
+      "name": "Guangzhou SuperSound Information Technology Co.,Ltd",
+      "append_service": false
+    },
+    "0xFD91": {
+      "source": "swift-members",
+      "name": "Groove X, Inc.",
+      "append_service": false
+    },
+    "0xFD92": {
+      "source": "swift-members",
+      "name": "Qualcomm Technologies International, Ltd. (QTIL)",
+      "append_service": false
+    },
+    "0xFD93": {
+      "source": "swift-members",
+      "name": "Bayerische Motoren Werke AG",
+      "append_service": false
+    },
+    "0xFD94": {
+      "source": "swift-members",
+      "name": "Hewlett Packard Enterprise",
+      "append_service": false
+    },
+    "0xFD95": {
+      "source": "swift-members",
+      "name": "Rigado",
+      "append_service": false
+    },
+    "0xFD96": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFD97": {
+      "source": "swift-members",
+      "name": "June Life, Inc.",
+      "append_service": false
+    },
+    "0xFD98": {
+      "source": "swift-members",
+      "name": "Disney Worldwide Services, Inc.",
+      "append_service": false
+    },
+    "0xFD99": {
+      "source": "swift-members",
+      "name": "ABB Oy",
+      "append_service": false
+    },
+    "0xFD9A": {
+      "source": "swift-members",
+      "name": "Huawei Technologies Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD9B": {
+      "source": "swift-members",
+      "name": "Huawei Technologies Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD9C": {
+      "source": "swift-members",
+      "name": "Huawei Technologies Co., Ltd.",
+      "append_service": false
+    },
+    "0xFD9D": {
+      "source": "swift-members",
+      "name": "Gastec Corporation",
+      "append_service": false
+    },
+    "0xFD9E": {
+      "source": "swift-members",
+      "name": "The Coca-Cola Company",
+      "append_service": false
+    },
+    "0xFD9F": {
+      "source": "swift-members",
+      "name": "VitalTech Affiliates LLC",
+      "append_service": false
+    },
+    "0xFDA0": {
+      "source": "swift-members",
+      "name": "Secugen Corporation",
+      "append_service": false
+    },
+    "0xFDA1": {
+      "source": "swift-members",
+      "name": "Groove X, Inc",
+      "append_service": false
+    },
+    "0xFDA2": {
+      "source": "swift-members",
+      "name": "Groove X, Inc",
+      "append_service": false
+    },
+    "0xFDA3": {
+      "source": "swift-members",
+      "name": "Inseego Corp.",
+      "append_service": false
+    },
+    "0xFDA4": {
+      "source": "swift-members",
+      "name": "Inseego Corp.",
+      "append_service": false
+    },
+    "0xFDA5": {
+      "source": "swift-members",
+      "name": "Neurostim OAB, Inc.",
+      "append_service": false
+    },
+    "0xFDA6": {
+      "source": "swift-members",
+      "name": "WWZN Information Technology Company Limited",
+      "append_service": false
+    },
+    "0xFDA7": {
+      "source": "swift-members",
+      "name": "WWZN Information Technology Company Limited",
+      "append_service": false
+    },
+    "0xFDA8": {
+      "source": "swift-members",
+      "name": "PSA Peugeot Citroën",
+      "append_service": false
+    },
+    "0xFDA9": {
+      "source": "swift-members",
+      "name": "Rhombus Systems, Inc.",
+      "append_service": false
+    },
+    "0xFDAA": {
+      "source": "swift-members",
+      "name": "Xiaomi Inc.",
+      "append_service": false
+    },
+    "0xFDAB": {
+      "source": "swift-members",
+      "name": "Xiaomi Inc.",
+      "append_service": false
+    },
+    "0xFDAC": {
+      "source": "swift-members",
+      "name": "Tentacle Sync GmbH",
+      "append_service": false
+    },
+    "0xFDAD": {
+      "source": "swift-members",
+      "name": "Houwa System Design, k.k.",
+      "append_service": false
+    },
+    "0xFDAE": {
+      "source": "swift-members",
+      "name": "Houwa System Design, k.k.",
+      "append_service": false
+    },
+    "0xFDAF": {
+      "source": "swift-members",
+      "name": "Wiliot LTD",
+      "append_service": false
+    },
+    "0xFDB0": {
+      "source": "swift-members",
+      "name": "Oura Health Ltd",
+      "append_service": false
+    },
+    "0xFDB1": {
+      "source": "swift-members",
+      "name": "Oura Health Ltd",
+      "append_service": false
+    },
+    "0xFDB2": {
+      "source": "swift-members",
+      "name": "Portable Multimedia Ltd",
+      "append_service": false
+    },
+    "0xFDB3": {
+      "source": "swift-members",
+      "name": "Audiodo AB",
+      "append_service": false
+    },
+    "0xFDB4": {
+      "source": "swift-members",
+      "name": "HP Inc",
+      "append_service": false
+    },
+    "0xFDB5": {
+      "source": "swift-members",
+      "name": "ECSG",
+      "append_service": false
+    },
+    "0xFDB6": {
+      "source": "swift-members",
+      "name": "GWA Hygiene GmbH",
+      "append_service": false
+    },
+    "0xFDB7": {
+      "source": "swift-members",
+      "name": "LivaNova USA Inc.",
+      "append_service": false
+    },
+    "0xFDB8": {
+      "source": "swift-members",
+      "name": "LivaNova USA Inc.",
+      "append_service": false
+    },
+    "0xFDBB": {
+      "source": "swift-members",
+      "name": "Profoto",
+      "append_service": false
+    },
+    "0xFDBC": {
+      "source": "swift-members",
+      "name": "Emerson",
+      "append_service": false
+    },
+    "0xFDBD": {
+      "source": "swift-members",
+      "name": "Clover Network, Inc.",
+      "append_service": false
+    },
+    "0xFDBE": {
+      "source": "swift-members",
+      "name": "California Things Inc.",
+      "append_service": false
+    },
+    "0xFDBF": {
+      "source": "swift-members",
+      "name": "California Things Inc.",
+      "append_service": false
+    },
+    "0xFDC0": {
+      "source": "swift-members",
+      "name": "Hunter Douglas",
+      "append_service": false
+    },
+    "0xFDC1": {
+      "source": "swift-members",
+      "name": "Hunter Douglas",
+      "append_service": false
+    },
+    "0xFDC2": {
+      "source": "swift-members",
+      "name": "Baidu Online Network Technology (Beijing) Co., Ltd",
+      "append_service": false
+    },
+    "0xFDC3": {
+      "source": "swift-members",
+      "name": "Baidu Online Network Technology (Beijing) Co., Ltd",
+      "append_service": false
+    },
+    "0xFDC4": {
+      "source": "swift-members",
+      "name": "Simavita (Aust) Pty Ltd",
+      "append_service": false
+    },
+    "0xFDC5": {
+      "source": "swift-members",
+      "name": "Automatic Labs",
+      "append_service": false
+    },
+    "0xFDC6": {
+      "source": "swift-members",
+      "name": "Eli Lilly and Company",
+      "append_service": false
+    },
+    "0xFDC7": {
+      "source": "swift-members",
+      "name": "Eli Lilly and Company",
+      "append_service": false
+    },
+    "0xFDC8": {
+      "source": "swift-members",
+      "name": "Hach – Danaher",
+      "append_service": false
+    },
+    "0xFDC9": {
+      "source": "swift-members",
+      "name": "Busch-Jaeger Elektro GmbH",
+      "append_service": false
+    },
+    "0xFDCA": {
+      "source": "swift-members",
+      "name": "Fortin Electronic Systems",
+      "append_service": false
+    },
+    "0xFDCB": {
+      "source": "swift-members",
+      "name": "Meggitt SA",
+      "append_service": false
+    },
+    "0xFDCC": {
+      "source": "swift-members",
+      "name": "Shoof Technologies",
+      "append_service": false
+    },
+    "0xFDCD": {
+      "source": "swift-members",
+      "name": "Qingping Technology (Beijing) Co., Ltd.",
+      "append_service": false
+    },
+    "0xFDCE": {
+      "source": "swift-members",
+      "name": "SENNHEISER electronic GmbH & Co. KG",
+      "append_service": false
+    },
+    "0xFDCF": {
+      "source": "swift-members",
+      "name": "Nalu Medical, Inc",
+      "append_service": false
+    },
+    "0xFDD0": {
+      "source": "swift-members",
+      "name": "Huawei Technologies Co., Ltd",
+      "append_service": false
+    },
+    "0xFDD1": {
+      "source": "swift-members",
+      "name": "Huawei Technologies Co., Ltd",
+      "append_service": false
+    },
+    "0xFDD2": {
+      "source": "swift-members",
+      "name": "Bose Corporation",
+      "append_service": false
+    },
+    "0xFDD3": {
+      "source": "swift-members",
+      "name": "FUBA Automotive Electronics GmbH",
+      "append_service": false
+    },
+    "0xFDD4": {
+      "source": "swift-members",
+      "name": "LX Solutions Pty Limited",
+      "append_service": false
+    },
+    "0xFDD5": {
+      "source": "swift-members",
+      "name": "Brompton Bicycle Ltd",
+      "append_service": false
+    },
+    "0xFDD6": {
+      "source": "swift-members",
+      "name": "Ministry of Supply",
+      "append_service": false
+    },
+    "0xFDD7": {
+      "source": "swift-members",
+      "name": "Copeland Cold Chain LP",
+      "append_service": false
+    },
+    "0xFDD8": {
+      "source": "swift-members",
+      "name": "Jiangsu Teranovo Tech Co., Ltd.",
+      "append_service": false
+    },
+    "0xFDD9": {
+      "source": "swift-members",
+      "name": "Jiangsu Teranovo Tech Co., Ltd.",
+      "append_service": false
+    },
+    "0xFDDA": {
+      "source": "swift-members",
+      "name": "MHCS",
+      "append_service": false
+    },
+    "0xFDDB": {
+      "source": "swift-members",
+      "name": "Samsung Electronics Co., Ltd.",
+      "append_service": false
+    },
+    "0xFDDC": {
+      "source": "swift-members",
+      "name": "4iiii Innovations Inc.",
+      "append_service": false
+    },
+    "0xFDDD": {
+      "source": "swift-members",
+      "name": "Arch Systems Inc",
+      "append_service": false
+    },
+    "0xFDDE": {
+      "source": "swift-members",
+      "name": "Noodle Technology Inc.",
+      "append_service": false
+    },
+    "0xFDDF": {
+      "source": "swift-members",
+      "name": "Harman International",
+      "append_service": false
+    },
+    "0xFDE0": {
+      "source": "swift-members",
+      "name": "John Deere",
+      "append_service": false
+    },
+    "0xFDE1": {
+      "source": "swift-members",
+      "name": "Fortin Electronic Systems",
+      "append_service": false
+    },
+    "0xFDE2": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFDE3": {
+      "source": "swift-members",
+      "name": "Abbott Diabetes Care",
+      "append_service": false
+    },
+    "0xFDE4": {
+      "source": "swift-members",
+      "name": "JUUL Labs, Inc.",
+      "append_service": false
+    },
+    "0xFDE5": {
+      "source": "swift-members",
+      "name": "SMK Corporation",
+      "append_service": false
+    },
+    "0xFDE6": {
+      "source": "swift-members",
+      "name": "Intelletto Technologies Inc",
+      "append_service": false
+    },
+    "0xFDE7": {
+      "source": "swift-members",
+      "name": "SECOM Co., LTD",
+      "append_service": false
+    },
+    "0xFDE8": {
+      "source": "swift-members",
+      "name": "Robert Bosch GmbH",
+      "append_service": false
+    },
+    "0xFDE9": {
+      "source": "swift-members",
+      "name": "Spacesaver Corporation",
+      "append_service": false
+    },
+    "0xFDEA": {
+      "source": "swift-members",
+      "name": "SeeScan, Inc",
+      "append_service": false
+    },
+    "0xFDEB": {
+      "source": "swift-members",
+      "name": "Syntronix Corporation",
+      "append_service": false
+    },
+    "0xFDEC": {
+      "source": "swift-members",
+      "name": "Mannkind Corporation",
+      "append_service": false
+    },
+    "0xFDED": {
+      "source": "swift-members",
+      "name": "Pole Star",
+      "append_service": false
+    },
+    "0xFDEE": {
+      "source": "swift-members",
+      "name": "Huawei Technologies Co., Ltd.",
+      "append_service": false
+    },
+    "0xFDEF": {
+      "source": "swift-members",
+      "name": "ART AND PROGRAM, INC.",
+      "append_service": false
+    },
+    "0xFDF0": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFDF1": {
+      "source": "swift-members",
+      "name": "LAMPLIGHT Co.,Ltd",
+      "append_service": false
+    },
+    "0xFDF2": {
+      "source": "swift-members",
+      "name": "AMICCOM Electronics Corporation",
+      "append_service": false
+    },
+    "0xFDF3": {
+      "source": "swift-members",
+      "name": "Amersports",
+      "append_service": false
+    },
+    "0xFDF4": {
+      "source": "swift-members",
+      "name": "O. E. M. Controls, Inc.",
+      "append_service": false
+    },
+    "0xFDF5": {
+      "source": "swift-members",
+      "name": "Milwaukee Electric Tools",
+      "append_service": false
+    },
+    "0xFDF6": {
+      "source": "swift-members",
+      "name": "AIAIAI ApS",
+      "append_service": false
+    },
+    "0xFDF7": {
+      "source": "swift-members",
+      "name": "HP Inc.",
+      "append_service": false
+    },
+    "0xFDF8": {
+      "source": "swift-members",
+      "name": "Onvocal",
+      "append_service": false
+    },
+    "0xFDF9": {
+      "source": "swift-members",
+      "name": "INIA",
+      "append_service": false
+    },
+    "0xFDFA": {
+      "source": "swift-members",
+      "name": "Tandem Diabetes Care",
+      "append_service": false
+    },
+    "0xFDFB": {
+      "source": "swift-members",
+      "name": "Tandem Diabetes Care",
+      "append_service": false
+    },
+    "0xFDFC": {
+      "source": "swift-members",
+      "name": "Optrel AG",
+      "append_service": false
+    },
+    "0xFDFD": {
+      "source": "swift-members",
+      "name": "RecursiveSoft Inc.",
+      "append_service": false
+    },
+    "0xFDFE": {
+      "source": "swift-members",
+      "name": "ADHERIUM(NZ) LIMITED",
+      "append_service": false
+    },
+    "0xFDFF": {
+      "source": "swift-members",
+      "name": "OSRAM GmbH",
+      "append_service": false
+    },
+    "0xFE00": {
+      "source": "swift-members",
+      "name": "Amazon.com Services, Inc.",
+      "append_service": false
+    },
+    "0xFE01": {
+      "source": "swift-members",
+      "name": "Duracell U.S. Operations Inc.",
+      "append_service": false
+    },
+    "0xFE02": {
+      "source": "swift-members",
+      "name": "Robert Bosch GmbH",
+      "append_service": false
+    },
+    "0xFE03": {
+      "source": "swift-members",
+      "name": "Amazon.com Services, Inc.",
+      "append_service": false
+    },
+    "0xFE04": {
+      "source": "swift-members",
+      "name": "Motorola Solutions, Inc.",
+      "append_service": false
+    },
+    "0xFE05": {
+      "source": "swift-members",
+      "name": "CORE Transport Technologies NZ Limited",
+      "append_service": false
+    },
+    "0xFE06": {
+      "source": "swift-members",
+      "name": "Qualcomm Technologies, Inc.",
+      "append_service": false
+    },
+    "0xFE07": {
+      "source": "swift-members",
+      "name": "Sonos, Inc.",
+      "append_service": false
+    },
+    "0xFE08": {
+      "source": "swift-members",
+      "name": "Microsoft",
+      "append_service": false
+    },
+    "0xFE09": {
+      "source": "swift-members",
+      "name": "Pillsy, Inc.",
+      "append_service": false
+    },
+    "0xFE0A": {
+      "source": "swift-members",
+      "name": "ruwido austria gmbh",
+      "append_service": false
+    },
+    "0xFE0B": {
+      "source": "swift-members",
+      "name": "ruwido austria gmbh",
+      "append_service": false
+    },
+    "0xFE0C": {
+      "source": "swift-members",
+      "name": "Procter & Gamble",
+      "append_service": false
+    },
+    "0xFE0D": {
+      "source": "swift-members",
+      "name": "Procter & Gamble",
+      "append_service": false
+    },
+    "0xFE0E": {
+      "source": "swift-members",
+      "name": "Setec Pty Ltd",
+      "append_service": false
+    },
+    "0xFE0F": {
+      "source": "swift-members",
+      "name": "Signify Netherlands B.V. (formerly Philips Lighting B.V.)",
+      "append_service": false
+    },
+    "0xFE10": {
+      "source": "swift-members",
+      "name": "LAPIS Technology Co., Ltd.",
+      "append_service": false
+    },
+    "0xFE11": {
+      "source": "swift-members",
+      "name": "GMC-I Messtechnik GmbH",
+      "append_service": false
+    },
+    "0xFE12": {
+      "source": "swift-members",
+      "name": "M-Way Solutions GmbH",
+      "append_service": false
+    },
+    "0xFE13": {
+      "source": "swift-members",
+      "name": "Apple Inc.",
+      "append_service": false
+    },
+    "0xFE14": {
+      "source": "swift-members",
+      "name": "Flextronics International USA Inc.",
+      "append_service": false
+    },
+    "0xFE15": {
+      "source": "swift-members",
+      "name": "Amazon.com Services, Inc..",
+      "append_service": false
+    },
+    "0xFE16": {
+      "source": "swift-members",
+      "name": "Footmarks, Inc.",
+      "append_service": false
+    },
+    "0xFE17": {
+      "source": "swift-members",
+      "name": "Telit Wireless Solutions GmbH",
+      "append_service": false
+    },
+    "0xFE18": {
+      "source": "swift-members",
+      "name": "Runtime, Inc.",
+      "append_service": false
+    },
+    "0xFE19": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFE1A": {
+      "source": "swift-members",
+      "name": "Tyto Life LLC",
+      "append_service": false
+    },
+    "0xFE1B": {
+      "source": "swift-members",
+      "name": "Tyto Life LLC",
+      "append_service": false
+    },
+    "0xFE1C": {
+      "source": "swift-members",
+      "name": "NetMedia, Inc.",
+      "append_service": false
+    },
+    "0xFE1D": {
+      "source": "swift-members",
+      "name": "Illuminati Instrument Corporation",
+      "append_service": false
+    },
+    "0xFE1E": {
+      "source": "swift-members",
+      "name": "LAMPLIGHT Co., Ltd.",
+      "append_service": false
+    },
+    "0xFE1F": {
+      "source": "swift-members",
+      "name": "Garmin International, Inc.",
+      "append_service": false
+    },
+    "0xFE20": {
+      "source": "swift-members",
+      "name": "Emerson",
+      "append_service": false
+    },
+    "0xFE21": {
+      "source": "swift-members",
+      "name": "Bose Corporation",
+      "append_service": false
+    },
+    "0xFE22": {
+      "source": "swift-members",
+      "name": "Zoll Medical Corporation",
+      "append_service": false
+    },
+    "0xFE23": {
+      "source": "swift-members",
+      "name": "Zoll Medical Corporation",
+      "append_service": false
+    },
+    "0xFE24": {
+      "source": "swift-members",
+      "name": "August Home Inc",
+      "append_service": false
+    },
+    "0xFE25": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFE26": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFE27": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFE28": {
+      "source": "swift-members",
+      "name": "Ayla Networks",
+      "append_service": false
+    },
+    "0xFE29": {
+      "source": "swift-members",
+      "name": "Gibson Innovations",
+      "append_service": false
+    },
+    "0xFE2A": {
+      "source": "swift-members",
+      "name": "DaisyWorks, Inc.",
+      "append_service": false
+    },
+    "0xFE2B": {
+      "source": "swift-members",
+      "name": "ITT Industries",
+      "append_service": false
+    },
+    "0xFE2C": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFE2D": {
+      "source": "swift-members",
+      "name": "LAMPLIGHT Co., Ltd.",
+      "append_service": false
+    },
+    "0xFE2E": {
+      "source": "swift-members",
+      "name": "ERi,Inc.",
+      "append_service": false
+    },
+    "0xFE2F": {
+      "source": "swift-members",
+      "name": "CRESCO Wireless, Inc",
+      "append_service": false
+    },
+    "0xFE30": {
+      "source": "swift-members",
+      "name": "Volkswagen AG",
+      "append_service": false
+    },
+    "0xFE31": {
+      "source": "swift-members",
+      "name": "Volkswagen AG",
+      "append_service": false
+    },
+    "0xFE32": {
+      "source": "swift-members",
+      "name": "Pro-Mark, Inc.",
+      "append_service": false
+    },
+    "0xFE33": {
+      "source": "swift-members",
+      "name": "CHIPOLO d.o.o.",
+      "append_service": false
+    },
+    "0xFE34": {
+      "source": "swift-members",
+      "name": "SmallLoop LLC",
+      "append_service": false
+    },
+    "0xFE35": {
+      "source": "swift-members",
+      "name": "HUAWEI Technologies Co., Ltd",
+      "append_service": false
+    },
+    "0xFE36": {
+      "source": "swift-members",
+      "name": "HUAWEI Technologies Co., Ltd",
+      "append_service": false
+    },
+    "0xFE39": {
+      "source": "swift-members",
+      "name": "TTS Tooltechnic Systems AG & Co. KG",
+      "append_service": false
+    },
+    "0xFE3A": {
+      "source": "swift-members",
+      "name": "TTS Tooltechnic Systems AG & Co. KG",
+      "append_service": false
+    },
+    "0xFE3B": {
+      "source": "swift-members",
+      "name": "Dolby Laboratories",
+      "append_service": false
+    },
+    "0xFE3C": {
+      "source": "swift-members",
+      "name": "alibaba",
+      "append_service": false
+    },
+    "0xFE3D": {
+      "source": "swift-members",
+      "name": "BD Medical",
+      "append_service": false
+    },
+    "0xFE3E": {
+      "source": "swift-members",
+      "name": "BD Medical",
+      "append_service": false
+    },
+    "0xFE3F": {
+      "source": "swift-members",
+      "name": "Friday Labs Limited",
+      "append_service": false
+    },
+    "0xFE40": {
+      "source": "swift-members",
+      "name": "Inugo Systems Limited",
+      "append_service": false
+    },
+    "0xFE41": {
+      "source": "swift-members",
+      "name": "Inugo Systems Limited",
+      "append_service": false
+    },
+    "0xFE42": {
+      "source": "swift-members",
+      "name": "Nets A/S",
+      "append_service": false
+    },
+    "0xFE43": {
+      "source": "swift-members",
+      "name": "Andreas Stihl AG & Co. KG",
+      "append_service": false
+    },
+    "0xFE44": {
+      "source": "swift-members",
+      "name": "SK Telecom",
+      "append_service": false
+    },
+    "0xFE45": {
+      "source": "swift-members",
+      "name": "Snapchat Inc",
+      "append_service": false
+    },
+    "0xFE46": {
+      "source": "swift-members",
+      "name": "B&O Play A/S",
+      "append_service": false
+    },
+    "0xFE47": {
+      "source": "swift-members",
+      "name": "General Motors",
+      "append_service": false
+    },
+    "0xFE48": {
+      "source": "swift-members",
+      "name": "General Motors",
+      "append_service": false
+    },
+    "0xFE49": {
+      "source": "swift-members",
+      "name": "SenionLab AB",
+      "append_service": false
+    },
+    "0xFE4A": {
+      "source": "swift-members",
+      "name": "OMRON HEALTHCARE Co., Ltd.",
+      "append_service": false
+    },
+    "0xFE4B": {
+      "source": "swift-members",
+      "name": "Signify Netherlands B.V. (formerly Philips Lighting B.V.)",
+      "append_service": false
+    },
+    "0xFE4C": {
+      "source": "swift-members",
+      "name": "Volkswagen AG",
+      "append_service": false
+    },
+    "0xFE4D": {
+      "source": "swift-members",
+      "name": "Casambi Technologies Oy",
+      "append_service": false
+    },
+    "0xFE4E": {
+      "source": "swift-members",
+      "name": "NTT docomo",
+      "append_service": false
+    },
+    "0xFE4F": {
+      "source": "swift-members",
+      "name": "Molekule, Inc.",
+      "append_service": false
+    },
+    "0xFE50": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFE51": {
+      "source": "swift-members",
+      "name": "SRAM",
+      "append_service": false
+    },
+    "0xFE52": {
+      "source": "swift-members",
+      "name": "SetPoint Medical",
+      "append_service": false
+    },
+    "0xFE53": {
+      "source": "swift-members",
+      "name": "3M",
+      "append_service": false
+    },
+    "0xFE54": {
+      "source": "swift-members",
+      "name": "Motiv, Inc.",
+      "append_service": false
+    },
+    "0xFE55": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFE56": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFE57": {
+      "source": "swift-members",
+      "name": "Dotted Labs",
+      "append_service": false
+    },
+    "0xFE58": {
+      "source": "swift-members",
+      "name": "Nordic Semiconductor ASA",
+      "append_service": false
+    },
+    "0xFE59": {
+      "source": "swift-members",
+      "name": "Nordic Semiconductor ASA",
+      "append_service": false
+    },
+    "0xFE5A": {
+      "source": "swift-members",
+      "name": "Cronologics Corporation",
+      "append_service": false
+    },
+    "0xFE5B": {
+      "source": "swift-members",
+      "name": "GT-tronics HK Ltd",
+      "append_service": false
+    },
+    "0xFE5C": {
+      "source": "swift-members",
+      "name": "million hunters GmbH",
+      "append_service": false
+    },
+    "0xFE5D": {
+      "source": "swift-members",
+      "name": "Grundfos A/S",
+      "append_service": false
+    },
+    "0xFE5E": {
+      "source": "swift-members",
+      "name": "Plastc Corporation",
+      "append_service": false
+    },
+    "0xFE5F": {
+      "source": "swift-members",
+      "name": "Eyefi, Inc.",
+      "append_service": false
+    },
+    "0xFE60": {
+      "source": "swift-members",
+      "name": "Lierda Science & Technology Group Co., Ltd.",
+      "append_service": false
+    },
+    "0xFE61": {
+      "source": "swift-members",
+      "name": "Logitech International SA",
+      "append_service": false
+    },
+    "0xFE62": {
+      "source": "swift-members",
+      "name": "Indagem Tech LLC",
+      "append_service": false
+    },
+    "0xFE63": {
+      "source": "swift-members",
+      "name": "Connected Yard, Inc.",
+      "append_service": false
+    },
+    "0xFE64": {
+      "source": "swift-members",
+      "name": "Siemens AG",
+      "append_service": false
+    },
+    "0xFE65": {
+      "source": "swift-members",
+      "name": "CHIPOLO d.o.o.",
+      "append_service": false
+    },
+    "0xFE66": {
+      "source": "swift-members",
+      "name": "Intel Corporation",
+      "append_service": false
+    },
+    "0xFE67": {
+      "source": "swift-members",
+      "name": "Lab Sensor Solutions",
+      "append_service": false
+    },
+    "0xFE68": {
+      "source": "swift-members",
+      "name": "Capsle Technologies Inc.",
+      "append_service": false
+    },
+    "0xFE69": {
+      "source": "swift-members",
+      "name": "Capsle Technologies Inc.",
+      "append_service": false
+    },
+    "0xFE6A": {
+      "source": "swift-members",
+      "name": "Kontakt Micro-Location Sp. z o.o.",
+      "append_service": false
+    },
+    "0xFE6B": {
+      "source": "swift-members",
+      "name": "TASER International, Inc.",
+      "append_service": false
+    },
+    "0xFE6C": {
+      "source": "swift-members",
+      "name": "TASER International, Inc.",
+      "append_service": false
+    },
+    "0xFE6D": {
+      "source": "swift-members",
+      "name": "The University of Tokyo",
+      "append_service": false
+    },
+    "0xFE6E": {
+      "source": "swift-members",
+      "name": "The University of Tokyo",
+      "append_service": false
+    },
+    "0xFE6F": {
+      "source": "swift-members",
+      "name": "LINE Corporation",
+      "append_service": false
+    },
+    "0xFE70": {
+      "source": "swift-members",
+      "name": "Beijing Jingdong Century Trading Co., Ltd.",
+      "append_service": false
+    },
+    "0xFE71": {
+      "source": "swift-members",
+      "name": "Plume Design Inc",
+      "append_service": false
+    },
+    "0xFE72": {
+      "source": "swift-members",
+      "name": "Abbott (formerly St. Jude Medical, Inc.)",
+      "append_service": false,
+      "display_name": "Abbott Medical (formerly St. Jude Medical, Inc.)"
+    },
+    "0xFE73": {
+      "source": "swift-members",
+      "name": "Abbott (formerly St. Jude Medical, Inc.)",
+      "append_service": false,
+      "display_name": "Abbott Medical (formerly St. Jude Medical, Inc.)"
+    },
+    "0xFE74": {
+      "source": "swift-members",
+      "name": "unwire",
+      "append_service": false
+    },
+    "0xFE75": {
+      "source": "swift-members",
+      "name": "TangoMe",
+      "append_service": false
+    },
+    "0xFE76": {
+      "source": "swift-members",
+      "name": "TangoMe",
+      "append_service": false
+    },
+    "0xFE77": {
+      "source": "swift-members",
+      "name": "Hewlett-Packard Company",
+      "append_service": false
+    },
+    "0xFE78": {
+      "source": "swift-members",
+      "name": "Hewlett-Packard Company",
+      "append_service": false
+    },
+    "0xFE79": {
+      "source": "swift-members",
+      "name": "Zebra Technologies",
+      "append_service": false
+    },
+    "0xFE7A": {
+      "source": "swift-members",
+      "name": "Bragi GmbH",
+      "append_service": false
+    },
+    "0xFE7B": {
+      "source": "swift-members",
+      "name": "Orion Labs, Inc.",
+      "append_service": false
+    },
+    "0xFE7C": {
+      "source": "swift-members",
+      "name": "Telit Wireless Solutions (Formerly Stollmann E+V GmbH)",
+      "append_service": false
+    },
+    "0xFE7D": {
+      "source": "swift-members",
+      "name": "Aterica Health Inc.",
+      "append_service": false
+    },
+    "0xFE7E": {
+      "source": "swift-members",
+      "name": "Awear Solutions Ltd",
+      "append_service": false
+    },
+    "0xFE7F": {
+      "source": "swift-members",
+      "name": "Doppler Lab",
+      "append_service": false
+    },
+    "0xFE80": {
+      "source": "swift-members",
+      "name": "Doppler Lab",
+      "append_service": false
+    },
+    "0xFE81": {
+      "source": "swift-members",
+      "name": "Medtronic Inc.",
+      "append_service": false
+    },
+    "0xFE82": {
+      "source": "swift-members",
+      "name": "Medtronic Inc.",
+      "append_service": false
+    },
+    "0xFE83": {
+      "source": "swift-members",
+      "name": "Blue Bite",
+      "append_service": false
+    },
+    "0xFE84": {
+      "source": "swift-members",
+      "name": "RF Digital Corp",
+      "append_service": false
+    },
+    "0xFE85": {
+      "source": "swift-members",
+      "name": "RF Digital Corp",
+      "append_service": false
+    },
+    "0xFE86": {
+      "source": "swift-members",
+      "name": "HUAWEI Technologies Co., Ltd",
+      "append_service": false
+    },
+    "0xFE87": {
+      "source": "swift-members",
+      "name": "Qingdao Yeelink Information Technology Co., Ltd. ( 青岛亿联客信息技术有限公司 )",
+      "append_service": false
+    },
+    "0xFE88": {
+      "source": "swift-members",
+      "name": "SALTO SYSTEMS S.L.",
+      "append_service": false
+    },
+    "0xFE89": {
+      "source": "swift-members",
+      "name": "B&O Play A/S",
+      "append_service": false
+    },
+    "0xFE8A": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFE8B": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFE8C": {
+      "source": "swift-members",
+      "name": "TRON Forum",
+      "append_service": false
+    },
+    "0xFE8D": {
+      "source": "swift-members",
+      "name": "Interaxon Inc.",
+      "append_service": false
+    },
+    "0xFE8E": {
+      "source": "swift-members",
+      "name": "ARM Ltd",
+      "append_service": false
+    },
+    "0xFE8F": {
+      "source": "swift-members",
+      "name": "CSR",
+      "append_service": false
+    },
+    "0xFE90": {
+      "source": "swift-members",
+      "name": "JUMA",
+      "append_service": false
+    },
+    "0xFE91": {
+      "source": "swift-members",
+      "name": "Shanghai Imilab Technology Co.,Ltd",
+      "append_service": false
+    },
+    "0xFE92": {
+      "source": "swift-members",
+      "name": "Jarden Safety & Security",
+      "append_service": false
+    },
+    "0xFE93": {
+      "source": "swift-members",
+      "name": "OttoQ In",
+      "append_service": false
+    },
+    "0xFE94": {
+      "source": "swift-members",
+      "name": "OttoQ In",
+      "append_service": false
+    },
+    "0xFE95": {
+      "source": "swift-members",
+      "name": "Xiaomi Inc.",
+      "append_service": false
+    },
+    "0xFE96": {
+      "source": "swift-members",
+      "name": "Tesla Motors Inc.",
+      "append_service": false
+    },
+    "0xFE97": {
+      "source": "swift-members",
+      "name": "Tesla Motors Inc.",
+      "append_service": false
+    },
+    "0xFE98": {
+      "source": "swift-members",
+      "name": "Currant Inc",
+      "append_service": false
+    },
+    "0xFE99": {
+      "source": "swift-members",
+      "name": "Currant Inc",
+      "append_service": false
+    },
+    "0xFE9A": {
+      "source": "swift-members",
+      "name": "Estimote",
+      "append_service": false
+    },
+    "0xFE9B": {
+      "source": "swift-members",
+      "name": "Samsara Networks, Inc",
+      "append_service": false
+    },
+    "0xFE9C": {
+      "source": "swift-members",
+      "name": "GSI Laboratories, Inc.",
+      "append_service": false
+    },
+    "0xFE9D": {
+      "source": "swift-members",
+      "name": "Mobiquity Networks Inc",
+      "append_service": false
+    },
+    "0xFE9E": {
+      "source": "swift-members",
+      "name": "Renesas Design Netherlands B.V.",
+      "append_service": false
+    },
+    "0xFE9F": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFEA0": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFEA3": {
+      "source": "swift-members",
+      "name": "ITT Industries",
+      "append_service": false
+    },
+    "0xFEA4": {
+      "source": "swift-members",
+      "name": "Paxton Access Ltd",
+      "append_service": false
+    },
+    "0xFEA5": {
+      "source": "swift-members",
+      "name": "GoPro, Inc.",
+      "append_service": false
+    },
+    "0xFEA6": {
+      "source": "swift-members",
+      "name": "GoPro, Inc.",
+      "append_service": false
+    },
+    "0xFEA7": {
+      "source": "swift-members",
+      "name": "UTC Fire and Security",
+      "append_service": false
+    },
+    "0xFEA8": {
+      "source": "swift-members",
+      "name": "Savant Systems LLC",
+      "append_service": false
+    },
+    "0xFEA9": {
+      "source": "swift-members",
+      "name": "Savant Systems LLC",
+      "append_service": false
+    },
+    "0xFEAA": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFEAB": {
+      "source": "swift-members",
+      "name": "Nokia",
+      "append_service": false
+    },
+    "0xFEAC": {
+      "source": "swift-members",
+      "name": "Nokia",
+      "append_service": false
+    },
+    "0xFEAD": {
+      "source": "swift-members",
+      "name": "Nokia",
+      "append_service": false
+    },
+    "0xFEAE": {
+      "source": "swift-members",
+      "name": "Nokia",
+      "append_service": false
+    },
+    "0xFEAF": {
+      "source": "swift-members",
+      "name": "Nest Labs Inc",
+      "append_service": false
+    },
+    "0xFEB0": {
+      "source": "swift-members",
+      "name": "Nest Labs Inc",
+      "append_service": false
+    },
+    "0xFEB1": {
+      "source": "swift-members",
+      "name": "Electronics Tomorrow Limited",
+      "append_service": false
+    },
+    "0xFEB2": {
+      "source": "swift-members",
+      "name": "Microsoft Corporation",
+      "append_service": false
+    },
+    "0xFEB3": {
+      "source": "swift-members",
+      "name": "Taobao",
+      "append_service": false
+    },
+    "0xFEB4": {
+      "source": "swift-members",
+      "name": "WiSilica Inc.",
+      "append_service": false
+    },
+    "0xFEB5": {
+      "source": "swift-members",
+      "name": "WiSilica Inc.",
+      "append_service": false
+    },
+    "0xFEB6": {
+      "source": "swift-members",
+      "name": "Vencer Co., Ltd",
+      "append_service": false
+    },
+    "0xFEB7": {
+      "source": "swift-members",
+      "name": "Meta Platforms, Inc.",
+      "append_service": false
+    },
+    "0xFEB8": {
+      "source": "swift-members",
+      "name": "Meta Platforms, Inc.",
+      "append_service": false
+    },
+    "0xFEB9": {
+      "source": "swift-members",
+      "name": "LG Electronics",
+      "append_service": false
+    },
+    "0xFEBA": {
+      "source": "swift-members",
+      "name": "Tencent Holdings Limited",
+      "append_service": false
+    },
+    "0xFEBB": {
+      "source": "swift-members",
+      "name": "adafruit industries",
+      "append_service": false
+    },
+    "0xFEBC": {
+      "source": "swift-members",
+      "name": "Dexcom Inc",
+      "append_service": false
+    },
+    "0xFEBD": {
+      "source": "swift-members",
+      "name": "Clover Network, Inc",
+      "append_service": false
+    },
+    "0xFEBE": {
+      "source": "swift-members",
+      "name": "Bose Corporation",
+      "append_service": false
+    },
+    "0xFEBF": {
+      "source": "swift-members",
+      "name": "Nod, Inc.",
+      "append_service": false
+    },
+    "0xFEC0": {
+      "source": "swift-members",
+      "name": "KDDI Corporation",
+      "append_service": false
+    },
+    "0xFEC1": {
+      "source": "swift-members",
+      "name": "KDDI Corporation",
+      "append_service": false
+    },
+    "0xFEC2": {
+      "source": "swift-members",
+      "name": "Blue Spark Technologies, Inc.",
+      "append_service": false
+    },
+    "0xFEC3": {
+      "source": "swift-members",
+      "name": "360fly, Inc.",
+      "append_service": false
+    },
+    "0xFEC4": {
+      "source": "swift-members",
+      "name": "PLUS Location Systems",
+      "append_service": false
+    },
+    "0xFEC5": {
+      "source": "swift-members",
+      "name": "Realtek Semiconductor Corp.",
+      "append_service": false
+    },
+    "0xFEC6": {
+      "source": "swift-members",
+      "name": "Kocomojo, LLC",
+      "append_service": false
+    },
+    "0xFEC7": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFEC8": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFEC9": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFECA": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFECB": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFECC": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFECD": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFECE": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFECF": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFED0": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFED1": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFED2": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFED3": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFED4": {
+      "source": "swift-members",
+      "name": "Apple, Inc.",
+      "append_service": false
+    },
+    "0xFED5": {
+      "source": "swift-members",
+      "name": "Plantronics Inc.",
+      "append_service": false
+    },
+    "0xFED6": {
+      "source": "swift-members",
+      "name": "Broadcom",
+      "append_service": false
+    },
+    "0xFED7": {
+      "source": "swift-members",
+      "name": "Broadcom",
+      "append_service": false
+    },
+    "0xFED8": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFED9": {
+      "source": "swift-members",
+      "name": "Pebble Technology Corporation",
+      "append_service": false
+    },
+    "0xFEDA": {
+      "source": "swift-members",
+      "name": "ISSC Technologies Corp.",
+      "append_service": false
+    },
+    "0xFEDB": {
+      "source": "swift-members",
+      "name": "Perka, Inc.",
+      "append_service": false
+    },
+    "0xFEDC": {
+      "source": "swift-members",
+      "name": "Jawbone",
+      "append_service": false
+    },
+    "0xFEDD": {
+      "source": "swift-members",
+      "name": "Jawbone",
+      "append_service": false
+    },
+    "0xFEDE": {
+      "source": "swift-members",
+      "name": "Coin, Inc.",
+      "append_service": false
+    },
+    "0xFEE0": {
+      "source": "swift-members",
+      "name": "Anhui Huami Information Technology Co., Ltd.",
+      "append_service": false
+    },
+    "0xFEE1": {
+      "source": "swift-members",
+      "name": "Anhui Huami Information Technology Co., Ltd.",
+      "append_service": false
+    },
+    "0xFEE2": {
+      "source": "swift-members",
+      "name": "Anki, Inc.",
+      "append_service": false
+    },
+    "0xFEE3": {
+      "source": "swift-members",
+      "name": "Anki, Inc.",
+      "append_service": false
+    },
+    "0xFEE4": {
+      "source": "swift-members",
+      "name": "Nordic Semiconductor ASA",
+      "append_service": false
+    },
+    "0xFEE5": {
+      "source": "swift-members",
+      "name": "Nordic Semiconductor ASA",
+      "append_service": false
+    },
+    "0xFEE6": {
+      "source": "swift-members",
+      "name": "Silvair, Inc.",
+      "append_service": false
+    },
+    "0xFEE7": {
+      "source": "swift-members",
+      "name": "Tencent Holdings Limited.",
+      "append_service": false
+    },
+    "0xFEE8": {
+      "source": "swift-members",
+      "name": "Quintic Corp.",
+      "append_service": false
+    },
+    "0xFEE9": {
+      "source": "swift-members",
+      "name": "Quintic Corp.",
+      "append_service": false
+    },
+    "0xFEEA": {
+      "source": "swift-members",
+      "name": "Swirl Networks, Inc.",
+      "append_service": false
+    },
+    "0xFEEB": {
+      "source": "swift-members",
+      "name": "Swirl Networks, Inc.",
+      "append_service": false
+    },
+    "0xFEEC": {
+      "source": "swift-members",
+      "name": "Tile, Inc.",
+      "append_service": false
+    },
+    "0xFEED": {
+      "source": "swift-members",
+      "name": "Tile, Inc.",
+      "append_service": false
+    },
+    "0xFEEE": {
+      "source": "swift-members",
+      "name": "Polar Electro Oy",
+      "append_service": false
+    },
+    "0xFEEF": {
+      "source": "swift-members",
+      "name": "Polar Electro Oy",
+      "append_service": false
+    },
+    "0xFEF0": {
+      "source": "swift-members",
+      "name": "Intel",
+      "append_service": false
+    },
+    "0xFEF1": {
+      "source": "swift-members",
+      "name": "CSR",
+      "append_service": false
+    },
+    "0xFEF2": {
+      "source": "swift-members",
+      "name": "CSR",
+      "append_service": false
+    },
+    "0xFEF3": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFEF4": {
+      "source": "swift-members",
+      "name": "Google LLC",
+      "append_service": false
+    },
+    "0xFEF5": {
+      "source": "swift-members",
+      "name": "Dialog Semiconductor GmbH",
+      "append_service": false
+    },
+    "0xFEF6": {
+      "source": "swift-members",
+      "name": "Wicentric, Inc.",
+      "append_service": false
+    },
+    "0xFEF7": {
+      "source": "swift-members",
+      "name": "Aplix Corporation",
+      "append_service": false
+    },
+    "0xFEF8": {
+      "source": "swift-members",
+      "name": "Aplix Corporation",
+      "append_service": false
+    },
+    "0xFEF9": {
+      "source": "swift-members",
+      "name": "PayPal, Inc.",
+      "append_service": false
+    },
+    "0xFEFA": {
+      "source": "swift-members",
+      "name": "PayPal, Inc.",
+      "append_service": false
+    },
+    "0xFEFB": {
+      "source": "swift-members",
+      "name": "Telit Wireless Solutions (Formerly Stollmann E+V GmbH)",
+      "append_service": false
+    },
+    "0xFEFC": {
+      "source": "swift-members",
+      "name": "Gimbal, Inc.",
+      "append_service": false
+    },
+    "0xFEFD": {
+      "source": "swift-members",
+      "name": "Gimbal, Inc.",
+      "append_service": false
+    },
+    "0xFEFE": {
+      "source": "swift-members",
+      "name": "GN Hearing A/S",
+      "append_service": false
+    },
+    "0xFEFF": {
+      "source": "swift-members",
+      "name": "GN Netcom",
+      "append_service": false
+    },
+    "0xFFEF": {
+      "source": "bluez-uuids",
+      "name": "Wi-Fi Direct Specification",
+      "append_service": false
+    },
+    "0xFFF0": {
+      "source": "bluez-uuids",
+      "name": "Public Key Open Credential (PKOC)",
+      "append_service": false
+    },
+    "0xFFF1": {
+      "source": "bluez-uuids",
+      "name": "ICCE Digital Key",
+      "append_service": false
+    },
+    "0xFFF2": {
+      "source": "bluez-uuids",
+      "name": "Aliro",
+      "append_service": false
+    },
+    "0xFFF3": {
+      "source": "bluez-uuids",
+      "name": "FiRa Consortium",
+      "append_service": false
+    },
+    "0xFFF4": {
+      "source": "bluez-uuids",
+      "name": "FiRa Consortium",
+      "append_service": false
+    },
+    "0xFFF5": {
+      "source": "bluez-uuids",
+      "name": "Car Connectivity Consortium, LLC",
+      "append_service": false
+    },
+    "0xFFF6": {
+      "source": "bluez-uuids",
+      "name": "Matter Profile ID",
+      "append_service": false
+    },
+    "0xFFF7": {
+      "source": "bluez-uuids",
+      "name": "Zigbee Direct",
+      "append_service": false
+    },
+    "0xFFF8": {
+      "source": "bluez-uuids",
+      "name": "Mopria Alliance BLE",
+      "append_service": false
+    },
+    "0xFFF9": {
+      "source": "bluez-uuids",
+      "name": "FIDO2 Secure Client-To-Authenticator Transport",
+      "append_service": false,
+      "display_name": "FIDO2 secure client-to-authenticator transport"
+    },
+    "0xFFFA": {
+      "source": "bluez-uuids",
+      "name": "ASTM Remote ID",
+      "append_service": false
+    },
+    "0xFFFB": {
+      "source": "bluez-uuids",
+      "name": "Direct Thread Commissioning",
+      "append_service": false
+    },
+    "0xFFFC": {
+      "source": "bluez-uuids",
+      "name": "Wireless Power Transfer (WPT)",
+      "append_service": false
+    },
+    "0xFFFD": {
+      "source": "bluez-uuids",
+      "name": "Universal Second Factor Authenticator",
+      "append_service": false
+    },
+    "0xFFFE": {
+      "source": "bluez-uuids",
+      "name": "Wireless Power Transfer",
+      "append_service": false
+    }
+  },
+  "output_sha256": {
+    "bluetooth-companies.json": "b97bea07235f3f0a9642bac2c0d643842d3a7e6a7669d887b5f08777d86fa04c",
+    "bluetooth-services.json": "ae4711655b8d5a8624cbefb58ee0765a15d404905fa4b744e2c94f78cd263e0f"
+  }
+}

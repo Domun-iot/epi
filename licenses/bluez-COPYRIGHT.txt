@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+/*
+ *
+ *  BlueZ - Bluetooth protocol stack for Linux
+ *
+ *  Copyright (C) 2012-2014  Intel Corporation. All rights reserved.
+ *  Copyright 2023-2024 NXP
+ *
+ *
+ */
+
+
+Source: https://github.com/bluez/bluez/blob/923d95d0c2fb001b545fa8a8b2e3a8a9bf0dbabf/src/shared/util.c

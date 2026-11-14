@@ -1,0 +1,10 @@
+{
+  "name": "balance-xiaomi",
+  "private": true,
+  "version": "1.0.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node index.cjs",
+    "test": "node --test"
+  }
+}

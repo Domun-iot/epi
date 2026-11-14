@@ -1,0 +1,37 @@
+{
+  "nordic-companies": {
+    "repository": "nordicsemi/bluetooth-numbers-database",
+    "commit": "5c795f597125b7be0d5033fb648e9b6f5e09d9c9",
+    "path": "v1/company_ids.json",
+    "license": "BSD-3-Clause",
+    "sha256": "fd6f15c1a4a675d60da88f1467d78ff0542d97cc86589452c37589a7d083d59a"
+  },
+  "nordic-services": {
+    "repository": "nordicsemi/bluetooth-numbers-database",
+    "commit": "5c795f597125b7be0d5033fb648e9b6f5e09d9c9",
+    "path": "v1/service_uuids.json",
+    "license": "BSD-3-Clause",
+    "sha256": "fec38d7a1d24f18a3241a4cc226949be699dccb8abe804df92017a170b041a82"
+  },
+  "swift-members": {
+    "repository": "PureSwift/Bluetooth",
+    "commit": "033e52c56ce97ae4232ebb0b91522dbe385582d3",
+    "path": "Sources/BluetoothMetadata/Resources/MemberUUID.json",
+    "license": "MIT",
+    "sha256": "ceb7d6d6adc5cdc0725d3d59b49204e3b343c61805a82ec4137916c66c664470"
+  },
+  "swift-services": {
+    "repository": "PureSwift/Bluetooth",
+    "commit": "033e52c56ce97ae4232ebb0b91522dbe385582d3",
+    "path": "Sources/BluetoothMetadata/Resources/ServiceUUID.json",
+    "license": "MIT",
+    "sha256": "fd685f4a0a9e0261ebb9043ba8ad78a3dd21580ee93b911e6367eaf4222914d3"
+  },
+  "bluez-uuids": {
+    "repository": "bluez/bluez",
+    "commit": "923d95d0c2fb001b545fa8a8b2e3a8a9bf0dbabf",
+    "path": "src/shared/util.c",
+    "license": "LGPL-2.1-or-later",
+    "sha256": "e3179c23b078c3e727916f25c23ad41d445c535d1b406338c2347e4f5318bd7a"
+  }
+}
