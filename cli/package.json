@@ -1,0 +1,16 @@
+{
+  "name": "epi",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.cjs",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "postject": "1.0.0-alpha.6"
+  }
+}
