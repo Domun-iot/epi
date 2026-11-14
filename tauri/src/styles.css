@@ -32,13 +32,13 @@ nav button span { width: 16px; text-align: center; font-size: 1.1rem; }
 nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
 .bluetooth { display: flex; align-items: baseline; gap: 9px; margin-top: auto; font-size: .82rem; color: #c9d7ea; line-height: 1.45; overflow-wrap: anywhere; }
 .status-dot { flex: 0 0 7px; height: 7px; border-radius: 50%; background: #61d4a4; }
-.workspace { min-width: 0; }
-.toolbar { min-height: 66px; border-bottom: 1px solid var(--line); background: var(--white); display: flex; justify-content: flex-end; align-items: center; padding: 10px clamp(18px, 4vw, 54px); }
+.workspace { --view-inline-padding: clamp(9px, 2vw, 27px); min-width: 0; }
+.toolbar { min-height: 66px; border-bottom: 1px solid var(--line); background: var(--white); display: flex; justify-content: flex-end; align-items: center; padding: 10px var(--view-inline-padding); }
 .profile-select { display: flex; align-items: center; gap: 10px; }
 .profile-select label { color: var(--muted); display: flex; }
 input, select { min-height: 42px; border: 1px solid #c8d4e3; color: var(--ink); border-radius: 8px; background: var(--white); padding: 8px 10px; }
 select { max-width: min(280px, 100%); }
-main { padding: 12px clamp(9px, 2vw, 27px) 48px; }
+main { padding: 12px var(--view-inline-padding) 48px; }
 h1, h2, p { margin-top: 0; }
 h1 { font-size: clamp(1.65rem, 3vw, 2.45rem); line-height: 1.12; letter-spacing: -.045em; margin-bottom: 7px; }
 h2 { font-size: 1.12rem; margin-bottom: 12px; }
