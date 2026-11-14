@@ -93,7 +93,7 @@ function render() {
       else button.removeAttribute('aria-current');
     }
     view.setAttribute('aria-label', detail ? 'Détails de la pesée' : pages[page]);
-    main.classList.toggle('measurement-details-page', Boolean(detail));
+    main.classList.toggle('measurements-page', page === 'measurements');
     const scroll = view.querySelector('.table-scroll')?.scrollLeft;
     const active = document.activeElement;
     const focusedColumn = active?.dataset.column;

@@ -208,14 +208,21 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('Alice');
   await table.getByRole('columnheader', { name: 'Mi', exact: true }).waitFor();
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
+  await page.setViewportSize({ width: 1800, height: 900 });
+  const viewLayout = () => page.locator('#view').evaluate(view => {
+    const { left, right } = view.getBoundingClientRect();
+    const titleTop = view.querySelector('h1').getBoundingClientRect().top;
+    const toolbarBottom = document.querySelector('.toolbar').getBoundingClientRect().bottom;
+    return { left, right, titleGap: titleTop - toolbarBottom };
+  });
+  const listLayout = await viewLayout();
   await table.getByRole('cell', { name: '70 kg', exact: true }).click();
   const dialog = page.getByRole('dialog');
   const detail = page.getByRole('region', { name: 'Détails de la pesée' });
   const comparison = detail.getByRole('table', { name: 'Comparaison des méthodes' });
   assert.equal(await dialog.count(), 0);
   assert.equal(await table.count(), 0);
-  await page.setViewportSize({ width: 1800, height: 900 });
-  assert.ok(await comparison.evaluate(node => node.clientWidth > 1340));
+  assert.deepEqual(await viewLayout(), listLayout);
   assert.equal(await comparison.getByRole('columnheader').nth(1).textContent(), 'Moyenne');
   const source = 'https://doi.org/10.1079/bjn19910073';
   await page.context().route(source, route => route.fulfill({ body: 'Publication Deurenberg' }));

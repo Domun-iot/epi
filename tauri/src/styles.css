@@ -39,6 +39,7 @@ nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
 input, select { min-height: 42px; border: 1px solid #c8d4e3; color: var(--ink); border-radius: 8px; background: var(--white); padding: 8px 10px; }
 select { max-width: min(280px, 100%); }
 main { max-width: 1340px; margin: auto; padding: 28px clamp(18px, 4vw, 54px) 48px; }
+main.measurements-page { padding-top: 12px; }
 h1, h2, p { margin-top: 0; }
 h1 { font-size: clamp(1.65rem, 3vw, 2.45rem); line-height: 1.12; letter-spacing: -.045em; margin-bottom: 7px; }
 h2 { font-size: 1.12rem; margin-bottom: 12px; }
@@ -116,7 +117,6 @@ tbody tr:hover { background: #edf4ff; }
 .method-source { color: inherit; }
 .measurement-details .method-source { text-decoration: none; }
 .legend span { background: var(--method-bg); color: var(--method-ink); padding: 4px 7px; border-radius: 5px; }
-.measurement-details-page { max-width: none; padding-inline: clamp(12px, 2vw, 32px); }
 tr[data-action="reading"] { cursor: pointer; }
 tr[data-action="reading"]:focus-within { background: #edf4ff; }
 [data-drag-column], [data-detail-section] > summary { cursor: grab; user-select: none; }
