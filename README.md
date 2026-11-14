@@ -22,6 +22,8 @@ Sur mobile, Tauri utilise son répertoire privé. Les trois sous-dossiers et le 
 
 L’export prépare un ZIP avec les profils, appareils et pesées sous `data/`. L’import accepte cette arborescence ou `profiles/`, `devices/` et `measures/` placés directement à la racine. Il ajoute les fichiers absents et ignore les chemins déjà présents et les fichiers identiques. Sur PC, si le CLI écrit pendant que l’interface est ouverte, recharge les données de l’interface ou redémarre-la pour lire ces changements.
 
+Pour essayer l’historique, lance `run\fixture.bat` sous Windows ou `sh run/fixture.sh` sous Linux (Node.js requis). La fixture ajoute 48 pesées fictives sur 24 mois pour le profil `test`, avec 1 à 8 pesées par mois. Elle conserve le profil et son historique s’ils existent déjà, et crée un appareil `test` seulement si aucun appareil n’est enregistré. Elle utilise le dossier de données habituel. Définis `EPI_DATA_DIR` pour générer le jeu dans un dossier distinct.
+
 ## Compiler
 
 Sur un PC x64, choisis le script de préparation correspondant au build.
