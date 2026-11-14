@@ -1,5 +1,6 @@
 import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import { build } from 'esbuild';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const appPath = import.meta.url;
@@ -9,6 +10,8 @@ const modules = {
 };
 
 function sharedModules() {
+  const directory = fileURLToPath(new URL('.', appPath));
+  const dependencies = new Map();
   return {
     name: 'epi-shared-modules',
     resolveId(id) {
@@ -18,12 +21,28 @@ function sharedModules() {
       if (!id.startsWith('\0virtual:epi-')) return;
       const result = await build({
         entryPoints: [fileURLToPath(new URL(modules[id.slice(1)], appPath))],
+        absWorkingDir: directory,
         bundle: true,
+        metafile: true,
         format: 'esm',
         platform: 'browser',
         write: false,
       });
+      const files = Object.keys(result.metafile.inputs).map(path => resolve(directory, path));
+      dependencies.set(id, files);
+      for (const file of files) this.addWatchFile(file);
       return result.outputFiles[0].text;
+    },
+    handleHotUpdate({ file, server }) {
+      const updated = [...dependencies].filter(([, files]) => files.includes(resolve(file)));
+      if (!updated.length) return;
+      // Rebuild the bundled CommonJS module before reloading its consumers.
+      for (const [id] of updated) {
+        const module = server.moduleGraph.getModuleById(id);
+        if (module) server.moduleGraph.invalidateModule(module);
+      }
+      server.ws.send({ type: 'full-reload' });
+      return [];
     },
   };
 }

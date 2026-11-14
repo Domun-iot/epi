@@ -133,6 +133,16 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   const methodHeaders = comparison.locator('th[data-drag-column]');
   await methodHeaders.filter({ hasText: 'Deu' }).getByRole('link').dragTo(methodHeaders.filter({ hasText: 'IMC' }));
   assert.deepEqual(await methodHeaders.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['Deu', 'IMC', 'Mi']);
+  const deuHeader = methodHeaders.filter({ hasText: 'Deu' });
+  const padding = { x: 3, y: 3 };
+  assert.equal(await deuHeader.evaluate((header, { x, y }) => {
+    const box = header.getBoundingClientRect();
+    return document.elementFromPoint(box.left + x, box.top + y) === header;
+  }, padding), true);
+  await deuHeader.dragTo(methodHeaders.filter({ hasText: 'IMC' }), { sourcePosition: padding });
+  assert.deepEqual(await methodHeaders.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['IMC', 'Deu', 'Mi']);
+  await deuHeader.getByRole('link').dragTo(methodHeaders.filter({ hasText: 'IMC' }));
+  await page.locator('#notices [role="alert"]').waitFor({ state: 'hidden' });
   const legend = detail.locator('.legend a');
   assert.match(await legend.first().textContent(), /Deu/);
   const sectionHeaders = detail.locator('[data-detail-section] > summary');
