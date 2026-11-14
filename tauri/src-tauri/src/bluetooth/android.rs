@@ -1,17 +1,36 @@
 use std::{
     collections::HashMap,
+    sync::LazyLock,
     time::{Duration, Instant},
 };
 
+use futures_util::{
+    future::{select, Either},
+    pin_mut,
+};
 use tauri::AppHandle;
 use tauri_plugin_blec::{
     check_permissions, get_handler,
     models::{AdapterState, BleDevice, ScanFilter},
     Handler, OnDisconnectHandler,
 };
-use tokio::{sync::mpsc, task::JoinHandle};
+use tokio::{
+    sync::{mpsc, watch},
+    task::JoinHandle,
+};
 
 use super::{status, Source, COMPOSITION, RETRY, WEIGHT, WEIGHT_MEASUREMENT};
+
+// Tauri skips the initial onResume event.
+static FOREGROUND: LazyLock<watch::Sender<bool>> = LazyLock::new(|| watch::Sender::new(true));
+
+pub fn set_foreground(active: bool) {
+    FOREGROUND.send_if_modified(|current| {
+        let changed = *current != active;
+        *current = active;
+        changed
+    });
+}
 
 pub(super) async fn run(app: &AppHandle) {
     status(app, "Démarrage de l’écoute Bluetooth…");
@@ -25,8 +44,10 @@ pub(super) async fn run(app: &AppHandle) {
             return;
         }
     };
+    let mut foreground = FOREGROUND.subscribe();
     let mut prompt = true;
     loop {
+        let _ = foreground.wait_for(|active| *active).await;
         match check_permissions(prompt).await {
             Ok(true) => break,
             Ok(false) => status(
@@ -40,20 +61,34 @@ pub(super) async fn run(app: &AppHandle) {
         }
         // Prompt once, then recover automatically after a settings change.
         prompt = false;
-        tokio::time::sleep(RETRY).await;
+        retry_or_lifecycle_change(&mut foreground).await;
     }
 
+    // Keep cached advertisements from replaying when the scan restarts.
+    let mut previous_payloads = HashMap::new();
     loop {
+        let _ = foreground.wait_for(|active| *active).await;
         if matches!(handler.get_adapter_state().await, AdapterState::Off) {
             status(
                 app,
                 "Bluetooth désactivé · active-le dans les paramètres Android",
             );
-        } else if let Err(error) = scan(app, handler).await {
+        } else if let Err(error) =
+            scan(app, handler, foreground.clone(), &mut previous_payloads).await
+        {
             status(app, &format!("Bluetooth indisponible · {error}"));
         }
-        tokio::time::sleep(RETRY).await;
+        if !foreground.has_changed().unwrap_or(false) {
+            retry_or_lifecycle_change(&mut foreground).await;
+        }
     }
+}
+
+async fn retry_or_lifecycle_change(foreground: &mut watch::Receiver<bool>) {
+    let change = foreground.changed();
+    let delay = tokio::time::sleep(RETRY);
+    pin_mut!(change, delay);
+    let _ = select(change, delay).await;
 }
 
 async fn wait_for_handler() -> Option<&'static Handler> {
@@ -66,18 +101,34 @@ async fn wait_for_handler() -> Option<&'static Handler> {
     None
 }
 
-async fn scan(app: &AppHandle, handler: &'static Handler) -> tauri_plugin_blec::Result<()> {
+async fn scan(
+    app: &AppHandle,
+    handler: &'static Handler,
+    mut foreground: watch::Receiver<bool>,
+    previous_payloads: &mut HashMap<String, Vec<u8>>,
+) -> tauri_plugin_blec::Result<()> {
+    if foreground.has_changed().unwrap_or(false) {
+        return Ok(());
+    }
     let (sender, mut batches) = mpsc::channel(4);
     handler
         .discover(Some(sender), u64::MAX, ScanFilter::None, false)
         .await?;
     status(app, "Écoute Bluetooth active");
-    let mut previous_payloads = HashMap::new();
     let mut links: HashMap<String, (JoinHandle<()>, Instant)> = HashMap::new();
     let mut check_adapter_at = Instant::now() + RETRY;
 
     loop {
-        let devices = match tokio::time::timeout(RETRY, batches.recv()).await {
+        let batch = {
+            let change = foreground.changed();
+            let batch = tokio::time::timeout(RETRY, batches.recv());
+            pin_mut!(change, batch);
+            match select(change, batch).await {
+                Either::Left(_) => break,
+                Either::Right((batch, _)) => batch,
+            }
+        };
+        let devices = match batch {
             Ok(Some(devices)) => devices,
             Ok(None) => break,
             Err(_) if !handler.is_scanning().await => break,
@@ -88,6 +139,9 @@ async fn scan(app: &AppHandle, handler: &'static Handler) -> tauri_plugin_blec::
                 break;
             }
             check_adapter_at = Instant::now() + RETRY;
+        }
+        if foreground.has_changed().unwrap_or(false) {
+            break;
         }
         links.retain(|_, (task, retry_at)| !task.is_finished() || Instant::now() < *retry_at);
         for device in devices {
@@ -112,11 +166,15 @@ async fn scan(app: &AppHandle, handler: &'static Handler) -> tauri_plugin_blec::
         }
     }
 
-    for (_, (task, _)) in links {
+    for (task, _) in links.values() {
         task.abort();
     }
+    let stopped = handler.stop_scan().await;
+    for (_, (task, _)) in links {
+        let _ = task.await;
+    }
     let _ = handler.disconnect_all().await;
-    handler.stop_scan().await
+    stopped
 }
 
 fn device_source(device: &BleDevice) -> Source {

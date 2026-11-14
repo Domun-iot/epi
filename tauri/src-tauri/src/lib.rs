@@ -14,7 +14,14 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init());
     #[cfg(target_os = "android")]
-    let builder = builder.plugin(tauri_plugin_blec::init());
+    let builder =
+        builder
+            .plugin(tauri_plugin_blec::init())
+            .on_window_event(|_, event| match event {
+                tauri::WindowEvent::Suspended => bluetooth::set_foreground(false),
+                tauri::WindowEvent::Resumed => bluetooth::set_foreground(true),
+                _ => {}
+            });
     builder
         .invoke_handler(tauri::generate_handler![
             start_bluetooth,

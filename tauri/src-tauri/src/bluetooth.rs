@@ -15,6 +15,9 @@ mod platform;
 #[path = "bluetooth/native.rs"]
 mod platform;
 
+#[cfg(target_os = "android")]
+pub use platform::set_foreground;
+
 const COMPOSITION: Uuid = uuid!("0000181b-0000-1000-8000-00805f9b34fb");
 const WEIGHT: Uuid = uuid!("0000181d-0000-1000-8000-00805f9b34fb");
 const WEIGHT_MEASUREMENT: Uuid = uuid!("00002a9d-0000-1000-8000-00805f9b34fb");
