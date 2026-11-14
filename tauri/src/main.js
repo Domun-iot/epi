@@ -23,7 +23,8 @@ const exportButton = document.querySelector('#export-data');
 const retryButton = document.querySelector('#retry-bluetooth');
 let canRetryBluetooth = false;
 let bluetoothUnavailable = false;
-const expanded = new Set();
+let columnsOpen = false;
+const panelStates = new WeakMap();
 const editor = createEditor(dialog, showError);
 const pages = { measurements: 'Mesures', profiles: 'Profils', devices: 'Appareils' };
 
@@ -98,20 +99,18 @@ function render() {
     const detailScroll = previousComparison?.scrollLeft;
     if (previousComparison) comparisonResize.unobserve(previousComparison);
     stopReorder();
-    const openSections = new Map(Array.from(view.querySelectorAll('.measurement-details > details'),
-      section => [section.dataset.detailSection, section.open]));
-    view.innerHTML = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder)
-      : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, expanded.has('columns'), columnQuery)
-      : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile) : devicesView(state.devices, state.addressFilter, expanded.has('raw'));
+    view.innerHTML = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen)
+      : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, columnsOpen, columnQuery)
+      : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile) : devicesView(state.devices, state.addressFilter, state.rawOpen);
+    for (const panel of view.querySelectorAll('details[data-expand="raw"], details[data-detail-section]')) {
+      panelStates.set(panel, panel.open);
+    }
+    renderFrames();
     if (detail) {
       const comparison = view.querySelector('.comparison-scroll');
       if (comparison) {
         comparison.scrollLeft = detailScroll ?? 0;
         comparisonResize.observe(comparison);
-      }
-      for (const section of view.querySelectorAll('.measurement-details > details')) {
-        const id = section.dataset.detailSection;
-        if (openSections.has(id)) section.open = openSections.get(id);
       }
       positionComparisonHeader();
       return;
@@ -329,11 +328,13 @@ view.addEventListener('click', event => {
   suppressReorderClick = false;
 }, true);
 view.addEventListener('toggle', event => {
-  const group = event.target.dataset.expand;
-  if (!group) return;
-  if (event.target.open) expanded.add(group);
-  else expanded.delete(group);
+  const panel = event.target;
+  const group = panel.dataset.expand;
+  if (group === 'columns') columnsOpen = panel.open;
   if (group === 'raw') renderFrames();
+  if (!panelStates.has(panel) || panelStates.get(panel) === panel.open) return;
+  panelStates.set(panel, panel.open);
+  void perform(() => session.setPanelOpen(state.selectedProfile, panel.dataset.detailSection ?? null, panel.open));
 }, true);
 view.addEventListener('input', event => {
   if (!event.target.matches('.column-search')) return;

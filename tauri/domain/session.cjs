@@ -59,8 +59,10 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
 
   function view() {
     const { columns = defaultColumns, splitColumns = defaultSplitColumns, columnOrder = defaultColumnOrder,
-      methodColumnOrder = defaultColumnOrder, detailSectionOrder = [] } = preferencesFor(saved);
-    return { ...saved, columns, splitColumns, columnOrder, methodColumnOrder, detailSectionOrder, enrollment, acquisitionError };
+      methodColumnOrder = defaultColumnOrder, detailSectionOrder = [],
+      rawOpen = false, detailSectionsOpen } = preferencesFor(saved);
+    return { ...saved, columns, splitColumns, columnOrder, methodColumnOrder, detailSectionOrder,
+      rawOpen, detailSectionsOpen, enrollment, acquisitionError };
   }
 
   function publish() {
@@ -165,6 +167,17 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   function savePreferences(draft, profile, prefs) {
     if (profile) draft.profilePreferences = { ...draft.profilePreferences, [profile]: prefs };
     else draft.anonymousPreferences = prefs;
+  }
+
+  function setPanelOpen(profile, section, open) {
+    return mutate(draft => {
+      const target = profile == null ? null : findProfile(draft, profile);
+      if (profile != null && !target) throw Error('Profil introuvable.');
+      const prefs = preferencesFor(draft, target?.name ?? null);
+      const updates = section === null ? { rawOpen: open }
+        : { detailSectionsOpen: { ...prefs.detailSectionsOpen, [section]: open } };
+      savePreferences(draft, target?.name, { ...prefs, ...updates });
+    });
   }
 
   function movePreference(setting, profile, source, target, visibleOrder) {
@@ -295,6 +308,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       return () => observers.delete(observer);
     },
     selectProfile, saveProfile, setColumnPreference, beginDevice, cancelDevice, confirmProfile,
+    setPanelOpen,
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
     moveDetailSection: (...args) => movePreference('detailSectionOrder', ...args),

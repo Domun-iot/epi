@@ -144,7 +144,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
   return pageHeader('Pesées') + content;
 }
 
-export function measurementDetails(row, methodOrder = [], sectionOrder = []) {
+export function measurementDetails(row, methodOrder = [], sectionOrder = [], sectionsOpen = {}) {
   const byId = new Map(methods.map(method => [method.id, method]));
   const activeMethods = [...new Set([...methodOrder, ...byId.keys()])].map(id => byId.get(id))
     .filter(Boolean).filter(({ id }) => METRICS.some(([metric]) => Number.isFinite(row.calculations?.[id]?.[metric])))
@@ -190,7 +190,8 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = []) {
   const orderedSections = [...new Set([...sectionOrder, ...bySection.keys()])].filter(id => bySection.has(id));
   return pageHeader('Détails de la pesée')
     + `<div class="measurement-details">${readings}${comparison}${orderedSections.map(id => {
-      const [title, body, open] = bySection.get(id);
+      const [title, body, defaultOpen] = bySection.get(id);
+      const open = sectionsOpen[id] ?? defaultOpen;
       return `<details data-detail-section="${e(id)}"${open ? ' open' : ''}><summary>${e(title)}</summary>${body}</details>`;
     }).join('')}</div>`;
 }
