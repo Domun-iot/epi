@@ -130,7 +130,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await popup.getByText('Publication Deurenberg').waitFor();
   await popup.close();
   const methodHeaders = comparison.locator('th[data-drag-column]');
-  await methodHeaders.filter({ hasText: 'Deu' }).dragTo(methodHeaders.filter({ hasText: 'IMC' }));
+  await methodHeaders.filter({ hasText: 'Deu' }).getByRole('link').dragTo(methodHeaders.filter({ hasText: 'IMC' }));
   assert.deepEqual(await methodHeaders.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['Deu', 'IMC', 'Mi']);
   const legend = detail.locator('.legend a');
   assert.match(await legend.first().textContent(), /Deu/);
@@ -177,21 +177,78 @@ test('le détail fixe la colonne Donnée et les en-têtes pendant le défilement
   const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [{ ...record, calculations }] },
     { viewport: { width: 420, height: 380 } });
   await page.getByRole('button', { name: /^Voir la pesée du/ }).click();
-  const result = await page.locator('.comparison-scroll').evaluate(panel => {
+  const panel = page.locator('.comparison-scroll');
+  const initial = await panel.evaluate(panel => {
     const corner = panel.querySelector('thead th');
-    const header = panel.querySelector('thead th:nth-child(2)');
     const rowHeader = panel.querySelector('tbody tr:last-child th');
-    const initial = corner.getBoundingClientRect();
+    const { x, y } = corner.getBoundingClientRect();
     panel.scrollLeft = 200;
     panel.scrollTop = 100;
+    window.scrollBy(0, y + 80);
     return {
-      scrolled: panel.scrollLeft > 0 && panel.scrollTop > 0,
-      cornerFixed: corner.getBoundingClientRect().x === initial.x && corner.getBoundingClientRect().y === initial.y,
-      headerFixed: header.getBoundingClientRect().y === initial.y,
-      rowHeaderFixed: rowHeader.getBoundingClientRect().x === initial.x,
+      x,
+      horizontalScroll: panel.scrollLeft > 0,
+      verticalScroll: panel.scrollTop,
+      fullHeight: panel.scrollHeight === panel.clientHeight,
+      rowX: rowHeader.getBoundingClientRect().x,
     };
   });
-  assert.deepEqual(result, { scrolled: true, cornerFixed: true, headerFixed: true, rowHeaderFixed: true });
+  assert.deepEqual(initial, { x: initial.x, horizontalScroll: true, verticalScroll: 0, fullHeight: true, rowX: initial.x });
+  await page.waitForFunction(() => Math.abs(document.querySelector('.comparison-scroll thead th').getBoundingClientRect().top) < 1);
+  const pinned = await panel.locator('thead th').evaluateAll(headers => headers.map(header => header.getBoundingClientRect().top));
+  assert.ok(pinned.every(top => Math.abs(top) < 1));
+  await page.evaluate(() => {
+    const table = document.querySelector('.comparison-scroll table');
+    window.scrollBy(0, table.getBoundingClientRect().bottom - 10);
+  });
+  await page.waitForFunction(() => document.querySelector('.comparison-scroll thead th').getBoundingClientRect().top < 0);
+});
+
+async function touchDrag(client, source, target) {
+  await source.scrollIntoViewIfNeeded();
+  const from = await source.boundingBox();
+  const to = await target.boundingBox();
+  const x = from.x + from.width / 2;
+  const y = from.y + from.height / 2;
+  const dx = to.x + to.width / 2 - x;
+  const dy = to.y + to.height / 2 - y;
+  await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  for (const progress of [0.25, 0.5, 0.75, 1]) {
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove', touchPoints: [{ x: x + dx * progress, y: y + dy * progress }],
+    });
+  }
+  await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+}
+
+test('le toucher réordonne l’historique, les méthodes et les sections du détail', async t => {
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [record] },
+    { viewport: { width: 430, height: 850 }, hasTouch: true, isMobile: true });
+  const client = await page.context().newCDPSession(page);
+  const table = page.getByRole('table', { name: 'Pesées' });
+  await touchDrag(client, table.getByText('70 kg'), table.getByRole('button', { name: /^Voir la pesée du/ }));
+  assert.deepEqual(await table.locator('thead tr').first().locator('th').evaluateAll(headers =>
+    headers.slice(0, 2).map(header => header.dataset.dragColumn)), ['weight', 'date']);
+  const openReading = page.getByRole('button', { name: /^Voir la pesée du/ });
+  await openReading.click();
+  const comparison = page.getByRole('table', { name: 'Comparaison des méthodes' });
+  const headers = comparison.locator('th[data-drag-column]');
+  const section = id => page.locator(`[data-detail-section="${id}"] > summary`);
+  await touchDrag(client, headers.filter({ hasText: 'Deu' }).getByRole('link'), headers.filter({ hasText: 'IMC' }));
+  assert.deepEqual(await headers.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['Deu', 'IMC', 'Mi']);
+  await section('methods').click();
+  assert.match(await page.locator('.legend a').first().textContent(), /Deu/);
+  await section('methods').click();
+  await touchDrag(client, section('device'), section('methods'));
+  const sectionOrder = () => page.locator('[data-detail-section]').evaluateAll(nodes => nodes.map(node => node.dataset.detailSection));
+  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
+  assert.equal(await section('device').evaluate(summary => summary.parentElement.open), false);
+  await section('device').click();
+  assert.equal(await section('device').evaluate(summary => summary.parentElement.open), true);
+  await page.reload();
+  await openReading.tap();
+  assert.deepEqual(await headers.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['Deu', 'IMC', 'Mi']);
+  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
 });
 
 test('dates selon la locale active et conservation de la date de naissance et de l’horloge de la balance', async t => {

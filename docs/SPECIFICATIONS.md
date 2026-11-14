@@ -17,6 +17,12 @@
 
 Les estimations affichées réutilisent les valeurs déjà écrites dans chaque pesée. Une modification du profil s’applique aux futures pesées. Les méthodes IMC, Mi, Sun, Janssen, Deurenberg 1990/1991, CUN-BAE, Watson, Hume–Weyers, Mifflin–St Jeor, Harris–Benedict, Owen et Cunningham gardent les calculs du CLI.
 
+## Historique et détail des pesées
+
+- Dans l’historique, les en-têtes et les cellules permettent de déplacer une colonne ou un groupe de colonnes. Un clic sur un en-tête compatible alterne entre les modes rassemblé et éclaté. Le mode éclaté affiche la moyenne avant les méthodes.
+- Dans le détail, le tableau s’affiche sur toute sa hauteur et la fenêtre assure le défilement vertical. L’en-tête reste visible tant que le tableau défile sous lui. La colonne « Donnée » reste visible lors du défilement horizontal du tableau.
+- À la souris et au toucher, les en-têtes permettent de réordonner les colonnes de méthodes et les sections du détail. La légende « Méthodes de calcul » suit l’ordre des colonnes. Les deux ordres sont mémorisés pour le profil actif. Un clic ou un appui simple ouvre le lien de la méthode ou bascule la section.
+
 ## Développement et vérification
 
 1. Isoler le CLI dans `cli/`. Déplacer en modules communs le décodage, les métadonnées, les profils et les calculs. Vérifier la suite du CLI et l’aide.

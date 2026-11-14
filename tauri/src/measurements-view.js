@@ -76,7 +76,7 @@ function columnSettings(selected, split, sourcesByMetric, open, query) {
   </details>`;
 }
 
-const columnDrag = id => ` data-drag-column="${id}" draggable="true"`;
+const columnDrag = id => ` data-drag-column="${id}"`;
 const sourceLink = (url, text) => `<a class="method-source" href="${e(url)}" target="_blank" rel="noopener noreferrer" draggable="false">${text}</a>`;
 const methodHeader = ({ id, icon, label, style, source }, drag = '') => {
   const title = `<span aria-hidden="true">${icon}</span> ${e(id)}`;
@@ -191,6 +191,6 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = []) {
   return pageHeader('Détails de la pesée')
     + `<div class="measurement-details">${readings}${comparison}${orderedSections.map(id => {
       const [title, body, open] = bySection.get(id);
-      return `<details data-detail-section="${e(id)}"${open ? ' open' : ''}><summary draggable="true">${e(title)}</summary>${body}</details>`;
+      return `<details data-detail-section="${e(id)}"${open ? ' open' : ''}><summary>${e(title)}</summary>${body}</details>`;
     }).join('')}</div>`;
 }

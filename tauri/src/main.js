@@ -33,8 +33,6 @@ let rows = [];
 let reading = null;
 let historyScroll;
 let columnQuery = '';
-let draggedColumn;
-let dropColumn;
 let errorText = '';
 let feedback = '';
 let frames = [];
@@ -97,18 +95,25 @@ function render() {
     const toggleScope = active?.classList.contains('column-toggle') ? '.column-toggle' : '.column-option button';
     const searchFocused = active?.matches('.column-search');
     const previousComparison = view.querySelector('.comparison-scroll');
-    const detailScroll = previousComparison && { left: previousComparison.scrollLeft, top: previousComparison.scrollTop };
+    const detailScroll = previousComparison?.scrollLeft;
+    if (previousComparison) comparisonResize.unobserve(previousComparison);
+    stopReorder();
     const openSections = new Map(Array.from(view.querySelectorAll('.measurement-details > details'),
       section => [section.dataset.detailSection, section.open]));
     view.innerHTML = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, expanded.has('columns'), columnQuery)
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile) : devicesView(state.devices, state.addressFilter, expanded.has('raw'));
     if (detail) {
-      view.querySelector('.comparison-scroll')?.scrollTo(detailScroll ?? {});
+      const comparison = view.querySelector('.comparison-scroll');
+      if (comparison) {
+        comparison.scrollLeft = detailScroll ?? 0;
+        comparisonResize.observe(comparison);
+      }
       for (const section of view.querySelectorAll('.measurement-details > details')) {
         const id = section.dataset.detailSection;
         if (openSections.has(id)) section.open = openSections.get(id);
       }
+      positionComparisonHeader();
       return;
     }
     if (page === 'measurements') filterColumnOptions(view, columnQuery);
@@ -227,100 +232,102 @@ main.addEventListener('click', event => {
   const action = control && actions[control.dataset.action];
   if (action) void perform(() => action(control.dataset.value));
 });
-const dragSelector = '[data-drag-column]';
-let draggedTable;
-
-function dragColumnAt(event) {
-  const cell = event.target.closest(dragSelector);
-  return cell?.closest('table') === draggedTable ? cell?.dataset.dragColumn : undefined;
+function positionComparisonHeader() {
+  const panel = view.querySelector('.comparison-scroll');
+  if (!panel) return;
+  const table = panel.querySelector('table');
+  const { top, height } = table.getBoundingClientRect();
+  // Keep horizontal overflow local while pinning the real headers to the viewport.
+  const offset = Math.max(0, Math.min(-top, height - table.tHead.offsetHeight));
+  panel.style.setProperty('--comparison-header-offset', `${offset}px`);
 }
 
-function markDropColumn(column) {
-  if (column === dropColumn) return;
-  dropColumn = column;
-  for (const cell of draggedTable.querySelectorAll(dragSelector)) {
-    cell.classList.toggle('column-drop', cell.dataset.dragColumn === column);
-  }
-}
+const comparisonResize = new ResizeObserver(positionComparisonHeader);
+comparisonResize.observe(main);
+window.addEventListener('scroll', positionComparisonHeader, { passive: true });
+window.addEventListener('resize', positionComparisonHeader);
 
-function clearColumnDrag() {
-  markDropColumn(undefined);
-  draggedColumn = undefined;
-  draggedTable = undefined;
-}
-
-view.addEventListener('dragstart', event => {
-  const cell = event.target.closest(dragSelector);
-  if (!cell) return;
-  draggedColumn = cell.dataset.dragColumn;
-  draggedTable = cell.closest('table');
-  event.dataTransfer.effectAllowed = 'move';
-  event.dataTransfer.setData('text/plain', draggedColumn);
-});
-view.addEventListener('dragover', event => {
-  const column = dragColumnAt(event);
-  if (!draggedColumn || !column) return;
-  event.preventDefault();
-  event.dataTransfer.dropEffect = 'move';
-  markDropColumn(column === draggedColumn ? undefined : column);
-});
-view.addEventListener('drop', event => {
-  const target = dragColumnAt(event);
-  const source = draggedColumn;
-  if (!source || !target) return;
-  event.preventDefault();
-  const isComparison = draggedTable.matches('.comparison-scroll table');
-  const order = Array.from(draggedTable.querySelectorAll('thead tr:first-child th[data-drag-column]'),
-    cell => cell.dataset.dragColumn);
-  clearColumnDrag();
-  if (source === target) return;
-  const move = isComparison ? session.moveMethodColumn : session.moveColumn;
-  void perform(() => move(state.selectedProfile, source, target, order));
-});
-view.addEventListener('dragend', clearColumnDrag);
-
+const columnCell = '[data-drag-column]';
 const sectionHeader = '[data-detail-section] > summary';
-let draggedSection;
-let sectionDrop;
+let reorder;
+let suppressReorderClick = false;
 
-function markSectionDrop(target) {
-  sectionDrop?.classList.remove('column-drop');
-  sectionDrop = target;
-  sectionDrop?.classList.add('column-drop');
+function stopReorder() {
+  if (!reorder) return;
+  for (const element of reorder.highlighted) element.classList.remove('column-drop');
+  reorder = undefined;
 }
 
-function clearSectionDrag() {
-  draggedSection = undefined;
-  markSectionDrop(undefined);
+function reorderTargetAt(event) {
+  const hit = document.elementFromPoint(event.clientX, event.clientY);
+  if (reorder.table) {
+    const cell = hit?.closest(columnCell);
+    return cell?.closest('table') === reorder.table ? cell.dataset.dragColumn : undefined;
+  }
+  return hit?.closest(sectionHeader);
 }
+
+view.addEventListener('pointerdown', event => {
+  if (!event.isPrimary || event.button !== 0) return;
+  suppressReorderClick = false;
+  const element = event.target.closest(`${columnCell}, ${sectionHeader}`);
+  if (!element) return;
+  const table = element.closest('table');
+  reorder = {
+    table, source: table ? element.dataset.dragColumn : element,
+    pointerId: event.pointerId, x: event.clientX, y: event.clientY,
+    active: false, highlighted: [],
+  };
+});
 
 view.addEventListener('dragstart', event => {
-  const header = event.target.closest(sectionHeader);
-  if (!header) return;
-  draggedSection = header.parentElement;
-  event.dataTransfer.effectAllowed = 'move';
-  event.dataTransfer.setData('text/plain', draggedSection.dataset.detailSection);
+  if (reorder) event.preventDefault();
 });
-view.addEventListener('dragover', event => {
-  if (!draggedSection) return;
-  const header = event.target.closest(sectionHeader);
-  markSectionDrop(header?.parentElement === draggedSection ? undefined : header);
-  if (!header) return;
-  event.preventDefault();
-  event.dataTransfer.dropEffect = 'move';
+
+window.addEventListener('pointermove', event => {
+  if (event.pointerId !== reorder?.pointerId) return;
+  if (!reorder.active) {
+    if (Math.hypot(event.clientX - reorder.x, event.clientY - reorder.y) < 6) return;
+    reorder.active = true;
+    suppressReorderClick = true;
+  }
+  const hit = reorderTargetAt(event);
+  const target = hit === reorder.source ? undefined : hit;
+  if (target === reorder.target) return;
+  for (const element of reorder.highlighted) element.classList.remove('column-drop');
+  reorder.target = target;
+  reorder.highlighted = !target ? [] : reorder.table
+    ? Array.from(reorder.table.querySelectorAll(columnCell)).filter(cell => cell.dataset.dragColumn === target)
+    : [target];
+  for (const element of reorder.highlighted) element.classList.add('column-drop');
 });
-view.addEventListener('drop', event => {
-  const target = event.target.closest(sectionHeader)?.parentElement;
-  if (!draggedSection || !target) return;
-  event.preventDefault();
-  const source = draggedSection.dataset.detailSection;
-  clearSectionDrag();
-  const order = Array.from(view.querySelectorAll('[data-detail-section]'), section => section.dataset.detailSection);
-  if (source !== target.dataset.detailSection) {
-    void perform(() => session.moveDetailSection(state.selectedProfile, source, target.dataset.detailSection, order));
+
+window.addEventListener('pointerup', event => {
+  if (event.pointerId !== reorder?.pointerId) return;
+  const { active, table, source } = reorder;
+  const target = active && reorderTargetAt(event);
+  stopReorder();
+  if (!target || source === target) return;
+  if (table) {
+    const order = Array.from(table.tHead.rows[0].cells, cell => cell.dataset.dragColumn).filter(Boolean);
+    const move = table.matches('.comparison-scroll table') ? session.moveMethodColumn : session.moveColumn;
+    void perform(() => move(state.selectedProfile, source, target, order));
+  } else {
+    const order = Array.from(view.querySelectorAll('[data-detail-section]'), section => section.dataset.detailSection);
+    void perform(() => session.moveDetailSection(state.selectedProfile, source.parentElement.dataset.detailSection,
+      target.parentElement.dataset.detailSection, order));
   }
 });
-view.addEventListener('dragend', clearSectionDrag);
+
+window.addEventListener('pointercancel', event => {
+  if (event.pointerId === reorder?.pointerId) stopReorder();
+});
+view.addEventListener('click', event => {
+  if (!suppressReorderClick || event.detail === 0) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  suppressReorderClick = false;
+}, true);
 view.addEventListener('toggle', event => {
   const group = event.target.dataset.expand;
   if (!group) return;
