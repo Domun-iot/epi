@@ -33,7 +33,6 @@ let rows = [];
 let reading = null;
 let historyScroll;
 let columnQuery = '';
-let detailMethodOrder = [];
 let draggedColumn;
 let dropColumn;
 let errorText = '';
@@ -75,7 +74,7 @@ function render() {
   const detail = page === 'measurements' ? reading : null;
   dataActions.hidden = Boolean(detail);
   backButton.hidden = !detail;
-  const nextMain = detail ? [page, detail, detailMethodOrder] : [page, state.selectedProfile, ...(page === 'measurements'
+  const nextMain = detail ? [page, detail, state.methodColumnOrder] : [page, state.selectedProfile, ...(page === 'measurements'
     ? [state.measurements, state.columns, state.splitColumns, state.columnOrder]
     : page === 'profiles' ? [state.profiles] : [state.devices, state.addressFilter])];
   if (changed(lastMain, nextMain)) {
@@ -101,7 +100,7 @@ function render() {
     const detailScroll = previousComparison && { left: previousComparison.scrollLeft, top: previousComparison.scrollTop };
     const openSections = new Map(Array.from(view.querySelectorAll('.measurement-details > details'),
       section => [section.querySelector('summary').textContent, section.open]));
-    view.innerHTML = detail ? measurementDetails(detail, detailMethodOrder)
+    view.innerHTML = detail ? measurementDetails(detail, state.methodColumnOrder)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, expanded.has('columns'), columnQuery)
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile) : devicesView(state.devices, state.addressFilter, expanded.has('raw'));
     if (detail) {
@@ -195,7 +194,6 @@ const actions = {
     const row = rows[Number(index)];
     if (!row) return;
     historyScroll = { left: view.querySelector('.table-scroll').scrollLeft, top: window.scrollY };
-    detailMethodOrder = [];
     reading = row;
     render();
     backButton.focus({ preventScroll: true });
@@ -276,15 +274,8 @@ view.addEventListener('drop', event => {
     cell => cell.dataset.dragColumn);
   clearColumnDrag();
   if (source === target) return;
-  if (isComparison) {
-    const to = order.indexOf(target);
-    order.splice(order.indexOf(source), 1);
-    order.splice(to, 0, source);
-    detailMethodOrder = order;
-    render();
-  } else {
-    void perform(() => session.moveColumn(state.selectedProfile, source, target, order));
-  }
+  const move = isComparison ? session.moveMethodColumn : session.moveColumn;
+  void perform(() => move(state.selectedProfile, source, target, order));
 });
 view.addEventListener('dragend', clearColumnDrag);
 view.addEventListener('toggle', event => {

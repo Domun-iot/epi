@@ -58,8 +58,9 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   });
 
   function view() {
-    const { columns = defaultColumns, splitColumns = defaultSplitColumns, columnOrder = defaultColumnOrder } = preferencesFor(saved);
-    return { ...saved, columns, splitColumns, columnOrder, enrollment, acquisitionError };
+    const { columns = defaultColumns, splitColumns = defaultSplitColumns, columnOrder = defaultColumnOrder,
+      methodColumnOrder = defaultColumnOrder } = preferencesFor(saved);
+    return { ...saved, columns, splitColumns, columnOrder, methodColumnOrder, enrollment, acquisitionError };
   }
 
   function publish() {
@@ -157,25 +158,27 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       const values = new Set(prefs[setting] ?? (setting === 'columns' ? defaultColumns : defaultSplitColumns));
       if (enabled) values.add(id);
       else values.delete(id);
-      saveColumnPreferences(draft, target?.name, { ...prefs, [setting]: [...values] });
+      savePreferences(draft, target?.name, { ...prefs, [setting]: [...values] });
     });
   }
 
-  function saveColumnPreferences(draft, profile, prefs) {
+  function savePreferences(draft, profile, prefs) {
     if (profile) draft.profilePreferences = { ...draft.profilePreferences, [profile]: prefs };
     else draft.anonymousPreferences = prefs;
   }
 
-  function moveColumn(profile, source, target, visibleOrder) {
+  function movePreference(setting, profile, source, target, visibleOrder) {
     return mutate(draft => {
-      const prefs = preferencesFor(draft, profile);
-      const order = [...new Set([...(prefs.columnOrder ?? []), ...visibleOrder])];
+      const current = profile == null ? null : findProfile(draft, profile);
+      if (profile != null && !current) throw Error('Profil introuvable.');
+      if (source === target || !visibleOrder.includes(source) || !visibleOrder.includes(target)) return;
+      const prefs = preferencesFor(draft, current?.name ?? null);
+      const order = [...new Set([...(prefs[setting] ?? []), ...visibleOrder])];
       const from = order.indexOf(source);
       const to = order.indexOf(target);
-      if (from < 0 || to < 0 || from === to) return;
       order.splice(from, 1);
       order.splice(to, 0, source);
-      saveColumnPreferences(draft, profile, { ...prefs, columnOrder: order });
+      savePreferences(draft, current?.name, { ...prefs, [setting]: order });
     });
   }
 
@@ -291,7 +294,9 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       observers.add(observer);
       return () => observers.delete(observer);
     },
-    selectProfile, saveProfile, setColumnPreference, moveColumn, beginDevice, cancelDevice, confirmProfile,
+    selectProfile, saveProfile, setColumnPreference, beginDevice, cancelDevice, confirmProfile,
+    moveColumn: (...args) => movePreference('columnOrder', ...args),
+    moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
     discardPending, ingest, importLegacy, setAddressFilter,
   };
 }

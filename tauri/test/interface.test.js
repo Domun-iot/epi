@@ -129,6 +129,11 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await popup.waitForURL(source);
   await popup.getByText('Publication Deurenberg').waitFor();
   await popup.close();
+  const methodHeaders = comparison.locator('th[data-drag-column]');
+  await methodHeaders.filter({ hasText: 'Deu' }).dragTo(methodHeaders.filter({ hasText: 'IMC' }));
+  assert.deepEqual(await methodHeaders.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['Deu', 'IMC', 'Mi']);
+  const legend = detail.locator('.legend a');
+  assert.match(await legend.first().textContent(), /Deu/);
   const fatRow = comparison.getByRole('row').filter({ hasText: 'Masse grasse (%)' });
   assert.equal(await fatRow.getByRole('cell').first().textContent(), '32,45');
   const toolbar = page.locator('.toolbar');
@@ -152,6 +157,9 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await choosePage(page, 'Mesures');
   await table.getByRole('columnheader', { name: 'Masse grasse (%)', exact: true }).waitFor();
   await table.getByRole('columnheader', { name: 'Deu', exact: true }).waitFor();
+  await table.getByRole('button', { name: /^Voir la pesée du/ }).click();
+  assert.deepEqual(await methodHeaders.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['Deu', 'IMC', 'Mi']);
+  await page.getByRole('button', { name: 'Retour' }).click();
   assert.deepEqual(await columnOrder(), ['date', 'fatPercent', 'weight', 'bmi']);
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
 });
