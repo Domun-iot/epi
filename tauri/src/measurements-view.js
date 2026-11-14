@@ -128,7 +128,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
 export function measurementDetails(row) {
   const activeMethods = methods.filter(({ id }) => METRICS.some(([metric]) => Number.isFinite(row.calculations?.[id]?.[metric])));
   const readings = `<p><strong>${weight(row.measures)}</strong> · ${formatDate(row.receivedAt)}</p>`;
-  const comparison = activeMethods.length ? `<div class="panel table-scroll" role="region" aria-label="Comparaison des méthodes" tabindex="0">
+  const comparison = activeMethods.length ? `<div class="panel table-scroll comparison-scroll" role="region" aria-label="Comparaison des méthodes" tabindex="0">
     <table aria-label="Comparaison des méthodes"><thead><tr><th scope="col">Donnée</th><th scope="col">Moyenne</th>${activeMethods.map(method => methodHeader(method)).join('')}</tr></thead>
     <tbody>${METRICS.filter(([id]) => activeMethods.some(method => Number.isFinite(row.calculations?.[method.id]?.[id])))
       .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th><td class="numeric">${number(averageValue(row, id, activeMethods), precision)}</td>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>

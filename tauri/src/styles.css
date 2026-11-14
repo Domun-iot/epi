@@ -113,6 +113,12 @@ tr[data-action="reading"]:focus-within { background: #edf4ff; }
 .measurement-details > p { margin: 0; }
 .measurement-details th, .measurement-details td { padding-inline: clamp(6px, .65vw, 13px); }
 .measurement-details th[scope=row] { white-space: normal; }
+.comparison-scroll { max-height: 60dvh; overflow: auto; }
+.comparison-scroll table { border-collapse: separate; border-spacing: 0; }
+.comparison-scroll thead th { position: sticky; top: 0; z-index: 2; }
+.comparison-scroll tr > th:first-child { position: sticky; left: 0; }
+.comparison-scroll tbody th { z-index: 1; }
+.comparison-scroll thead th:first-child { z-index: 3; }
 dialog { border: 1px solid var(--line); border-radius: 14px; color: var(--ink); padding: 20px; max-width: min(540px, calc(100vw - 28px)); max-height: calc(100dvh - 28px); width: 100%; }
 dialog::backdrop { background: rgb(15 29 49 / 54%); }
 dialog h2 { font-size: 1.3rem; }

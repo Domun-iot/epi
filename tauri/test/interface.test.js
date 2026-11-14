@@ -147,6 +147,29 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
 });
 
+test('le détail fixe la colonne Donnée et les en-têtes pendant le défilement', async t => {
+  const calculations = Object.fromEntries(['IMC', 'Mi', 'Sun*', 'Jan*', 'D60*', 'Deu', 'CUN', 'Wat', 'HW', 'MSJ', 'HB', 'Owe', 'Cun*']
+    .map(id => [id, { bmi: 25.7, fatPercent: 31.8, fatKg: 20, leanKg: 50, waterL: 37, restingEnergy: 1500 }]));
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [{ ...record, calculations }] },
+    { viewport: { width: 420, height: 380 } });
+  await page.getByRole('button', { name: /^Voir la pesée du/ }).click();
+  const result = await page.locator('.comparison-scroll').evaluate(panel => {
+    const corner = panel.querySelector('thead th');
+    const header = panel.querySelector('thead th:nth-child(2)');
+    const rowHeader = panel.querySelector('tbody tr:last-child th');
+    const initial = corner.getBoundingClientRect();
+    panel.scrollLeft = 200;
+    panel.scrollTop = 100;
+    return {
+      scrolled: panel.scrollLeft > 0 && panel.scrollTop > 0,
+      cornerFixed: corner.getBoundingClientRect().x === initial.x && corner.getBoundingClientRect().y === initial.y,
+      headerFixed: header.getBoundingClientRect().y === initial.y,
+      rowHeaderFixed: rowHeader.getBoundingClientRect().x === initial.x,
+    };
+  });
+  assert.deepEqual(result, { scrolled: true, cornerFixed: true, headerFixed: true, rowHeaderFixed: true });
+});
+
 test('dates selon la locale active et conservation de la date de naissance et de l’horloge de la balance', async t => {
   const birthDate = '1980-01-05';
   const scaleTime = '2026-03-08T02:15:00';
