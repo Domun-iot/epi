@@ -312,6 +312,7 @@ function stopReorder() {
   if (!reorder) return;
   for (const element of reorder.highlighted) element.classList.remove('column-drop');
   for (const cell of reorder.sourceCells) cell.classList.remove('column-drag-source');
+  reorder.table?.classList.remove('column-drag-left');
   reorder = undefined;
 }
 
@@ -359,6 +360,12 @@ window.addEventListener('pointermove', event => {
   reorder.highlighted = !target ? [] : reorder.table
     ? Array.from(reorder.table.querySelectorAll(columnCell)).filter(cell => cell.dataset.dragColumn === target)
     : [target];
+  if (reorder.table) {
+    const headers = Array.from(reorder.table.tHead.rows[0].cells);
+    const sourceIndex = headers.findIndex(cell => cell.dataset.dragColumn === reorder.source);
+    const targetIndex = headers.findIndex(cell => cell.dataset.dragColumn === target);
+    reorder.table.classList.toggle('column-drag-left', targetIndex >= 0 && targetIndex < sourceIndex);
+  }
   for (const element of reorder.highlighted) element.classList.add('column-drop');
 });
 

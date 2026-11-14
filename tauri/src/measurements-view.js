@@ -85,7 +85,7 @@ const columnDrag = id => ` data-drag-column="${id}"`;
 const sourceLink = (url, text) => `<a class="method-source" href="${e(url)}" target="_blank" rel="noopener noreferrer" draggable="false">${text}</a>`;
 const methodHeader = ({ id, icon, label, style, source }, drag = '') => {
   const title = `<span aria-hidden="true">${icon}</span> ${e(id)}`;
-  return `<th scope="col"${drag} class="method-header" style="${style}" title="${e(label)}">${source ? sourceLink(source, title) : title}</th>`;
+  return `<th scope="col"${drag} class="method-header" style="${style}" title="${e(label)}"><span class="column-title">${source ? sourceLink(source, title) : title}</span></th>`;
 };
 const methodValue = (row, id, { id: method, style }, precision, drag = '') => `<td${drag} class="method-value numeric" style="${style}">${number(row.calculations?.[method]?.[id], precision)}</td>`;
 
@@ -128,7 +128,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
       : e(label);
     const scope = separate ? `scope="colgroup" colspan="${subheaders.length + 1}"`
       : `scope="col"${twoRows ? ' rowspan="2"' : ''}`;
-    return `<th${columnDrag(id)} ${scope}>${title}</th>`;
+    return `<th${columnDrag(id)} ${scope}><span class="column-title">${title}</span></th>`;
   }).join('');
   const settings = profile ? columnSettings(selected, split, sourcesByMetric, expanded, query) : '';
   const last = rows[0];
