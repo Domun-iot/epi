@@ -116,7 +116,7 @@ details > summary { cursor: pointer; width: fit-content; font-weight: 600; }
 .settings[open] > summary { float: left; margin-right: 12px; line-height: 42px; }
 .column-search-field { display: flow-root; }
 .column-search { display: block; width: min(100%, 320px); }
-.column-options { clear: both; padding: 10px 0 2px; columns: 300px; column-gap: 20px; }
+.column-options { clear: both; padding: 10px 0 2px; columns: 300px; column-gap: 20px; column-rule: 1px solid var(--line); }
 .column-option { break-inside: avoid; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 3px 0; }
 .column-option[hidden] { display: none; }
 .column-option .button { min-height: 28px; padding: 3px 8px; font-size: .8rem; }
