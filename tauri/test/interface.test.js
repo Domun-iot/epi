@@ -140,8 +140,23 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
 });
 
+test('dates selon la locale active et conservation de la date de naissance et de l’horloge de la balance', async t => {
+  const birthDate = '1980-01-05';
+  const scaleTime = '2026-03-08T02:15:00';
+  const profile = { ...alice, birthDate };
+  const measurement = { ...record, profile, reception: { scale: { scaleTime } } };
+  const page = await pageWith(t, { profiles: [profile], selectedProfile: 'Alice', measurements: [measurement] },
+    { locale: 'en-US', timezoneId: 'America/Los_Angeles' });
+
+  await page.getByRole('button', { name: /Voir la pesée du 1\/15\/26, 9:23:21/ }).click();
+  await page.getByText(/^3\/8\/26, 2:15:00/).waitFor();
+  await page.getByText('1/5/80', { exact: true }).waitFor();
+  await choosePage(page, 'Profils');
+  await page.getByText(/Naissance : 1\/5\/80/).waitFor();
+});
+
 test('capture et renommage, attribution automatique et flux brut horodaté', async t => {
-  const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Bob', measurements: [record] });
+  const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Bob', measurements: [record] }, { locale: 'fr-FR' });
   await choosePage(page, 'Appareils');
   await page.getByRole('button', { name: 'Ajouter un appareil' }).click();
   let dialog = page.getByRole('dialog');

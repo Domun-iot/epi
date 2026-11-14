@@ -146,12 +146,16 @@ function average(values) {
   return available.length ? available.reduce((sum, value) => sum + value, 0) / available.length : null;
 }
 
+const dateTime = new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'medium' });
+
 function formatComposition(event, profile) {
   const { weightKg, impedanceOhms, methods } = calculateComposition(event, profile);
+  const receivedAt = new Date(event.receivedAt);
+  const date = Number.isNaN(+receivedAt) ? '—' : dateTime.format(receivedAt);
   const number = (n, digits) => n.toLocaleString('fr-FR', { maximumFractionDigits: digits });
   const lines = [
     '',
-    `Pesée ${profile.user ? profile.user + ' · ' : ''}${event.receivedAt} · ${event.address}`,
+    `Pesée ${profile.user ? profile.user + ' · ' : ''}${date} · ${event.address}`,
     `Poids mesuré ${number(weightKg, 2)} kg · Impédance ${impedanceOhms ? number(impedanceOhms, 0) + ' Ω' : 'en attente ou absente'}`,
     ...columns.map(([short, name]) => `  ${short} = ${name}`),
     '  * Impédance pieds à pieds utilisée en approximation de la résistance corps entier. — = indisponible.',

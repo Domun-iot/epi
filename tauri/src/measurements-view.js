@@ -1,6 +1,6 @@
 import composition from 'virtual:epi-composition';
 import { METHOD_COLUMNS, METRICS } from './service.js';
-import { deviceFields, escapeHtml as e, formatDate, nameKey, number, pairs, pageHeader, weight } from './format.js';
+import { deviceFields, escapeHtml as e, formatCalendarDate, formatDate, formatScaleTime, nameKey, number, pairs, pageHeader, weight } from './format.js';
 
 const colors = [
   ['▰','#153873','#dce9ff'], ['●','#882d16','#ffe4d7'], ['◆','#724909','#fef0c5'],
@@ -21,14 +21,14 @@ const extras = [
   ['serviceUuid', 'Identifiant du service', row => row.reception?.bluetooth?.serviceUuid],
   ['service', 'Service Bluetooth', row => row.reception?.bluetooth?.service],
   ['rssiDbm', 'Signal Bluetooth (dBm)', row => row.reception?.bluetooth?.rssiDbm],
-  ['scaleTime', 'Horloge de la balance', row => row.reception?.scale?.scaleTime],
+  ['scaleTime', 'Horloge de la balance', row => formatScaleTime(row.reception?.scale?.scaleTime)],
   ['stable', 'Poids stabilisé', row => row.reception?.scale?.stable],
   ['removed', 'Charge retirée', row => row.reception?.scale?.removed],
   ['hex', 'Trame brute', row => row.reception?.raw?.hex],
   ['age', 'Âge utilisé', row => row.profile?.age],
   ['heightCm', 'Taille utilisée (cm)', row => row.profile?.heightCm],
   ['sex', 'Sexe utilisé', row => row.profile?.sex],
-  ['birthDate', 'Naissance du profil', row => row.profile?.birthDate],
+  ['birthDate', 'Naissance du profil', row => formatCalendarDate(row.profile?.birthDate)],
 ];
 const options = [...extras, ...METRICS].sort(([, first], [, second]) => first.localeCompare(second, 'fr'));
 

@@ -1,11 +1,11 @@
-import { button, deviceFields, escapeHtml as e, pairs, pageHeader, userIcon, weight } from './format.js';
+import { button, deviceFields, escapeHtml as e, formatCalendarDate, pairs, pageHeader, userIcon, weight } from './format.js';
 
 export function profilesView(profiles, selected) {
   const action = button('Créer un profil', 'new-profile', { primary: true });
   const entries = profiles.map(profile => {
     const active = profile.name === selected;
     const sex = profile.sex === 'F' ? 'Femme' : profile.sex === 'H' ? 'Homme' : '—';
-    const age = profile.birthDate ? `Naissance : ${profile.birthDate}` : `${profile.age ?? '—'} ans`;
+    const age = profile.birthDate ? `Naissance : ${formatCalendarDate(profile.birthDate)}` : `${profile.age ?? '—'} ans`;
     return `<article class="panel list-item"><header><h2>${e(profile.name)}${active ? ` <span role="img" aria-label="Profil actif" title="Profil actif">${userIcon}</span>` : ''}</h2>
       <div class="actions">${active ? '' : button('Sélectionner', 'select-profile', { value: profile.name })}
       ${button('Modifier', 'edit-profile', { value: profile.name })}</div></header>

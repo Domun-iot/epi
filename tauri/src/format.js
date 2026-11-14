@@ -4,12 +4,20 @@ export function escapeHtml(value) {
   })[character]);
 }
 
-const dateTime = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'medium' });
+const dateTime = new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'medium' });
+const calendarDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeZone: 'UTC' });
+const wallTime = new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'medium', timeZone: 'UTC' });
 
-export function formatDate(value) {
+function format(value, formatter) {
   const date = new Date(value ?? '');
-  return Number.isNaN(+date) ? '—' : dateTime.format(date);
+  return Number.isNaN(+date) ? '—' : formatter.format(date);
 }
+
+export const formatDate = value => format(value, dateTime);
+export const formatCalendarDate = value => format(value, calendarDate);
+
+// The scale sends a wall-clock time with no time zone.
+export const formatScaleTime = value => format(value ? value + 'Z' : null, wallTime);
 
 export function number(value, digits = 2) {
   return Number.isFinite(value)
