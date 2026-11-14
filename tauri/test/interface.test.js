@@ -99,6 +99,33 @@ const choosePage = (page, label) => page.getByRole('navigation').getByRole('butt
 const chosenProfile = page => page.getByRole('combobox', { name: 'Profil actif' }).inputValue();
 const feed = (page, line) => page.evaluate(value => window.dispatchEvent(new CustomEvent('epi:frame', { detail: value })), line);
 
+test('central views use the same spacing above and below the header', async t => {
+  const page = await pageWith(t, {
+    profiles: [alice], devices: [device], selectedProfile: 'Alice', measurements: [record],
+  });
+
+  await page.getByText('Colonnes', { exact: true }).click();
+  await page.getByLabel('Masse grasse (%)', { exact: true }).check();
+
+  const gaps = selector => page.locator('#view').evaluate((view, selector) => {
+    const header = view.firstElementChild;
+    const control = (selector ? header.querySelector(selector) : header).getBoundingClientRect();
+    const top = document.querySelector('.toolbar').getBoundingClientRect().bottom;
+    const content = header.nextElementSibling.getBoundingClientRect().top;
+    return [control.top - top, content - control.bottom];
+  }, selector);
+
+  const [aboveSave, belowSave] = await gaps('[data-action="save-view-preset"]');
+  assert.equal(aboveSave, belowSave);
+  assert.deepEqual(await gaps(null), [12, 12]);
+  await page.getByRole('cell', { name: '70 kg', exact: true }).click();
+  assert.deepEqual(await gaps(null), [12, 12]);
+  await choosePage(page, 'Profils');
+  assert.deepEqual(await gaps(null), [12, 12]);
+  await choosePage(page, 'Appareils');
+  assert.deepEqual(await gaps(null), [12, 12]);
+});
+
 test('les configurations de vue sont partagées et leur sélection persiste par profil', async t => {
   const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Alice', measurements: [record] });
   const profile = page.getByRole('combobox', { name: 'Profil actif' });
