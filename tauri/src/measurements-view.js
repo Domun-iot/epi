@@ -141,7 +141,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
         </tr>`).join('')}</tbody>
       </table>
     </div>` : `${settings}<p class="panel empty">${emptyText}</p>`;
-  return (header ?? pageHeader('Pesée')) + content;
+  return (header ?? pageHeader('Pesées')) + content;
 }
 
 export function measurementDetails(row, methodOrder = [], sectionOrder = [], sectionsOpen = {}, header) {

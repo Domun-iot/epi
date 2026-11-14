@@ -225,7 +225,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
         throw Error('Action invalide.');
       }
       const label = name?.trim().normalize('NFC');
-      const defaultName = kind === 'measurements' ? 'Pesée' : 'Détails de la pesée';
+      const defaultName = kind === 'measurements' ? 'Pesées' : 'Détails de la pesée';
       if (!label || label.length > 64) throw Error('Saisis un nom de 1 à 64 caractères.');
       if (label.toLowerCase() === defaultName.toLowerCase()) throw Error('Ce nom est réservé à la vue par défaut.');
       const matching = presets.find(entry => entry.name.toLowerCase() === label.toLowerCase());

@@ -1,6 +1,6 @@
 import { escapeHtml as e, sortByName } from './format.js';
 
-export const viewPresetTitles = { measurements: 'Pesée', details: 'Détails de la pesée' };
+export const viewPresetTitles = { measurements: 'Pesées', details: 'Détails de la pesée' };
 const icons = {
   rename: '<path d="m15 5 4 4M4 20l4-.8L20 7l-4-4L4 15z"/>',
   save: '<path d="M4 3h13l3 3v15H4zM8 3v6h8V3M8 21v-8h8v8"/>',
