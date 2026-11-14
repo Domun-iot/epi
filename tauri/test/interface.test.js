@@ -134,6 +134,17 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   await reload.click();
   assert.equal(await fat.isChecked(), false);
   assert.equal(await saveButton.count(), 0);
+  const weightCell = page.getByRole('cell', { name: '70 kg', exact: true });
+  const dateCell = page.getByRole('button', { name: /Voir la pesée du/ });
+  await weightCell.dragTo(dateCell);
+  assert.equal((await title.textContent()).trim(), 'Pesées *');
+  await weightCell.dragTo(dateCell);
+  assert.equal((await title.textContent()).trim(), 'Pesées');
+  assert.equal(await picker.count(), 0);
+  assert.equal(await rename.count(), 0);
+  assert.equal(await remove.count(), 0);
+  assert.equal(await saveButton.count(), 0);
+
   await fat.check();
   await page.getByRole('button', { name: 'Éclater Masse grasse (%)' }).click();
   await rename.click();
@@ -191,7 +202,19 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   assert.equal((await title.textContent()).trim(), 'Détails de la pesée');
   await title.click();
   await options.getByRole('button', { name: 'Compact', exact: true }).click();
+  const deviceSection = sections.filter({ hasText: 'Fiche de la balance à la pesée' });
   assert.equal(await sections.first().textContent(), 'Fiche de la balance à la pesée');
+  await deviceSection.dragTo(sections.last());
+  assert.equal((await title.textContent()).trim(), 'Compact *');
+  await deviceSection.dragTo(sections.first());
+  assert.equal((await title.textContent()).trim(), 'Compact');
+  assert.equal(await chevron.count(), 1);
+  assert.equal(await rename.isVisible(), true);
+  assert.equal(await remove.isVisible(), true);
+  assert.equal(await saveButton.count(), 0);
+  await title.click();
+  assert.deepEqual(await options.getByRole('button').allTextContents(), ['Détails de la pesée']);
+  await title.click();
   await page.getByRole('button', { name: 'Supprimer la configuration' }).click();
   await dialog.getByRole('button', { name: 'Supprimer', exact: true }).click();
   await dialog.waitFor({ state: 'hidden' });

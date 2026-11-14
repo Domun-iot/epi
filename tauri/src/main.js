@@ -367,11 +367,12 @@ window.addEventListener('pointerup', event => {
   if (table) {
     const order = Array.from(table.tHead.rows[0].cells, cell => cell.dataset.dragColumn).filter(Boolean);
     const move = table.matches('.comparison-scroll table') ? session.moveMethodColumn : session.moveColumn;
-    void perform(() => move(state.selectedProfile, source, target, order));
+    void perform(() => move(state.selectedProfile, source, target, order, JSON.parse(table.dataset.defaultOrder)));
   } else {
-    const order = Array.from(view.querySelectorAll('[data-detail-section]'), section => section.dataset.detailSection);
+    const details = source.closest('.measurement-details');
+    const order = Array.from(details.querySelectorAll('[data-detail-section]'), section => section.dataset.detailSection);
     void perform(() => session.moveDetailSection(state.selectedProfile, source.parentElement.dataset.detailSection,
-      target.parentElement.dataset.detailSection, order));
+      target.parentElement.dataset.detailSection, order, JSON.parse(details.dataset.defaultOrder)));
   }
 });
 

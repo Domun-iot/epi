@@ -46,6 +46,9 @@ const extras = [
   ['birthDate', 'Naissance du profil', row => formatCalendarDate(row.profile?.birthDate)],
 ];
 const options = [...extras, ...METRICS].sort(([, first], [, second]) => first.localeCompare(second, 'fr'));
+const measurementColumnOrder = ['date', 'weight', ...[...extras, ...METRICS].map(([id]) => id)];
+const methodColumnOrder = methods.map(({ id }) => id);
+const defaultOrder = ids => ` data-default-order="${e(JSON.stringify(ids))}"`;
 
 export function filterColumnOptions(panel, query) {
   const groups = nameKey(query).split(',').map(group => group.trim().split(/\s+/)).filter(([first]) => first);
@@ -132,7 +135,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
       <p>Dernier poids <strong>${weight(last.measures)}</strong></p><p class="muted">${formatDate(last.receivedAt)}</p>
     </div>${settings}
     <div class="panel table-scroll pinned-header" tabindex="0" role="region" aria-label="Pesées">
-      <table class="measurements-table" aria-label="Pesées">
+      <table class="measurements-table" aria-label="Pesées"${defaultOrder(measurementColumnOrder)}>
         <thead><tr>${headers}</tr>
         ${twoRows ? `<tr>${ordered.map(({ id, separate, subheaders }) => separate
           ? `<th scope="col"${columnDrag(id)}>Moyenne</th>${subheaders.join('')}` : '').join('')}</tr>` : ''}</thead>
@@ -156,7 +159,7 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
   const measures = row.measures ?? row;
   const readings = `<p><strong>${weight(measures)}</strong> · ${formatDate(row.receivedAt)}</p>`;
   const comparison = activeMethods.length ? `<div class="panel table-scroll pinned-header comparison-scroll" role="region" aria-label="Comparaison des méthodes" tabindex="0">
-    <table aria-label="Comparaison des méthodes"><thead><tr><th scope="col">Donnée</th><th scope="col">Moyenne</th>${activeMethods.map(method => methodHeader(method, columnDrag(method.id))).join('')}</tr></thead>
+    <table aria-label="Comparaison des méthodes"${defaultOrder(methodColumnOrder)}><thead><tr><th scope="col">Donnée</th><th scope="col">Moyenne</th>${activeMethods.map(method => methodHeader(method, columnDrag(method.id))).join('')}</tr></thead>
     <tbody>${METRICS.filter(([id]) => activeMethods.some(method => Number.isFinite(row.calculations?.[method.id]?.[id])))
       .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th><td class="numeric">${number(averageValue(row, id, activeMethods), precision)}</td>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>` : '';
   const legend = activeMethods.length ? `<div class="legend">${activeMethods.map(({ icon, id, label, style, source }) => `<span style="${style}">${sourceLink(source, `${icon} ${e(id)} · ${e(label)}`)}</span>`).join('')}</div>
@@ -189,7 +192,7 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
   const bySection = new Map(sections.filter(([, , body]) => body).map(([id, ...section]) => [id, section]));
   const orderedSections = [...new Set([...sectionOrder, ...bySection.keys()])].filter(id => bySection.has(id));
   return (header ?? pageHeader('Détails de la pesée'))
-    + `<div class="measurement-details">${readings}${comparison}${orderedSections.map(id => {
+    + `<div class="measurement-details"${defaultOrder(sections.map(([id]) => id))}>${readings}${comparison}${orderedSections.map(id => {
       const [title, body, defaultOpen] = bySection.get(id);
       const open = sectionsOpen[id] ?? defaultOpen;
       return `<details data-detail-section="${e(id)}"${open ? ' open' : ''}><summary>${e(title)}</summary>${body}</details>`;

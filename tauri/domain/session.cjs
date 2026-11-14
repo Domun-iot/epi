@@ -264,19 +264,28 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     });
   }
 
-  function movePreference(setting, profile, source, target, visibleOrder) {
+  function movePreference(setting, profile, source, target, visibleOrder, defaultOrder = visibleOrder) {
     return mutate(draft => {
       const current = profile == null ? null : findProfile(draft, profile);
       if (profile != null && !current) throw Error('Profil introuvable.');
       if (source === target || !visibleOrder.includes(source) || !visibleOrder.includes(target)) return;
       const kind = setting === 'columnOrder' ? 'measurements' : 'details';
-      const { prefs, layout } = editableLayout(draft, current?.name ?? null, kind);
+      const { prefs, layout, preset } = editableLayout(draft, current?.name ?? null, kind);
       const order = [...new Set([...layout[setting], ...visibleOrder])];
       const from = order.indexOf(source);
       const to = order.indexOf(target);
       order.splice(from, 1);
       order.splice(to, 0, source);
-      savePreferences(draft, current?.name, { ...prefs, [setting]: order });
+      const original = preset?.layout?.[setting] ?? viewDefaults[kind][setting];
+      const relevantIds = new Set([...original, ...order]);
+      const originalOrder = [...new Set([...original, ...defaultOrder])].filter(id => relevantIds.has(id));
+      const fullOrder = [...new Set([...order, ...defaultOrder])].filter(id => relevantIds.has(id));
+      const next = { ...prefs, [setting]: order };
+      // A drag records explicit positions for items that may already follow the original order.
+      if (fullOrder.length === originalOrder.length && fullOrder.every((id, index) => id === originalOrder[index])) {
+        delete next[setting];
+      }
+      savePreferences(draft, current?.name, next);
     });
   }
 
