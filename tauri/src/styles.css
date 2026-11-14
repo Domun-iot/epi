@@ -105,13 +105,14 @@ tbody tr:hover { background: #edf4ff; }
 .measurement-details-page { max-width: none; padding-inline: clamp(12px, 2vw, 32px); }
 tr[data-action="reading"] { cursor: pointer; }
 tr[data-action="reading"]:focus-within { background: #edf4ff; }
-[data-drag-column] { cursor: grab; }
+[data-drag-column], [data-detail-section] > summary { cursor: grab; }
 .column-drop { outline: 2px solid var(--blue); outline-offset: -2px; }
 .column-toggle { padding: 0; border: 0; background: none; color: inherit; font-weight: inherit; }
 .column-toggle:hover { text-decoration: underline; }
 .reading-date { padding: 0; border: 0; background: none; color: inherit; }
 .measurement-details { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .measurement-details > p { margin: 0; }
+.measurement-details pre { overflow: auto; }
 .measurement-details th, .measurement-details td { padding-inline: clamp(6px, .65vw, 13px); }
 .measurement-details th[scope=row] { white-space: normal; }
 .comparison-scroll { max-height: 60dvh; overflow: auto; }

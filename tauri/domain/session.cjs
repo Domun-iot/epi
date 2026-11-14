@@ -59,8 +59,8 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
 
   function view() {
     const { columns = defaultColumns, splitColumns = defaultSplitColumns, columnOrder = defaultColumnOrder,
-      methodColumnOrder = defaultColumnOrder } = preferencesFor(saved);
-    return { ...saved, columns, splitColumns, columnOrder, methodColumnOrder, enrollment, acquisitionError };
+      methodColumnOrder = defaultColumnOrder, detailSectionOrder = [] } = preferencesFor(saved);
+    return { ...saved, columns, splitColumns, columnOrder, methodColumnOrder, detailSectionOrder, enrollment, acquisitionError };
   }
 
   function publish() {
@@ -297,6 +297,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     selectProfile, saveProfile, setColumnPreference, beginDevice, cancelDevice, confirmProfile,
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
+    moveDetailSection: (...args) => movePreference('detailSectionOrder', ...args),
     discardPending, ingest, importLegacy, setAddressFilter,
   };
 }

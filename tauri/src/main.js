@@ -74,7 +74,7 @@ function render() {
   const detail = page === 'measurements' ? reading : null;
   dataActions.hidden = Boolean(detail);
   backButton.hidden = !detail;
-  const nextMain = detail ? [page, detail, state.methodColumnOrder] : [page, state.selectedProfile, ...(page === 'measurements'
+  const nextMain = detail ? [page, detail, state.selectedProfile, state.methodColumnOrder, state.detailSectionOrder] : [page, state.selectedProfile, ...(page === 'measurements'
     ? [state.measurements, state.columns, state.splitColumns, state.columnOrder]
     : page === 'profiles' ? [state.profiles] : [state.devices, state.addressFilter])];
   if (changed(lastMain, nextMain)) {
@@ -99,15 +99,15 @@ function render() {
     const previousComparison = view.querySelector('.comparison-scroll');
     const detailScroll = previousComparison && { left: previousComparison.scrollLeft, top: previousComparison.scrollTop };
     const openSections = new Map(Array.from(view.querySelectorAll('.measurement-details > details'),
-      section => [section.querySelector('summary').textContent, section.open]));
-    view.innerHTML = detail ? measurementDetails(detail, state.methodColumnOrder)
+      section => [section.dataset.detailSection, section.open]));
+    view.innerHTML = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, expanded.has('columns'), columnQuery)
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile) : devicesView(state.devices, state.addressFilter, expanded.has('raw'));
     if (detail) {
       view.querySelector('.comparison-scroll')?.scrollTo(detailScroll ?? {});
       for (const section of view.querySelectorAll('.measurement-details > details')) {
-        const title = section.querySelector('summary').textContent;
-        if (openSections.has(title)) section.open = openSections.get(title);
+        const id = section.dataset.detailSection;
+        if (openSections.has(id)) section.open = openSections.get(id);
       }
       return;
     }
@@ -278,6 +278,49 @@ view.addEventListener('drop', event => {
   void perform(() => move(state.selectedProfile, source, target, order));
 });
 view.addEventListener('dragend', clearColumnDrag);
+
+const sectionHeader = '[data-detail-section] > summary';
+let draggedSection;
+let sectionDrop;
+
+function markSectionDrop(target) {
+  sectionDrop?.classList.remove('column-drop');
+  sectionDrop = target;
+  sectionDrop?.classList.add('column-drop');
+}
+
+function clearSectionDrag() {
+  draggedSection = undefined;
+  markSectionDrop(undefined);
+}
+
+view.addEventListener('dragstart', event => {
+  const header = event.target.closest(sectionHeader);
+  if (!header) return;
+  draggedSection = header.parentElement;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', draggedSection.dataset.detailSection);
+});
+view.addEventListener('dragover', event => {
+  if (!draggedSection) return;
+  const header = event.target.closest(sectionHeader);
+  markSectionDrop(header?.parentElement === draggedSection ? undefined : header);
+  if (!header) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+});
+view.addEventListener('drop', event => {
+  const target = event.target.closest(sectionHeader)?.parentElement;
+  if (!draggedSection || !target) return;
+  event.preventDefault();
+  const source = draggedSection.dataset.detailSection;
+  clearSectionDrag();
+  const order = Array.from(view.querySelectorAll('[data-detail-section]'), section => section.dataset.detailSection);
+  if (source !== target.dataset.detailSection) {
+    void perform(() => session.moveDetailSection(state.selectedProfile, source, target.dataset.detailSection, order));
+  }
+});
+view.addEventListener('dragend', clearSectionDrag);
 view.addEventListener('toggle', event => {
   const group = event.target.dataset.expand;
   if (!group) return;

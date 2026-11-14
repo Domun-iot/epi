@@ -144,7 +144,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
   return pageHeader('Pesées') + content;
 }
 
-export function measurementDetails(row, methodOrder = []) {
+export function measurementDetails(row, methodOrder = [], sectionOrder = []) {
   const byId = new Map(methods.map(method => [method.id, method]));
   const activeMethods = [...new Set([...methodOrder, ...byId.keys()])].map(id => byId.get(id))
     .filter(Boolean).filter(({ id }) => METRICS.some(([metric]) => Number.isFinite(row.calculations?.[id]?.[metric])))
@@ -153,34 +153,41 @@ export function measurementDetails(row, methodOrder = []) {
       source: method.id === 'Owe' && row.profile?.sex === 'H'
         ? 'https://doi.org/10.1093/ajcn/46.6.875' : methodSources[method.id],
     }));
-  const readings = `<p><strong>${weight(row.measures)}</strong> · ${formatDate(row.receivedAt)}</p>`;
+  const measures = row.measures ?? row;
+  const readings = `<p><strong>${weight(measures)}</strong> · ${formatDate(row.receivedAt)}</p>`;
   const comparison = activeMethods.length ? `<div class="panel table-scroll comparison-scroll" role="region" aria-label="Comparaison des méthodes" tabindex="0">
     <table aria-label="Comparaison des méthodes"><thead><tr><th scope="col">Donnée</th><th scope="col">Moyenne</th>${activeMethods.map(method => methodHeader(method, columnDrag(method.id))).join('')}</tr></thead>
     <tbody>${METRICS.filter(([id]) => activeMethods.some(method => Number.isFinite(row.calculations?.[method.id]?.[id])))
-      .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th><td class="numeric">${number(averageValue(row, id, activeMethods), precision)}</td>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>
-    <details><summary>Méthodes de calcul</summary><div class="legend">${activeMethods.map(({ icon, id, label, style, source }) => `<span style="${style}">${sourceLink(source, `${icon} ${e(id)} · ${e(label)}`)}</span>`).join('')}</div>
-    <p class="muted">Les méthodes marquées d’un astérisque utilisent l’impédance pieds à pieds de la balance.</p></details>` : '';
+      .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th><td class="numeric">${number(averageValue(row, id, activeMethods), precision)}</td>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>` : '';
+  const legend = activeMethods.length ? `<div class="legend">${activeMethods.map(({ icon, id, label, style, source }) => `<span style="${style}">${sourceLink(source, `${icon} ${e(id)} · ${e(label)}`)}</span>`).join('')}</div>
+    <p class="muted">Les méthodes marquées d’un astérisque utilisent l’impédance pieds à pieds de la balance.</p>` : '';
   const sections = [
-    ['Mesures', pairs([
-      ['Poids', number(row.measures?.weight)],
-      ['Unité', row.measures?.unit],
-      ['Impédance (Ω)', number(row.measures?.impedanceOhms)],
+    ['methods', 'Méthodes de calcul', legend, false],
+    ['measures', 'Mesures', pairs([
+      ['Poids', number(measures.weight)],
+      ['Unité', measures.unit],
+      ['Impédance (Ω)', number(measures.impedanceOhms)],
     ]), false],
-    ['Profil à la pesée', row.profile && pairs([
+    ['profile', 'Profil à la pesée', row.profile && pairs([
       ['Nom', row.profile.name ?? 'Temporaire'],
       ['Sexe utilisé', row.profile.sex],
       ['Âge à la pesée', number(row.profile.ageAtWeighIn ?? row.profile.age)],
       ['Taille utilisée (cm)', number(row.profile.heightCm)],
       ['Naissance du profil', formatCalendarDate(row.profile.birthDate)],
     ]), true],
-    ['Données de réception', row.reception && pairs(extras.slice(3, 11).map(([, label, read]) => [label, textValue(read(row))])), true],
-    ['Fiche de la balance à la pesée', row.device && pairs([['Nom', row.device.name], ...deviceFields(row.device)]), false],
+    ['reception', 'Données de réception', row.reception && pairs(extras.slice(3, 11).map(([, label, read]) => [label, textValue(read(row))])), true],
+    ['device', 'Fiche de la balance à la pesée', row.device && pairs([['Nom', row.device.name], ...deviceFields(row.device)]), false],
   ];
   const known = new Set(['receivedAt', 'profile', 'device', 'measures', 'calculations', 'reception']);
+  if (!row.measures) for (const key of ['weight', 'unit', 'impedanceOhms']) known.add(key);
   for (const [key, value] of Object.entries(row)) {
-    if (!known.has(key) && value != null) sections.push([key, `<pre>${e(JSON.stringify(value, null, 2))}</pre>`, false]);
+    if (!known.has(key) && value != null) sections.push(['extra:' + key, key, `<pre>${e(JSON.stringify(value, null, 2))}</pre>`, false]);
   }
+  const bySection = new Map(sections.filter(([, , body]) => body).map(([id, ...section]) => [id, section]));
+  const orderedSections = [...new Set([...sectionOrder, ...bySection.keys()])].filter(id => bySection.has(id));
   return pageHeader('Détails de la pesée')
-    + `<div class="measurement-details">${readings}${comparison}${sections.filter(([, body]) => body)
-      .map(([title, body, open]) => `<details${open ? ' open' : ''}><summary>${e(title)}</summary>${body}</details>`).join('')}</div>`;
+    + `<div class="measurement-details">${readings}${comparison}${orderedSections.map(id => {
+      const [title, body, open] = bySection.get(id);
+      return `<details data-detail-section="${e(id)}"${open ? ' open' : ''}><summary draggable="true">${e(title)}</summary>${body}</details>`;
+    }).join('')}</div>`;
 }

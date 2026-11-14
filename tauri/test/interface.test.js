@@ -134,6 +134,12 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   assert.deepEqual(await methodHeaders.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['Deu', 'IMC', 'Mi']);
   const legend = detail.locator('.legend a');
   assert.match(await legend.first().textContent(), /Deu/);
+  const sectionHeaders = detail.locator('[data-detail-section] > summary');
+  const sectionOrder = () => sectionHeaders.evaluateAll(nodes => nodes.map(node => node.parentElement.dataset.detailSection));
+  await sectionHeaders.filter({ hasText: 'Fiche de la balance à la pesée' })
+    .dragTo(sectionHeaders.filter({ hasText: 'Méthodes de calcul' }));
+  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
+  assert.equal(await legend.first().isVisible(), true);
   const fatRow = comparison.getByRole('row').filter({ hasText: 'Masse grasse (%)' });
   assert.equal(await fatRow.getByRole('cell').first().textContent(), '32,45');
   const toolbar = page.locator('.toolbar');
@@ -159,6 +165,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await table.getByRole('columnheader', { name: 'Deu', exact: true }).waitFor();
   await table.getByRole('button', { name: /^Voir la pesée du/ }).click();
   assert.deepEqual(await methodHeaders.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['Deu', 'IMC', 'Mi']);
+  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
   await page.getByRole('button', { name: 'Retour' }).click();
   assert.deepEqual(await columnOrder(), ['date', 'fatPercent', 'weight', 'bmi']);
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
