@@ -1,4 +1,4 @@
-import { button, deviceFields, escapeHtml as e, pairs, weight } from './format.js';
+import { button, deviceFields, escapeHtml as e, pairs, sortProfiles, weight } from './format.js';
 
 const field = (label, name, attributes) => `<label>${label}<input name="${name}" ${attributes}></label>`;
 const option = (value, label, selected) => `<option value="${e(value)}"${selected ? ' selected' : ''}>${e(label)}</option>`;
@@ -75,7 +75,7 @@ export function createEditor(dialog, onError) {
 
   function assignmentEditor(pending, profiles, submit, create, anonymous) {
     open('Attribuer la pesée', `<p>Pesée de <strong>${weight(pending.event)}</strong>.</p>
-      <label for="assignment-profile">Profil</label><select id="assignment-profile" name="name" required>${option('', 'Choisir un profil', true)}${option('@anonymous', 'Sans profil enregistré')}${profiles.map(profile => option(profile.name, profile.name)).join('')}</select>
+      <label for="assignment-profile">Profil</label><select id="assignment-profile" name="name" required>${option('', 'Choisir un profil', true)}${option('@anonymous', 'Sans profil enregistré')}${sortProfiles(profiles).map(profile => option(profile.name, profile.name)).join('')}</select>
       <div class="actions">${button('Créer un profil', 'create-for-reading')}${button('Calculer sans profil', 'calculate-one-off')}</div>`,
     ({ name }) => submit({ id: pending.id, name: name === '@anonymous' ? null : name }), 'Confirmer');
     dialog.querySelector('[data-action="calculate-one-off"]').addEventListener('click', anonymous);

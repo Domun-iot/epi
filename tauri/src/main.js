@@ -1,5 +1,5 @@
 import { connect } from './service.js';
-import { escapeHtml as e, nameKey } from './format.js';
+import { escapeHtml as e, nameKey, sortProfiles, userIcon } from './format.js';
 import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
@@ -7,6 +7,9 @@ import './styles.css';
 
 const navigation = document.querySelector('#navigation');
 const profilePicker = document.querySelector('#profile');
+document.querySelector('#profile-icon').innerHTML = userIcon;
+const dataActions = document.querySelector('#data-actions');
+const backButton = document.querySelector('#back-to-measurements');
 const view = document.querySelector('#view');
 const main = view.closest('main');
 const notices = document.querySelector('#notices');
@@ -50,7 +53,7 @@ function renderProfilePicker() {
   const nextProfiles = [state.selectedProfile, state.profiles, anonymous];
   if (changed(lastProfiles, nextProfiles)) {
     lastProfiles = nextProfiles;
-    profilePicker.innerHTML = `<option value="">${anonymous ? 'Sans profil' : 'Choisir un profil'}</option>${state.profiles.map(({ name }) => `<option value="${e(name)}">${e(name)}</option>`).join('')}`;
+    profilePicker.innerHTML = `<option value="">${anonymous ? 'Sans profil' : 'Choisir un profil'}</option>${sortProfiles(state.profiles).map(({ name }) => `<option value="${e(name)}">${e(name)}</option>`).join('')}`;
     profilePicker.disabled = !state.profiles.length && !anonymous;
   }
   profilePicker.value = state.selectedProfile ?? '';
@@ -66,6 +69,8 @@ function render() {
       + (feedback ? `<p class="notice" role="status">${e(feedback)}</p>` : '');
   }
   const detail = page === 'measurements' ? reading : null;
+  dataActions.hidden = Boolean(detail);
+  backButton.hidden = !detail;
   const nextMain = detail ? [page, detail] : [page, state.selectedProfile, ...(page === 'measurements'
     ? [state.measurements, state.columns, state.splitColumns]
     : page === 'profiles' ? [state.profiles] : [state.devices, state.addressFilter])];
@@ -176,7 +181,7 @@ const actions = {
     historyScroll = { left: view.querySelector('.table-scroll').scrollLeft, top: window.scrollY };
     reading = row;
     render();
-    view.querySelector('[data-action="back-to-measurements"]').focus({ preventScroll: true });
+    backButton.focus({ preventScroll: true });
     window.scrollTo(0, 0);
   },
   'back-to-measurements': () => {
@@ -184,7 +189,7 @@ const actions = {
     reading = null;
     render();
     const index = rows.indexOf(row);
-    view.querySelector(`[data-action="reading"][data-value="${index}"]`)?.focus({ preventScroll: true });
+    view.querySelector(`[data-action="reading"][data-value="${index}"] .reading-date`)?.focus({ preventScroll: true });
     view.querySelector('.table-scroll')?.scrollTo({ left: historyScroll.left });
     window.scrollTo({ top: historyScroll.top });
   },
@@ -195,6 +200,7 @@ navigation.addEventListener('click', event => {
   if (page === 'measurements' && reading) actions['back-to-measurements']();
   else if (page) go(page);
 });
+backButton.addEventListener('click', () => actions['back-to-measurements']());
 main.addEventListener('click', event => {
   const control = event.target.closest('[data-action]');
   const action = control && actions[control.dataset.action];

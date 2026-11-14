@@ -20,15 +20,16 @@
       </aside>
       <div class="workspace">
         <header class="toolbar">
-          <div class="actions data-actions">
-            <button class="button" type="button" id="reload-data" hidden>Recharger</button>
-            <button class="button" type="button" id="import-data">Importer un ZIP</button>
+          <div class="actions data-actions" id="data-actions">
+            <button class="button" type="button" id="reload-data" hidden>Actualiser</button>
+            <button class="button" type="button" id="export-data">Export ZIP</button>
+            <button class="button" type="button" id="import-data">Import ZIP</button>
             <input id="import-files" type="file" accept=".zip,application/zip" aria-label="Importer une archive ZIP" hidden>
-            <button class="button" type="button" id="export-data">Exporter en ZIP</button>
           </div>
+          <button class="button" type="button" id="back-to-measurements" hidden>Retour</button>
           <div class="profile-select">
-            <label for="profile">Profil actif</label>
-            <select id="profile"></select>
+            <label for="profile" id="profile-icon"></label>
+            <select id="profile" aria-label="Profil actif"></select>
           </div>
         </header>
         <main>

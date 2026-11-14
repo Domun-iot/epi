@@ -1,6 +1,6 @@
 import composition from 'virtual:epi-composition';
 import { METHOD_COLUMNS, METRICS } from './service.js';
-import { button, deviceFields, escapeHtml as e, formatDate, nameKey, number, pairs, pageHeader, weight } from './format.js';
+import { deviceFields, escapeHtml as e, formatDate, nameKey, number, pairs, pageHeader, weight } from './format.js';
 
 const colors = [
   ['▰','#153873','#dce9ff'], ['●','#882d16','#ffe4d7'], ['◆','#724909','#fef0c5'],
@@ -92,21 +92,20 @@ export function measurementsView(rows, profile, columns, splitColumns, expanded,
   const content = last ? `<div class="panel measurement-summary">
       <p>Dernier poids <strong>${weight(last.measures)}</strong></p><p class="muted">${formatDate(last.receivedAt)}</p>
     </div>${settings}
-    <div class="panel table-scroll" tabindex="0" role="region" aria-label="Historique des pesées">
-      <table aria-label="Historique des pesées">
-        <thead><tr>${headers}${metricGroups}<th scope="col"${twoRows ? ' rowspan="2"' : ''}>Détails</th></tr>
+    <div class="panel table-scroll" tabindex="0" role="region" aria-label="Pesées">
+      <table aria-label="Pesées">
+        <thead><tr>${headers}${metricGroups}</tr>
         ${twoRows ? `<tr>${visibleMetrics.flatMap(({ sources, separate }) => separate ? sources.map(methodHeader) : []).join('')}</tr>` : ''}</thead>
-        <tbody>${rows.map((row, index) => `<tr>
-          <td class="numeric">${formatDate(row.receivedAt)}</td><td class="numeric"><strong>${weight(row.measures)}</strong></td>
+        <tbody>${rows.map((row, index) => `<tr data-action="reading" data-value="${index}">
+          <td class="numeric"><button class="reading-date" type="button" aria-label="Voir la pesée du ${formatDate(row.receivedAt)}">${formatDate(row.receivedAt)}</button></td><td class="numeric"><strong>${weight(row.measures)}</strong></td>
           ${visibleExtras.map(([, , read]) => `<td>${e(textValue(read(row)))}</td>`).join('')}
           ${visibleMetrics.map(({ id, precision, sources, separate }) => separate
             ? sources.map(method => methodValue(row, id, method, precision)).join('')
             : `<td class="numeric">${number(averageValue(row, id, sources), precision)}</td>`).join('')}
-          <td>${button('Voir la pesée', 'reading', { value: index })}</td>
         </tr>`).join('')}</tbody>
       </table>
     </div>` : `${settings}<p class="panel empty">${emptyText}</p>`;
-  return pageHeader('Historique des pesées', e(profile ?? (last ? 'Sans profil' : ''))) + content;
+  return pageHeader('Pesées') + content;
 }
 
 export function measurementDetails(row) {
@@ -118,8 +117,7 @@ export function measurementDetails(row) {
       .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th><td class="numeric">${number(averageValue(row, id, activeMethods), precision)}</td>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>
     <details><summary>Méthodes de calcul</summary><div class="legend">${activeMethods.map(({ icon, id, label, style }) => `<span style="${style}">${icon} ${e(id)} · ${e(label)}</span>`).join('')}</div>
     <p class="muted">Les méthodes marquées d’un astérisque utilisent l’impédance pieds à pieds de la balance.</p></details>` : '';
-  return `<div class="actions detail-navigation">${button('Retour', 'back-to-measurements')}</div>`
-    + pageHeader('Détails de la pesée')
+  return pageHeader('Détails de la pesée')
     + `<div class="measurement-details">${readings}${comparison}<details open><summary>Données de réception</summary>${pairs(extras.map(([, label, read]) => [label, textValue(read(row))]))}</details>`
     + (row.device ? `<details><summary>Fiche de la balance à la pesée</summary>${pairs(deviceFields(row.device))}</details>` : '') + '</div>';
 }

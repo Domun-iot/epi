@@ -35,7 +35,7 @@ nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
 .workspace { min-width: 0; }
 .toolbar { min-height: 66px; border-bottom: 1px solid var(--line); background: var(--white); display: flex; justify-content: flex-end; align-items: center; padding: 10px clamp(18px, 4vw, 54px); }
 .profile-select { display: flex; align-items: center; gap: 10px; }
-.profile-select label { color: var(--muted); font-size: .84rem; font-weight: 600; }
+.profile-select label { color: var(--muted); display: flex; }
 input, select { min-height: 42px; border: 1px solid #c8d4e3; color: var(--ink); border-radius: 8px; background: var(--white); padding: 8px 10px; }
 select { max-width: min(280px, 100%); }
 main { max-width: 1340px; margin: auto; padding: 28px clamp(18px, 4vw, 54px) 48px; }
@@ -102,7 +102,9 @@ tbody tr:hover { background: #edf4ff; }
 .legend { display: flex; gap: 6px 10px; flex-wrap: wrap; padding: 9px 0 4px; font-size: .83rem; }
 .legend span { background: var(--method-bg); color: var(--method-ink); padding: 4px 7px; border-radius: 5px; }
 .measurement-details-page { max-width: none; padding-inline: clamp(12px, 2vw, 32px); }
-.detail-navigation { margin-bottom: 16px; }
+tr[data-action="reading"] { cursor: pointer; }
+tr[data-action="reading"]:focus-within { background: #edf4ff; }
+.reading-date { padding: 0; border: 0; background: none; color: inherit; }
 .measurement-details { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .measurement-details > p { margin: 0; }
 .measurement-details th, .measurement-details td { padding-inline: clamp(6px, .65vw, 13px); }
@@ -139,6 +141,7 @@ dialog label[hidden] { display: none; }
 .device-list { margin-bottom: 16px; }
 #raw-frames { max-height: 260px; overflow: auto; margin: 10px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
 .toolbar { gap: 10px; justify-content: space-between; }
+.data-actions[hidden], .toolbar .button[hidden] { display: none; }
 .data-actions .button { font-size: .85rem; }
 #retry-bluetooth { align-self: flex-start; margin-top: -25px; padding: 7px 9px; border: 1px solid #758da7; border-radius: 7px; background: transparent; color: inherit; font-size: .78rem; }
 @media (max-width: 720px) {
