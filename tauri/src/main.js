@@ -304,8 +304,10 @@ window.addEventListener('scroll', positionPinnedHeader, { passive: true });
 window.addEventListener('resize', positionPinnedHeader);
 
 const columnCell = '[data-drag-column]';
+const columnHeader = 'thead [data-drag-column]';
 const sectionHeader = '[data-detail-section] > summary';
 let reorder;
+let tablePan;
 let suppressReorderClick = false;
 
 function stopReorder() {
@@ -328,8 +330,18 @@ function reorderTargetAt(event) {
 view.addEventListener('pointerdown', event => {
   if (!event.isPrimary || event.button !== 0) return;
   suppressReorderClick = false;
-  const element = event.target.closest(`${columnCell}, ${sectionHeader}`);
-  if (!element) return;
+  const element = event.target.closest(`${columnHeader}, ${sectionHeader}`);
+  if (!element) {
+    const panel = event.target.closest('tbody')?.closest('.table-scroll');
+    if (event.pointerType === 'mouse' && panel) {
+      const vertical = panel.closest('#view-scroll') ?? document.scrollingElement;
+      tablePan = {
+        panel, vertical, pointerId: event.pointerId, x: event.clientX, y: event.clientY,
+        left: panel.scrollLeft, top: vertical.scrollTop,
+      };
+    }
+    return;
+  }
   const table = element.closest('table');
   const source = table ? element.dataset.dragColumn : element;
   const sourceCells = table ? Array.from(table.querySelectorAll(columnCell)).filter(cell => cell.dataset.dragColumn === source) : [];
@@ -341,10 +353,20 @@ view.addEventListener('pointerdown', event => {
 });
 
 view.addEventListener('dragstart', event => {
-  if (reorder) event.preventDefault();
+  if (reorder || tablePan) event.preventDefault();
 });
 
 window.addEventListener('pointermove', event => {
+  if (event.pointerId === tablePan?.pointerId) {
+    const { panel, vertical, x, y, left, top } = tablePan;
+    const dx = event.clientX - x;
+    const dy = event.clientY - y;
+    if (!suppressReorderClick && Math.hypot(dx, dy) < 6) return;
+    suppressReorderClick = true;
+    panel.scrollLeft = left - dx;
+    vertical.scrollTop = top - dy;
+    return;
+  }
   if (event.pointerId !== reorder?.pointerId) return;
   if (!reorder.active) {
     if (Math.hypot(event.clientX - reorder.x, event.clientY - reorder.y) < 6) return;
@@ -370,6 +392,7 @@ window.addEventListener('pointermove', event => {
 });
 
 window.addEventListener('pointerup', event => {
+  if (event.pointerId === tablePan?.pointerId) tablePan = undefined;
   if (event.pointerId !== reorder?.pointerId) return;
   const { active, table, source } = reorder;
   const target = active && reorderTargetAt(event);
@@ -388,7 +411,12 @@ window.addEventListener('pointerup', event => {
 });
 
 window.addEventListener('pointercancel', event => {
+  if (event.pointerId === tablePan?.pointerId) tablePan = undefined;
   if (event.pointerId === reorder?.pointerId) stopReorder();
+});
+window.addEventListener('blur', () => {
+  tablePan = undefined;
+  stopReorder();
 });
 view.addEventListener('click', event => {
   if (!suppressReorderClick || event.detail === 0) return;

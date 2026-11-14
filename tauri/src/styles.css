@@ -140,8 +140,9 @@ tbody tr:hover { background: var(--row-hover); }
 .legend span { background: light-dark(var(--method-bg), var(--method-ink)); color: light-dark(var(--method-ink), var(--method-bg)); padding: 4px 7px; border-radius: 5px; }
 tr[data-action="reading"] { cursor: pointer; }
 tr[data-action="reading"]:focus-within { background: var(--row-hover); }
-[data-drag-column], [data-detail-section] > summary { cursor: grab; user-select: none; }
-[data-drag-column] { touch-action: pan-y; }
+thead [data-drag-column], [data-detail-section] > summary { cursor: grab; user-select: none; }
+thead [data-drag-column] { touch-action: pan-y; }
+.table-scroll tbody { user-select: none; }
 [data-detail-section] > summary { touch-action: none; }
 [data-drag-column].column-drop {
   background-image: linear-gradient(light-dark(rgb(222 236 255 / 75%), rgb(255 255 255 / 7%)) 0 0);

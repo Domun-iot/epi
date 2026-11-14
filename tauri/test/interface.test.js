@@ -161,11 +161,11 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   await reload.click();
   assert.equal(await fat.isChecked(), false);
   assert.equal(await saveButton.count(), 0);
-  const weightCell = page.getByRole('cell', { name: '70 kg', exact: true });
-  const dateCell = page.getByRole('button', { name: /Voir la pesée du/ });
-  await weightCell.dragTo(dateCell);
+  const weightHeader = page.getByRole('columnheader', { name: 'Poids', exact: true });
+  const dateHeader = page.getByRole('columnheader', { name: 'Date', exact: true });
+  await weightHeader.dragTo(dateHeader);
   assert.equal((await title.textContent()).trim(), 'Pesées *');
-  await weightCell.dragTo(dateCell);
+  await weightHeader.dragTo(dateHeader);
   assert.equal((await title.textContent()).trim(), 'Pesées');
   assert.equal(await picker.count(), 0);
   assert.equal(await rename.count(), 0);
@@ -281,7 +281,8 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await table.getByRole('columnheader', { name: 'Mi', exact: true }).waitFor();
   assert.deepEqual(await table.locator('thead tr').nth(1).locator('th').allTextContents(), ['Moyenne', '● Mi', '⬣ Deu']);
   assert.equal(await table.getByText('32,5', { exact: true }).count(), 1);
-  await table.getByText('31,8', { exact: true }).dragTo(table.getByText('70 kg', { exact: true }));
+  await table.getByRole('columnheader', { name: 'Mi', exact: true })
+    .dragTo(table.getByRole('columnheader', { name: 'Poids', exact: true }));
   const columnOrder = () => table.locator('thead tr').first().locator('th').evaluateAll(headers =>
     headers.map(header => header.dataset.dragColumn));
   assert.deepEqual(await columnOrder(), ['date', 'fatPercent', 'weight', 'impedanceOhms', 'bmi']);
@@ -450,6 +451,29 @@ test('le détail fixe la colonne Donnée et les en-têtes pendant le défilement
   await page.waitForFunction(() => document.querySelector('.comparison-scroll thead th').getBoundingClientRect().top < 0);
 });
 
+test('un glissement de souris depuis une cellule fait défiler le tableau sans déplacer les colonnes', async t => {
+  const measurements = Array.from({ length: 30 }, (_, minute) => ({
+    ...record, receivedAt: new Date(Date.parse(record.receivedAt) + minute * 60_000).toISOString(),
+  }));
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements },
+    { viewport: { width: 360, height: 600 } });
+  const panel = page.getByRole('region', { name: 'Pesées' });
+  const headers = panel.locator('thead tr').first().locator('th');
+  const order = await headers.allTextContents();
+  const reading = panel.getByRole('button', { name: /^Voir la pesée du/ }).first();
+  const { x, y, width, height } = await reading.boundingBox();
+  const startX = x + width / 2;
+  const startY = y + height / 2;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX - 60, startY - 60, { steps: 5 });
+  await page.mouse.up();
+  assert.ok(await panel.evaluate(node => node.scrollLeft > 0));
+  assert.ok(await panel.evaluate(node => (node.closest('#view-scroll') ?? document.scrollingElement).scrollTop > 0));
+  assert.deepEqual(await headers.allTextContents(), order);
+  await page.locator('#back-to-measurements').waitFor({ state: 'hidden' });
+});
+
 async function touchDrag(client, source, target) {
   await source.scrollIntoViewIfNeeded();
   const from = await source.boundingBox();
@@ -472,7 +496,8 @@ test('le toucher réordonne l’historique, les méthodes et les sections du dé
     { viewport: { width: 430, height: 850 }, hasTouch: true, isMobile: true });
   const client = await page.context().newCDPSession(page);
   const table = page.getByRole('table', { name: 'Pesées' });
-  await touchDrag(client, table.getByText('70 kg'), table.getByRole('button', { name: /^Voir la pesée du/ }));
+  await touchDrag(client, table.getByRole('columnheader', { name: 'Poids', exact: true }),
+    table.getByRole('columnheader', { name: 'Date', exact: true }));
   assert.deepEqual(await table.locator('thead tr').first().locator('th').evaluateAll(headers =>
     headers.slice(0, 2).map(header => header.dataset.dragColumn)), ['weight', 'date']);
   const openReading = page.getByRole('button', { name: /^Voir la pesée du/ });
