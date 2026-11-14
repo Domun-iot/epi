@@ -1,3 +1,11 @@
 scanner.exe
 *.jsonl
 /data/
+/cli/node_modules/
+/tauri/node_modules/
+/tauri/dist/
+/tauri/src-tauri/target/
+/tauri/src-tauri/gen/
+/release/
+/tmp/
+/.idea

@@ -163,4 +163,4 @@ function formatComposition(event, profile) {
     ...rows.slice(1).map(rowText)].join('\n');
 }
 
-module.exports = { calculateComposition, formatComposition };
+module.exports = { calculateComposition, formatComposition, columns, metrics };

@@ -2,8 +2,7 @@
 
 const { calculateComposition } = require('./composition.cjs');
 
-const { profileAt } = require('./profiles.cjs');
-const { nameKey } = require('./profile-choice.cjs');
+const { profileAt, nameKey } = require('./profile-fields.cjs');
 const { decode } = require('./scale.cjs');
 
 const services = require('./bluetooth-services.json');

@@ -5,7 +5,7 @@ const { join } = require('node:path');
 const { createInterface } = require('node:readline/promises');
 const { normalizeProfileName } = require('./profiles.cjs');
 
-const nameKey = name => name.trim().normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+const { nameKey } = require('../shared/profile-fields.cjs');
 
 async function listProfiles(directory) {
   const files = await readdir(directory).catch(error => {
