@@ -60,6 +60,14 @@ async function pageWith(t, snapshot, options = {}) {
   return page;
 }
 
+test('the toolbar profile icon opens the profiles screen', async t => {
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice' });
+  await page.getByRole('button', { name: 'Ouvrir les profils' }).click();
+  await page.waitForURL('**/#profiles');
+  await page.getByRole('heading', { name: 'Profils', exact: true }).waitFor();
+  assert.equal(await page.locator('#profile').evaluate(select => select === document.activeElement), false);
+});
+
 test('archive actions switch to icons when their labels do not fit', async t => {
   const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice' });
   const reload = page.locator('#reload-data');

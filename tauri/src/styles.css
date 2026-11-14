@@ -44,7 +44,7 @@ nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
 .toolbar { min-height: 66px; border-bottom: 1px solid var(--line); background: var(--surface); display: flex; justify-content: flex-end; align-items: center; padding: 10px var(--view-inline-padding); }
 .profile-select { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .profile-select select { min-width: 0; }
-.profile-select label, #theme-toggle { flex: none; }
+#profile-icon, #theme-toggle { flex: none; }
 #theme-toggle { width: var(--action-button-height); padding: 0; }
 #theme-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 #theme-toggle .theme-sun { display: none; }
@@ -54,7 +54,7 @@ nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
   :root:not([data-theme]) .theme-moon { display: none; }
   :root:not([data-theme]) #theme-toggle .theme-sun { display: block; }
 }
-.profile-select label { color: var(--muted); display: flex; }
+#profile-icon { display: flex; padding: 0; border: 0; background: transparent; color: var(--muted); }
 input, select { min-height: 42px; border: 1px solid var(--control-border); color: var(--ink); border-radius: 8px; background: var(--surface); padding: 8px 10px; }
 select { max-width: min(280px, 100%); }
 main { --view-header-spacing: 12px; padding: var(--view-header-spacing) var(--view-inline-padding) var(--view-inline-padding); }

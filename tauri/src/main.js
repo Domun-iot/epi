@@ -11,7 +11,8 @@ const profilePicker = document.querySelector('#profile');
 const themeToggle = document.querySelector('#theme-toggle');
 const themeColor = document.querySelector('meta[name=theme-color]');
 const preferredTheme = window.matchMedia('(prefers-color-scheme: dark)');
-document.querySelector('#profile-icon').innerHTML = userIcon;
+const profileIcon = document.querySelector('#profile-icon');
+profileIcon.innerHTML = userIcon;
 const dataActions = document.querySelector('#data-actions');
 const backButton = document.querySelector('#back-to-measurements');
 const view = document.querySelector('#view');
@@ -252,6 +253,7 @@ const actions = {
   },
 };
 
+profileIcon.addEventListener('click', () => navigation.querySelector('[data-page="profiles"]').click());
 navigation.addEventListener('click', event => {
   const page = event.target.closest('[data-page]')?.dataset.page;
   if (page === 'measurements' && reading) actions['back-to-measurements']();
