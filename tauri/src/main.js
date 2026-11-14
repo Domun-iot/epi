@@ -1,6 +1,6 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { connect } from './service.js';
-import { escapeHtml as e, formatDate, nameKey, sortProfiles, userIcon } from './format.js';
+import { escapeHtml as e, formatDate, nameKey, sortByName, userIcon } from './format.js';
 import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
@@ -56,7 +56,7 @@ function renderProfilePicker() {
   const nextProfiles = [state.selectedProfile, state.profiles, anonymous];
   if (changed(lastProfiles, nextProfiles)) {
     lastProfiles = nextProfiles;
-    profilePicker.innerHTML = `<option value="">${anonymous ? 'Sans profil' : 'Choisir un profil'}</option>${sortProfiles(state.profiles).map(({ name }) => `<option value="${e(name)}">${e(name)}</option>`).join('')}`;
+    profilePicker.innerHTML = `<option value="">${anonymous ? 'Sans profil' : 'Choisir un profil'}</option>${sortByName(state.profiles).map(({ name }) => `<option value="${e(name)}">${e(name)}</option>`).join('')}`;
     profilePicker.disabled = !state.profiles.length && !anonymous;
   }
   profilePicker.value = state.selectedProfile ?? '';

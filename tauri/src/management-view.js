@@ -1,8 +1,8 @@
-import { button, deviceFields, escapeHtml as e, formatCalendarDate, number, pairs, pageHeader, userIcon, weight } from './format.js';
+import { button, deviceFields, escapeHtml as e, formatCalendarDate, number, pairs, pageHeader, sortByName, userIcon, weight } from './format.js';
 
 export function profilesView(profiles, selected) {
   const action = button('Créer un profil', 'new-profile', { primary: true });
-  const entries = profiles.map(profile => {
+  const entries = sortByName(profiles).map(profile => {
     const active = profile.name === selected;
     const sex = profile.sex === 'F' ? 'Femme' : profile.sex === 'H' ? 'Homme' : '—';
     const age = profile.birthDate ? `Naissance : ${formatCalendarDate(profile.birthDate)}` : `${number(profile.age)} ans`;
@@ -18,7 +18,7 @@ export function profilesView(profiles, selected) {
 
 export function devicesView(devices, filter, rawOpen) {
   const action = button('Ajouter un appareil', 'new-device', { primary: true });
-  const entries = devices.map(device => `<article class="panel list-item"><header>
+  const entries = sortByName(devices).map(device => `<article class="panel list-item"><header>
     <h2>${e(device.name)}</h2><div class="actions">${button('Renommer', 'refresh-device', { value: device.bluetooth.address })}
     ${device.bluetooth.address === filter ? '' : button('Écouter seulement cet appareil', 'filter-address', { value: device.bluetooth.address })}</div></header>
     ${pairs(deviceFields(device))}</article>`).join('');

@@ -31,8 +31,8 @@ export function weight({ weight: value, unit } = {}) {
 
 export const nameKey = name => name?.trim().normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
-const profileCollator = new Intl.Collator('fr', { sensitivity: 'base' });
-export const sortProfiles = profiles => [...profiles].sort((a, b) => profileCollator.compare(a.name, b.name));
+const nameCollator = new Intl.Collator('fr', { sensitivity: 'base' });
+export const sortByName = entries => [...entries].sort((a, b) => nameCollator.compare(a.name, b.name));
 
 export const userIcon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2"/></svg>';
 
