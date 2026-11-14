@@ -1,6 +1,6 @@
-# Balance Xiaomi — XMTZC05HM
+# éPI
 
-Programme Node.js pour la Xiaomi Mi Body Composition Scale 2. Il écoute les annonces Bluetooth de la Xiaomi (`0x181B`) et peut se connecter aux balances qui annoncent le service GATT Weight Scale (`0x181D`) pour recevoir la caractéristique Weight Measurement (`0x2A9D`).
+éPI collecte les données Bluetooth Low Energy (BLE) des appareils à proximité. La version actuelle prend en charge les pesées. Il écoute les annonces Bluetooth de la Xiaomi (`0x181B`) et peut se connecter aux balances qui annoncent le service GATT Weight Scale (`0x181D`) pour recevoir la caractéristique Weight Measurement (`0x2A9D`).
 
 ## Démarrer
 

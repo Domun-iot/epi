@@ -96,7 +96,7 @@ async function main() {
   const acceptAddress = address => existing ? existing.bluetooth.address === address
     : !enroll || !findDevice({ address }, devices);
   const latest = latestWeights(values.identify || values.utilisateur !== undefined || hasDetails ? [] : readMeasurements());
-  const work = mkdtempSync(join(tmpdir(), 'balance-xiaomi-'));
+  const work = mkdtempSync(join(tmpdir(), 'epi-'));
   const cleanup = () => rmSync(work, { recursive: true, force: true });
   let child;
   try {
