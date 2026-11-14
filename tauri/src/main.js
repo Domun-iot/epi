@@ -24,6 +24,8 @@ const retryButton = document.querySelector('#retry-bluetooth');
 let canRetryBluetooth = false;
 let bluetoothUnavailable = false;
 let columnsOpen = false;
+const desktopSearchFocus = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 const panelStates = new WeakMap();
 const editor = createEditor(dialog, showError);
 const pages = { measurements: 'Mesures', profiles: 'Profils', devices: 'Appareils' };
@@ -221,6 +223,13 @@ navigation.addEventListener('click', event => {
 });
 backButton.addEventListener('click', () => actions['back-to-measurements']());
 main.addEventListener('click', event => {
+  const columnsSummary = event.target.closest('details[data-expand="columns"] > summary');
+  if (columnsSummary && desktopSearchFocus) {
+    requestAnimationFrame(() => {
+      const panel = columnsSummary.parentElement;
+      if (panel?.isConnected && panel.open) panel.querySelector('.column-search')?.focus();
+    });
+  }
   const source = event.target.closest('a.method-source');
   if (source && session?.native) {
     event.preventDefault();

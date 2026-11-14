@@ -10,6 +10,7 @@ const { ADDRESS, findProfile, profileFields, mergeLegacy } = require('./records.
 const defaultColumns = ['impedanceOhms', 'bmi'];
 const defaultSplitColumns = [];
 const defaultColumnOrder = [];
+const defaultDetailSectionOrder = [];
 const emptyState = () => ({
   profiles: [],
   devices: [],
@@ -59,7 +60,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
 
   function view() {
     const { columns = defaultColumns, splitColumns = defaultSplitColumns, columnOrder = defaultColumnOrder,
-      methodColumnOrder = defaultColumnOrder, detailSectionOrder = [],
+      methodColumnOrder = defaultColumnOrder, detailSectionOrder = defaultDetailSectionOrder,
       rawOpen = false, detailSectionsOpen } = preferencesFor(saved);
     return { ...saved, columns, splitColumns, columnOrder, methodColumnOrder, detailSectionOrder,
       rawOpen, detailSectionsOpen, enrollment, acquisitionError };

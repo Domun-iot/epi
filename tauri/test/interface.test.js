@@ -73,6 +73,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await table.getByText('70 kg', { exact: true }).waitFor();
   await page.getByText('Colonnes', { exact: true }).click();
   const search = page.getByRole('searchbox', { name: 'Recherche' });
+  await page.locator('.column-search:focus').waitFor();
   const options = page.locator('[data-column-option]:visible');
   const labels = await options.evaluateAll(nodes => nodes.map(node => node.dataset.columnOption));
   assert.deepEqual(labels, [...labels].sort((a, b) => a.localeCompare(b, 'fr')));
@@ -169,6 +170,16 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await page.getByRole('button', { name: 'Retour' }).click();
   assert.deepEqual(await columnOrder(), ['date', 'fatPercent', 'weight', 'bmi']);
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
+});
+
+test('ouvrir Colonnes sur Android laisse le champ Recherche sans focus', async t => {
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice' }, {
+    userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36',
+  });
+  await page.getByText('Colonnes', { exact: true }).click();
+  const search = page.getByRole('searchbox', { name: 'Recherche' });
+  await search.waitFor();
+  assert.equal(await search.evaluate(input => document.activeElement === input), false);
 });
 
 test('le détail fixe la colonne Donnée et les en-têtes pendant le défilement', async t => {
