@@ -311,6 +311,7 @@ let suppressReorderClick = false;
 function stopReorder() {
   if (!reorder) return;
   for (const element of reorder.highlighted) element.classList.remove('column-drop');
+  for (const cell of reorder.sourceCells) cell.classList.remove('column-drag-source');
   reorder = undefined;
 }
 
@@ -329,8 +330,10 @@ view.addEventListener('pointerdown', event => {
   const element = event.target.closest(`${columnCell}, ${sectionHeader}`);
   if (!element) return;
   const table = element.closest('table');
+  const source = table ? element.dataset.dragColumn : element;
+  const sourceCells = table ? Array.from(table.querySelectorAll(columnCell)).filter(cell => cell.dataset.dragColumn === source) : [];
   reorder = {
-    table, source: table ? element.dataset.dragColumn : element,
+    table, source, sourceCells,
     pointerId: event.pointerId, x: event.clientX, y: event.clientY,
     active: false, highlighted: [],
   };
@@ -352,6 +355,7 @@ window.addEventListener('pointermove', event => {
   if (target === reorder.target) return;
   for (const element of reorder.highlighted) element.classList.remove('column-drop');
   reorder.target = target;
+  for (const cell of reorder.sourceCells) cell.classList.toggle('column-drag-source', Boolean(target));
   reorder.highlighted = !target ? [] : reorder.table
     ? Array.from(reorder.table.querySelectorAll(columnCell)).filter(cell => cell.dataset.dragColumn === target)
     : [target];

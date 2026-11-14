@@ -147,6 +147,28 @@ tr[data-action="reading"]:focus-within { background: var(--row-hover); }
 [data-drag-column].column-drop {
   background-image: linear-gradient(light-dark(rgb(222 236 255 / 75%), rgb(255 255 255 / 18%)) 0 0);
 }
+[data-drag-column].column-drag-source {
+  background-image: linear-gradient(light-dark(rgb(0 0 0 / 16%), rgb(0 0 0 / 32%)) 0 0);
+}
+.pinned-header thead tr:first-child > th[data-drag-column] { padding-inline-end: 24px; }
+.pinned-header thead tr:first-child > th:is(.column-drag-source, .column-drop)::after {
+  position: absolute;
+  inset-inline-end: 5px;
+  top: 50%;
+  translate: 0 -50%;
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  pointer-events: none;
+}
+.pinned-header thead tr:first-child > th.column-drag-source::after {
+  content: "";
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5'%3E%3Cpath d='M8 3H3v10h5m-2-5h7m-3-3 3 3-3 3'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.pinned-header thead tr:first-child > th.column-drop::after {
+  content: "";
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5'%3E%3Cpath d='M8 3h5v10H8M2 8h8M7 5l3 3-3 3'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 [data-detail-section] > summary.column-drop { outline: 2px solid var(--blue); outline-offset: -2px; }
 .column-toggle { padding: 0; border: 0; background: none; color: inherit; font-weight: inherit; }
 .column-toggle:hover { text-decoration: underline; }
