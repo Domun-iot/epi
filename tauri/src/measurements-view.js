@@ -146,7 +146,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
         </tr>`).join('')}</tbody>
       </table>
     </div>` : `${settings}<p class="panel empty">${emptyText}</p>`;
-  return (header ?? pageHeader('Pesées')) + content;
+  return { header: header ?? pageHeader('Pesées'), content };
 }
 
 export function measurementDetails(row, methodOrder = [], sectionOrder = [], sectionsOpen = {}, header) {
@@ -193,10 +193,10 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
   }
   const bySection = new Map(sections.filter(([, , body]) => body).map(([id, ...section]) => [id, section]));
   const orderedSections = [...new Set([...sectionOrder, ...bySection.keys()])].filter(id => bySection.has(id));
-  return (header ?? pageHeader('Détails de la pesée'))
-    + `<div class="measurement-details"${defaultOrder(sections.map(([id]) => id))}>${readings}${comparison}${orderedSections.map(id => {
+  const content = `<div class="measurement-details"${defaultOrder(sections.map(([id]) => id))}>${readings}${comparison}${orderedSections.map(id => {
       const [title, body, defaultOpen] = bySection.get(id);
       const open = sectionsOpen[id] ?? defaultOpen;
       return `<details data-detail-section="${e(id)}"${open ? ' open' : ''}><summary>${e(title)}</summary>${body}</details>`;
     }).join('')}</div>`;
+  return { header: header ?? pageHeader('Détails de la pesée'), content };
 }

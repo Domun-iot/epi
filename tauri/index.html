@@ -29,6 +29,7 @@
             <button class="button" type="button" id="import-data" aria-labelledby="import-label"><span id="import-label">Import ZIP</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-5 5 5-5 5 5M4 16v4h16v-4"/></svg></button>
             <input id="import-files" type="file" accept=".zip,application/zip" aria-label="Importer une archive ZIP" hidden>
           </div>
+          <div class="actions editor-actions" id="editor-actions" hidden></div>
           <button class="button" type="button" id="back-to-measurements" hidden>Retour</button>
           <div class="profile-select">
             <button type="button" id="profile-icon" aria-label="Ouvrir les profils" title="Ouvrir les profils"></button>
@@ -40,9 +41,15 @@
           </div>
         </header>
         <main>
-          <div id="notices" aria-live="polite"></div>
           <section id="view" aria-label="Mesures">
-            <p class="notice" role="status">Chargement des données…</p>
+            <div id="view-scroll">
+              <div id="view-header"></div>
+              <div id="notices" aria-live="polite"></div>
+              <div id="view-content">
+                <p class="notice" role="status">Chargement des données…</p>
+              </div>
+              <div id="editor-view" hidden></div>
+            </div>
           </section>
         </main>
       </div>

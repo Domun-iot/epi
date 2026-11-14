@@ -17,6 +17,9 @@ const dataActions = document.querySelector('#data-actions');
 const backButton = document.querySelector('#back-to-measurements');
 const view = document.querySelector('#view');
 const main = view.closest('main');
+const viewHeader = document.querySelector('#view-header');
+const viewScroll = document.querySelector('#view-scroll');
+const viewContent = document.querySelector('#view-content');
 const notices = document.querySelector('#notices');
 const dialog = document.querySelector('#editor');
 const status = document.querySelector('#status span:last-child');
@@ -31,7 +34,8 @@ let columnsOpen = false;
 const desktopSearchFocus = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 const panelStates = new WeakMap();
-const editor = createEditor(dialog, showError);
+const editorView = document.querySelector('#editor-view');
+const editor = createEditor(dialog, editorView, document.querySelector('#editor-actions'), renderEditorView);
 const pages = { measurements: 'Mesures', profiles: 'Profils', devices: 'Appareils' };
 
 let session;
@@ -46,6 +50,8 @@ let frames = [];
 let lastMain = [];
 let lastNotices = [];
 let lastProfiles = [];
+let scrollBeforeEditor;
+let previewDeviceCapture;
 
 function changed(previous, next) {
   return next.some((value, index) => value !== previous[index]);
@@ -67,6 +73,16 @@ function renderProfilePicker() {
   profilePicker.value = state.selectedProfile ?? '';
 }
 
+function renderEditorView() {
+  const editing = !editorView.hidden;
+  previewDeviceCapture = undefined;
+  if (editing) scrollBeforeEditor ??= viewScroll.scrollTop;
+  for (const element of [viewHeader, notices, viewContent]) element.hidden = editing;
+  render();
+  viewScroll.scrollTop = editing ? 0 : scrollBeforeEditor ?? 0;
+  if (!editing) scrollBeforeEditor = undefined;
+}
+
 function render() {
   const page = currentPage();
   renderProfilePicker();
@@ -78,8 +94,9 @@ function render() {
       + (feedback ? `<p class="notice" role="status">${e(feedback)}</p>` : '');
   }
   const detail = page === 'measurements' ? reading : null;
-  dataActions.hidden = Boolean(detail);
-  backButton.hidden = !detail;
+  const editing = !editorView.hidden;
+  dataActions.hidden = editing || Boolean(detail);
+  backButton.hidden = editing || !detail;
   const kind = detail ? 'details' : 'measurements';
   const layout = page === 'measurements' ? state.viewLayouts?.[kind] : undefined;
   const layoutKey = layout ? [layout.presets, layout.preset, layout.modified, ...Object.values(layout.layout)] : [];
@@ -87,6 +104,7 @@ function render() {
     ? [state.measurements, ...layoutKey]
     : page === 'profiles' ? [state.profiles] : [state.devices, state.addressFilter])];
   if (changed(lastMain, nextMain)) {
+    const pageChanged = lastMain[0] !== page;
     lastMain = nextMain;
     if (page === 'measurements') {
       const selected = nameKey(state.selectedProfile) ?? null;
@@ -111,9 +129,12 @@ function render() {
     stopReorder();
     const header = layout && viewPresetHeader(kind, layout);
     const focusedPresetAction = active?.closest('.view-preset-header') && active.dataset.action;
-    view.innerHTML = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
+    const markup = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, columnsOpen, columnQuery, header)
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile) : devicesView(state.devices, state.addressFilter, state.rawOpen);
+    viewHeader.innerHTML = markup.header;
+    viewContent.innerHTML = markup.content;
+    if (pageChanged) viewScroll.scrollTop = 0;
     for (const panel of view.querySelectorAll('details[data-expand="raw"], details[data-detail-section]')) {
       panelStates.set(panel, panel.open);
     }
@@ -151,6 +172,7 @@ function showError(error) {
 
 function onState(next) {
   state = next;
+  previewDeviceCapture?.(state.pending);
   render();
   renderFrames();
 }
@@ -207,10 +229,20 @@ const actions = {
   'new-profile': () => addProfile(),
   'edit-profile': name => editor.profileEditor(state.profiles.find(profile => profile.name === name), profile => session.saveProfile(profile)),
   'select-profile': name => session.selectProfile(name),
-  'new-device': () => editor.deviceEditor({}, request => session.beginDevice(request)),
-  'refresh-device': address => {
+  'new-device': () => {
+    const previous = new Set(state.pending.map(item => item.id));
+    const showCapture = editor.deviceEditor({}, request => session.beginDevice(request));
+    let captureAddress;
+    previewDeviceCapture = pending => {
+      const candidates = pending.filter(item => item.reason === 'device' && !previous.has(item.id));
+      const candidate = candidates.find(item => item.event.address === captureAddress) ?? candidates[0];
+      captureAddress = candidate?.event.address;
+      showCapture(candidate ?? null);
+    };
+  },
+  'rename-device': address => {
     const device = state.devices.find(entry => entry.bluetooth.address === address);
-    if (device) editor.deviceEditor({ address, device }, request => session.beginDevice(request));
+    if (device) editor.deviceEditor({ address, device }, request => session.renameDevice(request));
   },
   'cancel-device': () => session.cancelDevice(),
   'clear-filter': () => session.setAddressFilter(null),
@@ -236,11 +268,11 @@ const actions = {
   reading: index => {
     const row = rows[Number(index)];
     if (!row) return;
-    historyScroll = { left: view.querySelector('.table-scroll').scrollLeft, top: window.scrollY };
+    historyScroll = { left: view.querySelector('.table-scroll').scrollLeft, top: viewScroll.scrollTop };
     reading = row;
     render();
     backButton.focus({ preventScroll: true });
-    window.scrollTo(0, 0);
+    viewScroll.scrollTop = 0;
   },
   'back-to-measurements': () => {
     const row = reading;
@@ -249,13 +281,14 @@ const actions = {
     const index = rows.indexOf(row);
     view.querySelector(`[data-action="reading"][data-value="${index}"] .reading-date`)?.focus({ preventScroll: true });
     view.querySelector('.table-scroll')?.scrollTo({ left: historyScroll.left });
-    window.scrollTo({ top: historyScroll.top });
+    viewScroll.scrollTop = historyScroll.top;
   },
 };
 
 profileIcon.addEventListener('click', () => navigation.querySelector('[data-page="profiles"]').click());
 navigation.addEventListener('click', event => {
   const page = event.target.closest('[data-page]')?.dataset.page;
+  if (page && !editorView.hidden) editor.closeView();
   if (page === 'measurements' && reading) actions['back-to-measurements']();
   else if (page) go(page);
 });
@@ -282,8 +315,12 @@ document.addEventListener('click', event => {
   const picker = view.querySelector('.view-preset-picker[open]');
   if (picker && !picker.contains(event.target)) picker.open = false;
 });
-view.addEventListener('keydown', event => {
+document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
+  if (!editorView.hidden) {
+    editor.closeView();
+    return;
+  }
   const picker = event.target.closest('.view-preset-picker[open]');
   if (!picker) return;
   picker.open = false;
@@ -295,15 +332,19 @@ function positionPinnedHeader() {
   if (!panel) return;
   const table = panel.querySelector('table');
   const { top, height } = table.getBoundingClientRect();
-  // Keep horizontal overflow local while pinning the real headers to the viewport.
-  const offset = Math.max(0, Math.min(-top, height - table.tHead.offsetHeight));
+  // The table handles horizontal overflow while the view scrolls vertically.
+  const scrollBoundary = viewScroll.getBoundingClientRect().top;
+  const distance = scrollBoundary - top;
+  // Overlap the clipping edge to cover fractional-pixel rounding during scroll.
+  const offset = distance > 0 ? Math.min(Math.max(0, distance - 1), height - table.tHead.offsetHeight) : 0;
   panel.style.setProperty('--header-offset', `${offset}px`);
 }
 
 const pinnedHeaderResize = new ResizeObserver(positionPinnedHeader);
-pinnedHeaderResize.observe(main);
-window.addEventListener('scroll', positionPinnedHeader, { passive: true });
-window.addEventListener('resize', positionPinnedHeader);
+pinnedHeaderResize.observe(viewScroll);
+pinnedHeaderResize.observe(viewHeader);
+pinnedHeaderResize.observe(notices);
+viewScroll.addEventListener('scroll', positionPinnedHeader, { passive: true });
 
 const columnCell = '[data-drag-column]';
 const columnHeader = 'thead [data-drag-column]';
@@ -476,12 +517,17 @@ themeToggle.addEventListener('click', async () => {
 });
 
 profilePicker.addEventListener('change', () => {
+  editor.closeView();
   reading = null;
   const name = profilePicker.value || null;
   void perform(() => session.selectProfile(name)).then(renderProfilePicker);
 });
 window.addEventListener('hashchange', () => {
   reading = null;
+  if (!editorView.hidden) {
+    scrollBeforeEditor = 0;
+    editor.closeView();
+  }
   render();
   renderFrames();
 });

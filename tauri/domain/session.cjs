@@ -1,6 +1,6 @@
 'use strict';
 
-const { deviceFileKey } = require('../../shared/device-fields.cjs');
+const { buildDevice, deviceFileKey } = require('../../shared/device-fields.cjs');
 const { canonicalAddress } = require('../../shared/scale.cjs');
 const { historyRecord, latestWeights, matchWeight } = require('../../shared/history.cjs');
 const { createAcquisition } = require('./acquisition.cjs');
@@ -289,6 +289,27 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     });
   }
 
+  function renameDevice(input) {
+    return enqueue(async () => {
+      const request = await transact(draft => {
+        const request = enrollmentRequest(draft, input);
+        const existing = findDevice(draft, request.address);
+        if (!existing) throw Error('Appareil introuvable.');
+        if (request.name !== existing.name) {
+          const renamed = { ...existing, name: request.name };
+          draft.devices = draft.devices.map(device => device === existing ? renamed : device);
+          if (draft.pending.some(item => item.device?.bluetooth.address === request.address)) {
+            draft.pending = draft.pending.map(item => item.device?.bluetooth.address === request.address
+              ? { ...item, device: renamed } : item);
+          }
+        }
+        return request;
+      });
+      if (enrollment?.address === request.address) enrollment = request;
+      return publish();
+    });
+  }
+
   function beginDevice(input) {
     return enqueue(async () => {
       const request = enrollmentRequest(saved, input);
@@ -401,7 +422,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       observers.add(observer);
       return () => observers.delete(observer);
     },
-    selectProfile, saveProfile, setColumnPreference, beginDevice, cancelDevice, confirmProfile,
+    selectProfile, saveProfile, setColumnPreference, renameDevice, beginDevice, cancelDevice, confirmProfile,
     setPanelOpen, changeViewPreset, setTheme,
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
@@ -410,4 +431,4 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   };
 }
 
-module.exports = { createSession, deviceFileKey };
+module.exports = { buildDevice, createSession, deviceFileKey };

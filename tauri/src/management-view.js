@@ -11,15 +11,16 @@ export function profilesView(profiles, selected) {
       ${button('Modifier', 'edit-profile', { value: profile.name })}</div></header>
       <p class="muted">${e(sex)} · ${e(age)} · ${e(number(profile.heightCm))} cm</p></article>`;
   }).join('');
-  return pageHeader('Profils', '', action) + (entries
+  const content = entries
     ? `<div class="list">${entries}</div>`
-    : '<p class="panel empty">Aucun profil enregistré.</p>');
+    : '<p class="panel empty">Aucun profil enregistré.</p>';
+  return { header: pageHeader('Profils', '', action), content };
 }
 
 export function devicesView(devices, filter, rawOpen) {
   const action = button('Ajouter un appareil', 'new-device', { primary: true });
   const entries = sortByName(devices).map(device => `<article class="panel list-item"><header>
-    <h2>${e(device.name)}</h2><div class="actions">${button('Renommer', 'refresh-device', { value: device.bluetooth.address })}
+    <h2>${e(device.name)}</h2><div class="actions">${button('Renommer', 'rename-device', { value: device.bluetooth.address })}
     ${device.bluetooth.address === filter ? '' : button('Écouter seulement cet appareil', 'filter-address', { value: device.bluetooth.address })}</div></header>
     ${pairs(deviceFields(device))}</article>`).join('');
   const filterInfo = filter ? `<div class="notice"><p>Écoute limitée à ${e(filter)}.</p>${button('Écouter tous les appareils', 'clear-filter')}</div>` : '';
@@ -27,9 +28,10 @@ export function devicesView(devices, filter, rawOpen) {
     <summary>Flux Bluetooth brut</summary>
     <pre id="raw-frames">Aucune trame reçue.</pre>
     ${button('Filtrer par adresse Bluetooth', 'filter-custom')}</details>`;
-  return pageHeader('Appareils', '', action) + filterInfo + (entries
+  const content = filterInfo + (entries
     ? `<div class="list device-list">${entries}</div>`
     : '<p class="panel empty device-list">Aucun appareil enregistré.</p>') + diagnostics;
+  return { header: pageHeader('Appareils', '', action), content };
 }
 
 export function noticesView({ pending, enrollment }, error) {

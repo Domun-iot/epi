@@ -145,10 +145,10 @@ test('central views use the same spacing above and below the header', async t =>
   await page.getByLabel('Masse grasse (%)', { exact: true }).check();
 
   const gaps = selector => page.locator('#view').evaluate((view, selector) => {
-    const header = view.firstElementChild;
+    const header = view.querySelector('.page-header');
     const control = (selector ? header.querySelector(selector) : header).getBoundingClientRect();
     const top = document.querySelector('.toolbar').getBoundingClientRect().bottom;
-    const content = header.nextElementSibling.getBoundingClientRect().top;
+    const content = view.querySelector('#view-content').getBoundingClientRect().top;
     return [control.top - top, content - control.bottom];
   }, selector);
 
@@ -161,6 +161,18 @@ test('central views use the same spacing above and below the header', async t =>
   assert.deepEqual(await gaps(null), [12, 12]);
   await choosePage(page, 'Appareils');
   assert.deepEqual(await gaps(null), [12, 12]);
+  const outerSpacing = await page.locator('#view-scroll').evaluate(scroll => {
+    const raw = scroll.querySelector('details[data-expand="raw"]');
+    const content = scroll.querySelector('#view-content');
+    const style = getComputedStyle(scroll);
+    return {
+      left: style.paddingLeft,
+      right: style.paddingRight,
+      bottom: parseFloat(style.paddingBottom) + content.getBoundingClientRect().bottom - raw.getBoundingClientRect().bottom,
+    };
+  });
+  assert.equal(outerSpacing.left, outerSpacing.right);
+  assert.ok(Math.abs(outerSpacing.bottom - parseFloat(outerSpacing.left)) < 0.1);
 });
 
 test('les configurations de vue sont partagées et leur sélection persiste par profil', async t => {
@@ -172,11 +184,12 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   const dialog = page.getByRole('dialog');
   const options = page.getByRole('list', { name: 'Configurations de vue' });
   const saveButton = page.getByRole('button', { name: 'Sauvegarder la configuration' });
+  const editor = page.locator('#editor-view');
   const save = async name => {
     await saveButton.click();
-    if (name) await dialog.getByLabel('Nom').fill(name);
-    await dialog.getByRole('button', { name: 'Sauvegarder', exact: true }).click();
-    await dialog.waitFor({ state: 'hidden' });
+    if (name) await editor.getByLabel('Nom').fill(name);
+    await page.locator('.toolbar').getByRole('button', { name: 'Sauvegarder', exact: true }).click();
+    await editor.waitFor({ state: 'hidden' });
   };
   await page.getByText('Colonnes', { exact: true }).click();
   const fat = page.getByLabel('Masse grasse (%)', { exact: true });
@@ -213,7 +226,9 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   await page.getByRole('button', { name: 'Éclater Masse grasse (%)' }).click();
   await rename.click();
   await dialog.getByRole('heading', { name: 'Créer une configuration' }).waitFor();
-  await dialog.getByLabel('Nom').fill('Composition');
+  const configurationName = dialog.getByLabel('Nom');
+  assert.equal(await configurationName.evaluate(input => input === document.activeElement), true);
+  await configurationName.fill('Composition');
   await dialog.getByRole('button', { name: 'Sauvegarder', exact: true }).click();
   await dialog.waitFor({ state: 'hidden' });
   assert.equal(await chevron.count(), 1);
@@ -395,9 +410,10 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
 
   await choosePage(page, 'Profils');
   await page.getByRole('article').filter({ hasText: 'Alice' }).getByRole('button', { name: 'Modifier' }).click();
-  assert.equal(await dialog.getByRole('textbox', { name: 'Nom', exact: true }).evaluate(el => el.readOnly), true);
-  await dialog.getByLabel('Taille (cm)').fill('168');
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+  const editor = page.locator('#editor-view');
+  assert.equal(await editor.getByRole('textbox', { name: 'Nom', exact: true }).evaluate(el => el.readOnly), true);
+  await editor.getByLabel('Taille (cm)').fill('168');
+  await page.locator('.toolbar').getByRole('button', { name: 'Enregistrer' }).click();
   await page.getByText(/168 cm/).waitFor();
   await page.reload();
   await page.getByText('Mode simulation', { exact: true }).waitFor();
@@ -445,13 +461,15 @@ test('la liste des pesées fixe les deux lignes d’en-tête pendant le défilem
   const header = table.locator('thead');
   const rowOffset = await header.evaluate(head => {
     const [first, second] = head.rows;
-    window.scrollBy(0, first.getBoundingClientRect().top + 80);
+    const scroll = document.querySelector('#view-scroll');
+    scroll.scrollBy(0, first.getBoundingClientRect().top - scroll.getBoundingClientRect().top + 80);
     return second.offsetTop - first.offsetTop;
   });
   await page.waitForFunction(offset => {
     const [first, second] = document.querySelector('.measurements-table thead').rows;
-    return Math.abs(first.cells[0].getBoundingClientRect().top) < 1
-      && Math.abs(second.cells[0].getBoundingClientRect().top - offset) < 1;
+    const boundary = document.querySelector('#view-scroll').getBoundingClientRect().top;
+    return Math.abs(first.cells[0].getBoundingClientRect().top - boundary + 1) < 0.5
+      && Math.abs(second.cells[0].getBoundingClientRect().top - boundary - offset + 1) < 0.5;
   }, rowOffset);
 });
 
@@ -468,7 +486,8 @@ test('le détail fixe la colonne Donnée et les en-têtes pendant le défilement
     const { x, y } = corner.getBoundingClientRect();
     panel.scrollLeft = 200;
     panel.scrollTop = 100;
-    window.scrollBy(0, y + 80);
+    const scroll = panel.closest('#view-scroll');
+    scroll.scrollBy(0, y - scroll.getBoundingClientRect().top + 80);
     return {
       x,
       horizontalScroll: panel.scrollLeft > 0,
@@ -478,14 +497,20 @@ test('le détail fixe la colonne Donnée et les en-têtes pendant le défilement
     };
   });
   assert.deepEqual(initial, { x: initial.x, horizontalScroll: true, verticalScroll: 0, fullHeight: true, rowX: initial.x });
-  await page.waitForFunction(() => Math.abs(document.querySelector('.comparison-scroll thead th').getBoundingClientRect().top) < 1);
-  const pinned = await panel.locator('thead th').evaluateAll(headers => headers.map(header => header.getBoundingClientRect().top));
-  assert.ok(pinned.every(top => Math.abs(top) < 1));
-  await page.evaluate(() => {
-    const table = document.querySelector('.comparison-scroll table');
-    window.scrollBy(0, table.getBoundingClientRect().bottom - 10);
+  await page.waitForFunction(() => {
+    const boundary = document.querySelector('#view-scroll').getBoundingClientRect().top;
+    return [...document.querySelectorAll('.comparison-scroll thead th')]
+      .every(header => Math.abs(header.getBoundingClientRect().top - boundary + 1) < 0.5);
   });
-  await page.waitForFunction(() => document.querySelector('.comparison-scroll thead th').getBoundingClientRect().top < 0);
+  await page.evaluate(() => {
+    const scroll = document.querySelector('#view-scroll');
+    const table = scroll.querySelector('.comparison-scroll table');
+    scroll.scrollBy(0, table.getBoundingClientRect().bottom - scroll.getBoundingClientRect().top - 10);
+  });
+  await page.waitForFunction(() => {
+    const scroll = document.querySelector('#view-scroll');
+    return scroll.querySelector('.comparison-scroll thead th').getBoundingClientRect().top < scroll.getBoundingClientRect().top - 2;
+  });
 });
 
 test('un glissement de souris depuis une cellule fait défiler le tableau sans déplacer les colonnes', async t => {
@@ -614,13 +639,65 @@ test('dates selon la locale active et conservation de la date de naissance et de
   await page.getByText(/Naissance : 1\/5\/80/).waitFor();
 });
 
+test('la création de profil utilise la vue centrale et les boutons de la barre', async t => {
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice' },
+    { viewport: { width: 360, height: 700 } });
+  await choosePage(page, 'Profils');
+  const toolbar = page.locator('.toolbar');
+  const archive = toolbar.getByRole('button', { name: 'Export ZIP' });
+  const editor = page.locator('#editor-view');
+  const create = page.getByRole('button', { name: 'Créer un profil' });
+  await create.click();
+  await editor.getByRole('heading', { name: 'Créer un profil' }).waitFor();
+  assert.equal(await editor.getByLabel('Nom', { exact: true }).evaluate(input => input === document.activeElement), true);
+  await archive.waitFor({ state: 'hidden' });
+  await toolbar.getByRole('button', { name: 'Annuler' }).click();
+  await archive.waitFor();
+  await create.click();
+  await editor.getByLabel('Nom', { exact: true }).fill('Camille');
+  await editor.getByLabel('Sexe utilisé par les formules').selectOption('F');
+  await editor.getByLabel('Date de naissance', { exact: true }).fill('1994-01-15');
+  await editor.getByLabel('Taille (cm)').fill('170');
+  await toolbar.getByRole('button', { name: 'Enregistrer' }).click();
+  await editor.waitFor({ state: 'hidden' });
+  await page.getByRole('heading', { name: /^Camille/ }).waitFor();
+  assert.equal(await chosenProfile(page), 'Camille');
+  await archive.waitFor();
+});
+
+test('une trame reçue pendant la saisie prépare l’enregistrement de la balance', async t => {
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [record] });
+  await choosePage(page, 'Appareils');
+  await page.getByRole('button', { name: 'Ajouter un appareil' }).click();
+  const editor = page.locator('#editor-view');
+  const toolbar = page.locator('.toolbar');
+  const name = editor.getByLabel('Nom de l’appareil');
+  assert.equal(await name.evaluate(input => input === document.activeElement), true);
+  await name.fill('Balance en cours');
+  await toolbar.getByRole('button', { name: 'Démarrer la capture' }).waitFor();
+  await feed(page, frame);
+  const save = toolbar.getByRole('button', { name: 'Enregistrer', exact: true });
+  await save.waitFor();
+  await editor.getByText(address, { exact: true }).waitFor();
+  await feed(page, metadata);
+  await editor.getByText('XMTZC05HM', { exact: true }).waitFor();
+  assert.equal(await name.inputValue(), 'Balance en cours');
+  assert.equal(await name.evaluate(input => input === document.activeElement), true);
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1')).devices.length), 0);
+  await name.fill('Balance capturée');
+  await save.click();
+  await editor.waitFor({ state: 'hidden' });
+  await page.getByRole('heading', { name: 'Balance capturée', exact: true }).waitFor();
+  assert.equal(await page.getByText(/En attente d’une pesée/).count(), 0);
+});
+
 test('capture et renommage, attribution automatique et flux brut horodaté', async t => {
   const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Bob', measurements: [record] }, { locale: 'fr-FR' });
   await choosePage(page, 'Appareils');
   await page.getByRole('button', { name: 'Ajouter un appareil' }).click();
-  let dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Nom de l’appareil').fill('Balance Xiaomi');
-  await dialog.getByRole('button', { name: 'Démarrer la capture' }).click();
+  const editor = page.locator('#editor-view');
+  await editor.getByLabel('Nom de l’appareil').fill('Balance Xiaomi');
+  await page.locator('.toolbar').getByRole('button', { name: 'Démarrer la capture' }).click();
   await page.getByText(/En attente d’une pesée/).waitFor();
   await feed(page, metadata);
   await feed(page, frame);
@@ -629,14 +706,18 @@ test('capture et renommage, attribution automatique et flux brut horodaté', asy
   await page.getByText('Flux Bluetooth brut').click();
   await page.locator('#raw-frames').filter({ hasText: /\[\d[^\]]*\d{2}:\d{2}:\d{2}\] AABBCCDDEEFF -58/ }).waitFor();
   await page.getByRole('button', { name: 'Renommer' }).click();
-  dialog = page.getByRole('dialog');
-  assert.equal(await dialog.getByRole('textbox').count(), 1);
-  await dialog.getByText(address, { exact: true }).waitFor();
-  await dialog.getByLabel('Nom de l’appareil').fill('Balance maison');
-  await dialog.getByRole('button', { name: 'Démarrer la capture' }).click();
-  await page.getByText(/En attente d’une pesée/).waitFor();
-  await feed(page, frame);
-  await page.getByRole('heading', { name: 'Balance maison', exact: true }).waitFor();
+  await editor.getByRole('heading', { name: 'Renommer' }).waitFor();
+  assert.equal(await editor.getByRole('textbox').count(), 1);
+  await editor.getByText(address, { exact: true }).waitFor();
+  const name = editor.getByLabel('Nom de l’appareil');
+  assert.equal(await name.evaluate(input => input === document.activeElement), true);
+  await name.fill('Balance maison');
+  await page.locator('.toolbar').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  const renamed = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Balance maison', exact: true }) });
+  await renamed.getByText(address, { exact: true }).waitFor();
+  assert.equal(await page.getByText(/En attente d’une pesée/).count(), 0);
+  await page.reload();
+  await renamed.getByText(address, { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Écouter seulement cet appareil' }).click();
   await page.getByText(/Écoute limitée à/).waitFor();
   await page.getByRole('button', { name: 'Écouter tous les appareils' }).click();
@@ -651,15 +732,16 @@ test('confirmation sur smartphone, création de profil depuis une pesée et hist
     { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await feed(page, frame);
   await page.getByRole('button', { name: 'Attribuer la pesée' }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByRole('button', { name: 'Créer un profil' }).click();
-  await dialog.getByRole('textbox', { name: 'Nom', exact: true }).fill('Camille');
-  await dialog.getByLabel('Sexe utilisé par les formules').selectOption('F');
-  await dialog.getByLabel('Âge utilisé par les formules').selectOption('age');
-  await dialog.getByLabel('Âge (ans)', { exact: true }).fill('35');
-  await dialog.getByLabel('Taille (cm)').fill('171');
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-  await dialog.waitFor({ state: 'hidden' });
+  const editor = page.locator('#editor-view');
+  const toolbar = page.locator('.toolbar');
+  await toolbar.getByRole('button', { name: 'Créer un profil' }).click();
+  await editor.getByRole('textbox', { name: 'Nom', exact: true }).fill('Camille');
+  await editor.getByLabel('Sexe utilisé par les formules').selectOption('F');
+  await editor.getByLabel('Âge utilisé par les formules').selectOption('age');
+  await editor.getByLabel('Âge (ans)', { exact: true }).fill('35');
+  await editor.getByLabel('Taille (cm)').fill('171');
+  await toolbar.getByRole('button', { name: 'Enregistrer' }).click();
+  await editor.waitFor({ state: 'hidden' });
   assert.equal(await chosenProfile(page), 'Camille');
   const table = page.getByRole('table', { name: 'Pesées' });
   await table.getByText('70,9 kg', { exact: true }).waitFor();
@@ -708,26 +790,27 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   assert.deepEqual((await page.locator('#profile option').allTextContents()).slice(1), profileNames);
   await feed(page, frame);
   await page.getByRole('button', { name: 'Enregistrer l’appareil' }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Nom de l’appareil').fill('Xiaomi');
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-  await dialog.waitFor({ state: 'hidden' });
+  const editor = page.locator('#editor-view');
+  const toolbar = page.locator('.toolbar');
+  await editor.getByLabel('Nom de l’appareil').fill('Xiaomi');
+  await toolbar.getByRole('button', { name: 'Enregistrer' }).click();
+  await editor.waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'Attribuer la pesée' }).click();
-  assert.deepEqual((await dialog.locator('#assignment-profile option').allTextContents()).slice(2), profileNames);
-  await dialog.getByLabel('Profil', { exact: true }).selectOption('Bob');
-  await dialog.getByRole('button', { name: 'Confirmer' }).click();
-  await dialog.waitFor({ state: 'hidden' });
+  assert.deepEqual((await editor.locator('#assignment-profile option').allTextContents()).slice(2), profileNames);
+  await editor.getByLabel('Profil', { exact: true }).selectOption('Bob');
+  await toolbar.getByRole('button', { name: 'Confirmer' }).click();
+  await editor.waitFor({ state: 'hidden' });
   assert.equal(await chosenProfile(page), 'Bob');
   await page.getByRole('table').getByText('70,9 kg').waitFor();
 
   await feed(page, 'AABBCCDDEEFF -62 181D 00404C');
   await page.getByRole('button', { name: 'Attribuer la pesée' }).click();
-  await dialog.getByRole('button', { name: 'Calculer sans profil' }).click();
-  await dialog.getByLabel('Sexe utilisé par les formules').selectOption('F');
-  await dialog.getByLabel('Date de naissance', { exact: true }).fill('1994-01-15');
-  await dialog.getByLabel('Taille (cm)').fill('170');
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-  await dialog.waitFor({ state: 'hidden' });
+  await toolbar.getByRole('button', { name: 'Calculer sans profil' }).click();
+  await editor.getByLabel('Sexe utilisé par les formules').selectOption('F');
+  await editor.getByLabel('Date de naissance', { exact: true }).fill('1994-01-15');
+  await editor.getByLabel('Taille (cm)').fill('170');
+  await toolbar.getByRole('button', { name: 'Enregistrer' }).click();
+  await editor.waitFor({ state: 'hidden' });
   assert.equal(await chosenProfile(page), 'Bob');
   await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('');
   await page.getByRole('table').getByText('97,6 kg', { exact: true }).waitFor();
