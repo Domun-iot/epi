@@ -5,7 +5,6 @@ import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
 import { viewPresetHeader, viewPresetTitles } from './view-presets.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
-import './styles.css';
 
 const navigation = document.querySelector('#navigation');
 const profilePicker = document.querySelector('#profile');
@@ -457,7 +456,6 @@ function renderBluetooth() {
 }
 
 try {
-  render();
   session = await connect(onState, message => {
     status.textContent = message;
     bluetoothUnavailable = /indisponible|erreur|désactiv|aucun|déconnect|échec|simulation|permission/i.test(message);

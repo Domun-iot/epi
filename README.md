@@ -6,7 +6,7 @@
 | --- | --- |
 | Interface de release | `éPI.bat` sous Windows ou `sh éPI.sh` sous Linux |
 | Interface en développement | `run\dev-éPI.bat` sous Windows ou `sh run/dev-éPI.sh` sous Linux |
-| CLI de release | `run\cli.bat` sous Windows ou `sh run/cli.sh` sous Linux. Si la release manque, le lanceur la construit. |
+| CLI de release | `run\cli.bat` sous Windows ou `sh run/cli.sh` sous Linux. Le lanceur reconstruit la release si elle manque ou si ses sources ou sa configuration de build sont plus récentes. |
 | CLI en développement | `run\dev-cli.bat` sous Windows ou `sh run/dev-cli.sh` sous Linux |
 | Tests CLI | `npm --prefix cli test` |
 | Tests du domaine Tauri | `npm --prefix tauri test` |
@@ -40,7 +40,7 @@ La préparation de l’interface installe Node.js, Rust et les dépendances npm 
 
 Tu peux lancer directement le script de build ou le lanceur de développement. Si le marqueur de sa cible manque dans `tmp/prep/`, le script lance la préparation correspondante. Chaque préparation vérifie les prérequis et réutilise ceux déjà installés. Elle enregistre son succès dans `tmp/prep/`, un dossier local ignoré par Git. Pour vérifier les prérequis à nouveau, relance le script de préparation ou supprime le marqueur de la cible avant le prochain build.
 
-Les lanceurs `éPI.bat` et `sh éPI.sh` ouvrent le binaire autonome dans `release/windows/` ou `release/linux/`. S’il manque, ils exécutent le build de bureau avec `--portable`. Les lanceurs `run\dev-éPI.bat` et `sh run/dev-éPI.sh` démarrent la version de développement via `tauri dev`.
+Les lanceurs `éPI.bat` et `sh éPI.sh` ouvrent le binaire autonome dans `release/windows/` ou `release/linux/`. S’il manque, ils exécutent le build de bureau avec `--portable`. Les deux lanceurs reconstruisent aussi le binaire lorsque les sources ou la configuration du build sont plus récentes. Les lanceurs `run\dev-éPI.bat` et `sh run/dev-éPI.sh` démarrent la version de développement via `tauri dev`.
 
 | Plateforme | Génération | Résultat |
 | --- | --- | --- |
