@@ -151,8 +151,8 @@ tr[data-action="reading"]:focus-within { background: var(--row-hover); }
 .measurement-details pre { overflow: auto; }
 .measurement-details th, .measurement-details td { padding-inline: clamp(6px, .65vw, 13px); }
 .measurement-details th[scope=row] { white-space: normal; }
-.comparison-scroll table { border-collapse: separate; border-spacing: 0; }
-.comparison-scroll thead th { position: relative; translate: 0 var(--comparison-header-offset, 0px); z-index: 2; }
+.pinned-header table { border-collapse: separate; border-spacing: 0; }
+.pinned-header thead th { position: relative; translate: 0 var(--header-offset, 0px); z-index: 2; }
 .comparison-scroll tr > th:first-child { position: sticky; left: 0; }
 .comparison-scroll tbody th { z-index: 1; }
 .comparison-scroll thead th:first-child { z-index: 3; }

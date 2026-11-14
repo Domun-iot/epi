@@ -131,7 +131,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
   const content = last ? `<div class="panel measurement-summary">
       <p>Dernier poids <strong>${weight(last.measures)}</strong></p><p class="muted">${formatDate(last.receivedAt)}</p>
     </div>${settings}
-    <div class="panel table-scroll" tabindex="0" role="region" aria-label="Pesées">
+    <div class="panel table-scroll pinned-header" tabindex="0" role="region" aria-label="Pesées">
       <table class="measurements-table" aria-label="Pesées">
         <thead><tr>${headers}</tr>
         ${twoRows ? `<tr>${ordered.map(({ id, separate, subheaders }) => separate
@@ -155,7 +155,7 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
     }));
   const measures = row.measures ?? row;
   const readings = `<p><strong>${weight(measures)}</strong> · ${formatDate(row.receivedAt)}</p>`;
-  const comparison = activeMethods.length ? `<div class="panel table-scroll comparison-scroll" role="region" aria-label="Comparaison des méthodes" tabindex="0">
+  const comparison = activeMethods.length ? `<div class="panel table-scroll pinned-header comparison-scroll" role="region" aria-label="Comparaison des méthodes" tabindex="0">
     <table aria-label="Comparaison des méthodes"><thead><tr><th scope="col">Donnée</th><th scope="col">Moyenne</th>${activeMethods.map(method => methodHeader(method, columnDrag(method.id))).join('')}</tr></thead>
     <tbody>${METRICS.filter(([id]) => activeMethods.some(method => Number.isFinite(row.calculations?.[method.id]?.[id])))
       .map(([id, label, precision]) => `<tr><th scope="row">${e(label)}</th><td class="numeric">${number(averageValue(row, id, activeMethods), precision)}</td>${activeMethods.map(method => methodValue(row, id, method, precision)).join('')}</tr>`).join('')}</tbody></table></div>` : '';

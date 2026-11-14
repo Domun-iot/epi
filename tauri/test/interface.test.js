@@ -335,6 +335,29 @@ test('ouvrir Colonnes sur Android laisse le champ Recherche sans focus', async t
   assert.equal(await search.evaluate(input => document.activeElement === input), false);
 });
 
+test('la liste des pesées fixe les deux lignes d’en-tête pendant le défilement', async t => {
+  const measurements = Array.from({ length: 25 }, (_, minute) => ({
+    ...record, receivedAt: new Date(Date.parse(record.receivedAt) + minute * 60_000).toISOString(),
+  }));
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements },
+    { viewport: { width: 420, height: 380 } });
+  await page.getByText('Colonnes', { exact: true }).click();
+  await page.getByLabel('Masse grasse (%)', { exact: true }).check();
+  const table = page.getByRole('table', { name: 'Pesées' });
+  await table.getByRole('button', { name: 'Masse grasse (%)', exact: true }).click();
+  const header = table.locator('thead');
+  const rowOffset = await header.evaluate(head => {
+    const [first, second] = head.rows;
+    window.scrollBy(0, first.getBoundingClientRect().top + 80);
+    return second.offsetTop - first.offsetTop;
+  });
+  await page.waitForFunction(offset => {
+    const [first, second] = document.querySelector('.measurements-table thead').rows;
+    return Math.abs(first.cells[0].getBoundingClientRect().top) < 1
+      && Math.abs(second.cells[0].getBoundingClientRect().top - offset) < 1;
+  }, rowOffset);
+});
+
 test('le détail fixe la colonne Donnée et les en-têtes pendant le défilement', async t => {
   const calculations = Object.fromEntries(['IMC', 'Mi', 'Sun*', 'Jan*', 'D60*', 'Deu', 'CUN', 'Wat', 'HW', 'MSJ', 'HB', 'Owe', 'Cun*']
     .map(id => [id, { bmi: 25.7, fatPercent: 31.8, fatKg: 20, leanKg: 50, waterL: 37, restingEnergy: 1500 }]));

@@ -105,7 +105,8 @@ function render() {
     const searchFocused = active?.matches('.column-search');
     const previousComparison = view.querySelector('.comparison-scroll');
     const detailScroll = previousComparison?.scrollLeft;
-    if (previousComparison) comparisonResize.unobserve(previousComparison);
+    const previousPinnedTable = view.querySelector('.pinned-header');
+    if (previousPinnedTable) pinnedHeaderResize.unobserve(previousPinnedTable);
     stopReorder();
     const header = layout && viewPresetHeader(kind, layout);
     const focusedPresetAction = active?.closest('.view-preset-header') && active.dataset.action;
@@ -120,13 +121,12 @@ function render() {
       (control ?? view.querySelector('.view-preset-picker summary'))?.focus({ preventScroll: true });
     }
     renderFrames();
+    const pinnedTable = view.querySelector('.pinned-header');
+    if (pinnedTable) pinnedHeaderResize.observe(pinnedTable);
+    positionPinnedHeader();
     if (detail) {
       const comparison = view.querySelector('.comparison-scroll');
-      if (comparison) {
-        comparison.scrollLeft = detailScroll ?? 0;
-        comparisonResize.observe(comparison);
-      }
-      positionComparisonHeader();
+      if (comparison) comparison.scrollLeft = detailScroll ?? 0;
       return;
     }
     if (page === 'measurements') filterColumnOptions(view, columnQuery);
@@ -288,20 +288,20 @@ view.addEventListener('keydown', event => {
   picker.querySelector('summary').focus();
 });
 
-function positionComparisonHeader() {
-  const panel = view.querySelector('.comparison-scroll');
+function positionPinnedHeader() {
+  const panel = view.querySelector('.pinned-header');
   if (!panel) return;
   const table = panel.querySelector('table');
   const { top, height } = table.getBoundingClientRect();
   // Keep horizontal overflow local while pinning the real headers to the viewport.
   const offset = Math.max(0, Math.min(-top, height - table.tHead.offsetHeight));
-  panel.style.setProperty('--comparison-header-offset', `${offset}px`);
+  panel.style.setProperty('--header-offset', `${offset}px`);
 }
 
-const comparisonResize = new ResizeObserver(positionComparisonHeader);
-comparisonResize.observe(main);
-window.addEventListener('scroll', positionComparisonHeader, { passive: true });
-window.addEventListener('resize', positionComparisonHeader);
+const pinnedHeaderResize = new ResizeObserver(positionPinnedHeader);
+pinnedHeaderResize.observe(main);
+window.addEventListener('scroll', positionPinnedHeader, { passive: true });
+window.addEventListener('resize', positionPinnedHeader);
 
 const columnCell = '[data-drag-column]';
 const sectionHeader = '[data-detail-section] > summary';
