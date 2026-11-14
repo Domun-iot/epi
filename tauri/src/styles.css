@@ -120,7 +120,7 @@ dl { display: grid; grid-template-columns: minmax(100px, .8fr) minmax(0, 1fr); g
 dt { color: var(--muted); }
 dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 720px) {
-  .shell { grid-template-columns: minmax(0, 1fr); }
+  .shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
   .sidebar { padding: max(10px, env(safe-area-inset-top)) 12px 8px; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
   .brand { gap: 4px; font-size: 1.05rem; }
   .brand span { height: 30px; width: 30px; }
