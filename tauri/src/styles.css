@@ -144,7 +144,10 @@ tr[data-action="reading"]:focus-within { background: var(--row-hover); }
 [data-drag-column], [data-detail-section] > summary { cursor: grab; user-select: none; }
 [data-drag-column] { touch-action: pan-y; }
 [data-detail-section] > summary { touch-action: none; }
-.column-drop { outline: 2px solid var(--blue); outline-offset: -2px; }
+[data-drag-column].column-drop {
+  background-image: linear-gradient(light-dark(rgb(222 236 255 / 75%), rgb(255 255 255 / 18%)) 0 0);
+}
+[data-detail-section] > summary.column-drop { outline: 2px solid var(--blue); outline-offset: -2px; }
 .column-toggle { padding: 0; border: 0; background: none; color: inherit; font-weight: inherit; }
 .column-toggle:hover { text-decoration: underline; }
 .reading-date { padding: 0; border: 0; background: none; color: inherit; }
