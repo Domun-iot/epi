@@ -182,7 +182,7 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
       rename ? t('renameViewPreset') : t('saveViewPreset');
     const form = open(title,
       field(t('name'), 'name', `value="${e(current)}" maxlength="64" required autofocus`),
-      ({ name }) => submit(name), rename ? t('rename') : t('savePreset'), { modal: rename || action === 'create' });
+      ({ name }) => submit(name), rename ? t('rename') : t('savePreset'), { modal: true });
     form.querySelector('[name="name"]').select();
   }
 

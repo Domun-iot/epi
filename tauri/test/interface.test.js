@@ -735,12 +735,13 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   const dialog = page.getByRole('dialog');
   const options = page.getByRole('list', { name: 'Configurations de vue' });
   const saveButton = page.getByRole('button', { name: 'Sauvegarder la configuration' });
-  const editor = page.locator('#editor-view');
   const save = async name => {
     await saveButton.click();
-    if (name) await editor.getByLabel('Nom').fill(name);
-    await page.locator('.toolbar').getByRole('button', { name: 'Sauvegarder', exact: true }).click();
-    await editor.waitFor({ state: 'hidden' });
+    const saveDialog = page.getByRole('dialog', { name: 'Sauvegarder la configuration' });
+    assert.equal(await saveDialog.evaluate(element => element.matches(':modal')), true);
+    if (name) await saveDialog.getByLabel('Nom').fill(name);
+    await saveDialog.getByRole('button', { name: 'Sauvegarder', exact: true }).click();
+    await saveDialog.waitFor({ state: 'hidden' });
   };
   await page.getByText('Données', { exact: true }).click();
   const fat = page.getByLabel('Masse grasse (%)', { exact: true });
