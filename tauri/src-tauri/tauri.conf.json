@@ -12,8 +12,8 @@
   "app": {
     "windows": [{"title": "éPI", "width": 1180, "height": 800, "minWidth": 400, "minHeight": 450}],
     "security": {
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost https://domun.eu; style-src 'self' 'unsafe-inline'; img-src 'self' data:",
-      "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost http://127.0.0.1:* ws:; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost https://epi.domun.eu; style-src 'self' 'unsafe-inline'; img-src 'self' data:",
+      "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost http://127.0.0.1:* https://epi.domun.eu ws:; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
     }
   },
   "bundle": {"active": true, "targets": "all", "android": {"minSdkVersion": 26}, "windows": {"nsis": {"installerIcon": "icons/icon.ico"}}, "icon": ["icons/icon.png", "icons/32.png", "icons/128.png", "icons/icon.ico"]}

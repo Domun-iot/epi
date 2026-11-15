@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv, searchForWorkspaceRoot } from 'vite';
+import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import { build } from 'esbuild';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
@@ -78,22 +78,8 @@ function webSessionApi() {
   };
 }
 
-async function accountApi(command, mode, isPreview) {
-  const configured = loadEnv(mode, process.cwd(), 'VITE_EPI_').VITE_EPI_ACCOUNT_API;
-  if (configured) {
-    const url = new URL(configured);
-    if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
-      throw new Error('VITE_EPI_ACCOUNT_API must be an HTTPS origin');
-    }
-    return url.origin;
-  }
-  if (command !== 'serve' || isPreview) return 'https://domun.eu';
-  const { default: config } = await import(new URL('../server/config.js', appPath).href);
-  return 'http://127.0.0.1:' + config.port;
-}
-
-export default defineConfig(async ({ command, mode, isPreview }) => ({
-  define: { __DEV_ACCOUNT_API__: JSON.stringify(await accountApi(command, mode, isPreview)) },
+export default defineConfig(({ command, mode }) => ({
+  define: { __DEV_ACCOUNT_API__: JSON.stringify('https://epi.domun.eu') },
   clearScreen: false,
   optimizeDeps: { entries: ['index.html'] },
   plugins: [sharedModules(), ...(command === 'serve' && mode === 'web' ? [webSessionApi()] : [])],

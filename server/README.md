@@ -38,13 +38,11 @@ Les lots acceptent jusqu'à 100 entrées et les requêtes jusqu'à 4 Mio. Un UUI
 
 Ouvrez « Compte » dans l’application web ou Tauri. La création du compte ouvre une session. La déconnexion révoque le jeton de cette installation. En cas d’échec de la révocation, la session reste ouverte et la déconnexion peut être relancée.
 
-En développement, lancez `run/dev/server.bat` (ou `sh run/dev/server.sh`), puis `run/dev/web.bat` ou `run/dev/tauri.bat` (ou leurs équivalents `.sh`). Le client Vite lit le port de `server/config.js` au démarrage et appelle l’API directement sur `127.0.0.1`. Pour tester avec Tauri en mode développement sur Android via ADB, redirigez le port API avec `adb reverse tcp:8787 tcp:8787`, en remplaçant `8787` par le port configuré si besoin.
-
-Les clients web et Tauri compilés utilisent `https://domun.eu` par défaut pour les comptes. Pour cibler un autre serveur, définissez `VITE_EPI_ACCOUNT_API` avec son origine HTTPS avant de compiler les clients. Pour Tauri, ajoutez aussi cette origine à `connect-src` dans `tauri/src-tauri/tauri.conf.json` (`devCsp` pour les builds de développement). Le proxy doit transmettre les méthodes `GET`, `POST`, `DELETE` et `OPTIONS` des routes de compte, ainsi que les en-têtes CORS.
+Les clients web et Tauri accèdent aux comptes via `https://epi.domun.eu` dans tous les modes, y compris en développement. Le proxy doit transmettre les méthodes `GET`, `POST`, `DELETE` et `OPTIONS` des routes de compte, ainsi que les en-têtes CORS.
 
 ### Connexion Google
 
-1. Créez un client OAuth de type **Application Web** dans Google Cloud, configurez l’écran de consentement et ajoutez l’URI de redirection exacte, `https://domun.eu/v1/google/callback` en production. En mode test, ajoutez les comptes Google autorisés.
+1. Créez un client OAuth de type **Application Web** dans Google Cloud, configurez l’écran de consentement et ajoutez l’URI de redirection exacte, `https://epi.domun.eu/v1/google/callback` en production. En mode test, ajoutez les comptes Google autorisés.
 2. Avant de démarrer le serveur, définissez `EPI_GOOGLE_CLIENT_ID`, `EPI_GOOGLE_CLIENT_SECRET` et `EPI_GOOGLE_REDIRECT_URI`. Pour un essai sur le même ordinateur, vous pouvez enregistrer et utiliser `http://127.0.0.1:8787/v1/google/callback`. Le navigateur doit pouvoir joindre l’URI de retour. Le serveur doit pouvoir joindre les services Google en HTTPS.
 3. Relancez le serveur. Dans « Compte », l’action Google permet de se connecter, de créer un compte ou de gérer l’association. Tauri ouvre le navigateur système, y compris sur Android. Sur le web, le choix du compte s’affiche dans un nouvel onglet. Après validation, revenez dans éPI.
 
