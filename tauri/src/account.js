@@ -109,10 +109,13 @@ function render() {
     : accountInfo?.googleLinked ? t('unlinkGoogle') : t('linkGoogle');
   googleStatus.hidden = !waitingForGoogle;
   googleStatus.textContent = waitingForGoogle ? t('completeGoogleSignIn') : '';
+  const closingAccount = !waitingForGoogle && !managingGoogle;
   closeButton.disabled = busy && !waitingForGoogle;
-  closeButton.textContent = waitingForGoogle || managingGoogle ? t('cancel') : t('close');
+  closeButton.textContent = closingAccount ? t('close') : t('cancel');
+  closeButton.classList.toggle('primary', closingAccount && Boolean(accountInfo));
   submitButton.disabled = busy || !configured;
   submitButton.hidden = managingGoogle;
+  submitButton.classList.toggle('primary', !account);
   submitButton.textContent = account ? t('signOut') : creating ? t('submitAccountRegistration') : t('signIn');
   form.setAttribute('aria-busy', String(busy));
 }

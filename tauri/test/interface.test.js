@@ -162,9 +162,13 @@ test('crée un compte avec Google et exige un mot de passe pour le délier', asy
 
   await page.getByRole('button', { name: 'Compte', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Connexion' });
+  assert.equal(await dialog.locator('button.primary').innerText(), 'Se connecter');
   await dialog.getByRole('button', { name: 'Créer un compte', exact: true }).click();
   await page.getByRole('button', { name: 'Créer le compte avec Google' }).click();
-  await page.getByRole('dialog', { name: 'Compte' }).getByText(details.email).waitFor();
+  const accountDialog = page.getByRole('dialog', { name: 'Compte' });
+  await accountDialog.getByText(details.email).waitFor();
+  assert.equal(await accountDialog.locator('button.primary:last-child').innerText(), 'Fermer');
+  assert.equal(await accountDialog.locator('#account-switch').isVisible(), false);
   assert.equal(calls.find(call => call.path.endsWith('/start')).body.action, 'register');
   assert.equal(await page.locator('#account-google-fields').isVisible(), false);
   const unlink = page.getByRole('button', { name: 'Délier Google' });
@@ -401,7 +405,10 @@ test('rechecks the saved account from its button and every minute', async t => {
   await button.locator('.account-connected').waitFor();
   assert.equal(checks, beforeClick + 1);
   await error.waitFor({ state: 'hidden' });
-  await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Compte' });
+  assert.equal(await dialog.locator('button.primary:last-child').innerText(), 'Fermer');
+  assert.equal(await dialog.locator('#account-switch').isVisible(), false);
+  await dialog.getByRole('button', { name: 'Fermer', exact: true }).click();
 
   offline = true;
   const beforeTimer = checks;
@@ -434,7 +441,9 @@ test('opens the sign-in form when the saved token has expired', async t => {
   await button.click();
   const dialog = page.getByRole('dialog', { name: 'Connexion' });
   await dialog.getByText('Ta session a expiré. Reconnecte-toi.').waitFor();
-  assert.ok(await dialog.getByRole('button', { name: 'Se connecter', exact: true }).isVisible());
+  assert.equal(await dialog.locator('button:last-child').innerText(), 'Fermer');
+  assert.equal(await dialog.locator('button.primary').innerText(), 'Se connecter');
+  assert.ok(await dialog.getByRole('button', { name: 'Créer un compte', exact: true }).isVisible());
   await page.clock.runFor(60_000);
   assert.equal(checks, 1);
 });
