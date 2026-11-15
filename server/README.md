@@ -32,7 +32,7 @@ Les corps POST sont envoyés en JSON avec `Content-Type: application/json`. Les 
 
 Les erreurs ont la forme `{"error":"code"}`. L'inscription est ouverte. L'identifiant d'appareil est choisi par le client et doit rester stable pour cette instance. Il accepte 1 à 128 caractères parmi les lettres ASCII, chiffres, points, tirets et underscores. Chaque émission remplace le jeton précédent de l'appareil. Après plus de 30 jours sans utilisation, le jeton est effacé et l'API renvoie `401 token_expired` jusqu'à une nouvelle connexion par mot de passe ou avec Google. Les accusés de l'appareil sont conservés.
 
-Le format d’envoi JSON accepte jusqu’à 100 entrées et 4 Mio par requête. Le format NDJSON permet d’envoyer la file locale en une requête, avec la même limite de taille par transaction. Le serveur valide et enregistre le flux par groupes d’au plus 100 transactions et 4 Mio. Si l’envoi est interrompu, le client peut renvoyer le lot entier. Le premier JSON déposé pour un UUID est conservé et un nouvel envoi du même JSON confirme aussi cet UUID. Un UUID associé à un JSON différent reste absent de la liste des confirmations. Les UUID utilisent le format canonique en minuscules. Un accusé de téléchargement sur un UUID inconnu du compte est ignoré et peut être renvoyé après le dépôt.
+Le format d’envoi JSON accepte jusqu’à 100 entrées et 4 Mio par requête. Le format NDJSON permet d’envoyer la file locale en une requête, avec la même limite de taille par transaction. Le serveur valide et enregistre le flux par groupes d’au plus 100 transactions et 4 Mio. Si l’envoi est interrompu, le client peut renvoyer le lot entier. Le serveur conserve le premier contenu déposé pour un UUID. Un renvoi équivalent confirme cet UUID et peut ajouter le nom horodaté lorsqu’il manque à l’entrée d’origine. Un UUID associé à un JSON différent reste absent de la liste des confirmations. Les UUID utilisent le format canonique en minuscules. Un accusé de téléchargement sur un UUID inconnu du compte est ignoré et peut être renvoyé après le dépôt.
 
 ## Comptes dans l’application
 
@@ -52,8 +52,4 @@ Les demandes Google expirent après cinq minutes et sont conservées en mémoire
 
 ## Boucle côté client
 
-1. Déposer les transactions locales avec leurs UUID d'origine, puis accuser réception de celles déjà appliquées localement.
-2. Télécharger les transactions en attente, appliquer celles qui manquent à l'historique local et enregistrer durablement leurs UUID.
-3. Accuser réception des UUID effectivement appliqués (ou déjà présents dans l'historique local). Répéter à partir de l'étape 2 jusqu'à obtenir un lot vide.
-
-La livraison peut se répéter si le téléchargement ou l'accusé est interrompu. L'historique local empêche de réappliquer un UUID déjà traité. Si deux appareils modifient hors ligne le même objet, la convergence dépend de la règle de résolution des conflits côté client. L'ordre de dépôt du serveur peut différer de l'ordre d'application locale.
+Le client télécharge les transactions au démarrage et lors d’un changement de session de compte. Il suit le curseur `next` et accuse les UUID intégrés ou déjà présents localement. Il envoie ensuite la file locale, avec relance en arrière-plan. Un dépôt accepté crée aussi le reçu de l’appareil expéditeur, qui évite de lui renvoyer sa propre transaction. Le [fonctionnement de la synchronisation et ses cas limites](../docs/SYNCHRONISATION.md) détaille le rejeu, les garanties de stockage et les conflits.
