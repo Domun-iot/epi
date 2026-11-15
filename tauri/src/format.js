@@ -68,6 +68,7 @@ export function deviceFields(device = {}) {
     ['Type d’annonce', bluetooth.advertisementType],
     ['Identifiants fabricant', bluetooth.companyIds?.join(', ') || null],
     ['Fabricants', bluetooth.manufacturers?.filter(Boolean).join(', ') || null],
+    ['Fabricant selon le préfixe MAC', bluetooth.macManufacturer],
     ['Marque', bluetooth.brand],
     ['Modèle', bluetooth.model],
     ['Origine du modèle', bluetooth.modelSource],

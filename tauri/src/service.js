@@ -2,7 +2,7 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { readFile, writeFile } from '@tauri-apps/plugin-fs';
-import domain from 'virtual:epi-session';
+import { domain } from 'virtual:epi-domain';
 import { createWebSession } from './web-session.js';
 import composition from 'virtual:epi-composition';
 import { datasetFiles, fileRecords, readArchive, writeArchive } from './legacy-import.js';

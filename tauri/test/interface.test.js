@@ -253,6 +253,17 @@ test('l’écoute Bluetooth filtre, décode et suit les trames jusqu’à une pe
   await page.getByRole('button', { name: 'Attribuer la pesée' }).waitFor();
 });
 
+test('l’écoute Bluetooth identifie le fabricant par préfixe MAC lorsque le code est inconnu', async t => {
+  const page = await pageWith(t);
+  await page.getByRole('link', { name: 'Mode simulation' }).click();
+  const log = page.getByRole('region', { name: 'Trames Bluetooth reçues' });
+  await log.waitFor();
+  await feed(page, 'PAYLOAD D4278722D707 -91 Manufacturer 3030 1 30 QVBfMzQxODczMTY0NA==');
+  await log.getByText(/AP_3418731644 · Shanghai High-Flying Electronics Technology Co\., Ltd \(préfixe MAC, 0x3030\) · -91 dBm · 1 octet reçu · 30$/).waitFor();
+  await feed(page, 'PAYLOAD D4278722D707 -91 Manufacturer 0157 1 30 ');
+  await log.getByText(/Anhui Huami.* \(0x0157\)/).waitFor();
+});
+
 test('the Bluetooth log fills the main view down to its bottom padding', async t => {
   const page = await pageWith(t, undefined, { viewport: { width: 1200, height: 1000 } });
   await page.getByRole('link', { name: 'Mode simulation' }).click();

@@ -5,6 +5,7 @@ const companies = require('./bluetooth-companies.json');
 const services = require('./bluetooth-services.json');
 const { ADDRESS, canonicalAddress } = require('./scale.cjs');
 const { fromBase64 } = require('./bytes.cjs');
+const { macManufacturer } = require('./mac-manufacturer.cjs');
 
 function normalizeName(value) {
   const name = value.trim().normalize('NFC');
@@ -35,6 +36,12 @@ function mergeDeviceMetadata(record, metadata) {
   if (metadata.companyIds?.length) {
     bluetooth.companyIds = metadata.companyIds;
     bluetooth.manufacturers = metadata.companyIds.map(id => companies[id] ?? null);
+  }
+  if (bluetooth.manufacturers?.some(Boolean)) {
+    delete bluetooth.macManufacturer;
+  } else {
+    const manufacturer = macManufacturer(bluetooth.address ?? metadata.address);
+    if (manufacturer) bluetooth.macManufacturer = manufacturer;
   }
   // The advertised name identifies a model only in combination with the company ID.
   if (bluetooth.localName === 'MIBFS' && bluetooth.companyIds?.includes('0x0157')) {

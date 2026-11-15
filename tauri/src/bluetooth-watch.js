@@ -1,4 +1,4 @@
-import bluetooth from 'virtual:epi-bluetooth';
+import { bluetooth } from 'virtual:epi-domain';
 import { button, escapeHtml, formatDate, formatScaleTime, pageHeader, weight } from './format.js';
 
 const logKey = 'epi-bluetooth-log-v1';
@@ -53,7 +53,8 @@ export function bluetoothView({ addressFilter, devices }, web) {
 
 function frameText(frame) {
   const source = [frame.localName, frame.model].filter(Boolean).join(' ');
-  const fields = [frame.address, source, frame.label, frame.advertisementType === 'Gatt' ? 'GATT' : '',
+  const manufacturer = frame.macManufacturer ? `${frame.macManufacturer} (préfixe MAC)` : '';
+  const fields = [frame.address, source, manufacturer, frame.label, frame.advertisementType === 'Gatt' ? 'GATT' : '',
     frame.rssi == null ? '' : `${frame.rssi} dBm`,
     `${frame.bytes} octet${frame.bytes === 1 ? ' reçu' : 's reçus'}`];
   if (Number.isFinite(frame.weight)) {

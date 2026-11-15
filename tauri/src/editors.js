@@ -1,6 +1,6 @@
 import { button, deviceFields, escapeHtml as e, pageHeader, pairs, sortByName, weight } from './format.js';
 
-import domain from 'virtual:epi-session';
+import { domain } from 'virtual:epi-domain';
 
 const { buildDevice } = domain;
 const field = (label, name, attributes) => `<label>${label}<input name="${name}" ${attributes}></label>`;
