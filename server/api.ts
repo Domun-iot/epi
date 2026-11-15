@@ -176,18 +176,47 @@ async function checkPassword(password: unknown, hash: string) {
   }
 }
 
+const closeGoogleWindow = 'window.close();';
+const googleReturnStyle = `
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body {
+    display: grid; place-items: center; box-sizing: border-box; min-height: 100svh;
+    margin: 0; padding: 1.25rem; background: #eef3f1; color: #183429;
+  }
+  main {
+    box-sizing: border-box; width: min(100%, 28rem); padding: clamp(1.75rem, 7vw, 3rem);
+    text-align: center; background: #fff; border: 1px solid #dbe7e0; border-radius: 1.5rem;
+    box-shadow: 0 1rem 3rem #18342912;
+  }
+  h1 { margin: 0 0 1rem; font-size: 2.75rem; letter-spacing: -0.07em; color: #215d45; }
+  p { margin: 0; font-size: 1.0625rem; line-height: 1.6; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #12231c; color: #e3efe8; }
+    main { background: #1a3026; border-color: #395447; }
+    h1 { color: #a8dfc0; }
+  }
+`;
+
+function cspHash(text: string) {
+  return "'sha256-" + createHash('sha256').update(text).digest('base64') + "'";
+}
+
+const googleReturnCsp = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; " +
+  'style-src ' + cspHash(googleReturnStyle) + '; script-src ' + cspHash(closeGoogleWindow);
+
 function browserResult(res: ServerResponse, succeeded: boolean, locale: Locale) {
   res.writeHead(succeeded ? 200 : 400, {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-store',
     'Referrer-Policy': 'no-referrer',
-    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+    'Content-Security-Policy': googleReturnCsp,
   });
   const message = googleReturn[locale][succeeded ? 0 : 1];
   const escaped = message.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
   res.end('<!doctype html><html lang="' + locale +
-    '"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>éPI</title><h1>éPI</h1><p>' +
-    escaped + '</p></html>');
+    '"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>éPI</title>' +
+    '<style>' + googleReturnStyle + '</style><main><h1>éPI</h1><p>' + escaped + '</p></main>' +
+    '<script>' + closeGoogleWindow + '</script></html>');
 }
 
 export function createApi(store: Store, now = Date.now, google?: Google) {
