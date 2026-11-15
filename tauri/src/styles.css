@@ -42,9 +42,10 @@ nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
 .status-dot { flex: 0 0 7px; height: 7px; border-radius: 50%; background: #61d4a4; }
 .workspace { --view-inline-padding: clamp(9px, 2vw, 27px); min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .toolbar { position: relative; min-height: 66px; border-bottom: 1px solid var(--line); background: var(--surface); display: flex; justify-content: flex-end; align-items: center; padding: 10px var(--view-inline-padding); }
-.profile-select { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.profile-select:has(#profile[hidden]) { gap: 20px; }
+.profile-select { --toolbar-icon-width: 20px; --profile-gap: 10px; display: flex; align-items: center; gap: var(--profile-gap); min-width: 0; }
+.profile-select:has(#profile[hidden] + #profile-name[hidden]) { --profile-gap: var(--toolbar-icon-width); }
 .profile-select select { min-width: 0; }
+#profile-name:not([hidden]) { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #theme-toggle { flex: none; }
 #theme-toggle { width: var(--action-button-height); padding: 0; }
 #theme-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -61,7 +62,7 @@ nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
   display: flex;
   flex: none;
   align-items: center;
-  width: 20px;
+  width: var(--toolbar-icon-width);
   height: 42px;
   padding: 0;
   border: 0;
@@ -316,9 +317,8 @@ button.notification-summary { width: 100%; color: inherit; background: transpare
 .notification-summary small { color: var(--muted); }
 .notification-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
 #notifications-icon[hidden] { display: none; }
-.profile-select:has(#notifications-icon:not([hidden])) { gap: 8px; }
-#profile[hidden] + #notifications-icon:not([hidden]),
-#notifications-icon:not([hidden]) + #theme-toggle { margin-inline-start: 12px; }
+#notifications-icon:not([hidden]),
+#notifications-icon:not([hidden]) + #theme-toggle { margin-inline-start: calc(var(--toolbar-icon-width) - var(--profile-gap)); }
 @media (max-width: 420px) {
   .toolbar:has(#notifications-icon:not([hidden])) { flex-wrap: wrap; }
   .toolbar:has(#notifications-icon:not([hidden])) .profile-select { margin-inline-start: auto; }

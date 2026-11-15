@@ -137,6 +137,9 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     const retained = retainNotifications(draft.notifications);
     if (retained.length !== draft.notifications.length) draft.notifications = retained;
     const result = change(draft);
+    if (!draft.selectedProfile && draft.profiles.length === 1) {
+      draft.selectedProfile = draft.profiles[0].name;
+    }
     const remaining = retainNotifications(draft.notifications);
     if (remaining.length !== draft.notifications.length) draft.notifications = remaining;
     if (Object.keys(draft).some(key => draft[key] !== saved[key])) {

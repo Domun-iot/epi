@@ -68,7 +68,7 @@ async function pageWith(t, snapshot, options = {}, mode) {
   return page;
 }
 
-test('the toolbar profile icon creates the first profile, then opens the profiles screen', async t => {
+test('l’icône crée le premier profil, puis son nom et son icône ouvrent sa fiche', async t => {
   const page = await pageWith(t);
   const picker = page.getByRole('combobox', { name: 'Profil actif' });
   assert.equal(await picker.count(), 0);
@@ -85,11 +85,14 @@ test('the toolbar profile icon creates the first profile, then opens the profile
   await editor.getByLabel('Taille (cm)').fill('165');
   await page.locator('.toolbar').getByRole('button', { name: 'Enregistrer' }).click();
   await editor.waitFor({ state: 'hidden' });
-  assert.equal(await picker.inputValue(), 'Alice');
-  await page.getByRole('button', { name: 'Ouvrir les profils' }).click();
-  await page.waitForURL('**/#profiles');
-  await page.getByRole('heading', { name: 'Profils', exact: true }).waitFor();
-  assert.equal(await page.locator('#profile').evaluate(select => select === document.activeElement), false);
+  assert.equal(await picker.count(), 0);
+  for (const button of ['Alice', 'Modifier le profil']) {
+    await page.locator('.toolbar').getByRole('button', { name: button, exact: true }).click();
+    await editor.getByRole('heading', { name: 'Modifier le profil', exact: true }).waitFor();
+    assert.equal(await editor.getByLabel('Nom', { exact: true }).inputValue(), 'Alice');
+    assert.equal(new URL(page.url()).hash, '');
+    await page.locator('#editor-actions').getByRole('button', { name: 'Annuler', exact: true }).click();
+  }
 });
 
 test('archive actions switch to icons when their labels do not fit', async t => {
@@ -157,7 +160,10 @@ test('theme follows the browser until a profile saves a selection', async t => {
 });
 
 const choosePage = (page, label) => page.getByRole('navigation').getByRole('button', { name: label, exact: true }).click();
-const chosenProfile = page => page.getByRole('combobox', { name: 'Profil actif' }).inputValue();
+async function chosenProfile(page) {
+  const name = page.locator('#profile-name');
+  return await name.isVisible() ? name.innerText() : page.getByRole('combobox', { name: 'Profil actif' }).inputValue();
+}
 const feed = (page, line) => page.evaluate(value => window.dispatchEvent(new CustomEvent('epi:frame', { detail: value })), line);
 
 test('le mode web ouvre l’écran expliquant où écouter le Bluetooth', async t => {
@@ -849,7 +855,7 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   assert.deepEqual(snapshot.measurements, [initial.measurements[2]]);
   assert.deepEqual(snapshot.devices, []);
   assert.deepEqual(snapshot.profilePreferences, {});
-  assert.equal(snapshot.selectedProfile, null);
+  assert.equal(snapshot.selectedProfile, 'Bob');
   assert.deepEqual(snapshot.notifications.map(({ type, action }) => [type, action]), [
     ['device', 'deleted'], ['measurement', 'deleted'], ['profile', 'deleted'],
   ]);
@@ -928,6 +934,7 @@ test('attribution sans profil sur smartphone, création depuis une pesée et his
 
 test('archive ZIP exportée, réimportée et idempotente dans le navigateur', async t => {
   const source = await pageWith(t, { profiles: [alice], devices: [device], measurements: [record] });
+  await source.getByRole('table', { name: 'Pesées' }).getByText('70 kg', { exact: true }).waitFor();
   const downloadEvent = source.waitForEvent('download');
   await source.getByRole('button', { name: 'Export ZIP' }).click();
   const download = await downloadEvent;
@@ -948,13 +955,13 @@ test('archive ZIP exportée, réimportée et idempotente dans le navigateur', as
   await page.locator('#import-files').setInputFiles(archive);
   await page.getByText('Import terminé.', { exact: true }).waitFor();
   await dismissNotificationBanner(page);
-  await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('Alice');
+  await page.getByRole('button', { name: 'Alice', exact: true }).waitFor();
   const table = page.getByRole('table', { name: 'Pesées' });
   await table.getByText('70 kg', { exact: true }).waitFor();
   await page.locator('#import-files').setInputFiles(archive);
   await page.getByText('Import terminé.', { exact: true }).waitFor();
   assert.equal(await table.getByText('70 kg', { exact: true }).count(), 1);
-  assert.equal(await page.getByRole('combobox', { name: 'Profil actif' }).getByRole('option', { name: 'Alice' }).count(), 1);
+  assert.equal(await page.getByRole('combobox', { name: 'Profil actif' }).count(), 0);
   await dismissNotificationBanner(page);
   await page.locator('#import-files').setInputFiles({ name: 'incorrect.zip', mimeType: 'application/zip', buffer: Buffer.from('Invalid ZIP') });
   await page.getByRole('alert').waitFor();

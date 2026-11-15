@@ -10,6 +10,7 @@ import { devicesView, noticesView, profilesView } from './management-view.js';
 
 const navigation = document.querySelector('#navigation');
 const profilePicker = document.querySelector('#profile');
+const profileName = document.querySelector('#profile-name');
 const themeToggle = document.querySelector('#theme-toggle');
 const themeColor = document.querySelector('meta[name=theme-color]');
 const preferredTheme = window.matchMedia('(prefers-color-scheme: dark)');
@@ -84,9 +85,11 @@ function renderProfilePicker() {
   if (changed(lastProfiles, nextProfiles)) {
     lastProfiles = nextProfiles;
     profilePicker.innerHTML = `<option value="">${anonymous ? 'Sans profil' : 'Choisir un profil'}</option>${sortByName(state.profiles).map(({ name }) => `<option value="${e(name)}">${e(name)}</option>`).join('')}`;
-    const hasProfiles = state.profiles.length > 0;
-    profilePicker.hidden = !hasProfiles;
-    profileIcon.title = hasProfiles ? 'Ouvrir les profils' : 'Créer un profil';
+    const count = state.profiles.length;
+    profilePicker.hidden = count < 2;
+    profileName.hidden = count !== 1;
+    profileName.textContent = count === 1 ? state.profiles[0].name : '';
+    profileIcon.title = count > 1 ? 'Ouvrir les profils' : count === 1 ? 'Modifier le profil' : 'Créer un profil';
     profileIcon.setAttribute('aria-label', profileIcon.title);
   }
   profilePicker.value = state.selectedProfile ?? '';
@@ -484,10 +487,14 @@ const actions = {
   },
 };
 
-profileIcon.addEventListener('click', () => {
-  if (state.profiles.length) navigation.querySelector('[data-page="profiles"]').click();
+function openProfiles() {
+  if (state.profiles.length > 1) navigation.querySelector('[data-page="profiles"]').click();
+  else if (state.profiles.length === 1) void perform(() => editProfile(state.profiles[0]));
   else if (editorView.hidden) void perform(() => addProfile());
-});
+}
+
+profileIcon.addEventListener('click', openProfiles);
+profileName.addEventListener('click', openProfiles);
 navigation.addEventListener('click', event => {
   const page = event.target.closest('[data-page]')?.dataset.page;
   if (page && !editorView.hidden) editor.closeView();
