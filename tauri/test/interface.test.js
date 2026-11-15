@@ -68,7 +68,7 @@ async function pageWith(t, snapshot, options = {}, mode) {
   return page;
 }
 
-test('l’icône crée le premier profil, puis son nom et son icône ouvrent sa fiche', async t => {
+test('l’icône crée le premier profil, puis partage un bouton avec son nom', async t => {
   const page = await pageWith(t);
   const picker = page.getByRole('combobox', { name: 'Profil actif' });
   assert.equal(await picker.count(), 0);
@@ -86,13 +86,32 @@ test('l’icône crée le premier profil, puis son nom et son icône ouvrent sa 
   await page.locator('.toolbar').getByRole('button', { name: 'Enregistrer' }).click();
   await editor.waitFor({ state: 'hidden' });
   assert.equal(await picker.count(), 0);
-  for (const button of ['Alice', 'Modifier le profil']) {
-    await page.locator('.toolbar').getByRole('button', { name: button, exact: true }).click();
+  const profileButton = page.getByRole('button', { name: 'Modifier le profil Alice', exact: true });
+  const frameColor = control => control.evaluate(node => getComputedStyle(node, '::before').borderTopColor);
+  const transparent = 'rgba(0, 0, 0, 0)';
+  for (const target of [profileButton.locator('svg'), profileButton.getByText('Alice', { exact: true })]) {
+    await page.locator('#theme-toggle').hover();
+    assert.equal(await frameColor(profileButton), transparent);
+    await target.hover();
+    assert.notEqual(await frameColor(profileButton), transparent);
+    await target.click();
     await editor.getByRole('heading', { name: 'Modifier le profil', exact: true }).waitFor();
     assert.equal(await editor.getByLabel('Nom', { exact: true }).inputValue(), 'Alice');
     assert.equal(new URL(page.url()).hash, '');
     await page.locator('#editor-actions').getByRole('button', { name: 'Annuler', exact: true }).click();
   }
+
+  const multiPage = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Alice' });
+  const multiButton = multiPage.getByRole('button', { name: 'Ouvrir les profils' });
+  const multiPicker = multiPage.getByRole('combobox', { name: 'Profil actif' });
+  const buttonBox = await multiButton.boundingBox();
+  const pickerBox = await multiPicker.boundingBox();
+  assert.equal(buttonBox.width, 20);
+  assert.equal(pickerBox.x - buttonBox.x - buttonBox.width, 10);
+  await multiPicker.hover();
+  assert.equal(await frameColor(multiButton), transparent);
+  await multiButton.hover();
+  assert.notEqual(await frameColor(multiButton), transparent);
 });
 
 test('archive actions switch to icons when their labels do not fit', async t => {
@@ -955,7 +974,7 @@ test('archive ZIP exportée, réimportée et idempotente dans le navigateur', as
   await page.locator('#import-files').setInputFiles(archive);
   await page.getByText('Import terminé.', { exact: true }).waitFor();
   await dismissNotificationBanner(page);
-  await page.getByRole('button', { name: 'Alice', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Modifier le profil Alice', exact: true }).waitFor();
   const table = page.getByRole('table', { name: 'Pesées' });
   await table.getByText('70 kg', { exact: true }).waitFor();
   await page.locator('#import-files').setInputFiles(archive);

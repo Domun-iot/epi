@@ -15,7 +15,7 @@ const themeToggle = document.querySelector('#theme-toggle');
 const themeColor = document.querySelector('meta[name=theme-color]');
 const preferredTheme = window.matchMedia('(prefers-color-scheme: dark)');
 const profileIcon = document.querySelector('#profile-icon');
-profileIcon.innerHTML = userIcon;
+profileIcon.insertAdjacentHTML('afterbegin', userIcon);
 const dataActions = document.querySelector('#data-actions');
 const backButton = document.querySelector('#back-to-measurements');
 const restoreButton = document.querySelector('#restore-button');
@@ -90,7 +90,7 @@ function renderProfilePicker() {
     profileName.hidden = count !== 1;
     profileName.textContent = count === 1 ? state.profiles[0].name : '';
     profileIcon.title = count > 1 ? 'Ouvrir les profils' : count === 1 ? 'Modifier le profil' : 'Créer un profil';
-    profileIcon.setAttribute('aria-label', profileIcon.title);
+    profileIcon.setAttribute('aria-label', count === 1 ? `${profileIcon.title} ${profileName.textContent}` : profileIcon.title);
   }
   profilePicker.value = state.selectedProfile ?? '';
 }
@@ -499,7 +499,6 @@ function openProfiles() {
 }
 
 profileIcon.addEventListener('click', openProfiles);
-profileName.addEventListener('click', openProfiles);
 navigation.addEventListener('click', event => {
   const page = event.target.closest('[data-page]')?.dataset.page;
   if (page && !editorView.hidden) editor.closeView();

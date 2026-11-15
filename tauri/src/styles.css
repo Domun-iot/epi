@@ -43,9 +43,11 @@ nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
 .workspace { --view-inline-padding: clamp(9px, 2vw, 27px); min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .toolbar { position: relative; min-height: 66px; border-bottom: 1px solid var(--line); background: var(--surface); display: flex; justify-content: flex-end; align-items: center; padding: 10px var(--view-inline-padding); }
 .profile-select { --toolbar-icon-width: 20px; --profile-gap: 10px; display: flex; align-items: center; gap: var(--profile-gap); min-width: 0; }
-.profile-select:has(#profile[hidden] + #profile-name[hidden]) { --profile-gap: var(--toolbar-icon-width); }
+.profile-select:has(#profile[hidden]):has(#profile-name[hidden]) { --profile-gap: var(--toolbar-icon-width); }
 .profile-select select { min-width: 0; }
-#profile-name:not([hidden]) { display: block; border: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#profile-icon:has(#profile-name:not([hidden])) { flex: 0 1 auto; width: auto; min-width: 0; gap: 4px; }
+#profile-icon svg { flex: none; }
+#profile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 620; }
 #theme-toggle { flex: none; }
 #theme-toggle { width: var(--action-button-height); padding: 0; }
 #theme-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
