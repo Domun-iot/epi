@@ -823,6 +823,8 @@ test('une trame reçue pendant la saisie prépare l’enregistrement de la balan
   await name.fill('Balance capturée');
   await save.click();
   await editor.waitFor({ state: 'hidden' });
+  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
+  await choosePage(page, 'Appareils');
   await page.getByRole('heading', { name: 'Balance capturée', exact: true }).waitFor();
   assert.equal(await page.getByText(/En attente d’une pesée/).count(), 0);
 });
@@ -907,6 +909,9 @@ test('capture et renommage, attribution automatique et flux brut horodaté', asy
   await page.getByText(/En attente d’une pesée/).waitFor();
   await feed(page, metadata);
   await feed(page, frame);
+  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
+  await page.getByText('70,9 kg', { exact: true }).waitFor();
+  await choosePage(page, 'Appareils');
   await page.getByRole('heading', { name: 'Balance Xiaomi', exact: true }).waitFor();
   assert.equal(await chosenProfile(page), 'Alice');
   await page.getByText('Flux Bluetooth brut').click();
@@ -963,6 +968,9 @@ test('attribution sans profil sur smartphone, création depuis une pesée et his
   await toolbar.getByRole('button', { name: 'Enregistrer' }).click();
   await editor.waitFor({ state: 'hidden' });
   assert.equal(await chosenProfile(page), 'Camille');
+  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
+  await page.getByText('70,9 kg', { exact: true }).waitFor();
+  await page.locator('#back-to-measurements').click();
   const table = page.getByRole('table', { name: 'Pesées' });
   await table.getByText('70,9 kg', { exact: true }).waitFor();
   await page.getByText('Colonnes', { exact: true }).click();
@@ -1039,7 +1047,8 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   await profiles.getByRole('button', { name: 'Bob Sélectionner', exact: true }).getByText('Bob', { exact: true }).tap();
   await editor.waitFor({ state: 'hidden' });
   assert.equal(await chosenProfile(page), 'Bob Martin');
-  await page.getByRole('table').getByText('70,9 kg').waitFor();
+  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
+  await page.getByText('70,9 kg', { exact: true }).waitFor();
 
   await feed(page, 'AABBCCDDEEFF -62 181D 00404C');
   await banner.getByRole('button', { name: 'Attribuer la pesée' }).click();
@@ -1053,6 +1062,8 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   await toolbar.getByRole('button', { name: 'Enregistrer' }).click();
   await editor.waitFor({ state: 'hidden' });
   assert.equal(await chosenProfile(page), 'Bob Martin');
+  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
+  await page.getByText('97,6 kg', { exact: true }).waitFor();
   await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('');
   await page.getByRole('table').getByText('97,6 kg', { exact: true }).waitFor();
   assert.equal(await page.getByText('Colonnes', { exact: true }).count(), 0);
@@ -1238,8 +1249,12 @@ test('le bandeau affiche uniquement la première ligne d’une erreur', async t 
 test('les notifications de pesée ouvrent le détail et la suppression permet de restaurer', async t => {
   const page = await pageWith(t, { profiles: [alice], devices: [device], selectedProfile: 'Alice', measurements: [record] });
   const notices = page.locator('#notices');
+  await page.getByRole('link', { name: 'Mode simulation' }).click();
+  await page.getByRole('heading', { name: 'Écoute Bluetooth' }).waitFor();
   await feed(page, frame);
   await notices.getByText('Pesée enregistrée', { exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
+  await page.getByText('70,9 kg', { exact: true }).waitFor();
   assert.equal(await notices.locator('.notification-summary').innerText(), 'Pesée enregistrée');
   await dismissNotificationBanner(page);
   const icon = page.getByRole('button', { name: 'Notifications', exact: true });

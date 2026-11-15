@@ -103,7 +103,10 @@ function renderEditorView() {
   pendingActions.inert = editing;
   render();
   viewScroll.scrollTop = editing ? 0 : scrollBeforeEditor ?? 0;
-  if (!editing) scrollBeforeEditor = undefined;
+  if (!editing) {
+    scrollBeforeEditor = undefined;
+    if (reading && currentPage() === 'measurements') backButton.focus({ preventScroll: true });
+  }
 }
 
 function render() {
@@ -281,6 +284,7 @@ function scheduleNotificationExpiry() {
 function onState(next) {
   const previous = state;
   state = next;
+  let savedMeasurement;
   if (previous.notifications !== state.notifications) {
     const known = new Map(previous.notifications.map(item => [item.id, item]));
     const current = new Map(state.notifications.map(item => [item.id, item]));
@@ -288,14 +292,19 @@ function onState(next) {
     noticeQueue = noticeQueue.map(item => current.get(item.id) ?? item);
     const incoming = state.notifications.filter(item => item.banner && !known.has(item.id)
       && item.type !== 'pending' && item.type !== 'enrollment');
-    if (initializedNotifications) enqueueBanners(incoming);
+    if (initializedNotifications) {
+      const savedNotice = incoming.findLast(item => item.type === 'measurement' && item.action === 'saved');
+      if (savedNotice) savedMeasurement = state.measurements.find(row => row.uuid === savedNotice.record.uuid);
+      enqueueBanners(incoming);
+    }
     initializedNotifications = true;
     scheduleNotificationExpiry();
   }
   if (next.acquisitionError && next.acquisitionError !== previousAcquisitionError) showError(next.acquisitionError);
   previousAcquisitionError = next.acquisitionError;
   previewDeviceCapture?.(state.pending);
-  render();
+  if (savedMeasurement) openMeasurement(savedMeasurement);
+  else render();
   renderFrames();
 }
 
@@ -322,6 +331,22 @@ function go(page, uuid) {
   const fragment = uuid ? `${page}/${uuid}` : page;
   if (window.location.hash !== '#' + fragment) window.location.hash = fragment;
   else if (uuid) focusRecord();
+}
+
+function openMeasurement(row) {
+  const onMeasurements = currentPage() === 'measurements';
+  if (!onMeasurements) window.history.pushState(null, '', '#measurements');
+  if (!onMeasurements || !reading) {
+    historyScroll = {
+      left: onMeasurements ? view.querySelector('.table-scroll')?.scrollLeft ?? 0 : 0,
+      top: onMeasurements ? scrollBeforeEditor ?? viewScroll.scrollTop : 0,
+    };
+  }
+  if (!editorView.hidden) scrollBeforeEditor = 0;
+  reading = row;
+  render();
+  backButton.focus({ preventScroll: true });
+  viewScroll.scrollTop = 0;
 }
 
 function editProfile(profile) {
@@ -474,12 +499,7 @@ const actions = {
     !state.splitColumns.includes(id)),
   reading: index => {
     const row = rows[Number(index)];
-    if (!row) return;
-    historyScroll = { left: view.querySelector('.table-scroll').scrollLeft, top: viewScroll.scrollTop };
-    reading = row;
-    render();
-    backButton.focus({ preventScroll: true });
-    viewScroll.scrollTop = 0;
+    if (row) openMeasurement(row);
   },
   'back-to-measurements': () => {
     const row = reading;
@@ -753,7 +773,7 @@ profilePicker.addEventListener('change', () => {
   const name = profilePicker.value || null;
   void perform(() => session.selectProfile(name)).then(renderProfilePicker);
 });
-window.addEventListener('hashchange', () => {
+function renderPageChange() {
   reading = null;
   notificationId = null;
   if (!editorView.hidden) {
@@ -763,7 +783,8 @@ window.addEventListener('hashchange', () => {
   render();
   focusRecord();
   renderFrames();
-});
+}
+window.addEventListener('hashchange', renderPageChange);
 
 async function importArchive(importer) {
   importButton.disabled = true;
@@ -835,7 +856,10 @@ try {
     }
     bluetoothWatch.receive(line);
   }, () => {
-    if (currentPage() === 'bluetooth') go('measurements');
+    if (currentPage() === 'bluetooth') {
+      window.history.pushState(null, '', '#measurements');
+      renderPageChange();
+    }
   });
   themeToggle.disabled = false;
   reloadButton.hidden = !session.native && !session.web;
