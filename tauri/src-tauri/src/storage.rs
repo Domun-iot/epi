@@ -37,9 +37,6 @@ fn shared_data(executable_dir: &Path) -> Option<PathBuf> {
 pub(crate) fn data_root(app: &AppHandle) -> Result<PathBuf, String> {
     #[cfg(desktop)]
     {
-        if let Some(path) = std::env::var_os("EPI_DATA_DIR").filter(|path| !path.is_empty()) {
-            return Ok(PathBuf::from(path));
-        }
         // An AppImage runs its ELF from a temporary mount. APPIMAGE points to the original file.
         #[cfg(target_os = "linux")]
         let executable = std::env::var_os("APPIMAGE")
@@ -48,20 +45,25 @@ pub(crate) fn data_root(app: &AppHandle) -> Result<PathBuf, String> {
             .or_else(|| std::env::current_exe().ok());
         #[cfg(not(target_os = "linux"))]
         let executable = std::env::current_exe().ok();
-        if let Some(shared) = executable
-            .as_deref()
-            .and_then(Path::parent)
-            .and_then(shared_data)
-        {
-            return Ok(shared);
+        let root =
+            if let Some(path) = std::env::var_os("EPI_DATA_DIR").filter(|path| !path.is_empty()) {
+                PathBuf::from(path)
+            } else if let Some(shared) = executable
+                .as_deref()
+                .and_then(Path::parent)
+                .and_then(shared_data)
+            {
+                shared
+            } else {
+                app.path().app_data_dir().map_err(message)?.join("data")
+            };
+        for folder in ["devices", "measures", "profiles"] {
+            fs::create_dir_all(root.join(folder)).map_err(message)?;
         }
+        Ok(root)
     }
-    let private = app.path().app_data_dir().map_err(message)?.join("data");
-    #[cfg(desktop)]
-    for folder in ["devices", "measures", "profiles"] {
-        fs::create_dir_all(private.join(folder)).map_err(message)?;
-    }
-    Ok(private)
+    #[cfg(not(desktop))]
+    Ok(app.path().app_data_dir().map_err(message)?.join("data"))
 }
 
 fn message(error: impl std::fmt::Display) -> String {

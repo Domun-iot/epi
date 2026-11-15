@@ -1,4 +1,4 @@
-export const recordPath = /^(profiles\/(?:profil-[^/]+|[0-9a-f-]{36})\.json|devices\/[^/]+\.json|measures\/[^/]+\/[^/]+\.json)$/u;
+export const recordPath = /^(profiles\/(?:profil-[^/]+|[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12})\.json|devices\/[^/]+\.json|measures\/[^/]+\/[^/]+\.json)$/u;
 
 export function fileRecords(files) {
   const archive = { profiles: [], devices: [], measurements: [] };

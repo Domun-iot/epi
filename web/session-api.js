@@ -1,63 +1,17 @@
-import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { actions } from './actions.js';
-import { fileRecords, recordPath } from './file-records.js';
+import { fileStorage } from './file-storage.js';
 
 export function json(response, status, payload) {
   response.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
   response.end(JSON.stringify(payload));
 }
 
-async function readDataset(dataDir, dataFolders) {
-  async function collect(folder, includeSubfolders) {
-    let entries;
-    try {
-      entries = await readdir(resolve(dataDir, folder), { withFileTypes: true });
-    } catch (error) {
-      if (error.code === 'ENOENT') return [];
-      throw error;
-    }
-    const files = [];
-    for (const entry of entries) {
-      const path = folder + '/' + entry.name;
-      if (includeSubfolders && entry.isDirectory()) {
-        files.push(...await collect(path, false));
-      } else if (entry.isFile() && recordPath.test(path)) {
-        files.push({ path, contents: await readFile(resolve(dataDir, path), 'utf8') });
-      }
-    }
-    return files;
-  }
-
-  const files = await Promise.all(dataFolders.map(folder => collect(folder, folder === 'measures')));
-  return fileRecords(files.flat());
-}
-
-export async function createSessionApi({ root, config, domain, storage }) {
-  const selection = config.dataDir?.trim() ? null : storage.resolveDataDirectory(root);
-  const dataDir = selection ? resolve(selection.directory) : resolve(root, config.dataDir);
-  const snapshot = resolve(dataDir, 'session.json');
-  const temporary = resolve(dataDir, `session-${process.pid}.tmp`);
-  await mkdir(dataDir, { recursive: true });
-  if (selection && !selection.shared) {
-    await Promise.all(storage.dataFolders.map(folder => mkdir(resolve(dataDir, folder), { recursive: true })));
-  }
-  const session = domain.createSession({
-    storage: {
-      async load() {
-        try {
-          return JSON.parse(await readFile(snapshot, 'utf8'));
-        } catch (error) {
-          if (error.code !== 'ENOENT') throw error;
-          return readDataset(dataDir, storage.dataFolders);
-        }
-      },
-      async save(state) {
-        await writeFile(temporary, JSON.stringify(state), { mode: 0o600 });
-        await rename(temporary, snapshot);
-      },
-    },
-  });
+export async function createSessionApi({ root, domain, storage }) {
+  const dataDir = resolve(storage.resolveDataDirectory(root));
+  await Promise.all(storage.dataFolders.map(folder => mkdir(resolve(dataDir, folder), { recursive: true })));
+  const session = domain.createSession({ storage: fileStorage(dataDir) });
   await session.load();
 
   async function handleAction(request, response) {

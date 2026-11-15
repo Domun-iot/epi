@@ -3,7 +3,6 @@ import { build } from 'esbuild';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import config from '../web/config.js';
 import { createSessionApi } from '../web/session-api.js';
 
 const appPath = import.meta.url;
@@ -58,7 +57,7 @@ function webSessionApi() {
       const require = createRequire(appPath);
       const domain = require('./domain/session.cjs');
       const storage = require('../shared/data-directory.cjs');
-      const { handleAction } = await createSessionApi({ root, config, domain, storage });
+      const { handleAction } = await createSessionApi({ root, domain, storage });
       server.middlewares.use('/api/session', (request, response, next) => {
         handleAction(request, response).catch(next);
       });

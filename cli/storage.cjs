@@ -9,12 +9,11 @@ const { isSea } = require('node:sea');
 
 const { dataFolders, resolveDataDirectory } = require('../shared/data-directory.cjs');
 
-const { directory: dataDirectory, shared: sharedData } = resolveDataDirectory(
+const dataDirectory = resolveDataDirectory(
   isSea() ? dirname(process.execPath) : __dirname,
 );
 
 function initializeDataDirectory() {
-  if (sharedData) return;
   for (const name of dataFolders) mkdirSync(join(dataDirectory, name), { recursive: true });
 }
 const profileDirectory = join(dataDirectory, 'profiles');

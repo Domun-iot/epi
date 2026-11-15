@@ -21,6 +21,7 @@ function findSharedData(directory) {
 }
 
 function userDataDirectory() {
+  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', 'fr.epi.balance', 'data');
   const base = process.platform === 'win32'
     ? process.env.APPDATA || join(homedir(), 'AppData', 'Roaming')
     : (isAbsolute(process.env.XDG_DATA_HOME || '') ? process.env.XDG_DATA_HOME : join(homedir(), '.local', 'share'));
@@ -28,8 +29,7 @@ function userDataDirectory() {
 }
 
 function resolveDataDirectory(startDirectory) {
-  const shared = process.env.EPI_DATA_DIR || findSharedData(startDirectory);
-  return { directory: shared || userDataDirectory(), shared: Boolean(shared) };
+  return process.env.EPI_DATA_DIR || findSharedData(startDirectory) || userDataDirectory();
 }
 
 module.exports = { dataFolders, resolveDataDirectory };

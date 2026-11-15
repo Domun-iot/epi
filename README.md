@@ -36,17 +36,16 @@ L’application web installée se lance dans sa propre fenêtre et utilise toujo
 export default {
   host: '127.0.0.1',
   port: 3000,
-  // dataDir: './data',
 };
 ```
 
-Un `dataDir` explicite et relatif est résolu depuis le dossier de `config.js`. Si `dataDir` est absent ou vide, le serveur utilise `EPI_DATA_DIR`, puis cherche un `data/` avec `devices/`, `measures/` et `profiles/` en remontant depuis la release. En dernier recours, il utilise le dossier utilisateur commun décrit ci-dessous. Le serveur crée le dossier de stockage et écrit `session.json` lors de la première modification. Un nouveau build conserve la configuration et les données. Utilise une seule instance du serveur par dossier de stockage et sauvegarde le dossier pour conserver les données.
+Un nouveau build conserve la configuration et les données. Pour reprendre un dossier personnalisé auparavant défini par `dataDir`, indique son chemin absolu dans `EPI_DATA_DIR` au lancement.
 
-La release web et `dev-web` chargent les profils, balances et pesées des autres versions PC depuis le dossier choisi tant que `session.json` est absent. Dès que la session web est enregistrée, elle est relue depuis `session.json`. L’import et l’export ZIP permettent ensuite d’échanger ces données avec les autres versions PC. La capture Bluetooth reste disponible dans les applications installées. Les navigateurs connectés partagent le même espace de données. Le bouton « Recharger » récupère les changements effectués depuis un autre navigateur. Pour ouvrir l’accès sur le réseau, choisis l’interface d’écoute voulue. Pour un accès Internet, place le serveur derrière un proxy HTTPS avec authentification. Conserve l’écoute locale et configure le proxy pour transmettre l’en-tête `Host` de l’adresse locale.
+La release web et `dev-web` lisent et écrivent les mêmes fichiers que les autres versions PC. La capture Bluetooth reste disponible dans les applications installées. Les navigateurs connectés partagent le même espace de données. Le bouton « Recharger » relit les fichiers, y compris après une modification dans Tauri ou le CLI. Pour ouvrir l’accès sur le réseau, choisis l’interface d’écoute voulue. Pour un accès Internet, place le serveur derrière un proxy HTTPS avec authentification. Conserve l’écoute locale et configure le proxy pour transmettre l’en-tête `Host` de l’adresse locale.
 
 ## Données
 
-Sur PC, le CLI et l’interface utilisent `EPI_DATA_DIR` quand la variable est définie. Sinon, ils cherchent un dossier `data/` contenant les trois sous-dossiers `devices/`, `measures/` et `profiles/`. La recherche commence à côté de l’exécutable ou de l’AppImage et remonte jusqu’à la racine.
+Sur PC, le CLI, Tauri et le serveur web utilisent `EPI_DATA_DIR` quand la variable est définie. Sinon, ils cherchent un dossier `data/` contenant les trois sous-dossiers `devices/`, `measures/` et `profiles/`. La recherche remonte jusqu’à la racine depuis le dossier de l’exécutable, de l’AppImage ou du serveur web.
 
 Si aucun dossier partagé n’est trouvé, ils utilisent ou créent le dossier de données utilisateur commun. Sous Windows, c’est `%APPDATA%\fr.epi.balance\data`. Sous Linux, c’est `${XDG_DATA_HOME:-$HOME/.local/share}/fr.epi.balance/data`.
 
