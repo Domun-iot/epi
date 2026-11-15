@@ -998,6 +998,12 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   await banner.getByRole('button', { name: 'Enregistrer l’appareil' }).click();
   const editor = page.locator('#editor-view');
   const toolbar = page.locator('.toolbar');
+  const receipt = banner.getByText('Pesée reçue', { exact: true });
+  await editor.getByRole('heading', { name: 'Ajouter un appareil' }).waitFor();
+  assert.equal(await receipt.isVisible(), false);
+  await toolbar.getByRole('button', { name: 'Annuler', exact: true }).click();
+  await receipt.waitFor();
+  await banner.getByRole('button', { name: 'Enregistrer l’appareil' }).click();
   await editor.getByLabel('Nom de l’appareil').fill('Xiaomi');
   await toolbar.getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await editor.waitFor({ state: 'hidden' });

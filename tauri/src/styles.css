@@ -96,6 +96,7 @@ main { --view-header-spacing: 12px; display: grid; grid-template-rows: minmax(0,
 #view { display: grid; grid-template-rows: auto minmax(0, 1fr); }
 #pending-actions { max-height: 40dvh; overflow-y: auto; }
 #pending-actions > .notice { margin: 0; padding: 14px var(--view-inline-padding); border-width: 0 0 1px; border-radius: 0; }
+#view:has(#editor-view:not([hidden]) [data-device-instructions]) #pending-actions > [data-pending-id] { display: none; }
 #view-header { position: relative; z-index: 3; }
 #view-scroll { grid-row: 2; min-width: 0; overflow-y: auto; padding: var(--view-header-spacing) var(--view-inline-padding) var(--view-inline-padding); }
 h1, h2, p { margin-top: 0; }
