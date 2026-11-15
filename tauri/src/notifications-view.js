@@ -32,7 +32,8 @@ export function notificationText(entry, state) {
 
 export function notificationBody(entry, state, detailed = false) {
   const { title, text } = notificationText(entry, state);
-  const heading = `<strong>${e(title)}</strong>`;
+  const message = detailed ? title : String(title ?? '').trimStart().split(/\r\n?|\n/, 1)[0].trimEnd();
+  const heading = `<strong>${e(message)}</strong>`;
   if (!detailed) return heading;
   const receipt = entry.type === 'pending';
   const receivedAt = receipt ? entry.record.event.receivedAt : entry.date;

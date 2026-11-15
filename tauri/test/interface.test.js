@@ -1165,6 +1165,25 @@ test('les informations expirent après trois secondes et les erreurs attendent u
   await info.waitFor();
 });
 
+test('le bandeau affiche uniquement la première ligne d’une erreur', async t => {
+  const page = await pageWith(t, { profiles: [], devices: [], measurements: [], pending: [], notifications: [] },
+    { viewport: { width: 320, height: 800 } }, 'web');
+  const message = 'Impossible de recharger les données depuis le dossier utilisateur.';
+  await page.route(url + 'api/session', route => route.fulfill({
+    status: 500,
+    json: { error: message + '\r\nDétail technique.' },
+  }));
+  const reload = page.locator('#reload-data');
+  await reload.evaluate(button => { button.hidden = false; button.click(); });
+  const summary = page.getByRole('alert').locator('.notification-summary');
+  await summary.waitFor();
+  assert.equal(await summary.textContent(), message);
+  assert.deepEqual(await summary.evaluate(node => {
+    const style = getComputedStyle(node);
+    return [style.whiteSpace, style.textOverflow, node.scrollWidth > node.clientWidth];
+  }), ['nowrap', 'ellipsis', true]);
+});
+
 test('les notifications de pesée ouvrent le détail et la suppression permet de restaurer', async t => {
   const page = await pageWith(t, { profiles: [alice], devices: [device], selectedProfile: 'Alice', measurements: [record] });
   const notices = page.locator('#notices');
@@ -1183,6 +1202,7 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   await page.locator('#detail-actions').getByRole('button', { name: 'Supprimer', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
   await notices.getByText('Pesée supprimée', { exact: true }).waitFor();
+  assert.equal(await notices.locator('.notification-summary').innerText(), 'Pesée supprimée');
   await dismissNotificationBanner(page);
   await icon.click();
   const deleted = page.locator('.notification-item').getByRole('button', { name: /Pesée supprimée/ });
