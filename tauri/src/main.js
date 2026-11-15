@@ -28,10 +28,6 @@ const viewContent = document.querySelector('#view-content');
 const notices = document.querySelector('#notices');
 const pendingActions = document.querySelector('#pending-actions');
 const notificationIcon = document.querySelector('#notifications-icon');
-const toolbar = document.querySelector('.toolbar');
-new ResizeObserver(() => {
-  notices.style.setProperty('--notification-toolbar-height', `${toolbar.getBoundingClientRect().height}px`);
-}).observe(toolbar);
 const dialog = document.querySelector('#editor');
 const status = document.querySelector('#status span:last-child');
 const reloadButton = document.querySelector('#reload-data');
@@ -221,16 +217,25 @@ function renderBanner() {
   if (!changed(lastBanner, next)) return;
   lastBanner = next;
   const error = activeNotice.type === 'error';
-  notices.innerHTML = `<div class="notification-clip"><article class="notice notification-banner${error ? ' error' : ''}"${error ? ' role="alert"' : ''}>
-    <button class="notification-summary" type="button" aria-label="Fermer le bandeau" data-action="dismiss-banner">${notificationBody(activeNotice, false, state)}</button>
-    ${controls ? `<div class="actions">${controls}</div>` : ''}</article></div>`;
+  notices.innerHTML = `<article class="notice notification-banner${error ? ' error' : ''}"${error ? ' role="alert"' : ''}>
+    <div class="notification-banner-content">
+      <div class="notification-summary">${notificationBody(activeNotice, false, state)}</div>
+      ${controls ? `<div class="actions">${controls}</div>` : ''}
+    </div>
+    <button class="button" type="button" data-action="dismiss-banner">Vu</button>
+  </article>`;
+}
+
+function bannerDuration(entry) {
+  if (entry.type === 'error') return 0;
+  return entry.type === 'info' ? 3000 : entry.durationMs;
 }
 
 function enqueueBanners(entries) {
-  const timed = entries.filter(entry => entry.durationMs);
-  if (timed.length && activeNotice && !closingNotice && !activeNotice.durationMs) {
+  const timed = entries.filter(bannerDuration);
+  if (timed.length && activeNotice && !closingNotice && activeNotice.type !== 'error' && !bannerDuration(activeNotice)) {
     noticeQueue.unshift(...timed, activeNotice);
-    noticeQueue.push(...entries.filter(entry => !entry.durationMs));
+    noticeQueue.push(...entries.filter(entry => !bannerDuration(entry)));
     dismissBanner();
     return;
   }
@@ -248,7 +253,8 @@ function enqueueBanners(entries) {
   // Commit the collapsed frame before beginning the transition.
   notices.getBoundingClientRect();
   notices.classList.add('is-open');
-  if (activeNotice.durationMs) bannerTimeout = window.setTimeout(dismissBanner, activeNotice.durationMs);
+  const duration = bannerDuration(activeNotice);
+  if (duration) bannerTimeout = window.setTimeout(dismissBanner, duration);
 }
 
 function dismissBanner() {

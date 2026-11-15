@@ -34,7 +34,7 @@ after(async () => {
 });
 
 async function dismissNotificationBanner(page) {
-  const close = page.locator('#notices').getByRole('button', { name: 'Fermer le bandeau' });
+  const close = page.locator('#notices').getByRole('button', { name: 'Vu', exact: true });
   await close.click();
   await close.waitFor({ state: 'hidden' });
 }
@@ -184,6 +184,7 @@ test('central views use the same spacing above and below the header', async t =>
   assert.deepEqual(await gaps(null), [12, 12]);
   await choosePage(page, 'Appareils');
   assert.deepEqual(await gaps(null), [12, 12]);
+  await page.locator('details[data-expand="raw"]').waitFor();
   const outerSpacing = await page.locator('#view-scroll').evaluate(scroll => {
     const raw = scroll.querySelector('details[data-expand="raw"]');
     const content = scroll.querySelector('#view-content');
@@ -708,6 +709,7 @@ test('une trame reçue pendant la saisie prépare l’enregistrement de la balan
   assert.equal(await name.evaluate(input => input === document.activeElement), true);
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1')).devices.length), 0);
   await name.fill('Balance capturée');
+  await dismissNotificationBanner(page);
   await save.click();
   await editor.waitFor({ state: 'hidden' });
   await page.getByRole('heading', { name: 'Balance capturée', exact: true }).waitFor();
@@ -882,13 +884,14 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   const profileNames = ['Alice', 'Bob Martin', 'Élise', 'zoé'];
   assert.deepEqual((await page.locator('#profile option').allTextContents()).slice(1), profileNames);
   await feed(page, frame);
-  await page.getByRole('button', { name: 'Enregistrer l’appareil' }).click();
+  const banner = page.locator('#notices');
+  await banner.getByRole('button', { name: 'Enregistrer l’appareil' }).click();
   const editor = page.locator('#editor-view');
   const toolbar = page.locator('.toolbar');
   await editor.getByLabel('Nom de l’appareil').fill('Xiaomi');
-  await toolbar.getByRole('button', { name: 'Enregistrer' }).click();
+  await toolbar.getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await editor.waitFor({ state: 'hidden' });
-  await page.getByRole('button', { name: 'Attribuer la pesée' }).click();
+  await banner.getByRole('button', { name: 'Attribuer la pesée' }).click();
   const profiles = editor.getByRole('list', { name: 'Profils' });
   assert.deepEqual(await profiles.locator('.assignment-name').allTextContents(), ['Alice', 'Bob', 'Élise', 'zoé']);
   await profiles.getByRole('button', { name: 'Bob Sélectionner', exact: true }).getByText('Bob', { exact: true }).tap();
@@ -897,7 +900,7 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   await page.getByRole('table').getByText('70,9 kg').waitFor();
 
   await feed(page, 'AABBCCDDEEFF -62 181D 00404C');
-  await page.getByRole('button', { name: 'Attribuer la pesée' }).click();
+  await banner.getByRole('button', { name: 'Attribuer la pesée' }).click();
   const calculate = toolbar.getByRole('button', { name: 'Calculer sans profil' });
   assert.match(await calculate.getAttribute('class'), /\bprimary\b/);
   assert.doesNotMatch(await toolbar.getByRole('button', { name: 'Créer un profil' }).getAttribute('class'), /\bprimary\b/);
@@ -977,30 +980,69 @@ test('le journal conserve ses entrées et restaure un profil avec ses pesées', 
   await page.getByRole('table', { name: 'Pesées' }).getByText('70 kg').waitFor();
 });
 
-test('le bandeau laisse la barre dégagée sur smartphone et sa fermeture conserve le journal', async t => {
+test('le bandeau recouvre la barre sur smartphone et sa fermeture conserve le journal', async t => {
   const page = await pageWith(t, { devices: [device] },
     { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await feed(page, frame);
   const banner = page.locator('.notification-banner');
   await banner.getByText('Pesée reçue', { exact: true }).waitFor();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.notification-banner')).transform === 'matrix(1, 0, 0, 1, 0, 0)');
   const geometry = await banner.evaluate(node => {
     const toolbar = document.querySelector('.toolbar');
     const icon = document.querySelector('#notifications-icon').getBoundingClientRect();
     const theme = document.querySelector('#theme-toggle').getBoundingClientRect();
     const profile = document.querySelector('#profile-icon').getBoundingClientRect();
-    const reduced = document.querySelector('#notices').getBoundingClientRect();
-    return [reduced.top - toolbar.getBoundingClientRect().bottom, node.offsetHeight - toolbar.offsetHeight,
-      getComputedStyle(node).transitionDuration, icon.width, theme.left - icon.right, icon.left - profile.right];
+    const bounds = node.getBoundingClientRect();
+    const bar = toolbar.getBoundingClientRect();
+    const overTheme = document.elementFromPoint(theme.x + theme.width / 2, theme.y + theme.height / 2);
+    return {
+      top: bounds.top - bar.top,
+      bottom: bounds.bottom - bar.bottom,
+      coversTheme: node.contains(overTheme),
+      duration: getComputedStyle(node).transitionDuration,
+      iconWidth: icon.width,
+      gaps: [theme.left - icon.right, icon.left - profile.right],
+    };
   });
-  assert.equal(geometry[0], 0);
-  assert.ok(geometry[1] >= 0);
-  assert.equal(geometry[2], '0.18s');
-  assert.equal(geometry[3], geometry[4]);
-  assert.equal(geometry[3], geometry[5]);
+  assert.equal(geometry.top, 0);
+  assert.ok(Math.abs(geometry.bottom) <= 1);
+  assert.equal(geometry.coversTheme, true);
+  assert.equal(geometry.duration, '0.18s');
+  assert.deepEqual(geometry.gaps, [geometry.iconWidth, geometry.iconWidth]);
   await dismissNotificationBanner(page);
   await page.getByRole('button', { name: 'Notifications', exact: true }).click();
   await page.locator('.notification-item').getByText('Pesée reçue', { exact: true }).waitFor();
   await page.locator('.notification-item').getByRole('button', { name: 'Attribuer la pesée', exact: true }).waitFor();
+});
+
+test('les informations expirent après trois secondes et les erreurs attendent une validation', async t => {
+  const page = await pageWith(t);
+  await page.clock.install();
+  const reload = page.locator('#reload-data');
+  const banner = page.locator('#notices');
+  const info = banner.getByText('Données rechargées.', { exact: true });
+  await reload.evaluate(button => { button.hidden = false; });
+  await reload.click();
+  await info.waitFor();
+  await page.clock.runFor(2800);
+  assert.equal(await banner.evaluate(node => node.classList.contains('is-open')), true);
+  await page.clock.runFor(200);
+  assert.equal(await banner.evaluate(node => node.classList.contains('is-open')), false);
+  await page.clock.runFor(180);
+  await reload.click();
+  await info.click();
+  await page.clock.runFor(180);
+  await info.waitFor({ state: 'hidden' });
+
+  await page.locator('#import-files').setInputFiles({ name: 'incorrect.zip', mimeType: 'application/zip', buffer: Buffer.from('Invalid ZIP') });
+  const error = banner.getByRole('alert');
+  await error.waitFor();
+  await reload.evaluate(button => button.click());
+  await page.clock.runFor(4000);
+  assert.equal(await error.isVisible(), true);
+  await banner.getByRole('button', { name: 'Vu', exact: true }).click();
+  await page.clock.runFor(180);
+  await info.waitFor();
 });
 
 test('les notifications de pesée ouvrent le détail et la suppression permet de restaurer', async t => {

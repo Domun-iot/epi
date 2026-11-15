@@ -41,7 +41,7 @@ nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
 .bluetooth { display: flex; align-items: baseline; gap: 9px; margin-top: auto; font-size: .82rem; color: #c9d7ea; line-height: 1.45; overflow-wrap: anywhere; }
 .status-dot { flex: 0 0 7px; height: 7px; border-radius: 50%; background: #61d4a4; }
 .workspace { --view-inline-padding: clamp(9px, 2vw, 27px); min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
-.toolbar { min-height: 66px; border-bottom: 1px solid var(--line); background: var(--surface); display: flex; justify-content: flex-end; align-items: center; padding: 10px var(--view-inline-padding); }
+.toolbar { position: relative; min-height: 66px; border-bottom: 1px solid var(--line); background: var(--surface); display: flex; justify-content: flex-end; align-items: center; padding: 10px var(--view-inline-padding); }
 .profile-select { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .profile-select:has(#profile[hidden]) { gap: 20px; }
 .profile-select select { min-width: 0; }
@@ -290,19 +290,16 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .status-dot { background: #8da5c2; }
 .bluetooth:not(.unavailable) .status-dot { background: #61d4a4; }
 
-/* The banner is clipped by its own row, below the toolbar on every screen. */
-.workspace { grid-template-rows: auto auto minmax(0, 1fr); }
-#notices { display: grid; grid-template-rows: 0fr; overflow: clip; transition: grid-template-rows 180ms ease; }
-#notices.is-open { grid-template-rows: 1fr; }
-.notification-clip { min-height: 0; overflow: hidden; }
-.notification-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
-  min-height: var(--notification-toolbar-height, 66px); padding: 8px var(--view-inline-padding);
+#notices { position: absolute; inset: 0; z-index: 2; overflow: clip; pointer-events: none; }
+#notices.is-open { pointer-events: auto; }
+.notification-banner { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  height: 100%; padding: 4px var(--view-inline-padding); cursor: pointer;
   margin: 0; border-radius: 0; transform: translateY(-100%); transition: transform 180ms ease; }
 #notices.is-open .notification-banner { transform: translateY(0); }
 .notification-summary { display: grid; gap: 2px; text-align: left; overflow-wrap: anywhere; }
 button.notification-summary { width: 100%; color: inherit; background: transparent; border: 0; padding: 0; }
-.notification-banner > .notification-summary { flex: 1 1 250px; align-self: stretch; }
-.notification-banner .notification-summary { align-content: center; }
+.notification-banner-content { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; max-height: 100%; overflow-y: auto; padding: 4px; }
+.notification-banner-content .notification-summary { flex: 1 1 200px; }
 .notification-summary small { color: var(--muted); }
 .notification-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
 .notification-item .actions { margin-top: 8px; }
