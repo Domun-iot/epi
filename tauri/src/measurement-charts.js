@@ -3,6 +3,17 @@ import { escapeHtml as e, formatDate } from './format.js';
 const axisDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'short' });
 const axisTime = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' });
 const axisValue = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
+const dayMs = 86400_000;
+
+function rangeLabel([start, end]) {
+  const localDay = time => Math.floor((time - new Date(time).getTimezoneOffset() * 60_000) / dayMs);
+  const days = localDay(end) - localDay(start) + 1;
+  const [unit, divisor] = days > 365 ? ['year', 365] : days > 30 ? ['month', 30] : ['day', 1];
+  const duration = new Intl.NumberFormat('fr-FR', {
+    style: 'unit', unit, unitDisplay: 'long', maximumFractionDigits: 1,
+  }).format(days / divisor);
+  return `Du ${axisDate.format(start)} au ${axisDate.format(end)} (${duration})`;
+}
 
 function valueScale(points, referenceTop = 0) {
   let low = 0;
@@ -139,7 +150,7 @@ export function measurementCharts(rows, series, { period = 'all', range, mode = 
           aria-pressed="${!range && period === id}">${label}</button>`).join('')}
       </div>
     </div>
-    ${range ? `<p class="chart-range">Du ${e(formatDate(range[0]))} au ${e(formatDate(range[1]))}</p>` : ''}
+    ${range ? `<p class="chart-range">${e(rangeLabel(range))}</p>` : ''}
     ${chartPlot(rows, configured, { period, range, mode, statuses, profileAge }, legend)}
   </section>`;
 }
@@ -148,8 +159,10 @@ function chartPlot(rows, series, { period, range, mode, statuses, profileAge }, 
   const timeline = rows.map((row, index) => ({ row, index, time: Date.parse(row.receivedAt) }))
     .filter(({ time }) => Number.isFinite(time)).sort((a, b) => a.time - b.time);
   const latestTime = timeline.at(-1)?.time;
-  const cutoff = period === 'all' ? -Infinity : latestTime - Number(period) * 86400_000;
-  const [start, end] = range ?? [timeline.find(({ time }) => time >= cutoff)?.time, latestTime];
+  const cutoff = period === 'all' ? -Infinity : latestTime - Number(period) * dayMs;
+  const [start, end] = range
+    ? [new Date(range[0]).setHours(0, 0, 0, 0), new Date(range[1]).setHours(23, 59, 59, 999)]
+    : [timeline.find(({ time }) => time >= cutoff)?.time, latestTime];
   const visible = series.filter(({ id }) => statuses[id] !== 'hidden');
   const lines = visible.map(item => plotSeries(item, timeline, start, end, mode)).filter(Boolean);
   if (!lines.length) {

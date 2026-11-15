@@ -722,12 +722,22 @@ function updateChartSelection(x) {
   const fraction = clientX => Math.max(0, Math.min(1, (clientX - left) / width));
   const first = fraction(Math.min(origin, x));
   const last = fraction(Math.max(origin, x));
-  preview.style.left = `${first * 100}%`;
-  preview.style.width = `${(last - first) * 100}%`;
-  preview.hidden = false;
+  if (first === last) {
+    preview.hidden = true;
+    return;
+  }
   const start = Number(plot.dataset.start);
   const duration = Number(plot.dataset.end) - start;
-  return [Math.round(start + first * duration), Math.round(start + last * duration)];
+  const leftDate = new Date(start + first * duration);
+  leftDate.setDate(leftDate.getDate() - 1);
+  const rangeStart = leftDate.setHours(0, 0, 0, 0);
+  const rangeEnd = new Date(start + last * duration).setHours(23, 59, 59, 999);
+  const leftPercent = Math.max(0, (rangeStart - start) / duration * 100);
+  const rightPercent = Math.min(100, (rangeEnd - start) / duration * 100);
+  preview.style.left = `${leftPercent}%`;
+  preview.style.width = `${rightPercent - leftPercent}%`;
+  preview.hidden = false;
+  return [rangeStart, rangeEnd];
 }
 
 function stopChartSelection() {

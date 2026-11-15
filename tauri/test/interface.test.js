@@ -607,7 +607,9 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
     measures: { weight: 150, unit: 'lb' }, calculations: null };
   const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Alice',
     measurements: [record, earlier, { ...record, receivedAt: '2026-01-14T17:23:21Z',
-      measures: { ...record.measures, weight: 72 } }] }, { viewport: { width: 360, height: 800 } });
+      measures: { ...record.measures, weight: 72 } }] }, {
+    viewport: { width: 360, height: 800 }, locale: 'fr-FR', timezoneId: 'Europe/Paris',
+  });
   const chart = page.getByRole('button', { name: 'Graphique', exact: true });
   const table = page.getByRole('button', { name: 'Tableau', exact: true });
   const weightChart = page.getByRole('region', { name: 'Évolution des pesées', exact: true });
@@ -656,10 +658,14 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   await page.mouse.move(x + width + 2, y + height / 2, { steps: 5 });
   await weightChart.locator('.chart-selection').waitFor();
   await page.mouse.up();
-  await weightChart.locator('.chart-range').waitFor();
+  const selectedRange = weightChart.locator('.chart-range');
+  await selectedRange.waitFor();
+  assert.match(await selectedRange.textContent(), /^Du 23\/12\/2025 au 15\/01\/2026 \(24\sjours\)$/);
+  assert.equal(Number(await plot.getAttribute('data-start')), Date.parse('2025-12-23T00:00:00+01:00'));
+  assert.equal(Number(await plot.getAttribute('data-end')), Date.parse('2026-01-15T23:59:59.999+01:00'));
   assert.equal(await points.count(), 2);
   await page.reload();
-  await weightChart.locator('.chart-range').waitFor();
+  await selectedRange.waitFor();
   assert.equal(await brut.getAttribute('aria-pressed'), 'true');
   assert.equal(await points.count(), 2);
   await weightChart.getByRole('button', { name: 'Tout', exact: true }).click();
