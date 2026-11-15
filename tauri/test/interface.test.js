@@ -774,6 +774,28 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
   }
 });
 
+test('le graphique grandit quand les repères IMC sont dépliés dans une vue courte', async t => {
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [record] }, {
+    viewport: { width: 320, height: 300 },
+  });
+  await page.getByRole('button', { name: 'Graphique', exact: true }).click();
+  const chart = page.locator('.measurement-chart');
+  await chart.getByRole('button', { name: 'IMC (kg/m\u00b2)', exact: true }).click();
+  const reference = chart.locator('.chart-bmi-reference summary');
+  await reference.waitFor();
+  const height = await chart.evaluate(element => element.clientHeight);
+  await reference.click();
+  const layout = await chart.evaluate(element => ({
+    height: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    referenceBottom: element.querySelector('.chart-bmi-reference').getBoundingClientRect().bottom,
+    chartBottom: element.getBoundingClientRect().bottom,
+  }));
+  assert.ok(layout.height > height);
+  assert.equal(layout.scrollHeight, layout.height);
+  assert.ok(layout.referenceBottom < layout.chartBottom);
+});
+
 test('le plein écran du graphique reste temporaire', async t => {
   const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [record] });
   await page.getByRole('button', { name: 'Graphique', exact: true }).click();
