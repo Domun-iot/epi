@@ -191,7 +191,9 @@ function render() {
         : notificationRecordView(target);
     viewHeader.innerHTML = markup.header;
     chartDatesResize.disconnect();
+    const hadChart = Boolean(viewContent.querySelector('.measurement-chart'));
     viewContent.innerHTML = markup.content;
+    const enteredChart = !hadChart && viewContent.querySelector('.measurement-chart');
     const chartDates = viewContent.querySelector('.chart-dates');
     if (chartDates) chartDatesResize.observe(chartDates);
     bluetoothWatch.attach(viewContent.querySelector('#bluetooth-log'), state.addressFilter);
@@ -222,6 +224,7 @@ function render() {
     if (searchFocused) view.querySelector('.column-search')?.focus({ preventScroll: true });
     if (scroll && page === 'measurements') view.querySelector('.table-scroll')?.scrollTo({ left: scroll });
     if (focusedColumn) view.querySelector(`[data-column="${CSS.escape(focusedColumn)}"]`)?.focus({ preventScroll: true });
+    if (enteredChart) viewScroll.scrollTop = viewScroll.scrollHeight;
   }
 }
 

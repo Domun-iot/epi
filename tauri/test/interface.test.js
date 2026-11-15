@@ -644,6 +644,45 @@ test('l’axe IMC garde trois bandes au minimum et affiche les voisines proches'
   assert.deepEqual(bands([12, 51]), [red, orange, yellow, green, yellow, orange, red, purple]);
 });
 
+test('le graphique remplit la vue et le passage en mode graphique fait défiler jusqu’en bas', async t => {
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [record] }, {
+    viewport: { width: 1100, height: 400 },
+  });
+  const scroll = page.locator('#view-scroll');
+  const chart = page.locator('.measurement-chart');
+  await page.getByRole('button', { name: 'Graphique', exact: true }).click();
+  await chart.waitFor();
+  const layout = () => scroll.evaluate(view => {
+    const { paddingTop, paddingBottom } = getComputedStyle(view);
+    return {
+      height: view.querySelector('.measurement-chart').offsetHeight,
+      available: view.clientHeight - parseFloat(paddingTop) - parseFloat(paddingBottom),
+      top: view.scrollTop,
+      remaining: view.scrollHeight - view.clientHeight - view.scrollTop,
+      headerBottom: view.querySelector('.measurement-settings').getBoundingClientRect().bottom,
+      viewTop: view.getBoundingClientRect().top,
+    };
+  });
+  const short = await layout();
+  assert.equal(short.height, short.available);
+  assert.ok(short.top > 0 && Math.abs(short.remaining) <= 1);
+  assert.ok(short.headerBottom <= short.viewTop);
+  const shortPlot = (await chart.locator('.chart-plot').boundingBox()).height;
+
+  await page.setViewportSize({ width: 360, height: 800 });
+  const tall = await layout();
+  assert.equal(tall.height, tall.available);
+  assert.ok((await chart.locator('.chart-plot').boundingBox()).height > shortPlot);
+
+  await scroll.evaluate(view => { view.scrollTop = 0; });
+  const table = page.getByRole('button', { name: 'Tableau', exact: true });
+  assert.ok(await table.evaluate(button => {
+    return button.getBoundingClientRect().top < button.closest('#view-scroll').getBoundingClientRect().bottom;
+  }));
+  await table.click();
+  await chart.waitFor({ state: 'detached' });
+});
+
 test('le graphique suit les pesées et mémorise la visualisation par profil', async t => {
   const earlier = { ...record, receivedAt: '2025-12-01T17:23:21Z',
     measures: { weight: 150, unit: 'lb' }, calculations: null };
