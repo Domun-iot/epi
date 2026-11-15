@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -8,44 +8,44 @@
     <link rel="apple-touch-icon" href="/app-icons/apple-touch-icon.png" sizes="180x180" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/src/styles.css" />
-    <title>éPI — Pesées Bluetooth</title>
+    <title>éPI</title>
   </head>
   <body>
     <div class="shell">
       <aside class="sidebar">
-        <a class="brand" href="#measurements" aria-label="éPI, accès aux mesures"><span aria-hidden="true">é</span>éPI</a>
-        <nav id="navigation" aria-label="Navigation principale">
-          <button type="button" data-page="measurements"><span aria-hidden="true">▤</span>Mesures</button>
-          <button type="button" data-page="profiles"><span aria-hidden="true">◉</span>Profils</button>
-          <button type="button" data-page="devices"><span aria-hidden="true">⌁</span>Appareils</button>
-          <button type="button" id="account-button"><span aria-hidden="true">◎</span>Compte</button>
+        <a class="brand" href="#measurements" data-i18n-aria-label="measurementsHomeLink"><span aria-hidden="true">é</span>éPI</a>
+        <nav id="navigation" data-i18n-aria-label="mainNavigation">
+          <button type="button" data-page="measurements"><span aria-hidden="true">▤</span><span data-i18n="measurements"></span></button>
+          <button type="button" data-page="profiles"><span aria-hidden="true">◉</span><span data-i18n="profiles"></span></button>
+          <button type="button" data-page="devices"><span aria-hidden="true">⌁</span><span data-i18n="devices"></span></button>
+          <button type="button" id="account-button"><span aria-hidden="true">◎</span><span data-i18n="account"></span></button>
         </nav>
-        <a class="bluetooth" id="status" href="#bluetooth" aria-controls="view"><span class="status-dot" aria-hidden="true"></span><span aria-live="polite">Initialisation du Bluetooth…</span></a>
-        <button type="button" id="retry-bluetooth" hidden>Relancer le Bluetooth</button>
+        <a class="bluetooth" id="status" href="#bluetooth" aria-controls="view"><span class="status-dot" aria-hidden="true"></span><span aria-live="polite" data-i18n="bluetoothInitialising"></span></a>
+        <button type="button" id="retry-bluetooth" hidden data-i18n="restartBluetooth"></button>
       </aside>
       <div class="workspace">
         <header class="toolbar">
           <div class="actions data-actions" id="data-actions">
-            <button class="button" type="button" id="reload-data" aria-label="Actualiser" title="Actualiser" hidden>
+            <button class="button" type="button" id="reload-data" data-i18n-aria-label="refresh" data-i18n-title="refresh" hidden>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4v5h-5M4 20v-5h5M5.1 9a7.5 7.5 0 0 1 12.4-2.5L20 9M4 15l2.5 2.5A7.5 7.5 0 0 0 18.9 15"/></svg>
             </button>
-            <button class="button" type="button" id="export-data" aria-labelledby="export-label"><span id="export-label">Export ZIP</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg></button>
-            <button class="button" type="button" id="import-data" aria-labelledby="import-label"><span id="import-label">Import ZIP</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-5 5 5-5 5 5M4 16v4h16v-4"/></svg></button>
-            <input id="import-files" type="file" accept=".zip,application/zip" aria-label="Importer une archive ZIP" hidden>
+            <button class="button" type="button" id="export-data" aria-labelledby="export-label"><span id="export-label" data-i18n="exportZip"></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg></button>
+            <button class="button" type="button" id="import-data" aria-labelledby="import-label"><span id="import-label" data-i18n="importZip"></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-5 5 5-5 5 5M4 16v4h16v-4"/></svg></button>
+            <input id="import-files" type="file" accept=".zip,application/zip" data-i18n-aria-label="importAZipArchive" hidden>
           </div>
           <div class="actions editor-actions" id="editor-actions" hidden></div>
           <div class="actions" id="detail-actions" hidden>
-            <button class="button" type="button" id="back-to-measurements" hidden>Retour</button>
-            <button class="button" type="button" id="delete-measurement-button" hidden>Supprimer</button>
-            <button class="button primary" type="button" id="restore-button" hidden>Restaurer</button>
+            <button class="button" type="button" id="back-to-measurements" hidden data-i18n="goBack"></button>
+            <button class="button" type="button" id="delete-measurement-button" hidden data-i18n="delete"></button>
+            <button class="button primary" type="button" id="restore-button" hidden data-i18n="restore"></button>
           </div>
           <div class="profile-select">
-            <button type="button" id="profile-icon" aria-label="Créer un profil" title="Créer un profil"><span id="profile-name" hidden></span></button>
-            <select id="profile" aria-label="Profil actif" hidden></select>
-            <button type="button" id="notifications-icon" aria-label="Notifications" title="Notifications" hidden>
+            <button type="button" id="profile-icon" data-i18n-aria-label="createAProfile" data-i18n-title="createAProfile"><span id="profile-name" hidden></span></button>
+            <select id="profile" data-i18n-aria-label="activeProfile" hidden></select>
+            <button type="button" id="notifications-icon" data-i18n-aria-label="notifications" data-i18n-title="notifications" hidden>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
             </button>
-            <button class="button" type="button" id="theme-toggle" aria-label="Changer de thème" disabled>
+            <button class="button" type="button" id="theme-toggle" data-i18n-aria-label="changeTheme" disabled>
               <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.9 13.3A9 9 0 0 1 10.7 3.1a9 9 0 1 0 10.2 10.2Z"/></svg>
               <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
             </button>
@@ -53,12 +53,12 @@
           <div id="notices" aria-live="polite" inert></div>
         </header>
         <main>
-          <section id="view" aria-label="Mesures">
-            <div id="pending-actions" aria-label="Actions en attente" hidden></div>
+          <section id="view" data-i18n-aria-label="measurements">
+            <div id="pending-actions" data-i18n-aria-label="pendingActions" hidden></div>
             <div id="view-scroll">
               <div id="view-header"></div>
               <div id="view-content">
-                <p class="notice" role="status">Chargement des données…</p>
+                <p class="notice" role="status" data-i18n="loadingData"></p>
               </div>
               <div id="editor-view" hidden></div>
             </div>
@@ -68,18 +68,21 @@
     </div>
     <dialog id="editor" aria-labelledby="dialog-title"></dialog>
     <dialog id="account-dialog" aria-labelledby="account-title">
-      <h2 id="account-title">Connexion</h2>
+      <h2 id="account-title" data-i18n="signInHeading"></h2>
       <form id="account-form" class="editor-form">
         <div id="account-fields" class="editor-form">
-          <label>Adresse e-mail <input name="email" type="email" autocomplete="username" maxlength="254" required></label>
-          <label>Mot de passe <input name="password" type="password" autocomplete="current-password" required></label>
+          <label><span data-i18n="emailAddress"></span> <input name="email" type="email" autocomplete="username" maxlength="254" required></label>
+          <label><span data-i18n="password"></span> <input name="password" type="password" autocomplete="current-password" required></label>
         </div>
+        <label id="account-language-field" hidden><span id="account-language-label" data-i18n="language"></span>
+          <select name="language" aria-labelledby="account-language-label"></select>
+        </label>
         <p id="account-email" hidden></p>
         <div id="account-google-fields" class="editor-form" hidden>
           <label><span id="account-google-password-label"></span>
             <input name="googlePassword" type="password" maxlength="1024" disabled>
           </label>
-          <label id="account-google-confirm-field" hidden>Nouveau mot de passe (confirmation)
+          <label id="account-google-confirm-field" hidden><span data-i18n="newPasswordConfirmation"></span>
             <input name="googlePasswordConfirm" type="password" autocomplete="new-password" maxlength="1024" disabled>
           </label>
         </div>
@@ -87,12 +90,12 @@
         <p id="account-error" class="notice" role="alert" hidden></p>
       </form>
       <div class="actions">
-        <button type="button" class="button" id="account-google" hidden>Continuer avec Google</button>
-        <button type="button" class="button" id="account-switch">Créer un compte</button>
-        <button type="button" class="button" id="account-close">Fermer</button>
-        <button type="submit" class="button primary" id="account-submit" form="account-form">Se connecter</button>
+        <button type="button" class="button" id="account-google" hidden data-i18n="continueWithGoogle"></button>
+        <button type="button" class="button" id="account-switch" data-i18n="createAccount"></button>
+        <button type="button" class="button" id="account-close" data-i18n="close"></button>
+        <button type="submit" class="button primary" id="account-submit" form="account-form" data-i18n="signIn"></button>
       </div>
     </dialog>
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="/src/bootstrap.js"></script>
   </body>
 </html>

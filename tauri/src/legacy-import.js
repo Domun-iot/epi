@@ -1,3 +1,4 @@
+import { messageCode } from './i18n.js';
 import { unzipSync, zipSync, strFromU8, strToU8 } from 'fflate';
 import { snapshotPath } from '../../web/file-records.js';
 export { fileRecords } from '../../web/file-records.js';
@@ -23,7 +24,7 @@ export function readArchive(bytes) {
   const files = Object.entries(packed).map(([name, contents]) => ({
     path: dataPath(name), contents: strFromU8(contents),
   }));
-  if (!files.length && !dataDirectory) throw new Error('Le ZIP ne contient aucune donnée éPI.');
+  if (!files.length && !dataDirectory) throw new Error(messageCode('zipWithoutEpiData'));
   return files;
 }
 

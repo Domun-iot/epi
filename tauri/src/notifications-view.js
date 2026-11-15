@@ -1,33 +1,40 @@
+import { locale, localizeMessage, messageCode, t, htmlText } from './i18n.js';
 import { deviceCard } from './management-view.js';
 import { deleteButton, escapeHtml as e, formatCalendarDate, formatDate, number, pageHeader, pairs, weight } from './format.js';
 
-const restorationDate = new Intl.DateTimeFormat('fr-FR', {
+const restorationDate = new Intl.DateTimeFormat(locale, {
   day: '2-digit', month: '2-digit', year: 'numeric',
   hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
 });
+
+const notificationTitles = {
+  measurement: { deleted: 'measurementDeleted', restored: 'measurementRestored', saved: 'measurementSaved' },
+  profile: { deleted: 'profileDeleted', restored: 'profileRestored', saved: 'profileSaved' },
+  device: { deleted: 'deviceDeleted', restored: 'deviceRestored', saved: 'deviceSaved' },
+};
 
 export function notificationText(entry, state) {
   const { type, action, record, actor } = entry;
   if (type === 'pending') {
     const label = state?.devices.find(device => device.uuid === entry.deviceUuid)?.name
       ?? record.device?.name ?? record.event.address;
-    const title = entry.text === 'Pesée ignorée.' ? 'Pesée ignorée' : 'Pesée reçue';
+    const title = (entry.text === messageCode('weighInDiscarded') || entry.text === 'Pesée ignorée.') ? t('weighInDiscarded') : t('weighInReceived');
     return { title, text: `${weight(record.event)} · ${label}` };
   }
-  if (!action) return { title: entry.text };
-  const by = actor ? `Profil actif : ${actor}.` : 'Aucun profil actif.';
-  const verb = action === 'deleted' ? 'supprimé' : action === 'restored' ? 'restauré' : 'enregistré';
+  if (!action) return { title: localizeMessage(entry.text) };
+  const title = t(notificationTitles[type]?.[action] ?? 'notifications');
+  const by = actor ? t('activeProfileNotice', [actor]) : t('noActiveProfile');
   if (type === 'measurement') {
     const measures = record.measures ?? record;
     const impedance = measures.impedanceOhms > 0
-      ? action === 'deleted' ? 'avec impédance' : `Impédance reçue (${number(measures.impedanceOhms)} Ω)`
-      : 'Sans impédance';
+      ? action === 'deleted' ? t('withImpedance') : t('receivedImpedance', [number(measures.impedanceOhms)])
+      : t('withoutImpedance');
     const method = record.profile?.name
-      ? `${record.calculations ? 'Calculs enregistrés · ' : ''}Profil sélectionné : ${record.profile.name}`
-      : record.calculations ? 'Calcul sans profil enregistré' : 'Sans profil ni calcul';
-    return { title: `Pesée ${verb}e`, text: `${weight(measures)} · ${formatDate(record.receivedAt)} · ${impedance} · ${method}. ${by}` };
+      ? [record.calculations && t('calculationsSaved'), t('selectedProfile', { profile: record.profile.name })].filter(Boolean).join(' · ')
+      : record.calculations ? t('calculationWithoutSavedProfile') : t('withoutProfileOrCalculation');
+    return { title, text: `${weight(measures)} · ${formatDate(record.receivedAt)} · ${impedance} · ${method}. ${by}` };
   }
-  return { title: `${type === 'profile' ? 'Profil' : 'Appareil'} ${verb}`,
+  return { title,
     text: `${record.name} · ${by}` };
 }
 
@@ -39,10 +46,10 @@ export function notificationBody(entry, state, detailed = false) {
   const receipt = entry.type === 'pending';
   const receivedAt = receipt ? entry.record.event.receivedAt : entry.date;
   const restoredAt = !receipt ? Date.parse(entry.restoredAt) : NaN;
-  const restoration = entry.type === 'measurement' ? 'Restaurée' : 'Restauré';
+  const restoration = entry.type === 'measurement' ? 'measurementRestoredOn' : 'restoredOn';
   return `${heading}<small>${e(formatDate(receivedAt))}</small>
     ${text ? `<span>${e(text)}</span>` : ''}
-    ${Number.isFinite(restoredAt) ? `<small>${restoration} le ${e(restorationDate.format(restoredAt))}</small>` : ''}`;
+    ${Number.isFinite(restoredAt) ? `<small>${htmlText(restoration, { date: restorationDate.format(restoredAt) })}</small>` : ''}`;
 }
 
 export function notificationsView(state) {
@@ -53,10 +60,10 @@ export function notificationsView(state) {
       : `<div class="notification-summary">${body}</div>`;
     return `<article class="notice notification-item${entry.type === 'error' ? ' error' : ''}">
       ${summary}
-      ${deleteButton('Supprimer définitivement la notification', 'delete-notification', entry.id)}</article>`;
+      ${deleteButton(t('deleteNotificationPermanently'), 'delete-notification', entry.id)}</article>`;
   }).join('');
-  const actions = content ? '<button class="button" type="button" data-action="delete-all-notifications">Supprimer tout</button>' : '';
-  return { header: pageHeader('Notifications', '', actions), content: content || '<p class="panel empty">Aucune notification.</p>' };
+  const actions = content ? `<button class="button" type="button" data-action="delete-all-notifications">${htmlText('deleteAll')}</button>` : '';
+  return { header: pageHeader(t('notifications'), '', actions), content: content || `<p class="panel empty">${htmlText('noNotifications')}</p>` };
 }
 
 export function resolveNotification(state, entry) {
@@ -77,18 +84,18 @@ export function resolveNotification(state, entry) {
 
 export function notificationDetailHeader(entry, title) {
   const removed = entry.action === 'deleted' && !entry.live;
-  return pageHeader(title, removed ? 'Cet élément a été supprimé.'
-    : entry.restored ? 'Cet élément a été restauré.' : entry.missing ? 'Cet élément est introuvable.' : '');
+  return pageHeader(title, removed ? t('thisItemHasBeenRemoved')
+    : entry.restored ? t('thisItemHasBeenRestored') : entry.missing ? t('thisItemWasNotFound') : '');
 }
 
 export function notificationRecordView(entry) {
   const { record, type } = entry;
-  if (type === 'device') return { header: notificationDetailHeader(entry, 'Appareil'), content: deviceCard(record) };
+  if (type === 'device') return { header: notificationDetailHeader(entry, t('device')), content: deviceCard(record) };
   const fields = [
-    ['Sexe utilisé par les formules', record.sex === 'F' ? 'Femme' : 'Homme'],
-    record.birthDate ? ['Date de naissance', formatCalendarDate(record.birthDate)] : ['Âge', number(record.age)],
-    ['Taille (cm)', number(record.heightCm)],
-    ...(entry.measurements ? [['Pesées sauvegardées', entry.measurements.length]] : []),
+    [t('sexForCalculations'), record.sex === 'F' ? t('female') : t('male')],
+    record.birthDate ? [t('dateOfBirth'), formatCalendarDate(record.birthDate)] : [t('age'), number(record.age)],
+    [t('heightCm'), number(record.heightCm)],
+    ...(entry.measurements ? [[t('savedWeighIns'), entry.measurements.length]] : []),
   ];
-  return { header: notificationDetailHeader(entry, e(record.name)), content: `<div class="panel">${pairs(fields)}</div>` };
+  return { header: notificationDetailHeader(entry, record.name), content: `<div class="panel">${pairs(fields)}</div>` };
 }

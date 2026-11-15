@@ -1,5 +1,6 @@
+import { locale, t, htmlText } from './i18n.js';
 import { bluetooth } from 'virtual:epi-domain';
-import { button, escapeHtml, formatDate, formatScaleTime, pageHeader, weight } from './format.js';
+import { button, escapeHtml, formatDate, formatScaleTime, number, pageHeader, weight } from './format.js';
 
 const logKey = 'epi-bluetooth-log-v1';
 const retentionMs = 24 * 60 * 60 * 1000;
@@ -13,7 +14,7 @@ function readFrames() {
   try {
     const frames = JSON.parse(localStorage.getItem(logKey) ?? '[]');
     return Array.isArray(frames) ? recentFrames(frames.filter(frame =>
-      Number.isFinite(frame?.at) && typeof frame.address === 'string' && typeof frame.text === 'string')) : [];
+      Number.isFinite(frame?.at) && typeof frame.address === 'string' && (typeof frame.text === 'string' || typeof frame.decoded?.label === 'string'))) : [];
   } catch {
     return [];
   }
@@ -35,41 +36,48 @@ function saveFrames(frames) {
 
 export function bluetoothView({ addressFilter, devices }, web) {
   if (web) return {
-    header: pageHeader('Écoute Bluetooth'),
-    content: '<p class="panel empty">L’écoute Bluetooth est disponible uniquement avec l’application ou la version standalone.</p>',
+    header: pageHeader(t('bluetoothMonitor')),
+    content: `<p class="panel empty">${htmlText('bluetoothMonitorUnavailableOnWeb')}</p>`,
   };
   const device = devices.find(item => item.bluetooth.address === addressFilter);
   const target = device ? `${device.name} (${addressFilter})` : addressFilter;
-  const filter = target ? `Écoute limitée à ${escapeHtml(target)}.` : 'Écoute de tous les appareils.';
-  const controls = button('Filtrer par adresse Bluetooth', 'filter-custom')
-    + (target ? button('Écouter tous les appareils', 'clear-filter') : '');
+  const filter = target ? t('monitoringDevice', [target]) : t('monitoringAllDevices');
+  const controls = button(t('filterByBluetoothAddress'), 'filter-custom')
+    + (target ? button(t('listenToAllDevices'), 'clear-filter') : '');
   return {
-    header: pageHeader('Écoute Bluetooth', '', controls),
-    content: `<p class="muted">${filter}</p>
-      <div id="bluetooth-log" class="panel" role="region" aria-label="Trames Bluetooth reçues" tabindex="0"></div>`,
+    header: pageHeader(t('bluetoothMonitor'), '', controls),
+    content: `<p class="muted">${escapeHtml(filter)}</p>
+      <div id="bluetooth-log" class="panel" role="region" aria-label="${htmlText('bluetoothFramesReceived')}" tabindex="0"></div>`,
   };
 }
 
+const bytePlural = new Intl.PluralRules(locale);
+
 function formatFrame(frame) {
   const source = [frame.localName, frame.model].filter(Boolean).join(' ');
-  const fields = [frame.address, source, frame.macManufacturer, frame.label].filter(Boolean);
+  const announcement = frame.label.startsWith('Service annoncé · ');
+  const service = announcement ? frame.label.slice('Service annoncé · '.length) : frame.label;
+  const label = service === 'Fabricant ' + frame.code ? t('unknownManufacturer', { code: frame.code })
+    : service === 'Service ' + frame.code ? t('unknownService', { code: frame.code }) : service;
+  const displayedLabel = announcement ? t('announcementService', { service: label }) : label;
+  const fields = [frame.address, source, frame.macManufacturer, displayedLabel].filter(Boolean);
   const highlights = [];
   if (frame.prefixStatus) highlights.push([0, 8, frame.prefixStatus]);
   if (frame.codeStatus) {
-    const labelStart = fields.join(' · ').length - frame.label.length;
-    const start = labelStart + frame.label.lastIndexOf(frame.code);
+    const labelStart = fields.join(' · ').length - displayedLabel.length;
+    const start = labelStart + displayedLabel.lastIndexOf(frame.code);
     highlights.push([start, start + frame.code.length, frame.codeStatus]);
   }
   fields.push(frame.advertisementType === 'Gatt' ? 'GATT' : '',
     frame.rssi == null ? '' : `${frame.rssi} dBm`,
-    `${frame.bytes} octet${frame.bytes === 1 ? ' reçu' : 's reçus'}`);
+    t(bytePlural.select(frame.bytes) === 'one' ? 'bytesReceivedOne' : 'bytesReceivedOther', { count: number(frame.bytes) }));
   let text = fields.filter(Boolean).join(' · ');
   if (Number.isFinite(frame.weight)) {
     text += ' · ';
     const weightStart = text.length;
     text += weight(frame);
     highlights.push([weightStart, text.length, 'decoded']);
-    const state = frame.removed ? 'Balance libérée' : frame.stable ? 'Poids stable' : 'Poids instable';
+    const state = frame.removed ? t('scaleUnloaded') : frame.stable ? t('stableWeight') : t('unstableWeight');
     text += ` · ${state}`;
     if (frame.impedanceOhms) {
       text += ' · ';
@@ -119,19 +127,20 @@ export function createBluetoothWatch() {
       if (filter && frame.address !== filter) continue;
       const row = document.createElement('div');
       row.textContent = `[${formatDate(frame.at)}] `;
+      const { text, highlights } = frame.decoded ? formatFrame(frame.decoded) : frame;
       let offset = 0;
-      for (const range of Array.isArray(frame.highlights) ? frame.highlights : []) {
+      for (const range of Array.isArray(highlights) ? highlights : []) {
         if (!Array.isArray(range)) continue;
         const [start, end, status] = range;
         if (!Number.isInteger(start) || !Number.isInteger(end) || start < offset || end <= start
-            || end > frame.text.length || !['known', 'unknown', 'decoded'].includes(status)) continue;
+            || end > text.length || !['known', 'unknown', 'decoded'].includes(status)) continue;
         const highlight = document.createElement('span');
         highlight.className = status === 'decoded' ? 'bluetooth-decoded' : `bluetooth-id-${status}`;
-        highlight.textContent = frame.text.slice(start, end);
-        row.append(frame.text.slice(offset, start), highlight);
+        highlight.textContent = text.slice(start, end);
+        row.append(text.slice(offset, start), highlight);
         offset = end;
       }
-      row.append(frame.text.slice(offset));
+      row.append(text.slice(offset));
       fragment.append(row);
     }
     output.append(fragment);
@@ -159,7 +168,7 @@ export function createBluetoothWatch() {
       if (!output?.isConnected && !line.startsWith('META ')) return;
       const frame = decode(line);
       if (!frame || !output?.isConnected || (filter && frame.address !== filter)) return;
-      frames.push({ at: Date.now(), address: frame.address, ...formatFrame(frame) });
+      frames.push({ at: Date.now(), address: frame.address, decoded: frame });
       saveTimer ??= setTimeout(flush, 1000);
       repaint ??= requestAnimationFrame(paint);
     },

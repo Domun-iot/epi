@@ -1,3 +1,4 @@
+import { t, htmlText, messageCode } from './i18n.js';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { connect } from './service.js';
 import { bluetoothView, createBluetoothWatch } from './bluetooth-watch.js';
@@ -49,7 +50,7 @@ const desktopSearchFocus = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent
 const panelStates = new WeakMap();
 const editorView = document.querySelector('#editor-view');
 const editor = createEditor(dialog, editorView, document.querySelector('#editor-actions'), renderEditorView);
-const pages = { measurements: 'Mesures', profiles: 'Profils', devices: 'Appareils', notifications: 'Notifications', bluetooth: 'Écoute Bluetooth' };
+const pages = { measurements: t('measurements'), profiles: t('profiles'), devices: t('devices'), notifications: t('notifications'), bluetooth: t('bluetoothMonitor') };
 
 let session;
 let state = { profiles: [], devices: [], measurements: [], pending: [], notifications: [] };
@@ -88,12 +89,12 @@ function renderProfilePicker() {
   const nextProfiles = [state.selectedProfile, state.profiles, anonymous];
   if (changed(lastProfiles, nextProfiles)) {
     lastProfiles = nextProfiles;
-    profilePicker.innerHTML = `<option value="">${anonymous ? 'Sans profil' : 'Choisir un profil'}</option>${sortByName(state.profiles).map(({ name }) => `<option value="${e(name)}">${e(name)}</option>`).join('')}`;
+    profilePicker.innerHTML = `<option value="">${anonymous ? htmlText('withoutProfile') : htmlText('chooseAProfile')}</option>${sortByName(state.profiles).map(({ name }) => `<option value="${e(name)}">${e(name)}</option>`).join('')}`;
     const count = state.profiles.length;
     profilePicker.hidden = count < 2;
     profileName.hidden = count !== 1;
     profileName.textContent = count === 1 ? state.profiles[0].name : '';
-    profileIcon.title = count > 1 ? 'Ouvrir les profils' : count === 1 ? 'Modifier le profil' : 'Créer un profil';
+    profileIcon.title = count > 1 ? t('openProfiles') : count === 1 ? t('editProfile') : t('createAProfile');
     profileIcon.setAttribute('aria-label', count === 1 ? `${profileIcon.title} ${profileName.textContent}` : profileIcon.title);
   }
   profilePicker.value = state.selectedProfile ?? '';
@@ -164,7 +165,7 @@ function render() {
       if (button.dataset.page === page) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     }
-    view.setAttribute('aria-label', detail ? 'Détails de la pesée' : pages[page]);
+    view.setAttribute('aria-label', detail ? t('weighInDetails') : pages[page]);
     const scroll = view.querySelector('.table-scroll')?.scrollLeft;
     const active = document.activeElement;
     const focusedColumn = active?.dataset.column;
@@ -189,7 +190,7 @@ function render() {
       : !entry ? notificationsView(state)
       : target.type === 'measurement'
         ? measurementDetails(target.record, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen,
-          notificationDetailHeader(target, 'Détails de la pesée'), formatDate)
+          notificationDetailHeader(target, t('weighInDetails')), formatDate)
         : notificationRecordView(target);
     viewHeader.innerHTML = markup.header;
     chartDatesResize.disconnect();
@@ -251,7 +252,7 @@ function render() {
 function renderFrames() {
   const output = document.querySelector('#raw-frames');
   if (!output || !output.closest('details').open) return;
-  output.textContent = frames.join('\n') || 'Aucune trame reçue.';
+  output.textContent = frames.join('\n') || t('noFramesReceived');
 }
 
 function renderBanner() {
@@ -262,7 +263,7 @@ function renderBanner() {
   const error = activeNotice.type === 'error';
   notices.innerHTML = `<article class="notice notification-banner${error ? ' error' : ''}"${error ? ' role="alert"' : ''}>
     <div class="notification-summary">${notificationBody(activeNotice, state)}</div>
-    <button class="button" type="button" data-action="dismiss-banner">Vu</button>
+    <button class="button" type="button" data-action="dismiss-banner">${htmlText('dismissNotice')}</button>
   </article>`;
 }
 
@@ -387,8 +388,8 @@ function openMeasurement(row) {
 function editProfile(profile) {
   if (!profile) return;
   editor.profileEditor(profile, fields => session.saveProfile(fields), false, {
-    onDelete: () => editor.confirmDeletion('Supprimer le profil',
-      `Supprimer le profil « ${profile.name} » ? Les pesées de ce profil seront aussi retirées de l’historique.`,
+    onDelete: () => editor.confirmDeletion(t('deleteProfile'),
+      t('confirmDeleteProfile', [profile.name]),
       async () => {
         await session.deleteProfile(profile.name);
         editor.closeView();
@@ -453,15 +454,15 @@ const actions = {
     viewScroll.scrollTop = 0;
     backButton.focus();
   },
-  'delete-notification': id => editor.confirmDeletion('Supprimer la notification',
-    'Supprimer définitivement cette notification et les données qu’elle contient ?',
+  'delete-notification': id => editor.confirmDeletion(t('deleteNotification'),
+    t('confirmDeleteNotification'),
     async () => {
       await session.deleteNotification(id);
       noticeQueue = noticeQueue.filter(item => item.id !== id);
       if (activeNotice?.id === id) dismissBanner();
     }),
-  'delete-all-notifications': () => editor.confirmDeletion('Supprimer toutes les notifications',
-    'Supprimer définitivement toutes les notifications et les données qu’elles contiennent ?',
+  'delete-all-notifications': () => editor.confirmDeletion(t('clearAllNotifications'),
+    t('confirmDeleteAllNotifications'),
     async () => {
       await session.deleteAllNotifications();
       noticeQueue = [];
@@ -484,7 +485,7 @@ const actions = {
     const target = notificationId && resolveNotification(state, state.notifications.find(entry => entry.id === notificationId));
     const row = reading ?? (target?.live ? target.record : null);
     if (!row) return;
-    editor.confirmDeletion('Supprimer la pesée', `Supprimer la pesée du ${formatDate(row.receivedAt)} ?`, async () => {
+    editor.confirmDeletion(t('deleteWeighIn'), t('confirmDeleteWeighIn', [formatDate(row.receivedAt)]), async () => {
       await session.deleteMeasurement(row);
       if (reading === row) actions['back-to-measurements']();
     });
@@ -505,8 +506,8 @@ const actions = {
     if (!device) return;
     editor.deviceEditor({
       address, device,
-      onDelete: () => editor.confirmDeletion('Supprimer l’appareil',
-        `Supprimer l’appareil « ${device.name} » ?`, async () => {
+      onDelete: () => editor.confirmDeletion(t('deleteDevice'),
+        t('confirmDeleteDevice', [device.name]), async () => {
           await session.deleteDevice(address);
           editor.closeView();
         }),
@@ -644,7 +645,7 @@ function updateChartFullscreenButton() {
   if (!button) return;
   const fullscreen = document.fullscreenElement === viewContent;
   button.setAttribute('aria-pressed', String(fullscreen));
-  button.title = fullscreen ? 'Quitter le plein écran' : 'Plein écran';
+  button.title = fullscreen ? t('exitFullScreen') : t('fullScreen');
 }
 
 document.addEventListener('fullscreenchange', () => {
@@ -878,7 +879,7 @@ function renderTheme() {
   if (state.theme === 'light' || state.theme === 'dark') document.documentElement.dataset.theme = state.theme;
   else delete document.documentElement.dataset.theme;
   const dark = isDarkTheme();
-  const label = dark ? 'Activer le mode clair' : 'Activer le mode sombre';
+  const label = dark ? t('enableLightMode') : t('enableDarkMode');
   themeColor.content = dark ? '#101827' : '#f5f7fa';
   themeToggle.setAttribute('aria-label', label);
   themeToggle.title = label;
@@ -921,7 +922,7 @@ async function importArchive(importer) {
   try {
     await perform(async () => {
       const imported = await importer();
-      if (imported !== undefined) await session.recordNotice({ type: 'info', text: 'Import terminé.', banner: true });
+      if (imported !== undefined) await session.recordNotice({ type: 'info', text: messageCode('importCompleted'), banner: true });
     });
   } finally {
     importButton.disabled = false;
@@ -945,7 +946,7 @@ for (const button of archiveButtons) dataActionsResize.observe(button.firstEleme
 
 reloadButton.addEventListener('click', () => void perform(async () => {
   await session.reload();
-  await session.recordNotice({ type: 'info', text: 'Données rechargées.', banner: true });
+  await session.recordNotice({ type: 'info', text: messageCode('dataReloaded'), banner: true });
 }));
 
 importButton.addEventListener('click', () => {
@@ -961,7 +962,7 @@ exportButton.addEventListener('click', async () => {
   try {
     await perform(async () => {
       if (await session.exportData()) {
-        await session.recordNotice({ type: 'info', text: 'Archive ZIP exportée.', banner: true });
+        await session.recordNotice({ type: 'info', text: messageCode('zipExported'), banner: true });
       }
     });
   }
@@ -975,9 +976,9 @@ function renderBluetooth() {
 }
 
 try {
-  session = await connect(onState, message => {
+  session = await connect(onState, (message, unavailable = false) => {
     status.textContent = message;
-    bluetoothUnavailable = /indisponible|erreur|désactiv|aucun|déconnect|échec|simulation|permission/i.test(message);
+    bluetoothUnavailable = unavailable;
     renderBluetooth();
   }, line => {
     if (!line.startsWith('PAYLOAD ')) {
@@ -993,7 +994,7 @@ try {
   });
   themeToggle.disabled = false;
   reloadButton.hidden = !session.native && !session.web;
-  canRetryBluetooth = Boolean(session.retryBluetooth) && status.textContent !== 'Mode simulation';
+  canRetryBluetooth = Boolean(session.retryBluetooth);
   renderBluetooth();
   onState(await session.load());
   scheduleNotificationExpiry();

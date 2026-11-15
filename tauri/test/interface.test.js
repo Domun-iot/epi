@@ -44,7 +44,7 @@ async function dismissNotificationBanner(page) {
 }
 
 async function pageWith(t, snapshot, options = {}, mode) {
-  const page = await browser.newPage(options);
+  const page = await browser.newPage({ locale: 'fr-FR', ...options });
   page.setDefaultTimeout(10000);
   await page.route(url + '**', async route => {
     const path = new URL(route.request().url()).pathname;
@@ -68,7 +68,8 @@ async function pageWith(t, snapshot, options = {}, mode) {
     }, snapshot);
   }
   await page.goto(url);
-  await page.getByText(mode === 'web' ? 'Mode web' : 'Mode simulation', { exact: true }).waitFor();
+  await page.locator('#status span:last-child').filter({ hasText: /\S/ }).waitFor();
+  await page.locator('#theme-toggle:enabled').waitFor();
   return page;
 }
 
@@ -1250,18 +1251,19 @@ test('dates selon la locale active et conservation de la date de naissance et de
   const page = await pageWith(t, { profiles: [profile], devices: [scale], selectedProfile: 'Alice', measurements: [measurement] },
     { locale: 'en-US', timezoneId: 'America/Los_Angeles' });
 
-  assert.match(await page.locator('.measurement-summary .muted').innerText(), /9:23 AM$/);
-  await page.getByRole('button', { name: /Voir la pesée du 1\/15\/26, 9:23:21/ }).click();
-  assert.match(await page.locator('.measurement-details > p').innerText(), /9:23 AM$/);
-  await page.getByText(/^3\/8\/26, 2:15:00/).waitFor();
-  await page.getByText('1/5/80', { exact: true }).waitFor();
-  await choosePage(page, 'Profils');
-  await page.getByText(/Naissance : 1\/5\/80/).waitFor();
-  await page.getByText(/9:23 AM$/, { exact: true }).waitFor();
-  await page.getByText(/9:25 AM$/, { exact: true }).waitFor();
-  await choosePage(page, 'Appareils');
-  await page.getByText(/9:23 AM$/, { exact: true }).waitFor();
-  await page.getByText(/9:25 AM$/, { exact: true }).waitFor();
+  assert.equal(await page.locator('html').getAttribute('lang'), 'en-GB');
+  assert.match(await page.locator('.measurement-summary .muted').innerText(), /09:23$/);
+  await page.getByRole('button', { name: /View weigh-in from 15\/01\/2026, 09:23:21/ }).click();
+  assert.match(await page.locator('.measurement-details > p').innerText(), /09:23$/);
+  await page.getByText(/^08\/03\/2026, 02:15:00/).waitFor();
+  await page.getByText('05/01/1980', { exact: true }).waitFor();
+  await choosePage(page, 'Profiles');
+  await page.getByText(/Birth: 05\/01\/1980/).waitFor();
+  await page.getByText(/09:23$/, { exact: true }).waitFor();
+  await page.getByText(/09:25$/, { exact: true }).waitFor();
+  await choosePage(page, 'Devices');
+  await page.getByText(/09:23$/, { exact: true }).waitFor();
+  await page.getByText(/09:25$/, { exact: true }).waitFor();
 });
 
 test('la création de profil utilise la vue centrale et les boutons de la barre', async t => {
@@ -1875,4 +1877,33 @@ test('un appareil lié disparu ouvre sa carte de restauration et revient à sa f
   await page.getByRole('button', { name: 'Notifications', exact: true }).click();
   const archived = page.locator('.notification-item').filter({ hasText: 'Appareil supprimé' });
   await archived.getByText(/^Restauré le \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/).waitFor();
+});
+
+test('account registration suggests the detected language and saves Canadian French', async t => {
+  const page = await pageWith(t, undefined, { locale: 'en-US' });
+  const requests = [];
+  await page.route('https://sync.epi.test/v1/**', route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/v1/accounts') requests.push(route.request().postDataJSON());
+    const responses = {
+      '/v1/google/config': { enabled: false },
+      '/v1/accounts': { email: 'user@example.org' },
+      '/v1/device-tokens': { token: 'device-token', locale: 'fr-CA', googleLocale: 'de' },
+      '/v1/account': { email: 'user@example.org', locale: 'fr-CA', googleAvailable: false },
+    };
+    return route.fulfill({ json: responses[path], headers: { 'Access-Control-Allow-Origin': '*' } });
+  });
+  await page.getByRole('button', { name: 'Account', exact: true }).click();
+  await page.getByRole('button', { name: 'Create an account', exact: true }).click();
+  const language = page.getByLabel('Language', { exact: true });
+  assert.equal(await language.inputValue(), 'en-GB');
+  assert.equal(await language.locator('option').count(), 25);
+  await language.selectOption('fr-CA');
+  await page.getByLabel('Email address').fill('user@example.org');
+  await page.getByLabel('Password', { exact: true }).fill('test-password');
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  await page.locator('html[lang="fr-CA"]').waitFor({ state: 'attached' });
+  await page.getByRole('button', { name: 'Compte', exact: true }).click();
+  await page.getByText('user@example.org', { exact: true }).waitFor();
+  assert.equal(requests[0].locale, 'fr-CA');
 });

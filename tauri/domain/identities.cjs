@@ -78,7 +78,7 @@ function upgradeIdentities(state) {
     return { ...entry, pendingId,
       deviceUuid: linked?.device?.uuid ?? device?.uuid ?? devices.get(event.address) ?? null,
       profileUuid: linked?.profile?.uuid ?? null, measurementUuid: linked?.uuid ?? null,
-      ...(linked && { text: 'Pesée enregistrée.' }),
+      ...(linked && { text: 'epi-i18n:diagnostic.weighInRecorded' }),
       record: { ...entry.record, bluetoothMetadata: entry.record.bluetoothMetadata ?? pending?.bluetoothMetadata ?? null } };
   });
 }

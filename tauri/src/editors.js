@@ -1,9 +1,10 @@
+import { t, htmlText, localizeMessage } from './i18n.js';
 import { button, deviceFields, escapeHtml as e, pageHeader, pairs, sortByName, weight } from './format.js';
 
 import { domain } from 'virtual:epi-domain';
 
 const { buildDevice } = domain;
-const field = (label, name, attributes) => `<label>${label}<input name="${name}" ${attributes}></label>`;
+const field = (label, name, attributes) => `<label>${e(label)}<input name="${name}" ${attributes}></label>`;
 const option = (value, label, selected) => `<option value="${e(value)}"${selected ? ' selected' : ''}>${e(label)}</option>`;
 
 export function createEditor(dialog, view, toolbar, onViewChange) {
@@ -20,16 +21,16 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
     previousFocus = null;
   }
 
-  function open(title, content, submit, submitLabel = 'Enregistrer', {
+  function open(title, content, submit, submitLabel = t('save'), {
     modal = false, extraActions = '', deleteAction = '', submitChoices = [], subtitle = '', hidePendingWeighIns = false,
   } = {}) {
     const host = modal ? dialog : view;
     const formId = modal ? 'modal-editor-form' : 'view-editor-form';
-    const submitButton = submitLabel ? `<button class="button primary" type="submit" form="${formId}">${submitLabel}</button>` : '';
+    const submitButton = submitLabel ? `<button class="button primary" type="submit" form="${formId}">${e(submitLabel)}</button>` : '';
     const choices = submitChoices.map(({ label, value, primary }) =>
-      `<button class="button${primary ? ' primary' : ''}" type="submit" form="${formId}" name="include" value="${value}">${label}</button>`).join('');
-    const actions = `${extraActions}${button('Annuler', 'close-editor')}${deleteAction}${submitButton}${choices}`;
-    host.innerHTML = `${modal ? `<h2 id="dialog-title">${title}</h2>` : pageHeader(title, subtitle)}
+      `<button class="button${primary ? ' primary' : ''}" type="submit" form="${formId}" name="include" value="${value}">${e(label)}</button>`).join('');
+    const actions = `${extraActions}${button(t('cancel'), 'close-editor')}${deleteAction}${submitButton}${choices}`;
+    host.innerHTML = `${modal ? `<h2 id="dialog-title">${e(title)}</h2>` : pageHeader(title, subtitle)}
       <form id="${formId}" class="editor-form${modal ? '' : ' panel'}"${hidePendingWeighIns ? ' data-hide-pending-weigh-ins' : ''}>${content}<p class="notice error" role="alert" hidden></p></form>
       ${modal ? `<div class="actions">${actions}</div>` : ''}`;
     const controls = modal ? dialog : toolbar;
@@ -50,7 +51,7 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
         const result = await submit(Object.fromEntries(values));
         if (result !== false && form.isConnected) close();
       } catch (exception) {
-        error.textContent = exception?.message || String(exception);
+        error.textContent = localizeMessage(exception?.message || String(exception));
         error.hidden = false;
       } finally {
         submitting = false;
@@ -82,15 +83,15 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
   function profileEditor(profile, submit, anonymous = false, { restore = false, onDelete } = {}) {
     const edit = Boolean(profile) && !restore;
     const ageType = profile?.age != null && !profile?.birthDate ? 'age' : 'birthDate';
-    const title = restore ? 'Restaurer le profil'
-      : anonymous ? 'Calculer sans profil enregistré' : edit ? 'Modifier le profil' : 'Créer un profil';
+    const title = restore ? t('restoreProfile')
+      : anonymous ? t('calculateWithoutSavedProfile') : edit ? t('editProfile') : t('createAProfile');
     const form = open(title, `
-      ${anonymous ? '' : field('Nom', 'name', `value="${e(profile?.name)}" maxlength="64" required autofocus`)}
-      <label>Sexe utilisé par les formules<select name="sex" required>${option('', 'Choisir', false)}${option('H', 'Homme', profile?.sex === 'H')}${option('F', 'Femme', profile?.sex === 'F')}</select></label>
-      <label>Âge utilisé par les formules<select name="ageType">${option('birthDate', 'Date de naissance', ageType === 'birthDate')}${option('age', 'Âge fixe', ageType === 'age')}</select></label>
-      ${field('Date de naissance', 'birthDate', `type="date" value="${e(profile?.birthDate)}"`)}
-      ${field('Âge (ans)', 'age', `type="number" min="0" max="120" step="1" value="${e(profile?.age)}"`)}
-      ${field('Taille (cm)', 'heightCm', `type="number" min="100" max="250" step="any" inputmode="decimal" value="${e(profile?.heightCm)}" required`)}
+      ${anonymous ? '' : field(t('name'), 'name', `value="${e(profile?.name)}" maxlength="64" required autofocus`)}
+      <label>${htmlText('sexForCalculations')}<select name="sex" required>${option('', t('choose'), false)}${option('H', t('male'), profile?.sex === 'H')}${option('F', t('female'), profile?.sex === 'F')}</select></label>
+      <label>${htmlText('ageUsedByFormulas')}<select name="ageType">${option('birthDate', t('dateOfBirth'), ageType === 'birthDate')}${option('age', t('fixedAge'), ageType === 'age')}</select></label>
+      ${field(t('dateOfBirth'), 'birthDate', `type="date" value="${e(profile?.birthDate)}"`)}
+      ${field(t('ageYears'), 'age', `type="number" min="0" max="120" step="1" value="${e(profile?.age)}"`)}
+      ${field(t('heightCm'), 'heightCm', `type="number" min="100" max="250" step="any" inputmode="decimal" value="${e(profile?.heightCm)}" required`)}
     `, async ({ name, sex, age, birthDate, ageType: source, heightCm }) => {
       const data = { sex, heightCm: Number(heightCm) };
       if (!anonymous) data.name = name.trim().normalize('NFC');
@@ -98,10 +99,10 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
       if (source === 'age') data.age = Number(age);
       else data.birthDate = birthDate;
       return submit(data);
-    }, restore ? 'Restaurer' : 'Enregistrer', {
+    }, restore ? t('restore') : t('save'), {
       hidePendingWeighIns: !edit && !restore && !anonymous,
-      subtitle: restore ? 'Ce profil a été supprimé.' : '',
-      deleteAction: edit && onDelete ? button('Supprimer', 'delete-profile') : '',
+      subtitle: restore ? t('thisProfileHasBeenDeleted') : '',
+      deleteAction: edit && onDelete ? button(t('delete'), 'delete-profile') : '',
     });
     if (edit && onDelete) toolbar.querySelector('[data-action="delete-profile"]').addEventListener('click', onDelete);
     const selector = form.querySelector('[name="ageType"]');
@@ -117,16 +118,16 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
   }
 
   function deviceEditor({ address, device, pending, onDelete }, submit) {
-    const title = device ? 'Modifier l’appareil' : 'Ajouter un appareil';
-    const explanation = device ? '' : pending ? 'La trame de cette balance a déjà été reçue.'
-      : 'Montez sur la balance pour recevoir ses données Bluetooth.';
-    const form = open(title, `${explanation ? `<p class="muted" data-device-instructions>${explanation}</p>` : ''}
-      ${field('Nom de l’appareil', 'name', `value="${e(device?.name)}" maxlength="64" required autofocus`)}
+    const title = device ? t('editDevice') : t('addADevice');
+    const explanation = device ? '' : pending ? t('scaleFrameReceived')
+      : t('stepOnScale');
+    const form = open(title, `${explanation ? `<p class="muted" data-device-instructions>${e(explanation)}</p>` : ''}
+      ${field(t('deviceName'), 'name', `value="${e(device?.name)}" maxlength="64" required autofocus`)}
       <div data-device-details hidden></div>
     `, ({ name }) => submit({ ...(address ? { address } : {}), name: name.trim() }),
-    device || pending ? 'Enregistrer' : 'Démarrer la capture', {
+    device || pending ? t('save') : t('startCapturing'), {
       hidePendingWeighIns: !device,
-      deleteAction: onDelete ? button('Supprimer', 'delete-device') : '',
+      deleteAction: onDelete ? button(t('delete'), 'delete-device') : '',
     });
     if (onDelete) toolbar.querySelector('[data-action="delete-device"]').addEventListener('click', onDelete);
 
@@ -143,8 +144,8 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
         : device?.bluetooth;
       details.innerHTML = bluetooth ? pairs(deviceFields(device ?? { bluetooth })) : '';
       details.hidden = !bluetooth;
-      if (instructions) instructions.textContent = capture ? 'La trame de cette balance a déjà été reçue.' : explanation;
-      save.textContent = device || capture ? 'Enregistrer' : 'Démarrer la capture';
+      if (instructions) instructions.textContent = capture ? t('scaleFrameReceived') : explanation;
+      save.textContent = device || capture ? t('save') : t('startCapturing');
     }
     showCapture(pending ?? null);
     return showCapture;
@@ -154,51 +155,51 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
     const profileItems = sortByName(profiles).map(({ name }) => {
       const firstName = name.trim().split(/\s+/, 1)[0];
       return `<li><button class="button assignment-profile" type="submit" name="name" value="${e(name)}">
-        <span class="assignment-name">${e(firstName)}</span><span class="button">Sélectionner</span>
+        <span class="assignment-name">${e(firstName)}</span><span class="button">${htmlText('select')}</span>
       </button></li>`;
     }).join('');
-    open('Attribuer la pesée', `<p>Pesée de <strong>${weight(pending.event)}</strong>.</p>
-      ${profileItems ? `<ul class="assignment-profiles list" aria-label="Profils">${profileItems}</ul>`
-        : '<p class="muted">Aucun profil sur cet appareil.</p>'}`,
+    open(t('assignWeighIn'), `<p>${htmlText('weighInFrom')} <strong>${weight(pending.event)}</strong>.</p>
+      ${profileItems ? `<ul class="assignment-profiles list" aria-label="${htmlText('profiles')}">${profileItems}</ul>`
+        : `<p class="muted">${htmlText('noProfilesOnThisDevice')}</p>`}`,
     ({ name }) => submit({ id: pending.id, name }), null, {
       hidePendingWeighIns: true,
-      extraActions: button('Créer un profil', 'create-for-reading', { primary: profiles.length === 0 })
-        + button('Calculer sans profil', 'calculate-one-off', { primary: profiles.length > 0 }),
+      extraActions: button(t('createAProfile'), 'create-for-reading', { primary: profiles.length === 0 })
+        + button(t('calculateWithoutProfile'), 'calculate-one-off', { primary: profiles.length > 0 }),
     });
     toolbar.querySelector('[data-action="calculate-one-off"]').addEventListener('click', anonymous);
     toolbar.querySelector('[data-action="create-for-reading"]').addEventListener('click', create);
   }
 
   function filterEditor(address, submit) {
-    open('Filtrer par adresse Bluetooth', field('Adresse Bluetooth', 'address',
+    open(t('filterByBluetoothAddress'), field(t('bluetoothAddress'), 'address',
       `value="${e(address)}" placeholder="AA:BB:CC:DD:EE:FF" maxlength="36" required autofocus`),
-    values => submit(values.address), 'Appliquer le filtre');
+    values => submit(values.address), t('applyFilter'));
   }
 
   function viewNameEditor(action, current, submit) {
     const rename = action === 'rename';
-    const title = action === 'create' ? 'Créer une configuration' :
-      rename ? 'Renommer la configuration' : 'Sauvegarder la configuration';
+    const title = action === 'create' ? t('createViewPreset') :
+      rename ? t('renameViewPreset') : t('saveViewPreset');
     const form = open(title,
-      field('Nom', 'name', `value="${e(current)}" maxlength="64" required autofocus`),
-      ({ name }) => submit(name), rename ? 'Renommer' : 'Sauvegarder', { modal: rename || action === 'create' });
+      field(t('name'), 'name', `value="${e(current)}" maxlength="64" required autofocus`),
+      ({ name }) => submit(name), rename ? t('rename') : t('savePreset'), { modal: rename || action === 'create' });
     form.querySelector('[name="name"]').select();
   }
 
   function confirmDeletion(title, message, submit) {
-    open(title, `<p>${e(message)}</p>`, submit, 'Supprimer', { modal: true });
+    open(title, `<p>${e(message)}</p>`, submit, t('delete'), { modal: true });
     dialog.querySelector('[data-action="close-editor"]').focus();
   }
 
   function deleteViewEditor(name, submit) {
-    confirmDeletion('Supprimer la configuration', `Supprimer « ${name} » pour tous les profils ?`, submit);
+    confirmDeletion(t('deleteViewPreset'), t('confirmDeletePreset', [name]), submit);
   }
 
   function confirmRestoreProfile(count, submit) {
-    open('Restaurer le profil', `<p>Restaurer aussi les pesées de ce profil (${count}) ?</p>`,
+    open(t('restoreProfile'), `<p>${htmlText('restoreProfileWeighIns', [count])}</p>`,
       ({ include }) => submit(include === 'yes'), null, {
         modal: true,
-        submitChoices: [{ label: 'Non', value: 'no' }, { label: 'Oui', value: 'yes', primary: true }],
+        submitChoices: [{ label: t('no'), value: 'no' }, { label: t('yes'), value: 'yes', primary: true }],
       });
   }
 

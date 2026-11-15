@@ -1,5 +1,6 @@
 mod bluetooth;
 mod storage;
+mod system_locale;
 mod transaction_index;
 mod transactions;
 #[cfg(desktop)]
@@ -52,6 +53,7 @@ pub fn run() {
     builder
         .invoke_handler(tauri::generate_handler![
             start_bluetooth,
+            system_locale::system_locale,
             storage::load_session,
             storage::save_session,
             storage::import_files,

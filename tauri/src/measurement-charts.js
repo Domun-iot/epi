@@ -1,10 +1,11 @@
+import { locale, t, htmlText } from './i18n.js';
 import { escapeHtml as e, formatDate } from './format.js';
 
-const axisDay = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
-const axisMonth = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' });
-const axisEdgeDay = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'numeric' });
-const axisYear = new Intl.DateTimeFormat(undefined, { year: 'numeric' });
-const axisValue = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
+const axisDay = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' });
+const axisMonth = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' });
+const axisEdgeDay = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'numeric' });
+const axisYear = new Intl.DateTimeFormat(locale, { year: 'numeric' });
+const axisValue = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
 const dayMs = 86400_000;
 
 function localDay(time) {
@@ -78,7 +79,7 @@ export function renderChartDates(axis, width) {
 function rangeDuration([start, end]) {
   const days = localDay(end) - localDay(start) + 1;
   const [unit, divisor] = days > 365 ? ['year', 365] : days > 30 ? ['month', 30] : ['day', 1];
-  return new Intl.NumberFormat('fr-FR', {
+  return new Intl.NumberFormat(locale, {
     style: 'unit', unit, unitDisplay: 'long', maximumFractionDigits: 1,
   }).format(days / divisor);
 }
@@ -101,14 +102,14 @@ function valueScale(points) {
 }
 
 const bmiBands = [
-  { upper: 16, label: 'Maigreur sévère', color: '#d54848' },
-  { upper: 17, label: 'Maigreur modérée', color: '#e67e32' },
-  { upper: 18.5, label: 'Maigreur légère', color: '#e5b72c' },
-  { upper: 25, label: 'Corpulence normale', color: '#44a66b' },
-  { upper: 30, label: 'Surpoids', color: '#e5b72c' },
-  { upper: 35, label: 'Obésité I', color: '#e67e32' },
-  { upper: 40, label: 'Obésité II', color: '#d54848' },
-  { upper: Infinity, label: 'Obésité III', color: '#9b61cb' },
+  { upper: 16, label: t('severeThinness'), color: '#d54848' },
+  { upper: 17, label: t('moderateThinness'), color: '#e67e32' },
+  { upper: 18.5, label: t('mildThinness'), color: '#e5b72c' },
+  { upper: 25, label: t('normalWeight'), color: '#44a66b' },
+  { upper: 30, label: t('overweight'), color: '#e5b72c' },
+  { upper: 35, label: t('obesityI'), color: '#e67e32' },
+  { upper: 40, label: t('obesityIi'), color: '#d54848' },
+  { upper: Infinity, label: t('obesityIii'), color: '#9b61cb' },
 ];
 
 function bmiScale(points) {
@@ -163,13 +164,13 @@ function renderBmiBands({ y, min, max, bands }) {
 function renderBmiReference(value) {
   const category = bmiBands.find(({ upper }) => value < upper);
   return `<details class="chart-bmi-reference">
-    <summary>Repères IMC adulte · ${category.label}</summary>
+    <summary>${htmlText('adultBmiCategory', [category.label])}</summary>
     <ul>${bmiBands.map(({ upper, label, color }, index) => {
       const lower = bmiBands[index - 1]?.upper;
       const interval = lower === undefined ? `&lt; ${axisValue.format(upper)}`
         : upper === Infinity ? `≥ ${axisValue.format(lower)}`
-          : `${axisValue.format(lower)} à &lt; ${axisValue.format(upper)}`;
-      return `<li><span aria-hidden="true" style="--band-color:${color}"></span>${label} (${interval})</li>`;
+          : htmlText('bmiInterval', { min: axisValue.format(lower), max: axisValue.format(upper) });
+      return `<li><span aria-hidden="true" style="--band-color:${color}"></span>${e(label)} (${interval})</li>`;
     }).join('')}</ul>
   </details>`;
 }
@@ -232,10 +233,10 @@ const colors = [
   '#5279ee', '#d77a32', '#a369c9', '#2caa94', '#db547b', '#8c9e38', '#448fc1', '#b46e62',
   '#9087f4', '#b69143', '#428c58', '#bf518e', '#338f9d', '#bc6c46', '#806c9e', '#778a3a', '#b75959',
 ];
-const periods = [['30', '30 j'], ['90', '90 j'], ['365', '1 an'], ['all', 'Tout']];
-const signedValue = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2, signDisplay: 'exceptZero' });
+const periods = [['30', t('chartThirtyDays')], ['90', t('chartNinetyDays')], ['365', t('chartOneYear')], ['all', t('chartAllTime')]];
+const signedValue = new Intl.NumberFormat(locale, { maximumFractionDigits: 2, signDisplay: 'exceptZero' });
 
-const statusLabels = { visible: 'Visible', bold: 'En gras', hidden: 'Masquée' };
+const statusLabels = { visible: t('visible'), bold: t('inBold'), hidden: t('hiddenSeries') };
 
 export function measurementCharts(rows, series, { period = 'all', range, lastRange, mode = 'smooth', statuses = {}, profileAge }) {
   const configured = series.map((item, index) => ({ ...item, color: colors[index] }))
@@ -252,31 +253,31 @@ export function measurementCharts(rows, series, { period = 'all', range, lastRan
   const active = lines.find(({ id }) => statuses[id] === 'bold') ?? lines[0];
   const subtitle = active?.points.length > 1 ? chartChange(active) : '';
   const legend = `<div class="chart-legend" role="group" aria-labelledby="chart-series-label">
-    <span id="chart-series-label">Courbes</span>
+    <span id="chart-series-label">${htmlText('chartSeries')}</span>
     ${configured.map(({ id, label, color }) => `<button type="button" data-action="chart-axis" data-value="${id}"
-      data-status="${statuses[id]}" aria-pressed="${statuses[id] === 'bold'}" aria-description="${statusLabels[statuses[id]]}"
+      data-status="${statuses[id]}" aria-pressed="${statuses[id] === 'bold'}" aria-description="${e(statusLabels[statuses[id]])}"
       style="--series-color:${color}">${e(label)}</button>`).join('')}
   </div>`;
   return `<section class="panel measurement-chart" aria-labelledby="measurement-chart-title">
     <div class="chart-heading">
       <div>
-        <h2 id="measurement-chart-title">Évolution des pesées</h2>
+        <h2 id="measurement-chart-title">${htmlText('weighInTrends')}</h2>
         ${subtitle}
       </div>
       <div class="chart-controls">
-        <div class="chart-periods" role="group" aria-label="Tracé de la courbe">
-          <button type="button" data-action="chart-mode" data-value="raw" aria-pressed="${mode === 'raw'}">Brut</button>
+        <div class="chart-periods" role="group" aria-label="${htmlText('chartDisplayMode')}">
+          <button type="button" data-action="chart-mode" data-value="raw" aria-pressed="${mode === 'raw'}">${htmlText('raw')}</button>
           <button type="button" data-action="chart-mode" data-value="smooth" aria-pressed="${mode === 'smooth'}"
-            title="Moyenne centrée sur sept jours">Tendance</button>
+            title="${htmlText('sevenDayCentredAverage')}">${htmlText('trend')}</button>
         </div>
-        <div class="chart-periods" role="group" aria-label="Période">
+        <div class="chart-periods" role="group" aria-label="${htmlText('period')}">
           ${lastRange ? `<button type="button" data-action="chart-period" data-value="custom"
-            aria-pressed="${Boolean(range)}" title="Dernière sélection libre">${e(rangeDuration(lastRange))}</button>` : ''}
+            aria-pressed="${Boolean(range)}" title="${htmlText('lastCustomDateRange')}">${e(rangeDuration(lastRange))}</button>` : ''}
           ${periods.map(([id, label]) => `<button type="button" data-action="chart-period" data-value="${id}"
-            aria-pressed="${!range && period === id}">${label}</button>`).join('')}
+            aria-pressed="${!range && period === id}">${e(label)}</button>`).join('')}
         </div>
         <button type="button" class="button icon-button" data-action="chart-fullscreen"
-          aria-label="Plein écran" aria-pressed="false" title="Plein écran">
+          aria-label="${htmlText('fullScreen')}" aria-pressed="false" title="${htmlText('fullScreen')}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path class="chart-expand" d="M9 3H3v6m12-6h6v6m0 6v6h-6M3 15v6h6"/>
@@ -287,15 +288,15 @@ export function measurementCharts(rows, series, { period = 'all', range, lastRan
     </div>
     ${legend}
     ${active ? chartPlot(lines, active, { start, end, statuses, profileAge })
-      : `<p class="empty">${visible.length ? 'Aucune donnée à afficher sur le graphique.' : 'Toutes les courbes sont masquées.'}</p>`}
+      : `<p class="empty">${visible.length ? htmlText('emptyChart') : htmlText('allSeriesHidden')}</p>`}
   </section>`;
 }
 
 function chartChange({ id, label, points }) {
-  const subject = id === 'weight' ? 'du poids' : `de « ${label} »`;
   const change = signedValue.format(points.at(-1).value - points[0].value);
-  const unit = id === 'weight' ? ' kg' : '';
-  return `<p class="chart-change">Évolution ${e(subject)} sur la période : ${change}${unit}</p>`;
+  const message = id === 'weight' ? htmlText('weightChange', { delta: change + ' kg' })
+    : htmlText('seriesChange', { series: label, delta: change });
+  return `<p class="chart-change">${message}</p>`;
 }
 
 function chartPlot(lines, active, { start, end, statuses, profileAge }) {
@@ -311,7 +312,7 @@ function chartPlot(lines, active, { start, end, statuses, profileAge }) {
       <div class="chart-values" aria-hidden="true">${active.ticks.map(value =>
         `<span style="--y:${active.y(value)}%">${axisValue.format(value)}</span>`).join('')}</div>
       <div class="chart-plot"${start < end ? ` data-start="${start}" data-end="${end}"
-        title="Glissez horizontalement pour sélectionner une plage de dates"` : ''}>
+        title="${htmlText('dragToSelectDateRange')}"` : ''}>
         <div class="chart-selection" hidden></div>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           ${bmiReference ? renderBmiBands(active) : ''}

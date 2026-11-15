@@ -167,7 +167,7 @@ fn safe_name(value: &str) -> Result<&str, String> {
             .chars()
             .all(|c| c.is_alphanumeric() || " _-".contains(c))
     {
-        Err("Nom incompatible avec le dossier data.".into())
+        Err("epi-i18n:diagnostic.incompatibleDataName".into())
     } else {
         Ok(value)
     }
@@ -177,7 +177,10 @@ fn record(file: &DataFile) -> Result<Value, String> {
     let mut row: Value = serde_json::from_str(file.contents.trim_start_matches('\u{feff}'))
         .map_err(|error| format!("{} · {error}", file.path))?;
     if !row.is_object() {
-        return Err(format!("{} · objet JSON attendu", file.path));
+        return Err(format!(
+            "epi-i18n:diagnostic.expectedJsonObjectAtPath · {}",
+            file.path
+        ));
     }
     if let Some(stem) = file
         .path
@@ -296,7 +299,7 @@ fn update_global_preferences(
     update(
         global
             .as_object_mut()
-            .ok_or("Préférences globales invalides.")?,
+            .ok_or("epi-i18n:diagnostic.invalidGlobalPreferences")?,
     );
     save_json(root, &root.join(PREFS), &global, true)?;
     Ok(())
@@ -337,7 +340,9 @@ fn read_session(root: &Path) -> Result<Value, String> {
 }
 
 pub(crate) fn atomic_write(path: &Path, data: &[u8], replace: bool) -> Result<bool, String> {
-    let root = path.parent().ok_or("Dossier de données introuvable.")?;
+    let root = path
+        .parent()
+        .ok_or("epi-i18n:diagnostic.dataFolderNotFound")?;
     fs::create_dir_all(root).map_err(message)?;
     let mut temp = tempfile::NamedTempFile::new_in(root).map_err(message)?;
     temp.write_all(data).map_err(message)?;
@@ -450,7 +455,7 @@ fn save_records(
         }
     }
     for row in rows(state, key) {
-        let id = record_uuid(row).ok_or("UUID de fiche invalide.")?;
+        let id = record_uuid(row).ok_or("epi-i18n:diagnostic.invalidRecordUuid")?;
         let previous_row = rows(previous, key).iter().find(|old| {
             record_uuid(old).map_or_else(|| identity(old) == identity(row), |old_id| old_id == id)
         });
@@ -465,13 +470,11 @@ fn save_records(
             continue;
         }
         if existing.is_some_and(|(_, current)| current != row && previous_row != Some(current)) {
-            return Err(
-                "Une fiche a été modifiée. Recharge les données avant de réessayer.".into(),
-            );
+            return Err("epi-i18n:diagnostic.aFileHasBeenModifiedReload".into());
         }
         let existing_path = existing.map(|(file, _)| file);
         if !valid_file(&path) {
-            return Err("Nom de fichier incompatible.".into());
+            return Err("epi-i18n:diagnostic.incompatibleFileName".into());
         }
         let replace = existing_path.is_some_and(|existing| existing.eq_ignore_ascii_case(&path));
         let target = root.join(if replace {
@@ -504,7 +507,7 @@ fn save_records(
             save_json(root, &target, row, replace)?
         };
         if !saved {
-            return Err("Une fiche existe déjà. Recharge les données avant de réessayer.".into());
+            return Err("epi-i18n:diagnostic.aFileAlreadyExistsReloadThe".into());
         }
     }
     Ok(())
@@ -540,7 +543,7 @@ fn update_measurement_identities(
         if let Some(path) = path {
             writes.push((path, after));
         } else if paths.get_mut(&row_key(after)).and_then(Vec::pop).is_none() {
-            return Err("Une pesée a changé. Recharge les données avant de réessayer.".into());
+            return Err("epi-i18n:diagnostic.weighInChanged".into());
         }
     }
     for (path, row) in writes {
@@ -564,7 +567,7 @@ fn measurement_folder(row: &Value, profiles: &[Value]) -> Result<String, String>
         .or_else(|| row["profileUuid"].as_str())
     {
         if !valid_uuid(id) {
-            return Err("UUID de profil invalide.".into());
+            return Err("epi-i18n:diagnostic.invalidProfileUuid".into());
         }
         return Ok(id.to_ascii_lowercase());
     }
@@ -587,9 +590,9 @@ fn measurement_folder(row: &Value, profiles: &[Value]) -> Result<String, String>
 fn measurement_stamp(row: &Value) -> Result<String, String> {
     let received = row["receivedAt"]
         .as_str()
-        .ok_or("Date de pesée manquante.")?;
-    let date =
-        chrono::DateTime::parse_from_rfc3339(received).map_err(|_| "Date de pesée invalide.")?;
+        .ok_or("epi-i18n:diagnostic.missingWeighInDate")?;
+    let date = chrono::DateTime::parse_from_rfc3339(received)
+        .map_err(|_| "epi-i18n:diagnostic.invalidWeighInDate")?;
     Ok(date
         .to_utc()
         .to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
@@ -627,7 +630,7 @@ fn save_measurements(
     for row in appended {
         let path = measurement_path(row, profiles)?;
         if !valid_file(&path) {
-            return Err("Chemin de pesée invalide.".into());
+            return Err("epi-i18n:diagnostic.invalidWeighInPath".into());
         }
         if occupied.insert(path.clone()) {
             save_json(root, &root.join(path), row, false)?;
@@ -692,7 +695,7 @@ fn deletion_paths(root: &Path, session: &Value, previous: &Value) -> Result<Vec<
             actual.push(row);
         }
         if row_counts(&actual) != row_counts(before) || retained.values().any(|count| *count > 0) {
-            return Err("Les données ont changé. Recharge les données avant de réessayer.".into());
+            return Err("epi-i18n:diagnostic.theDataHasChangedReloadThe".into());
         }
     }
     if let Some(prefs) = previous["profilePreferences"].as_object() {
@@ -735,7 +738,7 @@ fn save_deletion(root: &Path, session: &Value, previous: &Value) -> Result<(), S
         if let Some(restore) = rollback_error {
             let backup = staging.keep();
             return Err(format!(
-                "{error} · Restauration incomplète : {restore} · {}",
+                "{error}\nepi-i18n:diagnostic.incompleteRollback · {restore} · {}",
                 backup.display()
             ));
         }
@@ -778,7 +781,7 @@ fn notification_path(root: &Path, id: &str) -> Result<PathBuf, String> {
             }
         });
     if !valid {
-        return Err("Identifiant de notification invalide.".into());
+        return Err("epi-i18n:diagnostic.invalidNotificationId".into());
     }
     Ok(root.join("notifications").join(format!("{id}.json")))
 }
@@ -837,9 +840,7 @@ fn with_notifications(
                     .get(id)
                     .is_some_and(|previous| Some(*previous) != old.as_ref())
                 {
-                    return Err(
-                        "La notification a changé. Recharge les données avant de réessayer.".into(),
-                    );
+                    return Err("epi-i18n:diagnostic.theNotificationHasChangedReloadThe".into());
                 }
                 let change = transactions::change(root, &path, old.is_some(), Some(row))?;
                 json_write(&path, row, true)?;
@@ -868,7 +869,10 @@ fn with_notifications(
             }
         }
         if !rollback.is_empty() {
-            return Err(format!("{error} · Journal : {}", rollback.join(" · ")));
+            return Err(format!(
+                "{error}\nepi-i18n:diagnostic.notificationLog · {}",
+                rollback.join(" · ")
+            ));
         }
         return Err(error);
     }
@@ -972,7 +976,7 @@ fn save_view_presets(root: &Path, current: &Value, previous: &Value) -> Result<(
             let id = item["id"]
                 .as_str()
                 .filter(|id| valid_view_preset_id(id))
-                .ok_or("Identifiant de configuration invalide.")?;
+                .ok_or("epi-i18n:diagnostic.invalidPresetId")?;
             if !processed.insert(id) {
                 continue;
             }
@@ -986,8 +990,7 @@ fn save_view_presets(root: &Path, current: &Value, previous: &Value) -> Result<(
             if stored.as_ref() == new {
                 continue;
             }
-            let conflict =
-                "Une configuration a été modifiée. Recharge les données avant de réessayer.";
+            let conflict = "epi-i18n:diagnostic.aConfigurationHasBeenModifiedReload";
             if stored.as_ref() != old {
                 return Err(conflict.into());
             }
@@ -1094,13 +1097,19 @@ fn merge_snapshot(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
     let mut ids = HashSet::new();
     for file in files {
         if !valid_file(&file.path) && !valid_extra_path(&file.path) {
-            return Err(format!("Chemin de données invalide · {}", file.path));
+            return Err(format!(
+                "epi-i18n:diagnostic.invalidDataPath · {}",
+                file.path
+            ));
         }
         let mut target = root.to_path_buf();
         for part in file.path.split('/') {
             target.push(part);
             if fs::symlink_metadata(&target).is_ok_and(|meta| meta.is_symlink()) {
-                return Err(format!("Lien symbolique inattendu · {}", file.path));
+                return Err(format!(
+                    "epi-i18n:diagnostic.unexpectedSymbolicLink · {}",
+                    file.path
+                ));
             }
         }
         if valid_file(&file.path) {
@@ -1114,7 +1123,10 @@ fn merge_snapshot(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
                 let (_, name) = file.path.split_once('/').unwrap();
                 let uuid = transactions::filename_uuid(name).unwrap();
                 if value["uuid"].as_str() != Some(uuid.to_string().as_str()) {
-                    return Err(format!("UUID de transaction invalide · {}", file.path));
+                    return Err(format!(
+                        "epi-i18n:diagnostic.invalidTransactionUuid · {}",
+                        file.path
+                    ));
                 }
                 let complete = file.path.starts_with("transactions/");
                 if complete {
@@ -1123,7 +1135,10 @@ fn merge_snapshot(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
                 history.push((file, uuid, complete));
             } else {
                 if !value.is_object() {
-                    return Err(format!("Objet JSON attendu · {}", file.path));
+                    return Err(format!(
+                        "epi-i18n:diagnostic.expectedJsonObjectAtPath · {}",
+                        file.path
+                    ));
                 }
                 extras.push((file, value));
             }
@@ -1171,7 +1186,10 @@ fn merge_files(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
         .iter()
         .map(|entry| {
             if !valid_file(&entry.path) {
-                return Err(format!("Chemin de données invalide · {}", entry.path));
+                return Err(format!(
+                    "epi-i18n:diagnostic.invalidDataPath · {}",
+                    entry.path
+                ));
             }
             record(entry)
         })

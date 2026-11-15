@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 
-export type GoogleIdentity = { sub: string; email?: string };
+export type GoogleIdentity = { sub: string; email?: string; locale?: string };
 export type Google = {
   authorize: (state: string, verifier: string) => string;
   identify: (code: string, verifier: string) => Promise<GoogleIdentity>;
@@ -29,7 +29,7 @@ export function googleFromEnvironment(env = process.env): Google | undefined {
     authorize(state, verifier) {
       const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
       url.search = new URLSearchParams({
-        client_id: clientId, redirect_uri: redirectUri, scope: 'openid email',
+        client_id: clientId, redirect_uri: redirectUri, scope: 'openid email profile',
         response_type: 'code', state, nonce: nonceFor(verifier), prompt: 'select_account', code_challenge_method: 'S256',
         code_challenge: createHash('sha256').update(verifier).digest('base64url'),
       }).toString();
@@ -51,7 +51,7 @@ export function googleFromEnvironment(env = process.env): Google | undefined {
 
       // OIDC Core 3.1.3.7 allows TLS issuer validation for tokens received
       // directly from the token endpoint. This code never accepts client-supplied tokens.
-      const { sub, email, email_verified: verified, iss, aud, azp, exp, iat, nonce } =
+      const { sub, email, email_verified: verified, locale, iss, aud, azp, exp, iat, nonce } =
         JSON.parse(Buffer.from(idToken.split('.')[1], 'base64url').toString('utf8'));
       const now = Math.floor(Date.now() / 1000);
       if ((iss !== 'https://accounts.google.com' && iss !== 'accounts.google.com') ||
@@ -60,7 +60,11 @@ export function googleFromEnvironment(env = process.env): Google | undefined {
           nonce !== nonceFor(verifier) || typeof sub !== 'string' || !sub || sub.length > 255) {
         throw new Error('Invalid Google identity');
       }
-      return { sub, email: verified === true && typeof email === 'string' ? email : undefined };
+      return {
+        sub,
+        email: verified === true && typeof email === 'string' ? email : undefined,
+        ...(typeof locale === 'string' && { locale }),
+      };
     },
   };
 }

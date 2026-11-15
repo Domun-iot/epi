@@ -1,6 +1,7 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { promisify } from 'node:util';
+import googleReturn from './google-return.json' with { type: 'json' };
 import { randomSecret, type Google, type GoogleIdentity } from './google.ts';
 import type { openStore } from './store.ts';
 
@@ -124,21 +125,46 @@ function batch(value: unknown): unknown[] {
 
 type Account = NonNullable<ReturnType<Store['findById']>>;
 type GoogleAction =
-  | { kind: 'login' | 'register'; deviceId: string }
+  | { kind: 'login' | 'register'; deviceId: string; locale: string | null }
   | { kind: 'link'; account: Account }
   | { kind: 'unlink'; account: Account; newHash: string };
 
 type GoogleAttempt = {
   action: GoogleAction;
   verifier: string;
+  locale: Locale;
   secretHash: string;
   expires: number;
   status: 'pending' | 'exchanging' | 'failed' | 'ready';
   identity?: GoogleIdentity;
 };
 
+type Locale = keyof typeof googleReturn;
+
+function supportedLocale(value: unknown): Locale | null {
+  if (typeof value !== 'string' || value.length > 64) return null;
+  try {
+    const { language, region } = new Intl.Locale(value.replaceAll('_', '-'));
+    const id = language === 'en' ? 'en-GB' : language === 'pt' ? 'pt-PT'
+      : language === 'fr' ? (region === 'CA' ? 'fr-CA' : 'fr-FR') : language;
+    return Object.hasOwn(googleReturn, id) ? id as Locale : null;
+  } catch {
+    return null;
+  }
+}
+
+function accountLanguages(account: Account) {
+  return {
+    ...(account.locale && { locale: account.locale }),
+    ...(account.google_locale && { googleLocale: account.google_locale }),
+  };
+}
+
 function accountInfo(account: Account) {
-  return { email: account.email, googleLinked: Boolean(account.google_sub), hasPassword: Boolean(account.password_hash) };
+  return {
+    email: account.email, googleLinked: Boolean(account.google_sub), hasPassword: Boolean(account.password_hash),
+    ...accountLanguages(account),
+  };
 }
 
 async function checkPassword(password: unknown, hash: string) {
@@ -150,16 +176,18 @@ async function checkPassword(password: unknown, hash: string) {
   }
 }
 
-function browserResult(res: ServerResponse, succeeded: boolean) {
+function browserResult(res: ServerResponse, succeeded: boolean, locale: Locale) {
   res.writeHead(succeeded ? 200 : 400, {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-store',
     'Referrer-Policy': 'no-referrer',
     'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
   });
-  res.end('<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>éPI</title><h1>éPI</h1><p>' +
-    (succeeded ? 'Retourne dans éPI pour terminer.' : 'La connexion Google a échoué ou a été annulée. Retourne dans éPI.') +
-    '</p></html>');
+  const message = googleReturn[locale][succeeded ? 0 : 1];
+  const escaped = message.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  res.end('<!doctype html><html lang="' + locale +
+    '"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>éPI</title><h1>éPI</h1><p>' +
+    escaped + '</p></html>');
 }
 
 export function createApi(store: Store, now = Date.now, google?: Google) {
@@ -223,14 +251,14 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
         if (!store.unlinkGoogle(account.id, account.google_sub, account.password_hash, account.password_hash)) {
           throw new ApiError(409, 'google_conflict');
         }
-        return send(res, 200, { ...accountInfo(account), googleLinked: false });
+        return send(res, 200, { ...accountInfo({ ...account, google_sub: null, google_locale: null }) });
       }
       if (route === 'POST /v1/google/start') {
         if (!google) throw new ApiError(503, 'google_disabled');
         const body = await readBody(req);
         let action: GoogleAction;
         if (body.action === 'login' || body.action === 'register') {
-          action = { kind: body.action, deviceId: deviceIdFrom(body.deviceId) };
+          action = { kind: body.action, deviceId: deviceIdFrom(body.deviceId), locale: supportedLocale(body.locale) };
         } else if (body.action === 'link') {
           const account = currentAccount(req);
           if (account.google_sub) throw new ApiError(409, 'google_conflict');
@@ -252,7 +280,7 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
         const state = randomSecret();
         const secret = randomSecret();
         const verifier = randomSecret();
-        attempts.set(state, { action, verifier, secretHash: hashToken(secret),
+        attempts.set(state, { action, verifier, locale: supportedLocale(body.interfaceLocale) ?? 'en-GB', secretHash: hashToken(secret),
           expires: now() + 5 * 60 * 1000, status: 'pending' });
         return send(res, 200, { state, secret, url: google.authorize(state, verifier) });
       }
@@ -261,21 +289,23 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
         const query = new URLSearchParams(req.url.split('?')[1]);
         const state = query.get('state');
         const attempt = state && attempts.get(state);
-        if (!google || !attempt || attempt.status !== 'pending') return browserResult(res, false);
+        const locale = attempt ? attempt.locale : req.headers['accept-language']?.split(',')
+          .map(value => supportedLocale(value.split(';')[0].trim())).find(Boolean) ?? 'en-GB';
+        if (!google || !attempt || attempt.status !== 'pending') return browserResult(res, false, locale);
         const code = query.get('code');
         if (!code || query.has('error')) {
           attempt.status = 'failed';
-          return browserResult(res, false);
+          return browserResult(res, false, locale);
         }
         attempt.status = 'exchanging';
         try {
           attempt.identity = await google.identify(code, attempt.verifier);
-          if (attempt.expires <= now()) return browserResult(res, false);
+          if (attempt.expires <= now()) return browserResult(res, false, locale);
           attempt.status = 'ready';
-          return browserResult(res, true);
+          return browserResult(res, true, locale);
         } catch {
           attempt.status = 'failed';
-          return browserResult(res, false);
+          return browserResult(res, false, locale);
         }
       }
       if (route === 'POST /v1/google/finish') {
@@ -293,12 +323,13 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
         if (attempt.status === 'pending' || attempt.status === 'exchanging') return send(res, 202, { pending: true });
         attempts.delete(state as string);
         if (!identity || attempt.status !== 'ready') throw new ApiError(401, 'google_failed');
+        const googleLocale = supportedLocale(identity.locale);
         if (action.kind === 'link') {
           const { account } = action;
-          if (!store.linkGoogle(account.id, identity.sub, account.password_hash)) {
+          if (!store.linkGoogle(account.id, identity.sub, account.password_hash, googleLocale)) {
             throw new ApiError(409, 'google_conflict');
           }
-          return send(res, 200, { ...accountInfo(account), googleLinked: true });
+          return send(res, 200, { ...accountInfo({ ...account, google_sub: identity.sub, google_locale: googleLocale }) });
         }
         if (action.kind === 'unlink') {
           const { account } = action;
@@ -306,21 +337,26 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
           if (!store.unlinkGoogle(account.id, identity.sub, account.password_hash, action.newHash)) {
             throw new ApiError(409, 'google_conflict');
           }
-          return send(res, 200, { ...accountInfo(account), googleLinked: false, hasPassword: true });
+          return send(res, 200, { ...accountInfo({ ...account, google_sub: null, google_locale: null }), hasPassword: true });
         }
         let account = store.findGoogle(identity.sub);
         if (!account && action.kind === 'register') {
           const email = identity.email?.trim().toLowerCase() ?? '';
           if (!validEmail(email)) throw new ApiError(400, 'google_unverified_email');
-          account = store.createGoogle(email, identity.sub) ?? store.findGoogle(identity.sub);
+          account = store.createGoogle(email, identity.sub, action.locale, googleLocale) ?? store.findGoogle(identity.sub);
           if (!account) throw new ApiError(409, 'account_exists');
         }
         if (!account) throw new ApiError(404, 'google_not_linked');
+        if (googleLocale && googleLocale !== account.google_locale) {
+          store.updateGoogleLocale(account.id, identity.sub, googleLocale);
+          account.google_locale = googleLocale;
+        }
         return send(res, 200, { ...accountInfo(account), token: issueToken(account, action.deviceId) });
       }
       if (route === 'POST /v1/accounts') {
-        const { email, password } = credentials(await readBody(req));
-        if (!store.createAccount(email, await hashPassword(password))) {
+        const body = await readBody(req);
+        const { email, password } = credentials(body);
+        if (!store.createAccount(email, await hashPassword(password), supportedLocale(body.locale))) {
           throw new ApiError(409, 'account_exists');
         }
         return send(res, 201, { email });
@@ -333,7 +369,7 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
         const account = store.findAccount(email);
         await checkPassword(password, account?.password_hash ?? '');
         if (!account) throw new ApiError(401, 'invalid_credentials');
-        return send(res, 200, { token: issueToken(account, deviceId) });
+        return send(res, 200, { token: issueToken(account, deviceId), ...accountLanguages(account) });
       }
 
       if (route === 'DELETE /v1/device-tokens') {

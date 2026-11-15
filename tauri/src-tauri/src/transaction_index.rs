@@ -16,7 +16,7 @@ pub fn parse(contents: &str) -> io::Result<HashSet<Uuid>> {
             if uuid.to_string() != line {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    "Index de transactions invalide.",
+                    "epi-i18n:diagnostic.invalidTransactionIndex",
                 ));
             }
             Ok(uuid)

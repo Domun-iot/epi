@@ -19,9 +19,9 @@ type ScanError = Box<dyn std::error::Error + Send + Sync>;
 
 pub(super) async fn run(app: &AppHandle) {
     loop {
-        status(app, "Démarrage de l’écoute Bluetooth…");
+        status(app, "epi-i18n:diagnostic.startingBluetoothListening");
         if let Err(error) = scan(app).await {
-            status(app, &format!("Bluetooth indisponible · {error}"));
+            status(app, &format!("epi-i18n:bluetoothUnavailable · {error}"));
         }
         tokio::time::sleep(RETRY).await;
     }
@@ -37,19 +37,19 @@ async fn scan(app: &AppHandle) -> Result<(), ScanError> {
             break;
         }
     }
-    let adapter = adapter.ok_or("Aucun adaptateur Bluetooth actif")?;
+    let adapter = adapter.ok_or("epi-i18n:bluetoothNoAdapter")?;
     let mut events = adapter.events().await?;
     adapter.start_scan(ScanFilter::default()).await?;
-    status(app, "Écoute Bluetooth active");
+    status(app, "epi-i18n:diagnostic.activeBluetoothListening");
 
     let mut connections = Connections::default();
     let result = loop {
         let event = match tokio::time::timeout(RETRY, events.next()).await {
             Ok(Some(event)) => event,
-            Ok(None) => break Err("Le flux Bluetooth a été interrompu".into()),
+            Ok(None) => break Err("epi-i18n:diagnostic.bluetoothStreamWasInterrupted".into()),
             Err(_) => match adapter.adapter_state().await {
                 Ok(CentralState::PoweredOff | CentralState::Unknown) => {
-                    break Err("L’adaptateur Bluetooth n’est plus disponible".into());
+                    break Err("epi-i18n:diagnostic.bluetoothAdapterIsNoLongerAvailable".into());
                 }
                 Err(error) => break Err(error.into()),
                 _ => continue,
@@ -95,7 +95,7 @@ async fn scan(app: &AppHandle) -> Result<(), ScanError> {
                 connections.launch(app, &adapter, id).await;
             }
             CentralEvent::StateUpdate(CentralState::PoweredOff | CentralState::Unknown) => {
-                break Err("L’adaptateur Bluetooth n’est plus disponible".into());
+                break Err("epi-i18n:diagnostic.bluetoothAdapterIsNoLongerAvailable".into());
             }
             _ => {}
         }
@@ -185,7 +185,7 @@ async fn listen_weight(
                     .properties
                     .intersects(CharPropFlags::INDICATE | CharPropFlags::NOTIFY)
         })
-        .ok_or("Caractéristique de pesée absente")?;
+        .ok_or("epi-i18n:diagnostic.missingWeighInCharacteristic")?;
     let mut notifications = peripheral.notifications().await?;
     tokio::time::timeout(
         Duration::from_secs(8),

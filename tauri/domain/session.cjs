@@ -297,7 +297,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     const existing = draft.measurements.find(row => measurementSlot(row, draft.profiles) === slot);
     const stored = existing ?? measurement;
     updateReceipt(draft, pendingId, entry => ({ reason: null,
-      text: existing ? 'Pesée déjà enregistrée.' : 'Pesée enregistrée.',
+      text: existing ? 'epi-i18n:diagnostic.weighInAlreadyRecorded' : 'epi-i18n:diagnostic.weighInRecorded',
       measurementUuid: stored.uuid, profileUuid: stored.profile?.uuid ?? null, deviceUuid: stored.device?.uuid ?? null,
       ...(entry.replaying && { replaying: false, restoredAt: new Date().toISOString() }),
     }));
@@ -314,7 +314,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     const reason = device ? 'profile' : 'device';
     const update = {
       reason, deviceUuid: device?.uuid ?? null, profileUuid: null, measurementUuid: null,
-      text: device ? 'Choisissez le profil auquel attribuer la pesée.' : 'Enregistrez cette balance pour traiter sa pesée.',
+      text: device ? 'epi-i18n:chooseWeighInProfile' : 'epi-i18n:registerScaleForWeighIn',
       record: { event, bluetoothMetadata },
     };
     if (draft.notifications.some(entry => entry.type === 'pending' && entry.pendingId === id)) {
@@ -666,7 +666,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
         if (draft.addressFilter === address) draft.addressFilter = null;
         draft.pending = draft.pending.map(item => {
           if (item.event.address !== address) return item;
-          updateReceipt(draft, item.id, () => ({ reason: 'device', text: 'Enregistrez cette balance pour traiter sa pesée.' }));
+          updateReceipt(draft, item.id, () => ({ reason: 'device', text: 'epi-i18n:registerScaleForWeighIn' }));
           return { ...item, device: null, reason: 'device' };
         });
       });
@@ -693,7 +693,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       } else {
         const id = globalThis.crypto.randomUUID();
         await transact(draft => notify(draft, { type: 'enrollment', enrollmentId: id,
-          text: `En attente d’une pesée de l’appareil « ${request.name} ». Montez sur la balance pour envoyer ses données.` }));
+          text: `epi-i18n:waitingForScale · ${request.name}` }));
         enrollment = { ...request, id, actor: saved.selectedProfile };
       }
       return publish();
@@ -726,7 +726,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       const pending = draft.pending.filter(row => row.id !== id);
       if (pending.length === draft.pending.length) return;
       draft.pending = pending;
-      updateReceipt(draft, id, () => ({ reason: null, text: 'Pesée ignorée.', replaying: false }));
+      updateReceipt(draft, id, () => ({ reason: null, text: 'epi-i18n:weighInDiscarded', replaying: false }));
     });
   }
 

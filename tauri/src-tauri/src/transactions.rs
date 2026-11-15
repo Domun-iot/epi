@@ -29,7 +29,7 @@ pub fn change(
     let relative = path.strip_prefix(root).map_err(message)?;
     let path = relative
         .iter()
-        .map(|part| part.to_str().ok_or("Chemin de données invalide."))
+        .map(|part| part.to_str().ok_or("epi-i18n:diagnostic.invalidDataPath2"))
         .collect::<Result<Vec<_>, _>>()?
         .join("/");
     Ok(match value {
@@ -48,7 +48,7 @@ pub fn record(root: &Path, operations: Vec<Value>) -> Result<(), String> {
     let now = DateTime::<Utc>::from(SystemTime::now()).timestamp_micros();
     *last_stamp = now.max(*last_stamp + 1);
     let stamp = DateTime::from_timestamp_micros(*last_stamp)
-        .ok_or("Date de transaction invalide.")?
+        .ok_or("epi-i18n:diagnostic.invalidTransactionDate")?
         .to_rfc3339_opts(SecondsFormat::Micros, true)
         .replace(':', "-");
     let uuid = Uuid::new_v4();
@@ -65,7 +65,7 @@ pub fn record(root: &Path, operations: Vec<Value>) -> Result<(), String> {
     let mut bytes = serde_json::to_vec_pretty(&transaction).map_err(message)?;
     bytes.push(b'\n');
     if !atomic_write(&path, &bytes, false)? {
-        return Err("Un fichier de transaction existe déjà.".into());
+        return Err("epi-i18n:diagnostic.aTransactionFileAlreadyExists".into());
     }
     if let Err(error) = transaction_index::add(root, uuid) {
         fs::remove_file(path).map_err(|cleanup| format!("{error} · {cleanup}"))?;

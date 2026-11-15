@@ -1,3 +1,4 @@
+import { localizeMessage, t } from './i18n.js';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
@@ -7,11 +8,14 @@ import { createWebSession } from './web-session.js';
 import composition from 'virtual:epi-composition';
 import { datasetFiles, fileRecords, readArchive, writeArchive } from './legacy-import.js';
 
-export const METHOD_COLUMNS = composition.columns;
-export const METRICS = composition.metrics;
+const translatedMethods = new Set(['IMC', 'Mi', 'D60*', 'HW', 'HB', 'Owe', 'Cun*']);
+export const METHOD_COLUMNS = composition.columns.map(([id, name]) =>
+  [id, translatedMethods.has(id) ? t('method.' + id.replace('*', '')) : name]);
+export const METRICS = composition.metrics.map(([id, , precision]) =>
+  [id, t('metric.' + id), precision]);
 
 const snapshotKey = 'epi-session-v1';
-const zipFilters = [{ name: 'Archive ZIP', extensions: ['zip'] }];
+const zipFilters = [{ name: t('zipArchive'), extensions: ['zip'] }];
 
 export async function connect(onState, onStatus, onRaw, onWeighing) {
   const native = isTauri();
@@ -32,7 +36,7 @@ export async function connect(onState, onStatus, onRaw, onWeighing) {
   function receive(line) {
     onRaw?.(line);
     if (line.startsWith('PAYLOAD ')) return;
-    session.ingest(line).catch(error => onStatus?.('Erreur de traitement Bluetooth · ' + String(error)));
+    session.ingest(line).catch(error => onStatus?.(t('bluetoothProcessingError', { detail: localizeMessage(error?.message ?? String(error)) }), true));
   }
 
   async function retryBluetooth() {
@@ -42,17 +46,18 @@ export async function connect(onState, onStatus, onRaw, onWeighing) {
 
   if (native) {
     await listen('ble-frame', event => receive(event.payload));
-    await listen('ble-status', event => onStatus?.(event.payload));
-    onStatus?.('Démarrage du Bluetooth…');
+    await listen('ble-status', ({ payload }) => onStatus?.(localizeMessage(payload),
+      !['epi-i18n:bluetoothStarting', 'epi-i18n:diagnostic.startingBluetoothListening', 'epi-i18n:diagnostic.activeBluetoothListening'].includes(payload)));
+    onStatus?.(t('bluetoothStarting'));
     try {
       await retryBluetooth();
     } catch (error) {
-      onStatus?.('Bluetooth indisponible · ' + String(error));
+      onStatus?.(t('bluetoothUnavailable', { detail: localizeMessage(String(error)) }), true);
     }
   } else if (web) {
-    onStatus?.('Mode web');
+    onStatus?.(t('webMode'));
   } else {
-    onStatus?.('Mode simulation');
+    onStatus?.(t('simulationMode'), true);
     window.addEventListener('epi:frame', event => receive(event.detail));
   }
 
@@ -72,7 +77,7 @@ export async function connect(onState, onStatus, onRaw, onWeighing) {
 
   return {
     ...session,
-    retryBluetooth: web ? undefined : retryBluetooth,
+    retryBluetooth: native ? retryBluetooth : undefined,
     native,
     web,
     async importLegacy(file) {
@@ -80,7 +85,7 @@ export async function connect(onState, onStatus, onRaw, onWeighing) {
     },
     ...(native && {
       async pickLegacy() {
-        const path = await open({ multiple: false, filters: zipFilters });
+        const path = await open({ title: t('importAZipArchive'), multiple: false, filters: zipFilters });
         if (!path) return undefined;
         return importBytes(await readFile(path));
       },
@@ -88,7 +93,7 @@ export async function connect(onState, onStatus, onRaw, onWeighing) {
     async exportData() {
       const filename = 'epi-data-' + new Date().toISOString().slice(0, 10) + '.zip';
       if (native) {
-        const path = await save({ defaultPath: filename, filters: zipFilters });
+        const path = await save({ title: t('exportZip'), defaultPath: filename, filters: zipFilters });
         if (!path) return false;
         await writeFile(path, writeArchive(await invoke('export_files')));
       } else {

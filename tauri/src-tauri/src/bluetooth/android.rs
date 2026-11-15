@@ -33,13 +33,13 @@ pub fn set_foreground(active: bool) {
 }
 
 pub(super) async fn run(app: &AppHandle) {
-    status(app, "Démarrage de l’écoute Bluetooth…");
+    status(app, "epi-i18n:diagnostic.startingBluetoothListening");
     let handler = match wait_for_handler().await {
         Some(handler) => handler,
         None => {
             status(
                 app,
-                "Bluetooth indisponible · initialisation Android impossible",
+                "epi-i18n:bluetoothAndroidUnavailable",
             );
             return;
         }
@@ -52,11 +52,11 @@ pub(super) async fn run(app: &AppHandle) {
             Ok(true) => break,
             Ok(false) => status(
                 app,
-                "Autorise les appareils à proximité dans les paramètres Android",
+                "epi-i18n:diagnostic.allowNearbyDevicesInAndroidSettings",
             ),
             Err(error) => status(
                 app,
-                &format!("Autorisation Bluetooth indisponible · {error}"),
+                &format!("epi-i18n:bluetoothPermissionUnavailable · {error}"),
             ),
         }
         // Prompt once, then recover automatically after a settings change.
@@ -71,12 +71,12 @@ pub(super) async fn run(app: &AppHandle) {
         if matches!(handler.get_adapter_state().await, AdapterState::Off) {
             status(
                 app,
-                "Bluetooth désactivé · active-le dans les paramètres Android",
+                "epi-i18n:diagnostic.bluetoothDisabledEnableItInAndroid",
             );
         } else if let Err(error) =
             scan(app, handler, foreground.clone(), &mut previous_payloads).await
         {
-            status(app, &format!("Bluetooth indisponible · {error}"));
+            status(app, &format!("epi-i18n:bluetoothUnavailable · {error}"));
         }
         if !foreground.has_changed().unwrap_or(false) {
             retry_or_lifecycle_change(&mut foreground).await;
@@ -114,7 +114,7 @@ async fn scan(
     handler
         .discover(Some(sender), u64::MAX, ScanFilter::None, false)
         .await?;
-    status(app, "Écoute Bluetooth active");
+    status(app, "epi-i18n:diagnostic.activeBluetoothListening");
     let mut links: HashMap<String, (JoinHandle<()>, Instant)> = HashMap::new();
     let mut diagnostic_devices: HashMap<String, BleDevice> = HashMap::new();
     let mut check_adapter_at = Instant::now() + RETRY;

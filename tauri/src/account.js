@@ -1,3 +1,4 @@
+import { languages, locale, t, useAccountLanguage } from './i18n.js';
 import { isTauri } from '@tauri-apps/api/core';
 import { openUrl } from '@tauri-apps/plugin-opener';
 
@@ -14,6 +15,9 @@ const form = document.querySelector('#account-form');
 const fields = document.querySelector('#account-fields');
 const email = form.elements.email;
 const password = form.elements.password;
+const languageField = document.querySelector('#account-language-field');
+const language = form.elements.language;
+language.replaceChildren(...Object.entries(languages).map(([id, name]) => new Option(name, id, id === locale)));
 const accountEmail = document.querySelector('#account-email');
 const errorNotice = document.querySelector('#account-error');
 const switchButton = document.querySelector('#account-switch');
@@ -35,6 +39,10 @@ let waitingForGoogle = false;
 let cancelGoogle = false;
 let account = null;
 let creating = false;
+let languageChanged = false;
+language.addEventListener('change', () => { languageChanged = true; });
+
+const chosenLocale = () => creating && languageChanged ? language.value : undefined;
 let busy = false;
 
 function readAccount() {
@@ -57,50 +65,52 @@ function showError(message) {
 }
 
 function render() {
-  title.textContent = account ? 'Compte' : creating ? 'Créer un compte' : 'Connexion';
+  title.textContent = account ? t('account') : creating ? t('createAccount') : t('signInHeading');
   accountEmail.hidden = !account;
   accountEmail.textContent = account?.email ?? '';
   fields.hidden = Boolean(account);
+  languageField.hidden = !creating || Boolean(account);
+  language.disabled = languageField.hidden || busy;
   email.disabled = password.disabled = busy || Boolean(account);
   password.autocomplete = creating ? 'new-password' : 'current-password';
   switchButton.hidden = Boolean(account) || !configured;
   switchButton.disabled = busy;
-  switchButton.textContent = creating ? 'Revenir à la connexion' : 'Créer un compte';
+  switchButton.textContent = creating ? t('backToSignIn') : t('createAccount');
   const needsNewPassword = managingGoogle && !accountInfo?.hasPassword;
   googleFields.hidden = !managingGoogle;
-  googlePasswordLabel.textContent = needsNewPassword ? 'Nouveau mot de passe' : 'Mot de passe actuel';
+  googlePasswordLabel.textContent = needsNewPassword ? t('newPassword') : t('currentPassword');
   googlePassword.autocomplete = needsNewPassword ? 'new-password' : 'current-password';
   googlePassword.disabled = busy || !managingGoogle;
   googleConfirmField.hidden = !needsNewPassword;
   googleConfirm.disabled = busy || !needsNewPassword;
   googleButton.hidden = account ? !accountInfo || (!googleEnabled && !(accountInfo.googleLinked && accountInfo.hasPassword)) : !googleEnabled;
   googleButton.disabled = busy;
-  googleButton.textContent = !account ? (creating ? 'Créer le compte avec Google' : 'Se connecter avec Google')
-    : accountInfo?.googleLinked ? 'Délier Google' : 'Associer Google';
+  googleButton.textContent = !account ? (creating ? t('registerWithGoogle') : t('signInWithGoogle'))
+    : accountInfo?.googleLinked ? t('unlinkGoogle') : t('linkGoogle');
   googleStatus.hidden = !waitingForGoogle;
-  googleStatus.textContent = waitingForGoogle ? 'Termine la connexion Google dans le navigateur, puis reviens dans éPI.' : '';
+  googleStatus.textContent = waitingForGoogle ? t('completeGoogleSignIn') : '';
   closeButton.disabled = busy && !waitingForGoogle;
-  closeButton.textContent = waitingForGoogle || managingGoogle ? 'Annuler' : 'Fermer';
+  closeButton.textContent = waitingForGoogle || managingGoogle ? t('cancel') : t('close');
   submitButton.disabled = busy || !configured;
   submitButton.hidden = managingGoogle;
-  submitButton.textContent = account ? 'Se déconnecter' : creating ? 'Créer le compte' : 'Se connecter';
+  submitButton.textContent = account ? t('signOut') : creating ? t('submitAccountRegistration') : t('signIn');
   form.setAttribute('aria-busy', String(busy));
 }
 
 const errors = {
-  account_exists: 'Un compte existe déjà pour cette adresse. Connecte-toi à ce compte pour y associer Google.',
-  google_disabled: 'La connexion Google est désactivée sur ce serveur.',
-  google_busy: 'Le serveur est occupé. Réessaie dans quelques minutes.',
-  google_attempt_expired: 'La demande Google a expiré. Relance la connexion.',
-  google_failed: 'La connexion Google a échoué ou a été annulée.',
-  google_conflict: 'Cette association Google est déjà utilisée ou a changé. Rouvre les paramètres du compte.',
-  google_wrong_account: 'Choisis le compte Google associé à ton compte éPI.',
-  google_unverified_email: 'Google doit fournir une adresse e-mail vérifiée pour créer le compte.',
-  google_not_linked: 'Ce compte Google n’est pas associé à éPI. Tu peux créer un compte ou l’associer depuis un compte existant.',
-  invalid_token: 'Ta session a expiré. Reconnecte-toi.',
-  token_expired: 'Ta session a expiré. Reconnecte-toi.',
-  invalid_credentials: 'Adresse e-mail ou mot de passe incorrect.',
-  invalid_credentials_format: 'Vérifie l’adresse e-mail et le mot de passe.',
+  account_exists: t('accountAlreadyExists'),
+  google_disabled: t('googleSignInDisabled'),
+  google_busy: t('accountServerBusy'),
+  google_attempt_expired: t('googleRequestExpired'),
+  google_failed: t('googleSignInFailed'),
+  google_conflict: t('googleLinkConflict'),
+  google_wrong_account: t('chooseLinkedGoogleAccount'),
+  google_unverified_email: t('googleEmailNotVerified'),
+  google_not_linked: t('googleAccountNotLinked'),
+  invalid_token: t('sessionExpired'),
+  token_expired: t('sessionExpired'),
+  invalid_credentials: t('incorrectEmailAddressOrPassword'),
+  invalid_credentials_format: t('checkCredentials'),
 };
 
 async function request(path, { method = 'POST', body, token } = {}) {
@@ -120,14 +130,14 @@ async function request(path, { method = 'POST', body, token } = {}) {
       signal: controller.signal,
     });
   } catch {
-    throw new Error('Le serveur de comptes est inaccessible.');
+    throw new Error(t('accountServerUnavailable'));
   } finally {
     clearTimeout(timeout);
   }
   if (response.status === 204) return;
   const result = await response.json().catch(() => null);
   if (!response.ok || !result) {
-    const error = new Error(Object.hasOwn(errors, result?.error) ? errors[result.error] : 'Le serveur a renvoyé une erreur.');
+    const error = new Error(Object.hasOwn(errors, result?.error) ? errors[result.error] : t('accountServerError'));
     error.code = result?.error;
     throw error;
   }
@@ -136,7 +146,7 @@ async function request(path, { method = 'POST', body, token } = {}) {
 
 function saveSession(email, token) {
   if (typeof email !== 'string' || typeof token !== 'string' || !token) {
-    throw new Error('Le serveur a renvoyé une session invalide.');
+    throw new Error(t('invalidServerSession'));
   }
   const session = { email, token };
   localStorage.setItem(sessionKey, JSON.stringify(session));
@@ -173,12 +183,13 @@ async function refreshGoogle() {
 
 openButton.addEventListener('click', () => {
   creating = false;
-  showError(configured ? '' : 'L’adresse du serveur de comptes reste à configurer.');
+  languageChanged = false;
+  showError(configured ? '' : t('accountServerNotConfigured'));
   try {
     account = readAccount();
   } catch {
     account = null;
-    showError('La session enregistrée est inaccessible.');
+    showError(t('savedSessionUnavailable'));
   }
   render();
   dialog.showModal();
@@ -216,10 +227,10 @@ switchButton.addEventListener('click', () => {
 });
 
 async function finishGoogle(action, body, popup, token) {
-  const { state, secret, url } = await request('google/start', { body: { action, ...body }, token });
+  const { state, secret, url } = await request('google/start', { body: { action, interfaceLocale: locale, ...body }, token });
   const target = new URL(url);
   if (target.origin !== 'https://accounts.google.com' || target.pathname !== '/o/oauth2/v2/auth') {
-    throw new Error('Le serveur a renvoyé une adresse Google invalide.');
+    throw new Error(t('invalidGoogleUrl'));
   }
   if (cancelGoogle) return;
   if (popup) popup.location.href = target.href;
@@ -249,7 +260,7 @@ googleButton.addEventListener('click', async () => {
   const directUnlink = action === 'unlink' && accountInfo.hasPassword;
   const value = googlePassword.value;
   if (account && (!value || (action === 'unlink' && !directUnlink && value !== googleConfirm.value))) {
-    showError(value ? 'Les deux mots de passe doivent être identiques.' : 'Saisis le mot de passe.');
+    showError(value ? t('bothPasswordsMustBeTheSame') : t('enterThePassword'));
     googlePassword.focus();
     return;
   }
@@ -257,7 +268,7 @@ googleButton.addEventListener('click', async () => {
   if (!directUnlink && !isTauri()) {
     popup = window.open('', '_blank');
     if (!popup) {
-      showError('Autorise l’ouverture du nouvel onglet pour te connecter avec Google.');
+      showError(t('allowGoogleSignInTab'));
       return;
     }
     popup.opener = null;
@@ -269,13 +280,14 @@ googleButton.addEventListener('click', async () => {
   showError('');
   render();
   try {
-    const body = account ? { password: value } : { deviceId: getDeviceId() };
+    const body = account ? { password: value } : { deviceId: getDeviceId(), locale: chosenLocale() };
     const token = account?.token;
     const result = directUnlink
       ? await request('google/unlink', { body, token })
       : await finishGoogle(action, body, popup, token);
     if (result) {
       if (!account) saveSession(result.email, result.token);
+      useAccountLanguage(result.locale ?? body.locale, result.googleLocale);
       accountInfo = result;
       managingGoogle = false;
     }
@@ -309,18 +321,21 @@ form.addEventListener('submit', async event => {
       localStorage.removeItem(sessionKey);
       account = null;
       form.reset();
+      useAccountLanguage();
     } else {
       const deviceId = getDeviceId();
+      const preference = chosenLocale();
       if (creating) {
-        await request('accounts', { body: credentials });
+        await request('accounts', { body: { ...credentials, locale: preference } });
         creating = false;
       }
-      const { token } = await request('device-tokens', { body: { ...credentials, deviceId } });
-      saveSession(credentials.email, token);
+      const result = await request('device-tokens', { body: { ...credentials, deviceId } });
+      saveSession(credentials.email, result.token);
+      useAccountLanguage(result.locale ?? preference, result.googleLocale);
     }
     await refreshGoogle();
   } catch (error) {
-    showError(error instanceof DOMException ? 'Le stockage local du compte est inaccessible.' : error.message);
+    showError(error instanceof DOMException ? t('accountStorageUnavailable') : error.message);
   } finally {
     busy = false;
     render();

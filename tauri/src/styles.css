@@ -37,7 +37,7 @@ button:disabled { cursor: wait; opacity: .6; }
 .brand span { display: grid; place-items: center; height: 33px; width: 33px; border-radius: 10px; color: white; background: #2965e6; font-size: 1.2rem; }
 nav { display: grid; gap: 6px; }
 nav button { display: flex; gap: 12px; align-items: center; text-align: left; border: 0; border-radius: 8px; background: transparent; color: #b6c7de; padding: 11px 12px; min-height: 43px; }
-nav button span { width: 16px; text-align: center; font-size: 1.1rem; }
+nav button span[aria-hidden] { flex: none; width: 16px; text-align: center; font-size: 1.1rem; }
 nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
 .bluetooth { text-decoration: none; display: flex; align-items: baseline; gap: 9px; margin-top: auto; font-size: .82rem; color: #c9d7ea; line-height: 1.45; overflow-wrap: anywhere; }
 .status-dot { flex: 0 0 7px; height: 7px; border-radius: 50%; background: #61d4a4; }
@@ -425,13 +425,14 @@ dd { margin: 0; overflow-wrap: anywhere; }
   .brand span { height: 30px; width: 30px; }
   nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
   nav button { gap: 3px; padding: 6px; min-height: 36px; font-size: .83rem; }
-  nav button span { width: auto; }
+  nav button span[aria-hidden] { width: auto; }
   .bluetooth { grid-column: 1 / -1; font-size: .74rem; margin-left: 3px; }
   .toolbar { min-height: unset; }
   th, td { padding: 9px; }
 }
 @media (max-width: 380px) {
-  nav button span { display: none; }
+  nav button span[aria-hidden] { display: none; }
+  nav button [data-i18n] { overflow-wrap: anywhere; }
 }
 .editor-form label[hidden] { display: none; }
 .device-list { margin-bottom: 16px; }

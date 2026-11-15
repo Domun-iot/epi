@@ -29,7 +29,7 @@ pub fn start(app: AppHandle) {
             let _ = app.emit("ble-status", message);
             return;
         }
-        *current = Some("Démarrage du Bluetooth…".to_owned());
+        *current = Some("epi-i18n:bluetoothStarting".to_owned());
     }
     tauri::async_runtime::spawn(async move {
         platform::run(&app).await;
