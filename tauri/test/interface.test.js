@@ -73,6 +73,37 @@ async function pageWith(t, snapshot, options = {}, mode) {
   return page;
 }
 
+test('affiche une erreur lorsque la connexion Google ne peut pas démarrer', async t => {
+  const page = await pageWith(t);
+  let unavailable = true;
+  await page.route('https://sync.epi.test/v1/google/start', route => unavailable
+    ? route.abort('connectionrefused')
+    : route.fulfill({ status: 503, json: { error: 'google_disabled' } }));
+
+  await page.getByRole('button', { name: 'Compte', exact: true }).click();
+  const button = page.getByRole('button', { name: 'Se connecter avec Google' });
+  const notice = page.locator('#account-error');
+  await button.click();
+  await notice.getByText('Le serveur de comptes est inaccessible.', { exact: true }).waitFor();
+  unavailable = false;
+  await button.click();
+  await notice.getByText('La connexion Google est désactivée sur ce serveur.', { exact: true }).waitFor();
+
+  await page.evaluate(() => {
+    globalThis.isTauri = true;
+    window.__TAURI_INTERNALS__ = {
+      invoke: async command => {
+        if (command === 'plugin:opener|open_url') throw 'The system browser could not be opened';
+      },
+    };
+  });
+  await page.route('https://sync.epi.test/v1/google/start', route => route.fulfill({
+    json: { url: 'https://accounts.google.com/o/oauth2/v2/auth', state: 'state', secret: 'secret' },
+  }));
+  await button.click();
+  await notice.getByText('La connexion Google a échoué ou a été annulée.', { exact: true }).waitFor();
+});
+
 test('crée un compte avec Google et exige un mot de passe pour le délier', async t => {
   const page = await pageWith(t);
   const calls = [];
@@ -84,7 +115,6 @@ test('crée un compte avec Google et exige un mot de passe pour le délier', asy
     const body = route.request().postDataJSON();
     calls.push({ path, body, token: route.request().headers().authorization });
     const response = {
-      '/v1/google/config': { enabled: true },
       '/v1/google/start': { url: callback, state: 'state', secret: 'secret' },
       '/v1/google/finish': calls.some(call => call.body?.action === 'unlink')
         ? { ...details, googleLinked: false, hasPassword: true }

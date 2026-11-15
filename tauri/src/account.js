@@ -32,7 +32,6 @@ const googleConfirmField = document.querySelector('#account-google-confirm-field
 const googleConfirm = form.elements.googlePasswordConfirm;
 const googleStatus = document.querySelector('#account-google-status');
 
-let googleEnabled = false;
 let accountInfo = null;
 let managingGoogle = false;
 let waitingForGoogle = false;
@@ -83,7 +82,7 @@ function render() {
   googlePassword.disabled = busy || !managingGoogle;
   googleConfirmField.hidden = !needsNewPassword;
   googleConfirm.disabled = busy || !needsNewPassword;
-  googleButton.hidden = account ? !accountInfo || (!googleEnabled && !(accountInfo.googleLinked && accountInfo.hasPassword)) : !googleEnabled;
+  googleButton.hidden = Boolean(account && !accountInfo);
   googleButton.disabled = busy;
   googleButton.textContent = !account ? (creating ? t('registerWithGoogle') : t('signInWithGoogle'))
     : accountInfo?.googleLinked ? t('unlinkGoogle') : t('linkGoogle');
@@ -154,27 +153,18 @@ function saveSession(email, token) {
   form.reset();
 }
 
-async function refreshGoogle() {
+async function refreshAccountInfo() {
   accountInfo = null;
-  googleEnabled = false;
-  if (!configured) return;
   const session = account;
+  if (!configured || !session) return;
   try {
-    if (session) {
-      const info = await request('account', { method: 'GET', token: session.token });
-      if (session !== account) return;
-      accountInfo = info;
-      googleEnabled = info.googleAvailable;
-    } else {
-      const { enabled } = await request('google/config', { method: 'GET' });
-      if (!account) googleEnabled = enabled === true;
-    }
+    const info = await request('account', { method: 'GET', token: session.token });
+    if (session === account) accountInfo = info;
   } catch (error) {
     if (session === account && ['invalid_token', 'token_expired'].includes(error.code)) {
       localStorage.removeItem(sessionKey);
       account = null;
       showError(error.message);
-      await refreshGoogle();
     }
   } finally {
     render();
@@ -183,6 +173,7 @@ async function refreshGoogle() {
 
 openButton.addEventListener('click', () => {
   creating = false;
+  accountInfo = null;
   languageChanged = false;
   showError(configured ? '' : t('accountServerNotConfigured'));
   try {
@@ -193,7 +184,7 @@ openButton.addEventListener('click', () => {
   }
   render();
   dialog.showModal();
-  void refreshGoogle();
+  void refreshAccountInfo();
 });
 
 function closeAccount() {
@@ -234,7 +225,14 @@ async function finishGoogle(action, body, popup, token) {
   }
   if (cancelGoogle) return;
   if (popup) popup.location.href = target.href;
-  else await openUrl(target.href);
+  else {
+    try {
+      await openUrl(target.href);
+    } catch {
+      // Tauri can reject the IPC call with a string containing the OAuth URL.
+      throw new Error(errors.google_failed);
+    }
+  }
 
   const deadline = Date.now() + 5 * 60 * 1000;
   while (!cancelGoogle && Date.now() < deadline) {
@@ -248,6 +246,10 @@ async function finishGoogle(action, body, popup, token) {
 
 googleButton.addEventListener('click', async () => {
   if (busy || googleButton.hidden) return;
+  if (!configured) {
+    showError(t('accountServerNotConfigured'));
+    return;
+  }
   if (account && !managingGoogle) {
     managingGoogle = true;
     showError('');
@@ -292,7 +294,7 @@ googleButton.addEventListener('click', async () => {
       managingGoogle = false;
     }
   } catch (error) {
-    if (!cancelGoogle) showError(error.message);
+    if (!cancelGoogle) showError(error?.message || errors.google_failed);
   } finally {
     popup?.close();
     googlePassword.value = googleConfirm.value = '';
@@ -333,7 +335,7 @@ form.addEventListener('submit', async event => {
       saveSession(credentials.email, result.token);
       useAccountLanguage(result.locale ?? preference, result.googleLocale);
     }
-    await refreshGoogle();
+    await refreshAccountInfo();
   } catch (error) {
     showError(error instanceof DOMException ? t('accountStorageUnavailable') : error.message);
   } finally {
