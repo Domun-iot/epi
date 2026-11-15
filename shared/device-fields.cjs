@@ -30,7 +30,7 @@ function parseDeviceMetadata(line) {
   };
 }
 
-function mergeDeviceMetadata(record, metadata) {
+function mergeDeviceMetadata(record, metadata, { resolveMac = true } = {}) {
   const bluetooth = { ...record.bluetooth };
   if (metadata.localName) bluetooth.localName = metadata.localName;
   if (metadata.companyIds?.length) {
@@ -39,7 +39,7 @@ function mergeDeviceMetadata(record, metadata) {
   }
   if (bluetooth.manufacturers?.some(Boolean)) {
     delete bluetooth.macManufacturer;
-  } else {
+  } else if (resolveMac) {
     const manufacturer = macManufacturer(bluetooth.address ?? metadata.address);
     if (manufacturer) bluetooth.macManufacturer = manufacturer;
   }

@@ -269,11 +269,15 @@ test('l’écoute Bluetooth identifie le fabricant par préfixe MAC lorsque le c
   assert.deepEqual(await known.allTextContents(), ['D4:27:87', '0x0157']);
   assert.deepEqual(await unknown.allTextContents(), []);
 
+  await feed(page, 'PAYLOAD FCFFFF000001 -58 Manufacturer 0157 1 30 ');
   await feed(page, 'PAYLOAD FCFFFF000001 -58 Service 180F 1 7F ');
   await feed(page, 'PAYLOAD FCFFFF000001 -58 Announcement 12345678-0000-1234-0000-123456789abc 0  ');
   await log.getByText(/12345678-0000-1234-0000-123456789abc/).waitFor();
-  assert.deepEqual(await known.allTextContents(), ['D4:27:87', '0x0157', '0x180F']);
-  const unresolved = ['FC:FF:FF', 'FC:FF:FF', '12345678-0000-1234-0000-123456789abc'];
+  assert.deepEqual(await known.allTextContents(), ['D4:27:87', '0x0157', '0x0157', '0x180F']);
+  assert.deepEqual(await unknown.allTextContents(), ['12345678-0000-1234-0000-123456789abc']);
+  await feed(page, 'PAYLOAD FCFFFF000001 -58 Manufacturer 3030 1 30 ');
+  await log.getByText(/Fabricant 0x3030/).waitFor();
+  const unresolved = ['12345678-0000-1234-0000-123456789abc', 'FC:FF:FF', '0x3030'];
   assert.deepEqual(await unknown.allTextContents(), unresolved);
   await page.reload();
   await unknown.last().waitFor();

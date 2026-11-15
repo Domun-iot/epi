@@ -3,7 +3,7 @@
 const { ADDRESS, canonicalAddress, createReceiver } = require('../../shared/scale.cjs');
 const { fromBase64 } = require('../../shared/bytes.cjs');
 const { mergeDeviceMetadata, parseDeviceMetadata } = require('../../shared/device-fields.cjs');
-const { globalMac, macManufacturer } = require('../../shared/mac-manufacturer.cjs');
+const { globalMac } = require('../../shared/mac-manufacturer.cjs');
 const companies = require('../../shared/bluetooth-companies.json');
 const services = require('../../shared/bluetooth-services.json');
 
@@ -11,9 +11,10 @@ const receive = createReceiver({ raw: true });
 const payloadPattern = new RegExp(
   String.raw`^PAYLOAD ${ADDRESS} (-?\d+|-) (Service|Manufacturer|Announcement) ([\da-f-]+) (\d+) ([\da-f]*) ([A-Za-z0-9+/=]*)$`, 'i');
 
-function prefixStatus(address, macSource) {
-  if (macSource) return 'known';
-  if (globalMac(address) && !macManufacturer(address)) return 'unknown';
+function prefixStatus(source, companyPayload = false) {
+  if (source.macManufacturer) return 'known';
+  if ((companyPayload || source.companyIds?.length) && !source.manufacturers?.some(Boolean)
+      && globalMac(source.address)) return 'unknown';
 }
 
 function createWatchDecoder() {
@@ -34,7 +35,7 @@ function createWatchDecoder() {
       const service = services[serviceUuid];
       return { ...source, ...measurement, localName: source.localName, rssi, hex,
         code: serviceUuid, codeStatus: service ? 'known' : 'unknown',
-        prefixStatus: prefixStatus(address, source.macManufacturer),
+        prefixStatus: prefixStatus(source),
         label: service ? `${service} (${serviceUuid})` : serviceUuid, bytes: hex.length / 2 };
     }
 
@@ -43,18 +44,20 @@ function createWatchDecoder() {
     const [, identity, signal, kind, id, length, hex, name] = payload;
     const address = canonicalAddress(identity);
     const localName = fromBase64(name) || undefined;
-    const source = mergeDeviceMetadata({ bluetooth: { address, localName } }, metadataByAddress.get(address) ?? {});
     const code = id.length === 4 ? '0x' + id.toUpperCase() : id;
     const manufacturer = kind === 'Manufacturer';
     const nameForCode = manufacturer ? companies[code] : services[code];
-    const inferred = manufacturer && !nameForCode ? (source.macManufacturer ?? macManufacturer(address)) : undefined;
-    const macSource = manufacturer ? inferred : source.macManufacturer;
+    const knownCompany = manufacturer && Boolean(nameForCode);
+    const source = mergeDeviceMetadata({ bluetooth: { address, localName } }, metadataByAddress.get(address) ?? {},
+      { resolveMac: !knownCompany });
+    const inferred = manufacturer ? source.macManufacturer : undefined;
+    const macStatus = knownCompany ? undefined : prefixStatus(source, manufacturer);
     const label = nameForCode ? `${nameForCode} (${code})`
       : inferred ? `${inferred} (préfixe MAC, ${code})` : (manufacturer ? 'Fabricant ' : 'Service ') + code;
     if (manufacturer) delete source.macManufacturer;
     return { ...source, address, rssi: signal === '-' ? null : Number(signal), hex,
       code, codeStatus: nameForCode ? 'known' : inferred ? undefined : 'unknown',
-      prefixStatus: prefixStatus(address, macSource),
+      prefixStatus: macStatus,
       label: kind === 'Announcement' ? `Service annoncé · ${label}` : label, bytes: Number(length) };
   };
 }
