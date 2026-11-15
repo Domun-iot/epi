@@ -32,13 +32,15 @@ function fixture(seed, options) {
 
 test('keeps the manual selection on reopen and edits profile details without changing history', async () => {
   const { session, disk } = fixture({ profiles: [lou, sam], selectedProfile: 'Sam', measurements: [prior] });
-  assert.equal((await session.load()).selectedProfile, 'Sam');
+  const initial = await session.load();
+  assert.equal(initial.selectedProfile, 'Sam');
   await assert.rejects(session.saveProfile({ ...lou, name: 'Lóu' }), /déjà utilisé/);
   await session.saveProfile({ ...lou, editName: 'Lou', birthDate: '', age: 42, heightCm: '171,5' });
   const selected = await session.selectProfile('LOU');
   assert.equal(selected.selectedProfile, 'Lou');
-  assert.deepEqual(selected.measurements, [prior]);
-  assert.deepEqual(selected.profiles[0], { name: 'Lou', sex: 'F', heightCm: 171.5, age: 42 });
+  assert.deepEqual(selected.measurements, initial.measurements);
+  assert.equal(selected.measurements[0].profile.uuid, initial.profiles[0].uuid);
+  assert.deepEqual(selected.profiles[0], { name: 'Lou', sex: 'F', heightCm: 171.5, age: 42, uuid: initial.profiles[0].uuid });
   await session.setColumnPreference('Lou', 'fatPercent', 'columns', true);
   await session.setColumnPreference('Lou', 'fatPercent', 'splitColumns', true);
   const other = await session.selectProfile('Sam');
@@ -142,7 +144,9 @@ test('merges a legacy archive idempotently and preserves historical calculated v
   assert.equal(second.profiles.length, 1);
   assert.equal(second.profiles[0].heightCm, 173);
   assert.deepEqual(second.devices, first.devices);
-  assert.deepEqual(second.measurements, [prior]);
+  assert.deepEqual(second.measurements, first.measurements);
+  assert.deepEqual(second.measurements[0].calculations, prior.calculations);
+  assert.equal(first.measurements[0].profile.uuid, second.profiles[0].uuid);
 });
 
 test('preserves UUID identifiers and unknown signal strength', async () => {
@@ -215,20 +219,110 @@ test('stores deletion snapshots and restores profiles, measurements and devices 
   const anonymous = { ...prior, profile: null };
   const { session, disk } = fixture({ profiles: [lou, sam], devices: [device],
     selectedProfile: 'Sam', measurements: [prior, anonymous] });
+  const initial = await session.load();
   const removedProfile = (await session.deleteProfile('Lou')).notifications.at(-1);
   assert.equal(removedProfile.actor, 'Sam');
-  assert.deepEqual(removedProfile.record, lou);
-  assert.deepEqual(removedProfile.measurements, [prior]);
+  assert.deepEqual(removedProfile.record, initial.profiles[0]);
+  assert.deepEqual(removedProfile.measurements, [initial.measurements[0]]);
   const reopened = fixture(disk()).session;
   const restored = await reopened.restoreNotification(removedProfile.id, false);
   assert.ok(restored.profiles.some(profile => profile.name === 'Lou'));
-  assert.deepEqual(restored.measurements, [anonymous]);
+  assert.deepEqual(restored.measurements, [initial.measurements[1]]);
   await assert.rejects(reopened.restoreNotification(removedProfile.id), /déjà été restauré/);
 
   const removedDevice = (await reopened.deleteDevice(address)).notifications.at(-1);
   const restoredDevice = await reopened.restoreNotification(removedDevice.id);
-  assert.deepEqual(restoredDevice.devices, [device]);
+  assert.deepEqual(restoredDevice.devices, initial.devices);
   const removedMeasurement = (await reopened.deleteMeasurement(restoredDevice.measurements[0])).notifications.at(-1);
   const restoredMeasurement = await reopened.restoreNotification(removedMeasurement.id);
-  assert.deepEqual(restoredMeasurement.measurements, [anonymous]);
+  assert.deepEqual(restoredMeasurement.measurements, [initial.measurements[1]]);
+});
+
+test('links one complete receipt through enrollment, attribution, deletion and replay', async () => {
+  const { session, disk } = fixture({ profiles: [lou], selectedProfile: 'Lou' });
+  await session.ingest('META AABBCCDDEEFF TUlCRlM= 0157', start);
+  const received = await session.ingest(xiaomi(full), start);
+  const receipt = received.notifications.find(item => item.type === 'pending');
+  assert.equal(receipt.record.event.hex, full);
+  assert.equal(receipt.record.event.impedanceOhms, 489);
+  assert.deepEqual(receipt.record.bluetoothMetadata.companyIds, ['0x0157']);
+  assert.equal(receipt.deviceUuid, null);
+
+  const enrolled = await session.beginDevice({ address, name: 'Salle' });
+  const enrolledReceipt = enrolled.notifications.find(item => item.id === receipt.id);
+  assert.equal(enrolledReceipt.deviceUuid, enrolled.devices[0].uuid);
+  assert.equal(enrolledReceipt.reason, 'profile');
+  assert.equal(enrolled.notifications.filter(item => item.type === 'pending').length, 1);
+  await session.renameDevice({ address, name: 'Cuisine' });
+  const attributed = await session.confirmProfile({ id: receipt.pendingId, name: 'Lou' });
+  const linked = attributed.notifications.find(item => item.id === receipt.id);
+  const [measurement] = attributed.measurements;
+  assert.equal(linked.profileUuid, attributed.profiles[0].uuid);
+  assert.equal(linked.deviceUuid, enrolledReceipt.deviceUuid);
+  assert.equal(linked.measurementUuid, measurement.uuid);
+  assert.equal(measurement.device.uuid, linked.deviceUuid);
+  assert.equal(measurement.profile.uuid, linked.profileUuid);
+  assert.deepEqual(linked.record, receipt.record);
+
+  const reopened = fixture(disk()).session;
+  await assert.rejects(reopened.replayReceipt(receipt.id), /déjà disponible/);
+  const deleted = await reopened.deleteMeasurement(measurement);
+  const archive = deleted.notifications.find(item => item.action === 'deleted');
+  assert.equal(archive.record.uuid, measurement.uuid);
+  await assert.rejects(reopened.replayReceipt(receipt.id), /déjà disponible/);
+  await reopened.deleteNotification(archive.id);
+  await reopened.deleteDevice(address);
+
+  const replayed = await reopened.replayReceipt(receipt.id);
+  assert.equal(replayed.pending[0].reason, 'device');
+  assert.deepEqual(replayed.pending[0].event, receipt.record.event);
+  assert.deepEqual(replayed.pending[0].bluetoothMetadata, receipt.record.bluetoothMetadata);
+  assert.equal(replayed.notifications.filter(item => item.id === receipt.id).length, 1);
+  await assert.rejects(reopened.replayReceipt(receipt.id), /déjà disponible/);
+});
+
+test('links old receipts and migration IDs stay stable across reload', async () => {
+  const receivedAt = new Date(start).toISOString();
+  const row = { ...prior, receivedAt, device };
+  const receipt = { id: 'old-receipt', type: 'pending', date: Date.now(),
+    record: { event: { receivedAt, address, ...row.measures } } };
+  const { session, disk } = fixture({ profiles: [lou], devices: [device], measurements: [row], notifications: [receipt] });
+  const state = await session.load();
+  const retained = state.notifications[0];
+  assert.equal(retained.measurementUuid, state.measurements[0].uuid);
+  assert.equal(retained.profileUuid, state.profiles[0].uuid);
+  assert.equal(retained.deviceUuid, state.devices[0].uuid);
+  assert.deepEqual((await fixture(disk()).session.load()).notifications, state.notifications);
+});
+
+test('keeps the original timestamp slot after renaming its profile and deleting its device', async () => {
+  const reading = { ...prior, device };
+  const { session } = fixture({ profiles: [lou], devices: [device], measurements: [reading] });
+  const { profiles: [profile], devices: [balance], measurements: [archived] } = await session.load();
+  await session.saveProfile({ ...lou, editUuid: profile.uuid, name: 'Louise' });
+  await session.renameDevice({ address, name: 'Salon' });
+  await session.deleteDevice(address);
+
+  const state = await session.importLegacy({ measurements: [
+    { ...reading, receivedAt: '2026-09-28T11:00:00+02:00', profile: { name: 'Louise', uuid: profile.uuid },
+      device: { ...device, uuid: balance.uuid }, measures: { weight: 75, unit: 'kg' } },
+  ] });
+  assert.deepEqual(state.measurements, [archived]);
+  assert.equal(archived.device.uuid, balance.uuid);
+  assert.equal(archived.device.name, 'Cuisine');
+});
+
+test('moves old measurement references into archived snapshots without replacing their content', async () => {
+  const seed = { profiles: [], devices: [], measurements: [{
+    ...prior, uuid: '2beb4877-7a52-409f-8cf4-40ed01c843d2',
+    profileUuid: 'f65d7265-af96-41e0-bddf-9904f4881809',
+    deviceUuid: 'a837aff0-3124-4dac-991c-51d72e54e244', device,
+  }] };
+  const { session, disk } = fixture(seed);
+  const { profileUuid, deviceUuid, ...reading } = seed.measurements[0];
+  const [migrated] = (await session.load()).measurements;
+  assert.deepEqual(migrated, { ...reading, profile: { ...reading.profile, uuid: profileUuid },
+    device: { ...device, uuid: deviceUuid } });
+  assert.deepEqual(disk().measurements, [migrated]);
+  assert.deepEqual((await session.reload()).measurements, [migrated]);
 });

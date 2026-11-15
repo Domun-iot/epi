@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
 import { build } from 'vite';
+import { unzipSync } from 'fflate';
 
 let browser;
 const url = 'http://localhost:1420/';
@@ -433,13 +434,13 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await choosePage(page, 'Profils');
   await page.getByRole('article').filter({ hasText: 'Alice' }).getByRole('button', { name: 'Modifier' }).click();
   const editor = page.locator('#editor-view');
-  assert.equal(await editor.getByRole('textbox', { name: 'Nom', exact: true }).evaluate(el => el.readOnly), true);
+  await editor.getByRole('textbox', { name: 'Nom', exact: true }).fill('Alicia');
   await editor.getByLabel('Taille (cm)').fill('168');
   await page.locator('.toolbar').getByRole('button', { name: 'Enregistrer' }).click();
   await page.getByText(/168 cm/).waitFor();
   await page.reload();
   await page.getByText('Mode simulation', { exact: true }).waitFor();
-  assert.equal(await chosenProfile(page), 'Alice');
+  assert.equal(await chosenProfile(page), 'Alicia');
   await choosePage(page, 'Mesures');
   await table.getByRole('columnheader', { name: 'Masse grasse (%)', exact: true }).waitFor();
   await table.getByRole('columnheader', { name: 'Deu', exact: true }).waitFor();
@@ -725,6 +726,7 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   const cancel = () => dialog.getByRole('button', { name: 'Annuler' }).click();
   const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1')));
 
+  const initial = await stored();
   await choosePage(page, 'Appareils');
   await page.getByRole('button', { name: 'Écouter seulement cet appareil' }).click();
   const deleteDevice = page.getByRole('button', { name: 'Supprimer l’appareil Salle de bain' });
@@ -745,7 +747,7 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   await deleteMeasurement.click();
   await confirm();
   await page.getByRole('table', { name: 'Pesées' }).waitFor();
-  assert.deepEqual((await stored()).measurements, [remaining, other]);
+  assert.deepEqual((await stored()).measurements, initial.measurements.slice(1));
 
   await choosePage(page, 'Profils');
   const deleteProfile = page.getByRole('button', { name: 'Supprimer le profil Alice' });
@@ -758,8 +760,8 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   await page.reload();
   await page.getByText('Mode simulation', { exact: true }).waitFor();
   const snapshot = await stored();
-  assert.deepEqual(snapshot.profiles, [bob]);
-  assert.deepEqual(snapshot.measurements, [other]);
+  assert.deepEqual(snapshot.profiles, [initial.profiles[1]]);
+  assert.deepEqual(snapshot.measurements, [initial.measurements[2]]);
   assert.deepEqual(snapshot.devices, []);
   assert.deepEqual(snapshot.profilePreferences, {});
   assert.equal(snapshot.selectedProfile, null);
@@ -847,6 +849,13 @@ test('archive ZIP exportée, réimportée et idempotente dans le navigateur', as
   const bytes = [];
   for await (const chunk of data) bytes.push(chunk);
   const archive = { name: download.suggestedFilename(), mimeType: 'application/zip', buffer: Buffer.concat(bytes) };
+  const entries = Object.keys(unzipSync(archive.buffer));
+  const uuid = '[0-9a-f-]{36}';
+  assert.ok(entries.some(path => new RegExp('^data/profiles/' + uuid + '[.]json$').test(path)));
+  assert.ok(entries.some(path => new RegExp('^data/devices/' + uuid + '[.]json$').test(path)));
+  const stamp = new Date(record.receivedAt).toISOString().replaceAll(':', '-');
+  assert.ok(entries.some(path => path.startsWith('data/measures/') && path.endsWith('/' + stamp + '.json')));
+
 
   const page = await pageWith(t);
   await page.locator('#import-files').setInputFiles(archive);
@@ -968,7 +977,7 @@ test('le bandeau laisse la barre dégagée sur smartphone et sa fermeture conser
   await dismissNotificationBanner(page);
   await page.getByRole('button', { name: 'Notifications', exact: true }).click();
   await page.locator('.notification-item').getByText('Pesée reçue', { exact: true }).waitFor();
-  await page.locator('.notification-item').getByRole('button', { name: 'Attribuer la pesée' }).waitFor();
+  await page.locator('.notification-item').getByRole('button', { name: 'Attribuer la pesée', exact: true }).waitFor();
 });
 
 test('les notifications de pesée ouvrent le détail et la suppression permet de restaurer', async t => {
@@ -976,7 +985,7 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   await feed(page, frame);
   const icon = page.getByRole('button', { name: 'Notifications', exact: true });
   await icon.click();
-  const saved = page.locator('.notification-item').getByRole('button', { name: /Pesée enregistrée/ });
+  const saved = page.locator('.notification-item').getByRole('button', { name: /^Pesée enregistrée/ });
   await saved.click();
   await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
   await choosePage(page, 'Mesures');
@@ -992,4 +1001,40 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   await choosePage(page, 'Mesures');
   await page.getByRole('table', { name: 'Pesées' }).waitFor();
   assert.equal(await page.getByRole('button', { name: /Voir la pesée du/ }).count(), 2);
+});
+
+test('une notification de réception suit la pesée active, supprimée puis relancée sans archive', async t => {
+  const page = await pageWith(t, { profiles: [alice], devices: [device], selectedProfile: 'Alice', measurements: [record] });
+  await feed(page, frame);
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+  const receipt = page.locator('.notification-item').getByRole('button', { name: /Pesée reçue/ });
+  await receipt.click();
+  const details = page.getByRole('heading', { name: 'Détails de la pesée', exact: true });
+  const archived = page.getByText('Cet élément a été supprimé.', { exact: true });
+  const restore = page.getByRole('button', { name: 'Restaurer', exact: true });
+  await details.waitFor();
+  const removeMeasurement = async () => {
+    await page.getByRole('button', { name: 'Supprimer la pesée' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
+    await archived.waitFor();
+  };
+
+  await removeMeasurement();
+  await restore.click();
+  await archived.waitFor({ state: 'hidden' });
+  await removeMeasurement();
+  await page.getByRole('button', { name: 'Retour', exact: true }).click();
+  const snapshots = page.locator('.notification-item').filter({ hasText: 'Pesée supprimée' });
+  for (const count of [2, 1]) {
+    assert.equal(await snapshots.count(), count);
+    await snapshots.first().getByRole('button', { name: 'Supprimer définitivement la notification' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Supprimer', exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
+  }
+  await receipt.click();
+  await page.getByRole('heading', { name: 'Pesée reçue', exact: true }).waitFor();
+  await restore.click();
+  await details.waitFor();
+  assert.equal(await archived.count(), 0);
 });

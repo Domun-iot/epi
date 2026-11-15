@@ -46,7 +46,11 @@ fn data_root(app: &AppHandle) -> Result<PathBuf, String> {
             .or_else(|| std::env::current_exe().ok());
         #[cfg(not(target_os = "linux"))]
         let executable = std::env::current_exe().ok();
-        if let Some(shared) = executable.as_deref().and_then(Path::parent).and_then(shared_data) {
+        if let Some(shared) = executable
+            .as_deref()
+            .and_then(Path::parent)
+            .and_then(shared_data)
+        {
             return Ok(shared);
         }
     }
@@ -116,9 +120,12 @@ fn valid_file(file: &str) -> bool {
         return false;
     }
     match parts.as_slice() {
-        ["profiles", name] => {
-            name.starts_with("profil-") && name.ends_with(".json") && name.len() > 12
-        }
+        ["profiles", name] => name.strip_suffix(".json").is_some_and(|stem| {
+            valid_uuid(stem)
+                || stem
+                    .strip_prefix("profil-")
+                    .is_some_and(|name| !name.is_empty())
+        }),
         ["devices", name] | ["measures", _, name] => name.ends_with(".json"),
         _ => false,
     }
@@ -135,6 +142,14 @@ fn reserved(name: &str) -> bool {
                 )
             })
         })
+}
+
+fn valid_uuid(value: &str) -> bool {
+    value.len() == 36 && uuid::Uuid::parse_str(value).is_ok()
+}
+
+fn record_uuid(row: &Value) -> Option<&str> {
+    row["uuid"].as_str().filter(|id| valid_uuid(id))
 }
 
 fn safe_name(value: &str) -> Result<&str, String> {
@@ -170,6 +185,18 @@ fn record(file: &DataFile) -> Result<Value, String> {
                 .chain(chars)
                 .collect::<String>();
             row["name"] = json!(name);
+        }
+    }
+    if file.path.starts_with("profiles/") || file.path.starts_with("devices/") {
+        let stem = file
+            .path
+            .split('/')
+            .nth(1)
+            .and_then(|name| name.strip_suffix(".json"));
+        if row["uuid"].is_null() {
+            if let Some(id) = stem.filter(|id| valid_uuid(id)) {
+                row["uuid"] = json!(id);
+            }
         }
     }
     Ok(row)
@@ -312,51 +339,39 @@ fn save_records(
     previous: &Value,
     key: &str,
     identity: fn(&Value) -> Option<&str>,
-    new_path: impl Fn(&Value) -> Result<String, String>,
 ) -> Result<(), String> {
-    let old: HashMap<_, _> = rows(previous, key)
-        .iter()
-        .filter_map(|row| Some((identity(row)?, row)))
-        .collect();
-    let mut files = HashMap::new();
     let folder = format!("{key}/");
+    let mut files = HashMap::new();
     for file in dataset_files(root)?
         .into_iter()
         .filter(|file| file.path.starts_with(&folder))
     {
         let row = record(&file)?;
-        if let Some(id) = identity(&row) {
-            files.insert(id.to_owned(), file.path);
+        if let Some(id) = record_uuid(&row).or_else(|| identity(&row)) {
+            files.insert(id.to_owned(), (file.path, row));
         }
     }
     for row in rows(state, key) {
-        let id = identity(row).ok_or("Fiche sans identifiant.")?;
-        if old.get(id).is_some_and(|old| *old == row) {
+        let id = record_uuid(row).ok_or("UUID de fiche invalide.")?;
+        let previous_row = rows(previous, key).iter().find(|old| {
+            record_uuid(old).map_or_else(|| identity(old) == identity(row), |old_id| old_id == id)
+        });
+        let path = format!("{folder}{id}.json");
+        let existing = files
+            .get(id)
+            .or_else(|| identity(row).and_then(|legacy| files.get(legacy)));
+        if existing.is_some_and(|(file, current)| file == &path && current == row) {
             continue;
         }
-        let existing_path = files.get(id);
-        if let Some(existing) = existing_path {
-            let current = record(&DataFile {
-                path: existing.clone(),
-                contents: fs::read_to_string(root.join(existing)).map_err(message)?,
-            })?;
-            if &current == row {
-                continue;
-            }
-            if old.get(id).is_none_or(|old| *old != &current) {
-                return Err(
-                    "Une fiche a été modifiée. Recharge les données avant de réessayer.".into(),
-                );
-            }
+        if previous_row == Some(row) && existing.is_none() {
+            continue;
         }
-        let path = match existing_path {
-            Some(path)
-                if key != "devices" || old.get(id).is_some_and(|old| name(old) == name(row)) =>
-            {
-                path.clone()
-            }
-            _ => new_path(row)?,
-        };
+        if existing.is_some_and(|(_, current)| current != row && previous_row != Some(current)) {
+            return Err(
+                "Une fiche a été modifiée. Recharge les données avant de réessayer.".into(),
+            );
+        }
+        let existing_path = existing.map(|(file, _)| file);
         if !valid_file(&path) {
             return Err("Nom de fichier incompatible.".into());
         }
@@ -379,6 +394,45 @@ fn save_records(
     Ok(())
 }
 
+fn update_measurement_identities(
+    root: &Path,
+    new: &[Value],
+    previous: &[Value],
+) -> Result<(), String> {
+    if new
+        .iter()
+        .zip(previous)
+        .all(|(after, before)| after == before)
+    {
+        return Ok(());
+    }
+    let mut paths = HashMap::<String, Vec<PathBuf>>::new();
+    for file in dataset_files(root)?.into_iter().rev() {
+        if file.path.starts_with("measures/") {
+            paths
+                .entry(row_key(&record(&file)?))
+                .or_default()
+                .push(root.join(&file.path));
+        }
+    }
+    let mut writes = Vec::new();
+    for (after, before) in new.iter().zip(previous) {
+        let path = paths.get_mut(&row_key(before)).and_then(Vec::pop);
+        if after == before {
+            continue;
+        }
+        if let Some(path) = path {
+            writes.push((path, after));
+        } else if paths.get_mut(&row_key(after)).and_then(Vec::pop).is_none() {
+            return Err("Une pesée a changé. Recharge les données avant de réessayer.".into());
+        }
+    }
+    for (path, row) in writes {
+        json_write(&path, row, true)?;
+    }
+    Ok(())
+}
+
 fn profile_measurement_folder(profile: &str) -> Result<String, String> {
     let folder = safe_name(profile)?.to_lowercase();
     Ok(if reserved(&folder) {
@@ -388,42 +442,79 @@ fn profile_measurement_folder(profile: &str) -> Result<String, String> {
     })
 }
 
-fn save_measurements(root: &Path, new: &[Value], previous: &[Value]) -> Result<(), String> {
-    for row in new.iter().skip(previous.len()) {
-        let folder = match row["profile"]["name"].as_str() {
-            Some(name) => profile_measurement_folder(name)?,
-            None => "_sans-profil".into(),
-        };
-        let received = row["receivedAt"].as_str().unwrap_or_default();
-        let stamp = received
-            .get(..19)
-            .filter(|stamp| {
-                stamp
-                    .bytes()
-                    .all(|ch| ch.is_ascii_digit() || b"T-:".contains(&ch))
-            })
-            .ok_or("Date de pesée invalide.")?
-            .replace(['T', ':'], "-");
-        for sequence in 1.. {
-            let suffix = if sequence == 1 {
-                String::new()
-            } else {
-                format!("-{sequence}")
-            };
-            let path = format!("measures/{folder}/{stamp}{suffix}.json");
-            if !valid_file(&path) {
-                return Err("Chemin de pesée invalide.".into());
-            }
-            let path = root.join(path);
-            if json_write(&path, row, false)? {
-                break;
-            }
-            if let Ok(contents) = fs::read(&path) {
-                if serde_json::from_slice::<Value>(&contents).is_ok_and(|existing| &existing == row)
-                {
-                    break;
-                }
-            }
+fn measurement_folder(row: &Value, profiles: &[Value]) -> Result<String, String> {
+    if let Some(id) = row["profile"]["uuid"]
+        .as_str()
+        .or_else(|| row["profileUuid"].as_str())
+    {
+        if !valid_uuid(id) {
+            return Err("UUID de profil invalide.".into());
+        }
+        return Ok(id.to_ascii_lowercase());
+    }
+    match row["profile"]["name"].as_str() {
+        Some(profile_name) => {
+            let folder = profile_measurement_folder(profile_name)?;
+            Ok(profiles
+                .iter()
+                .find(|profile| {
+                    name(profile)
+                        .is_some_and(|value| value.to_lowercase() == profile_name.to_lowercase())
+                })
+                .and_then(record_uuid)
+                .map_or(folder, str::to_ascii_lowercase))
+        }
+        None => Ok("_sans-profil".into()),
+    }
+}
+
+fn measurement_stamp(row: &Value) -> Result<String, String> {
+    let received = row["receivedAt"]
+        .as_str()
+        .ok_or("Date de pesée manquante.")?;
+    let date =
+        chrono::DateTime::parse_from_rfc3339(received).map_err(|_| "Date de pesée invalide.")?;
+    Ok(date
+        .to_utc()
+        .to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+        .replace(':', "-"))
+}
+
+fn measurement_path(row: &Value, profiles: &[Value]) -> Result<String, String> {
+    Ok(format!(
+        "measures/{}/{}.json",
+        measurement_folder(row, profiles)?,
+        measurement_stamp(row)?
+    ))
+}
+
+fn save_measurements(
+    root: &Path,
+    new: &[Value],
+    previous: &[Value],
+    profiles: &[Value],
+) -> Result<(), String> {
+    update_measurement_identities(root, new, previous)?;
+    let appended = &new[previous.len()..];
+    if appended.is_empty() {
+        return Ok(());
+    }
+    let mut occupied = HashSet::new();
+    for file in dataset_files(root)?
+        .into_iter()
+        .filter(|file| file.path.starts_with("measures/"))
+    {
+        if let Ok(slot) = measurement_path(&record(&file)?, profiles) {
+            occupied.insert(slot);
+        }
+    }
+    for row in appended {
+        let path = measurement_path(row, profiles)?;
+        if !valid_file(&path) {
+            return Err("Chemin de pesée invalide.".into());
+        }
+        if occupied.insert(path.clone()) {
+            json_write(&root.join(path), row, false)?;
         }
     }
     Ok(())
@@ -534,9 +625,13 @@ fn save_deletion(root: &Path, session: &Value, previous: &Value) -> Result<(), S
         let retained: HashSet<_> = rows(session, "profiles").iter().filter_map(name).collect();
         let mut folders: HashSet<_> = rows(previous, "profiles")
             .iter()
-            .filter_map(name)
-            .filter(|profile| !retained.contains(profile))
-            .filter_map(|profile| profile_measurement_folder(profile).ok())
+            .filter(|row| name(row).is_some_and(|name| !retained.contains(name)))
+            .flat_map(|row| {
+                record_uuid(row)
+                    .map(str::to_ascii_lowercase)
+                    .into_iter()
+                    .chain(name(row).and_then(|name| profile_measurement_folder(name).ok()))
+            })
             .map(|folder| measures.join(folder))
             .collect();
         folders.extend(paths.iter().filter_map(|path| {
@@ -580,7 +675,9 @@ fn read_notifications(root: &Path) -> Result<Value, String> {
             if let Some(id) = row["id"].as_str() {
                 if notification_path(root, id).is_ok_and(|expected| expected == path)
                     && (row["date"].is_string()
-                        || row["date"].as_u64().is_some_and(|date| date <= 8_640_000_000_000_000))
+                        || row["date"]
+                            .as_u64()
+                            .is_some_and(|date| date <= 8_640_000_000_000_000))
                 {
                     notifications.push(row);
                 }
@@ -651,37 +748,48 @@ fn with_notifications(
 
 #[tauri::command]
 pub fn load_session(app: AppHandle) -> Result<Value, String> {
-    read_session(&data_root(&app)?)
+    let root = data_root(&app)?;
+    let session = read_session(&root)?;
+    // UUIDs from older versions may already be present in name-based files.
+    for (key, identity) in [
+        ("profiles", name as fn(&Value) -> Option<&str>),
+        ("devices", address),
+    ] {
+        if rows(&session, key)
+            .iter()
+            .all(|row| record_uuid(row).is_some())
+        {
+            save_records(&root, &session, &session, key, identity)?;
+        }
+    }
+    read_session(&root)
 }
 
 #[tauri::command]
-pub fn save_session(
-    app: AppHandle,
-    session: Value,
-    previous: Value,
-    device_paths: Value,
-) -> Result<(), String> {
+pub fn save_session(app: AppHandle, session: Value, previous: Value) -> Result<(), String> {
     let root = data_root(&app)?;
     with_notifications(&root, &session, &previous, || {
         if [
-            "profiles", "devices", "measurements", "viewPresets", "profilePreferences",
-            "pending", "selectedProfile", "addressFilter", "anonymousPreferences",
+            "profiles",
+            "devices",
+            "measurements",
+            "viewPresets",
+            "profilePreferences",
+            "pending",
+            "selectedProfile",
+            "addressFilter",
+            "anonymousPreferences",
         ]
         .iter()
         .all(|key| session[*key] == previous[*key])
         {
             return Ok(());
         }
-        save_dataset(&root, &session, &previous, &device_paths)
+        save_dataset(&root, &session, &previous)
     })
 }
 
-fn save_dataset(
-    root: &Path,
-    session: &Value,
-    previous: &Value,
-    device_paths: &Value,
-) -> Result<(), String> {
+fn save_dataset(root: &Path, session: &Value, previous: &Value) -> Result<(), String> {
     if ["profiles", "devices", "measurements"]
         .iter()
         .any(|key| rows(session, key).len() < rows(previous, key).len())
@@ -689,31 +797,41 @@ fn save_dataset(
         return save_deletion(root, session, previous);
     }
     if session["profiles"] != previous["profiles"] {
-        save_records(root, session, previous, "profiles", name, |row| {
-            Ok(format!(
-                "profiles/profil-{}.json",
-                safe_name(name(row).ok_or("Profil sans nom.")?)?.to_lowercase()
-            ))
-        })?;
+        save_records(root, session, previous, "profiles", name)?;
     }
     if session["devices"] != previous["devices"] {
-        save_records(root, session, previous, "devices", address, |row| {
-            let address = address(row).ok_or("Appareil sans adresse.")?;
-            let path = device_paths[address]
-                .as_str()
-                .ok_or("Fichier appareil manquant.")?;
-            Ok(format!("devices/{path}.json"))
-        })?;
+        save_records(root, session, previous, "devices", address)?;
     }
     save_measurements(
         root,
         rows(session, "measurements"),
         rows(previous, "measurements"),
+        rows(session, "profiles"),
     )?;
     if session["viewPresets"] != previous["viewPresets"] {
         save_view_presets(root, &session["viewPresets"], &previous["viewPresets"])?;
     }
-    save_preferences(root, session, previous)
+    save_preferences(root, session, previous)?;
+    if let Some(preferences) = previous["profilePreferences"].as_object() {
+        for profile in preferences
+            .keys()
+            .filter(|name| session["profilePreferences"].get(*name).is_none())
+        {
+            let path = profile_prefs_path(root, profile);
+            let reused = rows(session, "profiles")
+                .iter()
+                .filter_map(name)
+                .any(|name| {
+                    profile_prefs_path(root, name)
+                        .to_string_lossy()
+                        .eq_ignore_ascii_case(&path.to_string_lossy())
+                });
+            if !reused && path.try_exists().map_err(message)? {
+                fs::remove_file(path).map_err(message)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn save_view_presets(root: &Path, current: &Value, previous: &Value) -> Result<(), String> {
@@ -739,7 +857,8 @@ fn save_view_presets(root: &Path, current: &Value, previous: &Value) -> Result<(
             if stored.as_ref() == new {
                 continue;
             }
-            let conflict = "Une configuration a été modifiée. Recharge les données avant de réessayer.";
+            let conflict =
+                "Une configuration a été modifiée. Recharge les données avant de réessayer.";
             if stored.as_ref() != old {
                 return Err(conflict.into());
             }
@@ -778,16 +897,43 @@ fn save_preferences(root: &Path, session: &Value, previous: &Value) -> Result<()
 
 #[tauri::command]
 pub fn export_files(app: AppHandle) -> Result<Vec<DataFile>, String> {
-    dataset_files(&data_root(&app)?)
+    let root = data_root(&app)?;
+    let mut files = dataset_files(&root)?;
+    let profiles = files
+        .iter()
+        .filter(|file| file.path.starts_with("profiles/"))
+        .map(record)
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut paths = HashSet::new();
+    files.retain_mut(|file| {
+        if file.path.starts_with("measures/") {
+            if let Ok(path) = record(file).and_then(|row| measurement_path(&row, &profiles)) {
+                file.path = path;
+            }
+        }
+        paths.insert(file.path.clone())
+    });
+    Ok(files)
+}
+
+fn import_identity(file: &DataFile, row: &Value) -> (&'static str, Option<String>) {
+    if file.path.starts_with("profiles/") {
+        ("profiles", name(row).map(str::to_lowercase))
+    } else {
+        ("devices", address(row).map(str::to_ascii_uppercase))
+    }
 }
 
 fn merge_files(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
-    for entry in &files {
-        if !valid_file(&entry.path) {
-            return Err(format!("Chemin de données invalide · {}", entry.path));
-        }
-        record(entry)?;
-    }
+    let imported = files
+        .iter()
+        .map(|entry| {
+            if !valid_file(&entry.path) {
+                return Err(format!("Chemin de données invalide · {}", entry.path));
+            }
+            record(entry)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     let existing = dataset_files(root)?;
     let mut paths: HashSet<_> = existing
         .iter()
@@ -797,16 +943,75 @@ fn merge_files(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
         .iter()
         .map(|entry| entry.contents.as_str())
         .collect();
+    let mut identities = HashSet::new();
+    let mut legacy_keys = HashSet::new();
+    let mut profiles = Vec::new();
+    let mut measurements = Vec::new();
+    for file in &existing {
+        let row = record(file)?;
+        if file.path.starts_with("measures/") {
+            measurements.push(row);
+        } else {
+            let (kind, legacy) = import_identity(file, &row);
+            if let Some(id) = record_uuid(&row) {
+                identities.insert((kind, id.to_ascii_lowercase()));
+            }
+            if let Some(key) = legacy {
+                legacy_keys.insert((kind, key));
+            }
+            if kind == "profiles" {
+                profiles.push(row);
+            }
+        }
+    }
     let mut count = 0;
-    for entry in &files {
-        let key = entry.path.to_lowercase();
-        if paths.contains(&key) || contents.contains(entry.contents.as_str()) {
+    for (entry, row) in files
+        .iter()
+        .zip(&imported)
+        .filter(|(file, _)| !file.path.starts_with("measures/"))
+    {
+        let path = entry.path.to_lowercase();
+        let (kind, legacy) = import_identity(entry, row);
+        let identity = record_uuid(row).map(|id| (kind, id.to_ascii_lowercase()));
+        let legacy = legacy.map(|key| (kind, key));
+        if paths.contains(&path)
+            || contents.contains(entry.contents.as_str())
+            || identity
+                .as_ref()
+                .is_some_and(|key| identities.contains(key))
+            || legacy.as_ref().is_some_and(|key| legacy_keys.contains(key))
+        {
             continue;
         }
         if atomic_write(&root.join(&entry.path), entry.contents.as_bytes(), false)? {
             count += 1;
-            paths.insert(key);
+            paths.insert(path);
             contents.insert(&entry.contents);
+            identities.extend(identity);
+            legacy_keys.extend(legacy);
+            if kind == "profiles" {
+                profiles.push(row.clone());
+            }
+        }
+    }
+    let mut occupied: HashSet<_> = measurements
+        .iter()
+        .filter_map(|row| measurement_path(row, &profiles).ok())
+        .collect();
+    for (entry, row) in files
+        .iter()
+        .zip(&imported)
+        .filter(|(file, _)| file.path.starts_with("measures/"))
+    {
+        let path = entry.path.to_lowercase();
+        let slot = measurement_path(row, &profiles)?;
+        if paths.contains(&path) || occupied.contains(&slot) || !valid_file(&slot) {
+            continue;
+        }
+        if atomic_write(&root.join(&slot), entry.contents.as_bytes(), false)? {
+            count += 1;
+            paths.insert(path);
+            occupied.insert(slot);
         }
     }
     Ok(count)
@@ -881,9 +1086,8 @@ mod tests {
         let first = path.join("measures/alice/first.json");
         let second = path.join("measures/alice/second.json");
         let other = path.join("measures/bob/first.json");
-        let reading = |name, weight| {
-            json!({ "profile": { "name": name }, "measures": { "weight": weight } })
-        };
+        let reading =
+            |name, weight| json!({ "profile": { "name": name }, "measures": { "weight": weight } });
         json_write(&first, &reading("Alice", 60.0), false).unwrap();
         json_write(&second, &reading("Alice", 61.0), false).unwrap();
         json_write(&other, &reading("Bob", 62.0), false).unwrap();
@@ -963,7 +1167,9 @@ mod tests {
         save_view_presets(root, &presets, &empty).unwrap();
         assert_eq!(read_session(root).unwrap()["viewPresets"], presets);
         assert!(root.join(format!("prefs/measurements/{id}.json")).is_file());
-        assert!(root.join(format!("prefs/measurement-details/{id}.json")).is_file());
+        assert!(root
+            .join(format!("prefs/measurement-details/{id}.json"))
+            .is_file());
 
         let previous = presets.clone();
         presets["measurements"][0]["name"] = json!("Rapide");
@@ -1003,16 +1209,69 @@ mod tests {
     }
 
     #[test]
-    fn immutable_measurements_allocate_colliding_timestamps_and_survive_retry() {
+    fn zip_import_keeps_existing_measurement_across_path_and_timezone_formats() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let uuid = "bfa95fcb-0a16-40dc-852e-a940887ae76e";
+        let original = json!({
+            "receivedAt": "2026-11-15T06:47:43.567Z",
+            "profile": { "name": "Lou", "uuid": uuid },
+            "measures": { "weight": 61.0, "unit": "kg" },
+        });
+        let existing = root.join("measures/lou/2026-11-15-06-47-43.json");
+        json_write(&existing, &original, false).unwrap();
+        let mut incoming = original.clone();
+        incoming["profile"]["name"] = json!("Louise");
+        incoming["receivedAt"] = json!("2026-11-15T07:47:43.567+01:00");
+        incoming["measures"]["weight"] = json!(75.0);
+        let path = format!("measures/{uuid}/2026-11-15T06-47-43.567Z.json");
+        assert_eq!(
+            merge_files(
+                root,
+                vec![DataFile {
+                    path,
+                    contents: incoming.to_string()
+                }]
+            )
+            .unwrap(),
+            0
+        );
+        assert_eq!(read_json(&existing).unwrap(), Some(original));
+        assert_eq!(dataset_files(root).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn migrates_existing_measurements_in_place_without_merging_identical_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let first = dir.path().join("measures/alice/first.json");
+        let second = dir.path().join("measures/alice/second.json");
+        let old = json!({ "receivedAt": "2026-01-01T12:00:00Z", "profile": { "name": "Alice" } });
+        json_write(&first, &old, false).unwrap();
+        json_write(&second, &old, false).unwrap();
+        let before = [old.clone(), old.clone()];
+        let mut after = [old.clone(), old];
+        after[0]["uuid"] = json!("a");
+        after[1]["uuid"] = json!("b");
+
+        save_measurements(dir.path(), &after, &before, &[]).unwrap();
+        save_measurements(dir.path(), &after, &before, &[]).unwrap();
+        assert_eq!(read_json(&first).unwrap(), Some(after[0].clone()));
+        assert_eq!(read_json(&second).unwrap(), Some(after[1].clone()));
+    }
+
+    #[test]
+    fn immutable_measurements_keep_the_existing_timestamp_on_collision() {
         let root = tempfile::tempdir().unwrap();
         let reading = |weight: f64| json!({"receivedAt":"2026-11-14T12:01:03.000Z","profile":{"name":"Élodie"},"measures":{"weight":weight,"unit":"kg"}});
         let readings = [reading(61.1), reading(62.0)];
-        save_measurements(root.path(), &readings, &[]).unwrap();
-        save_measurements(root.path(), &readings, &[]).unwrap();
+        save_measurements(root.path(), &readings, &[], &[]).unwrap();
+        save_measurements(root.path(), &readings, &[], &[]).unwrap();
         let files = dataset_files(root.path()).unwrap();
-        assert_eq!(files.len(), 2);
-        assert!(files
-            .iter()
-            .any(|file| file.path == "measures/élodie/2026-11-14-12-01-03-2.json"));
+        assert_eq!(files.len(), 1);
+        assert_eq!(
+            files[0].path,
+            "measures/élodie/2026-11-14T12-01-03.000Z.json"
+        );
+        assert_eq!(record(&files[0]).unwrap(), readings[0]);
     }
 }

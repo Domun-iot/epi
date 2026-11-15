@@ -1,9 +1,5 @@
 import { unzipSync, zipSync, strFromU8, strToU8 } from 'fflate';
-import domain from 'virtual:epi-session';
-
-const { deviceFileKey } = domain;
-
-const types = /^(profiles\/profil-[^/]+\.json|devices\/[^/]+\.json|measures\/[^/]+\/[^/]+\.json)$/u;
+const types = /^(profiles\/(?:profil-[^/]+|[0-9a-f-]{36})\.json|devices\/[^/]+\.json|measures\/[^/]+\/[^/]+\.json)$/u;
 
 function dataPath(name) {
   const path = name.replace(/^\.\//u, '');
@@ -44,12 +40,15 @@ export function fileRecords(files) {
       const row = JSON.parse(contents.replace(/^\uFEFF/u, ''));
       if (!row || typeof row !== 'object' || Array.isArray(row)) throw new Error('Objet JSON attendu.');
       if (path.startsWith('profiles/')) {
-        if (!row.name) {
+        if (!row.name && path.startsWith('profiles/profil-')) {
           const stem = path.slice('profiles/profil-'.length, -5);
           row.name = stem[0].toLocaleUpperCase('fr') + stem.slice(1);
         }
+        if (!row.uuid && !path.startsWith('profiles/profil-')) row.uuid = path.slice('profiles/'.length, -5);
         archive.profiles.push(row);
       } else if (path.startsWith('devices/')) {
+        const stem = path.slice('devices/'.length, -5);
+        if (!row.uuid && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(stem)) row.uuid = stem;
         archive.devices.push(row);
       } else {
         archive.measurements.push(row);
@@ -69,17 +68,14 @@ export function datasetFiles(state) {
     paths.add(path);
   }
 
-  for (const profile of state.profiles) add(`profiles/profil-${profile.name.toLowerCase()}.json`, profile);
-  for (const device of state.devices) add(`devices/${deviceFileKey(device.name)}.json`, device);
+  for (const profile of state.profiles) add(`profiles/${profile.uuid}.json`, profile);
+  for (const device of state.devices) add(`devices/${device.uuid}.json`, device);
   for (const reading of state.measurements) {
-    let folder = reading.profile?.name?.toLowerCase() ?? '_sans-profil';
+    let folder = reading.profile?.uuid ?? reading.profile?.name?.toLowerCase() ?? '_sans-profil';
     if (/^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])$/iu.test(folder)) folder = '_' + folder;
-    const stamp = new Date(reading.receivedAt).toISOString().slice(0, 19).replace(/[T:]/gu, '-');
-    const base = `measures/${folder}/${stamp}`;
-    let path = base + '.json';
-    let index = 1;
-    while (paths.has(path)) path = `${base}-${++index}.json`;
-    add(path, reading);
+    const stamp = new Date(reading.receivedAt).toISOString().replace(/:/gu, '-');
+    const path = `measures/${folder}/${stamp}.json`;
+    if (!paths.has(path)) add(path, reading);
   }
   return files;
 }

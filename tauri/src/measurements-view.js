@@ -183,7 +183,7 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
     ['reception', 'Données de réception', row.reception && pairs(extras.slice(3, 11).map(([, label, read]) => [label, textValue(read(row))])), true],
     ['device', 'Fiche de la balance à la pesée', row.device && pairs([['Nom', row.device.name], ...deviceFields(row.device)]), false],
   ];
-  const known = new Set(['receivedAt', 'profile', 'device', 'measures', 'calculations', 'reception']);
+  const known = new Set(['uuid', 'profileUuid', 'deviceUuid', 'receivedAt', 'profile', 'device', 'measures', 'calculations', 'reception']);
   if (!row.measures) for (const key of ['weight', 'unit', 'impedanceOhms']) known.add(key);
   const jsonNumber = new Intl.NumberFormat("en-US", { useGrouping: false, maximumFractionDigits: 1 });
   for (const [key, value] of Object.entries(row)) {

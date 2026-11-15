@@ -25,8 +25,9 @@ function applyObservation(state, request, { event, metadata }, metadataFor) {
 
   const captured = event?.weight > 0 ? buildDevice(matched ? request.name : existing.name, event, metadataFor(address)) : null;
   if (!existing) {
-    state.devices = [...state.devices, captured];
-    return captured;
+    const device = { ...captured, uuid: globalThis.crypto.randomUUID() };
+    state.devices = [...state.devices, device];
+    return device;
   }
   let bluetooth = existing.bluetooth;
   if (captured) {

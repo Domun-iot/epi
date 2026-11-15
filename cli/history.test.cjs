@@ -27,10 +27,12 @@ test('saves the first complete reading immediately and keeps the original payloa
   const hex = '0226e40709060d2605e9015a37';
   const event = createReceiver({ includeHex: true })('AABBCCDDEEFF -58 ' + hex);
   const saved = [];
-  const device = { name: 'Balance' };
+  const device = { name: 'Balance', uuid: '3c287584-2521-47b2-be8e-545ec09ae681' };
   bufferHistory(reading => saved.push(historyRecord(reading, null, device)))(event);
   assert.equal(saved.length, 1);
-  assert.deepEqual(Object.keys(saved[0]), ['receivedAt', 'profile', 'device', 'measures', 'calculations', 'reception']);
+  assert.match(saved[0].uuid, /^[\da-f-]{36}$/);
+  assert.equal(saved[0].device.uuid, device.uuid);
+  assert.equal(saved[0].profile, null);
   assert.deepEqual(saved[0].device, device);
   assert.deepEqual(saved[0].measures, { weight: 70.85, unit: 'kg', impedanceOhms: 489 });
   assert.deepEqual(saved[0].reception, {

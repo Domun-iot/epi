@@ -54,12 +54,13 @@ test('creates a named profile, reloads it and applies only supplied overrides', 
     /Aucun profil enregistré.*--sexe, --taille/);
   await assert.rejects(prepareProfile({ utilisateur: '../Camille' }, options), /nom d’utilisateur/);
   const initial = await prepareProfile({ utilisateur: 'Camille', sexe: 'H', age: '40', taille: '180' }, options);
-  assert.deepEqual(initial, { ...profile, user: 'Camille' });
+  assert.match(initial.uuid, /^[\da-f-]{36}$/);
+  assert.deepEqual(initial, { ...profile, user: 'Camille', uuid: initial.uuid });
   assert.deepEqual(await prepareProfile({ utilisateur: 'Camille' }, options), initial);
   await assert.rejects(prepareProfile({ utilisateur: 'Camille', age: '-1' }, options), /--age/);
   await prepareProfile({ utilisateur: 'Camille', taille: '181,5' }, options);
-  const stored = JSON.parse(await readFile(join(directory, 'profil-camille.json'), 'utf8'));
-  assert.deepEqual(stored, { ...profile, heightCm: 181.5, name: 'Camille' });
+  const stored = JSON.parse(await readFile(join(directory, initial.uuid + '.json'), 'utf8'));
+  assert.deepEqual(stored, { ...profile, heightCm: 181.5, name: 'Camille', uuid: initial.uuid });
   assert.equal(await prepareProfile({}, options), null);
 });
 
@@ -77,6 +78,6 @@ test('asks for missing fields on a new profile, then saves it', async t => {
   const result = await prepareProfile({ utilisateur: 'Camille', age: '42' }, { directory, input, output });
   assert.match(message, /Aucun profil enregistré/);
   assert.doesNotMatch(message, /Âge en années/);
-  assert.deepEqual(result, { user: 'Camille', age: 42, sex: 'F', heightCm: 171.5 });
-  assert.match(await readFile(join(directory, 'profil-camille.json'), 'utf8'), /171\.5/);
+  assert.deepEqual(result, { user: 'Camille', age: 42, sex: 'F', heightCm: 171.5, uuid: result.uuid });
+  assert.match(await readFile(join(directory, result.uuid + '.json'), 'utf8'), /171\.5/);
 });

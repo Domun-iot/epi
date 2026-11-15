@@ -4,7 +4,7 @@ import { deleteButton, escapeHtml as e, formatDate, nameKey, sortByName, userIco
 import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
 import { viewPresetHeader, viewPresetTitles } from './view-presets.js';
-import { notificationBody, notificationControls, notificationDetailHeader, notificationRecordView, notificationsView } from './notifications-view.js';
+import { notificationBody, notificationControls, notificationDetailHeader, notificationRecordView, notificationsView, receiptDetail, resolveReceipt } from './notifications-view.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
 
 const navigation = document.querySelector('#navigation');
@@ -116,23 +116,27 @@ function render() {
     pendingActions.innerHTML = noticesView({ pending, enrollment });
   }
   const entry = page === 'notifications' ? state.notifications.find(item => item.id === notificationId) : null;
+  const target = resolveReceipt(state, entry);
+  const receipt = target?.type === 'pending' ? receiptDetail(target, state) : null;
   const detail = page === 'measurements' ? reading : null;
   const editing = !editorView.hidden;
-  dataActions.hidden = editing || Boolean(detail || entry?.action);
-  backButton.hidden = editing || (!detail && !entry?.action);
+  dataActions.hidden = editing || Boolean(detail || entry);
+  backButton.hidden = editing || (!detail && !entry);
   const kind = detail ? 'details' : 'measurements';
   const layout = page === 'measurements' ? state.viewLayouts?.[kind] : undefined;
   const layoutKey = layout ? [layout.presets, layout.preset, layout.modified, ...Object.values(layout.layout)] : [];
   const nextMain = detail ? [page, detail, state.selectedProfile, ...layoutKey] : [page, state.selectedProfile, ...(page === 'measurements'
     ? [state.measurements, ...layoutKey]
     : page === 'profiles' ? [state.profiles] : page === 'devices' ? [state.devices, state.addressFilter]
-      : [state.notifications, notificationId, state.pending, state.enrollment])];
+      : [state.notifications, notificationId, state.pending, state.enrollment, target?.record])];
   if (changed(lastMain, nextMain)) {
     const pageChanged = lastMain[0] !== page;
     lastMain = nextMain;
     if (page === 'measurements') {
       const selected = nameKey(state.selectedProfile) ?? null;
-      rows = state.measurements.filter(row => (nameKey(row.profile?.name) ?? null) === selected)
+      const profile = state.profiles.find(item => nameKey(item.name) === selected);
+      rows = state.measurements.filter(row => row.profile?.uuid ? row.profile.uuid === profile?.uuid
+        : (nameKey(row.profile?.name) ?? null) === selected)
         .sort((a, b) => Date.parse(b.receivedAt) - Date.parse(a.receivedAt));
     }
     for (const button of navigation.querySelectorAll('[data-page]')) {
@@ -158,11 +162,11 @@ function render() {
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, columnsOpen, columnQuery, header)
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile)
       : page === 'devices' ? devicesView(state.devices, state.addressFilter, state.rawOpen, !session?.web)
-      : !entry?.action ? notificationsView(state)
-      : entry.type === 'measurement'
-        ? measurementDetails(entry.record, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen,
-          notificationDetailHeader(entry, 'Détails de la pesée'))
-        : notificationRecordView(entry);
+      : !entry ? notificationsView(state)
+      : receipt || target.type === 'measurement'
+        ? measurementDetails(receipt?.record ?? target.record, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen,
+          receipt?.header ?? notificationDetailHeader(target, 'Détails de la pesée'))
+        : notificationRecordView(target);
     viewHeader.innerHTML = markup.header;
     viewContent.innerHTML = markup.content;
     if (pageChanged) viewScroll.scrollTop = 0;
@@ -204,7 +208,7 @@ function renderBanner() {
   lastBanner = next;
   const error = activeNotice.type === 'error';
   notices.innerHTML = `<div class="notification-clip"><article class="notice notification-banner${error ? ' error' : ''}"${error ? ' role="alert"' : ''}>
-    <button class="notification-summary" type="button" aria-label="Fermer le bandeau" data-action="dismiss-banner">${notificationBody(activeNotice)}</button>
+    <button class="notification-summary" type="button" aria-label="Fermer le bandeau" data-action="dismiss-banner">${notificationBody(activeNotice, false, state)}</button>
     ${controls ? `<div class="actions">${controls}</div>` : ''}</article></div>`;
 }
 
@@ -256,13 +260,22 @@ function scheduleNotificationExpiry() {
 }
 
 function onState(next) {
-  const previous = state.notifications;
+  const previous = state;
   state = next;
-  if (previous !== state.notifications) {
-    const known = new Set(previous.map(item => item.id));
-    const incoming = state.notifications.filter(item => !known.has(item.id));
-    if (initializedNotifications) enqueueBanners(incoming.filter(item =>
-      item.banner || item.type === 'pending' || item.type === 'enrollment'));
+  if (previous.notifications !== state.notifications) {
+    const known = new Map(previous.notifications.map(item => [item.id, item]));
+    const oldPending = new Map(previous.pending.map(item => [item.id, item.reason]));
+    const current = new Map(state.notifications.map(item => [item.id, item]));
+    if (activeNotice && !closingNotice) activeNotice = current.get(activeNotice.id) ?? activeNotice;
+    noticeQueue = noticeQueue.map(item => current.get(item.id) ?? item);
+    const incoming = state.notifications.filter(item => {
+      if (item.type === 'pending') return item.reason && notificationControls(item, state)
+        && oldPending.get(item.pendingId) !== item.reason
+        && (closingNotice || activeNotice?.id !== item.id)
+        && !noticeQueue.some(queued => queued.id === item.id);
+      return !known.has(item.id) && (item.banner || item.type === 'enrollment');
+    });
+    if (initializedNotifications) enqueueBanners(incoming);
     initializedNotifications = true;
     scheduleNotificationExpiry();
   }
@@ -322,6 +335,7 @@ const actions = {
     viewScroll.scrollTop = 0;
     backButton.focus();
   },
+  'replay-receipt': id => session.replayReceipt(id),
   'delete-notification': id => editor.confirmDeletion('Supprimer la notification',
     'Supprimer définitivement cette notification et les données qu’elle contient ?',
     async () => {
@@ -352,7 +366,8 @@ const actions = {
       `Supprimer l’appareil « ${device.name} » ?`, () => session.deleteDevice(address));
   },
   'delete-measurement': () => {
-    const row = reading;
+    const target = notificationId && resolveReceipt(state, state.notifications.find(entry => entry.id === notificationId));
+    const row = reading ?? (target?.live ? target.record : null);
     if (!row) return;
     editor.confirmDeletion('Supprimer la pesée', `Supprimer la pesée du ${formatDate(row.receivedAt)} ?`, async () => {
       await session.deleteMeasurement(row);

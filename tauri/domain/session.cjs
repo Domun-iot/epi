@@ -6,7 +6,8 @@ const { historyRecord, latestWeights, matchWeight } = require('../../shared/hist
 const { nameKey } = require('../../shared/profile-fields.cjs');
 const { createAcquisition } = require('./acquisition.cjs');
 const { applyObservation, enrollmentRequest, findDevice } = require('./devices.cjs');
-const { ADDRESS, findProfile, profileFields, mergeLegacy } = require('./records.cjs');
+const { ADDRESS, findProfile, profileFields, mergeLegacy, measurementSlot } = require('./records.cjs');
+const { uuid, identify, upgradeIdentities } = require('./identities.cjs');
 
 const notificationLifetime = 7 * 86400_000;
 
@@ -108,9 +109,19 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     return current;
   }
 
+  async function loadSaved() {
+    saved = restore(await storage.load());
+    try {
+      await transact(upgradeIdentities);
+    } catch (error) {
+      saved = undefined;
+      throw error;
+    }
+  }
+
   function enqueue(action) {
     const task = tasks.then(async () => {
-      saved ??= restore(await storage.load());
+      if (!saved) await loadSaved();
       return action();
     });
     tasks = task.catch(() => {});
@@ -152,8 +163,12 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     return mutate(draft => {
       const entry = draft.notifications.find(item => item.id === id && item.action === 'deleted');
       if (!entry) throw Error('Notification de suppression introuvable.');
-      if (entry.restored) throw Error('Cet élément a déjà été restauré.');
       const { record, type } = entry;
+      const measurementExists = type === 'measurement' && draft.measurements.some(row =>
+        measurementSlot(row, draft.profiles) === measurementSlot(record, draft.profiles));
+      if (measurementExists || (entry.restored && type !== 'measurement')) {
+        throw Error('Cet élément a déjà été restauré.');
+      }
       if (type === 'profile') {
         if (findProfile(draft, record.name)) throw Error('Un profil porte déjà ce nom.');
         draft.profiles = [...draft.profiles, record];
@@ -165,7 +180,9 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
         draft.devices = [...draft.devices, record];
         resolveDevice(draft, record);
       } else if (type === 'measurement') {
-        if (record.profile?.name && !findProfile(draft, record.profile.name)) {
+        const profile = record.profile?.uuid ? draft.profiles.find(row => row.uuid === record.profile?.uuid)
+          : findProfile(draft, record.profile?.name);
+        if ((record.profile?.uuid || record.profile?.name) && !profile) {
           throw Error('Restaure d’abord le profil de cette pesée.');
         }
         draft.measurements = [...draft.measurements, record];
@@ -174,37 +191,68 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     });
   }
 
-  function saveMeasurement(draft, event, profile, device) {
+  function updateReceipt(draft, pendingId, update) {
+    draft.notifications = draft.notifications.map(entry => entry.type === 'pending' && entry.pendingId === pendingId
+      ? { ...entry, ...update(entry) } : entry);
+  }
+
+  function saveMeasurement(draft, event, profile, device, pendingId) {
     const measurement = historyRecord(event, profile ? { ...profile, user: profile.name } : null, device);
+    const slot = measurementSlot(measurement, draft.profiles);
+    const existing = draft.measurements.find(row => measurementSlot(row, draft.profiles) === slot);
+    if (existing) {
+      updateReceipt(draft, pendingId, () => ({ reason: null, text: 'Pesée déjà enregistrée.',
+        measurementUuid: existing.uuid, profileUuid: existing.profile?.uuid ?? null, deviceUuid: existing.device?.uuid ?? null }));
+      return;
+    }
     draft.measurements = [...draft.measurements, measurement];
+    updateReceipt(draft, pendingId, () => ({ reason: null, text: 'Pesée enregistrée.',
+      measurementUuid: measurement.uuid, profileUuid: measurement.profile?.uuid ?? null, deviceUuid: measurement.device?.uuid ?? null }));
     notify(draft, { type: 'measurement', action: 'saved', record: measurement });
     if (profile?.name) draft.selectedProfile = profile.name;
   }
 
-  function assign(draft, event, pendingId = null) {
+  function assign(draft, event, id = uuid(), archivedMetadata = null) {
     const device = findDevice(draft, event.address);
     const profile = device && matchWeight(event, draft.profiles, latestWeights(draft.measurements));
-    if (profile) {
-      saveMeasurement(draft, event, profile, device);
-      if (pendingId) draft.pending = draft.pending.filter(row => row.id !== pendingId);
-      return;
+    const bluetoothMetadata = { ...acquisition.metadataFor(event.address), ...archivedMetadata };
+    const reason = device ? 'profile' : 'device';
+    const update = {
+      reason, deviceUuid: device?.uuid ?? null, profileUuid: null, measurementUuid: null,
+      text: device ? 'Choisissez le profil auquel attribuer la pesée.' : 'Enregistrez cette balance pour traiter sa pesée.',
+      record: { event, bluetoothMetadata },
+    };
+    if (draft.notifications.some(entry => entry.type === 'pending' && entry.pendingId === id)) {
+      updateReceipt(draft, id, () => update);
+    } else {
+      notify(draft, { type: 'pending', pendingId: id, ...update });
     }
-    const id = pendingId ?? Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)),
-      byte => byte.toString(16).padStart(2, '0')).join('');
-    const bluetoothMetadata = device ? null : acquisition.metadataFor(event.address) ?? null;
-    const row = { id, event, device: device ?? null, reason: device ? 'profile' : 'device', bluetoothMetadata };
-    draft.pending = pendingId
-      ? draft.pending.map(item => item.id === id ? row : item)
-      : [...draft.pending, row];
-    notify(draft, { type: 'pending', pendingId: id, reason: row.reason,
-      text: device ? 'Choisissez le profil auquel attribuer la pesée.'
-        : 'Enregistrez cette balance pour traiter sa pesée.',
-      record: { event, device } });
+    const pending = draft.pending.filter(row => row.id !== id);
+    if (profile) {
+      saveMeasurement(draft, event, profile, device, id);
+      draft.pending = pending;
+    } else {
+      draft.pending = [...pending, { id, event, device: device ?? null, reason, bluetoothMetadata }];
+    }
+  }
+
+  function replayReceipt(id) {
+    return mutate(draft => {
+      const entry = draft.notifications.find(item => item.id === id && item.type === 'pending');
+      if (!entry?.record?.event) throw Error('Réception de pesée introuvable.');
+      if (draft.pending.some(item => item.id === entry.pendingId)
+          || (entry.measurementUuid && (draft.measurements.some(row => row.uuid === entry.measurementUuid)
+            || draft.notifications.some(item => item.type === 'measurement' && item.action === 'deleted'
+              && item.record.uuid === entry.measurementUuid)))) {
+        throw Error('Cette pesée est déjà disponible.');
+      }
+      assign(draft, entry.record.event, entry.pendingId ?? uuid(), entry.record.bluetoothMetadata);
+    });
   }
 
   function resolveDevice(draft, device) {
-    for (const { id, event, reason } of draft.pending) {
-      if (reason === 'device' && event.address === device.bluetooth.address) assign(draft, event, id);
+    for (const { id, event, reason, bluetoothMetadata } of draft.pending) {
+      if (reason === 'device' && event.address === device.bluetooth.address) assign(draft, event, id, bluetoothMetadata);
     }
   }
 
@@ -219,17 +267,23 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   function saveProfile(fields) {
     return mutate(draft => {
       const profile = profileFields(fields);
-      const existing = findProfile(draft, fields.editName ?? profile.name);
-      if (fields.editName != null) {
+      const existing = findProfile(draft, fields.editUuid ?? fields.editName ?? profile.name);
+      if (fields.editUuid != null || fields.editName != null) {
         if (!existing) throw Error('Profil introuvable.');
-        if (profile.name !== existing.name) throw Error('Le nom du profil doit rester identique.');
-        draft.profiles = draft.profiles.map(candidate => candidate === existing ? profile : candidate);
+        const duplicate = findProfile(draft, profile.name);
+        if (duplicate && duplicate !== existing) throw Error('Ce nom de profil est déjà utilisé.');
+        if (draft.selectedProfile === existing.name) draft.selectedProfile = profile.name;
+        if (profile.name !== existing.name && Object.hasOwn(draft.profilePreferences, existing.name)) {
+          const { [existing.name]: preferences, ...others } = draft.profilePreferences;
+          draft.profilePreferences = { ...others, [profile.name]: preferences };
+        }
+        draft.profiles = draft.profiles.map(candidate => candidate === existing ? { ...profile, uuid: existing.uuid } : candidate);
       } else {
         if (existing) throw Error('Ce nom de profil est déjà utilisé.');
-        draft.profiles = [...draft.profiles, profile];
+        draft.profiles = [...draft.profiles, identify(profile)];
         draft.selectedProfile ??= profile.name;
       }
-      notify(draft, { type: 'profile', action: 'saved', record: profile, actor: saved.selectedProfile });
+      notify(draft, { type: 'profile', action: 'saved', record: findProfile(draft, profile.name), actor: saved.selectedProfile });
     });
   }
 
@@ -237,14 +291,13 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     return mutate(draft => {
       const profile = findProfile(draft, name);
       if (!profile) throw Error('Profil introuvable.');
-      const key = nameKey(profile.name);
+      const belongsToProfile = row => row.profile?.uuid ? row.profile.uuid === profile.uuid
+        : typeof row.profile?.name === 'string' && nameKey(row.profile.name) === nameKey(profile.name);
       notify(draft, { type: 'profile', action: 'deleted', record: profile,
-        measurements: draft.measurements.filter(row =>
-          typeof row.profile?.name === 'string' && nameKey(row.profile.name) === key),
+        measurements: draft.measurements.filter(belongsToProfile),
         preferences: draft.profilePreferences[profile.name] });
       draft.profiles = draft.profiles.filter(candidate => candidate !== profile);
-      draft.measurements = draft.measurements.filter(row =>
-        typeof row.profile?.name !== 'string' || nameKey(row.profile.name) !== key);
+      draft.measurements = draft.measurements.filter(row => !belongsToProfile(row));
       draft.profilePreferences = { ...draft.profilePreferences };
       delete draft.profilePreferences[profile.name];
       if (draft.selectedProfile === profile.name) draft.selectedProfile = null;
@@ -253,9 +306,9 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
 
   function deleteMeasurement(row) {
     return mutate(draft => {
-      const index = draft.measurements.indexOf(row);
+      const index = draft.measurements.findIndex(candidate => row.uuid ? candidate.uuid === row.uuid : candidate === row);
       if (index < 0) throw Error('Pesée introuvable.');
-      notify(draft, { type: 'measurement', action: 'deleted', record: row });
+      notify(draft, { type: 'measurement', action: 'deleted', record: draft.measurements[index] });
       draft.measurements = draft.measurements.toSpliced(index, 1);
     });
   }
@@ -405,9 +458,11 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
         notify(draft, { type: 'device', action: 'deleted', record: device });
         draft.devices = draft.devices.filter(candidate => candidate !== device);
         if (draft.addressFilter === address) draft.addressFilter = null;
-        draft.pending = draft.pending.map(item => item.event.address === address
-          ? { ...item, device: null, reason: 'device', bluetoothMetadata: acquisition.metadataFor(address) ?? null }
-          : item);
+        draft.pending = draft.pending.map(item => {
+          if (item.event.address !== address) return item;
+          updateReceipt(draft, item.id, () => ({ reason: 'device', text: 'Enregistrez cette balance pour traiter sa pesée.' }));
+          return { ...item, device: null, reason: 'device' };
+        });
       });
       if (enrollment?.address === address) enrollment = null;
       return publish();
@@ -455,7 +510,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       if (name != null && !profile) throw Error('Profil introuvable.');
       const device = findDevice(draft, pending.event.address);
       if (!device) throw Error('Identifie la balance avant d’attribuer la pesée.');
-      saveMeasurement(draft, pending.event, profile, device);
+      saveMeasurement(draft, pending.event, profile, device, pending.id);
       draft.pending = draft.pending.filter(row => row.id !== id);
     });
   }
@@ -463,7 +518,9 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   function discardPending(id) {
     return mutate(draft => {
       const pending = draft.pending.filter(row => row.id !== id);
-      if (pending.length !== draft.pending.length) draft.pending = pending;
+      if (pending.length === draft.pending.length) return;
+      draft.pending = pending;
+      updateReceipt(draft, id, () => ({ reason: null, text: 'Pesée ignorée.' }));
     });
   }
 
@@ -487,12 +544,14 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
           notify(draft, { type: 'device', action: 'saved', record: enrolled, actor: enrollment.actor });
           resolveDevice(draft, enrolled);
         }
-        if (metadata && !findDevice(draft, address)) {
+        if (metadata) {
           const staged = acquisition.metadataFor(address);
-          if (draft.pending.some(row => row.event.address === address
-              && JSON.stringify(row.bluetoothMetadata) !== JSON.stringify(staged))) {
-            draft.pending = draft.pending.map(row => row.event.address === address
-              ? { ...row, bluetoothMetadata: staged } : row);
+          for (const row of draft.pending) {
+            if (row.event.address !== address) continue;
+            const bluetoothMetadata = { ...row.bluetoothMetadata, ...staged };
+            if (JSON.stringify(row.bluetoothMetadata) === JSON.stringify(bluetoothMetadata)) continue;
+            draft.pending = draft.pending.map(item => item.id === row.id ? { ...item, bluetoothMetadata } : item);
+            updateReceipt(draft, row.id, entry => ({ record: { ...entry.record, bluetoothMetadata } }));
           }
         }
         if (reading) assign(draft, reading.event);
@@ -517,14 +576,14 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   function importLegacy(snapshot) {
     return mutate(draft => {
       mergeLegacy(draft, snapshot);
+      upgradeIdentities(draft);
       for (const device of draft.devices) resolveDevice(draft, device);
     });
   }
 
   function reload() {
     return enqueue(async () => {
-      saved = restore(await storage.load());
-      await transact(() => {});
+      await loadSaved();
       return publish();
     });
   }
@@ -541,7 +600,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
     moveDetailSection: (...args) => movePreference('detailSectionOrder', ...args),
-    discardPending, ingest, importLegacy, setAddressFilter, restoreNotification,
+    discardPending, ingest, importLegacy, setAddressFilter, restoreNotification, replayReceipt,
     recordNotice: entry => mutate(draft => notify(draft, entry)),
     deleteNotification: id => mutate(draft => {
       draft.notifications = draft.notifications.filter(item => item.id !== id);

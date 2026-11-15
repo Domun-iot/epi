@@ -18,6 +18,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tempfile = "3"
 base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
 tokio = { version = "1", features = ["rt", "time", "sync"] }
 uuid = "1"
 futures-util = "0.3"

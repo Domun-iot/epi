@@ -4,5 +4,5 @@ export const actions = [
   'deleteProfile', 'deleteDevice', 'deleteMeasurement', 'setPanelOpen',
   'changeViewPreset', 'setTheme', 'moveColumn', 'moveMethodColumn',
   'moveDetailSection', 'discardPending', 'importLegacy', 'setAddressFilter',
-  'restoreNotification', 'recordNotice', 'deleteNotification', 'pruneNotifications',
+  'restoreNotification', 'replayReceipt', 'recordNotice', 'deleteNotification', 'pruneNotifications',
 ];

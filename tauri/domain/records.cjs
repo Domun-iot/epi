@@ -4,7 +4,8 @@ const { normalize, normalizeBirth, normalizeProfileName, nameKey } = require('..
 
 const ADDRESS = /^(?:[\dA-F]{2}(?::[\dA-F]{2}){5}|[\dA-F]{8}(?:-[\dA-F]{4}){3}-[\dA-F]{12})$/i;
 const findProfile = (state, name) => typeof name === 'string'
-  ? state.profiles.find(profile => nameKey(profile.name) === nameKey(name)) : undefined;
+  ? (state.profiles.find(profile => profile.uuid === name)
+    ?? state.profiles.find(profile => nameKey(profile.name) === nameKey(name))) : undefined;
 
 function profileFields({ name, sex, heightCm, age, birthDate }) {
   const profile = {
@@ -30,18 +31,26 @@ function measurementKey(row) {
   ]);
 }
 
+function measurementSlot(row, profiles) {
+  const name = row.profile?.name;
+  const profile = row.profile?.uuid ?? row.profileUuid ?? (name && findProfile({ profiles }, name)?.uuid);
+  return JSON.stringify([profile ?? (name ? nameKey(name) : null), Date.parse(row.receivedAt)]);
+}
+
 function appendUnique(existing, imported, key) {
   const keys = new Set(existing.map(key));
+  const uuids = new Set(existing.map(row => row.uuid).filter(Boolean));
   return [...existing, ...imported.filter(row => {
     const id = key(row);
-    if (keys.has(id)) return false;
+    if (keys.has(id) || (row.uuid && uuids.has(row.uuid))) return false;
     keys.add(id);
+    if (row.uuid) uuids.add(row.uuid);
     return true;
   })];
 }
 
 function mergeLegacy(state, snapshot) {
-  const profiles = (snapshot.profiles ?? []).map(profileFields);
+  const profiles = (snapshot.profiles ?? []).map(row => ({ ...profileFields(row), ...(row.uuid && { uuid: row.uuid }) }));
   const devices = (snapshot.devices ?? []).map(record => {
     const address = record?.bluetooth?.address;
     if (typeof record?.name !== 'string' || !ADDRESS.test(address)) {
@@ -57,7 +66,7 @@ function mergeLegacy(state, snapshot) {
   });
   state.profiles = appendUnique(state.profiles, profiles, row => nameKey(row.name));
   state.devices = appendUnique(state.devices, devices, row => row.bluetooth.address);
-  state.measurements = appendUnique(state.measurements, measurements, measurementKey);
+  state.measurements = appendUnique(state.measurements, measurements, row => measurementSlot(row, state.profiles));
 }
 
-module.exports = { ADDRESS, findProfile, profileFields, mergeLegacy };
+module.exports = { ADDRESS, findProfile, profileFields, mergeLegacy, measurementKey, measurementSlot };

@@ -24,9 +24,10 @@ function historyRecord(event, profile, device = null) {
   const { receivedAt, weight, unit, impedanceOhms } = event;
   profile = profileAt(profile, receivedAt);
   return {
+    uuid: globalThis.crypto.randomUUID(),
     receivedAt,
     profile: profile ? {
-      name: profile.user ?? null, sex: profile.sex, age: profile.age,
+      uuid: profile.uuid ?? null, name: profile.user ?? null, sex: profile.sex, age: profile.age,
       ageAtWeighIn: profile.age, heightCm: profile.heightCm,
       ...(profile.birthDate ? { birthDate: profile.birthDate } : {}),
     } : null,
@@ -35,6 +36,23 @@ function historyRecord(event, profile, device = null) {
     calculations: profile ? calculateComposition({ weight, unit, impedanceOhms }, profile).methods : null,
     reception: receptionRecord(event),
   };
+}
+
+function upgradeMeasurement(row, profileUuid, deviceUuid, uuid) {
+  const { profileUuid: oldProfile, deviceUuid: oldDevice, ...data } = row;
+  function snapshot(key, legacy, fallback) {
+    const saved = row[key];
+    const id = saved && Object.hasOwn(saved, 'uuid') ? saved.uuid
+      : legacy !== undefined ? legacy : fallback ?? null;
+    if (saved?.uuid === id || (!saved && id == null)) return saved;
+    return { ...saved, uuid: id };
+  }
+  const profile = snapshot('profile', oldProfile, profileUuid);
+  const device = snapshot('device', oldDevice, deviceUuid);
+  if (row.uuid && !Object.hasOwn(row, 'profileUuid') && !Object.hasOwn(row, 'deviceUuid')
+      && profile === row.profile && device === row.device) return row;
+  return { ...data, uuid: row.uuid ?? uuid ?? globalThis.crypto.randomUUID(),
+    ...(profile !== undefined && { profile }), ...(device !== undefined && { device }) };
 }
 
 function bufferHistory(save, waitMs = 15000) {
@@ -70,7 +88,7 @@ function latestWeights(rows) {
   for (const row of rows) {
     const name = row.profile?.name;
     if (!name || !(kg(row) > 0) || !Number.isFinite(Date.parse(row.receivedAt))) continue;
-    const key = nameKey(name);
+    const key = row.profile?.uuid ?? nameKey(name);
     if (!latest.has(key) || Date.parse(row.receivedAt) >= Date.parse(latest.get(key).receivedAt)) {
       latest.set(key, row);
     }
@@ -82,7 +100,7 @@ function matchWeight(event, profiles, latest) {
   let best;
   let closest = Infinity;
   for (const profile of profiles) {
-    const last = latest.get(nameKey(profile.name));
+    const last = latest.get(profile.uuid) ?? latest.get(nameKey(profile.name));
     if (!last) continue;
     const distance = Math.abs(kg(event) / kg(last) - 1);
     if (distance <= 0.10 + Number.EPSILON && distance < closest) {
@@ -93,4 +111,4 @@ function matchWeight(event, profiles, latest) {
   return best;
 }
 
-module.exports = { receptionRecord, historyRecord, bufferHistory, latestWeights, matchWeight };
+module.exports = { receptionRecord, historyRecord, upgradeMeasurement, bufferHistory, latestWeights, matchWeight };

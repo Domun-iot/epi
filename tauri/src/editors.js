@@ -81,7 +81,7 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
     const edit = Boolean(profile);
     const ageType = profile?.age != null && !profile?.birthDate ? 'age' : 'birthDate';
     const form = open(anonymous ? 'Calculer sans profil enregistré' : edit ? 'Modifier le profil' : 'Créer un profil', `
-      ${anonymous ? '' : field('Nom', 'name', `value="${e(profile?.name)}" maxlength="64" required ${edit ? 'readonly' : 'autofocus'}`)}
+      ${anonymous ? '' : field('Nom', 'name', `value="${e(profile?.name)}" maxlength="64" required autofocus`)}
       <label>Sexe utilisé par les formules<select name="sex" required>${option('', 'Choisir', false)}${option('H', 'Homme', profile?.sex === 'H')}${option('F', 'Femme', profile?.sex === 'F')}</select></label>
       <label>Âge utilisé par les formules<select name="ageType">${option('birthDate', 'Date de naissance', ageType === 'birthDate')}${option('age', 'Âge fixe', ageType === 'age')}</select></label>
       ${field('Date de naissance', 'birthDate', `type="date" value="${e(profile?.birthDate)}"`)}
@@ -90,7 +90,7 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
     `, async ({ name, sex, age, birthDate, ageType: source, heightCm }) => {
       const data = { sex, heightCm: Number(heightCm) };
       if (!anonymous) data.name = name.trim().normalize('NFC');
-      if (edit) data.editName = profile.name;
+      if (edit) data.editUuid = profile.uuid;
       if (source === 'age') data.age = Number(age);
       else data.birthDate = birthDate;
       await submit(data);

@@ -99,7 +99,8 @@ async function main() {
   if (enroll) console.error('Pour enregistrer « ' + enroll + ' », utilise uniquement la nouvelle balance pendant l’écoute.');
   const acceptAddress = address => existing ? existing.bluetooth.address === address
     : !enroll || !findDevice({ address }, devices);
-  const latest = latestWeights(values.identify || values.utilisateur !== undefined || hasDetails ? [] : readMeasurements());
+  const measurements = values.identify ? [] : readMeasurements(undefined, { profiles, devices });
+  const latest = latestWeights(values.utilisateur !== undefined || hasDetails ? [] : measurements);
   const work = mkdtempSync(join(tmpdir(), 'epi-'));
   const cleanup = () => rmSync(work, { recursive: true, force: true });
   let child;
@@ -159,8 +160,10 @@ async function main() {
       }
       // A scan response can follow the measurement advertisement.
       await new Promise(resolve => setTimeout(resolve, 350));
+      if (!device.uuid) updateDeviceMetadata(device, {});
       const record = historyRecord(event, assigned, device);
-      writeMeasurement(record);
+      if (measurements.some(row => (row.profile?.uuid ?? row.profile?.name) === (record.profile?.uuid ?? record.profile?.name)
+          && Date.parse(row.receivedAt) === Date.parse(record.receivedAt)) || !writeMeasurement(record)) return stop();
       for (const [key, row] of latestWeights([record])) {
         if (!latest.has(key) || row.receivedAt >= latest.get(key).receivedAt) latest.set(key, row);
       }

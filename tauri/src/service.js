@@ -7,8 +7,6 @@ import { createWebSession } from './web-session.js';
 import composition from 'virtual:epi-composition';
 import { datasetFiles, fileRecords, readArchive, writeArchive } from './legacy-import.js';
 
-const { deviceFileKey } = domain;
-
 export const METHOD_COLUMNS = composition.columns;
 export const METRICS = composition.metrics;
 
@@ -20,13 +18,7 @@ export async function connect(onState, onStatus, onRaw) {
   const web = import.meta.env.MODE === 'web' && !native;
   const storage = native ? {
     load: () => invoke('load_session'),
-    save: (session, previous) => invoke('save_session', {
-      session,
-      previous,
-      devicePaths: Object.fromEntries(session.devices.map(record => [
-        record.bluetooth.address, deviceFileKey(record.name),
-      ])),
-    }),
+    save: (session, previous) => invoke('save_session', { session, previous }),
   } : {
     load: () => JSON.parse(localStorage.getItem(snapshotKey) ?? 'null'),
     save: session => localStorage.setItem(snapshotKey, JSON.stringify(session)),

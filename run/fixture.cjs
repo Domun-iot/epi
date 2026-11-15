@@ -1,8 +1,9 @@
 'use strict';
 
-const { randomInt } = require('node:crypto');
-const { mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } = require('node:fs');
+const { randomInt, randomUUID } = require('node:crypto');
+const { mkdirSync, unlinkSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
+const { listProfileFiles } = require('../cli/record-files.cjs');
 const { listDevices, registerDevice } = require('../cli/devices.cjs');
 const { dataDirectory, initializeDataDirectory, profileDirectory, readMeasurements, writeMeasurement } = require('../cli/storage.cjs');
 const { historyRecord } = require('../shared/history.cjs');
@@ -10,22 +11,18 @@ const { nameKey } = require('../shared/profile-fields.cjs');
 
 function findOrCreateProfile(now) {
   mkdirSync(profileDirectory, { recursive: true });
-  for (const file of readdirSync(profileDirectory, { withFileTypes: true })) {
-    const match = /^profil-(.+)\.json$/.exec(file.name);
-    if (!file.isFile() || !match) continue;
-    const profile = JSON.parse(readFileSync(join(profileDirectory, file.name), 'utf8').replace(/^\uFEFF/, ''));
-    const name = profile.name || match[1];
-    if (nameKey(name) === 'test') return { ...profile, name };
-  }
+  const existing = listProfileFiles(profileDirectory).find(({ record }) => nameKey(record.name) === 'test');
+  if (existing) return existing.record;
 
   const birth = new Date(Date.UTC(now.getFullYear() - randomInt(30, 56), randomInt(12), randomInt(1, 29)));
   const profile = {
     name: 'test',
+    uuid: randomUUID(),
     sex: randomInt(2) === 0 ? 'F' : 'H',
     heightCm: randomInt(160, 191),
     birthDate: birth.toISOString().slice(0, 10),
   };
-  writeFileSync(join(profileDirectory, 'profil-test.json'), JSON.stringify(profile, null, 2) + '\n', { flag: 'wx' });
+  writeFileSync(join(profileDirectory, profile.uuid + '.json'), JSON.stringify(profile, null, 2) + '\n', { flag: 'wx' });
   return profile;
 }
 
@@ -103,7 +100,8 @@ function main() {
   const written = [];
   try {
     for (const record of generateMeasurements(now, profile, device)) {
-      written.push(writeMeasurement(record));
+      const path = writeMeasurement(record);
+      if (path) written.push(path);
     }
   } catch (error) {
     for (const file of written) unlinkSync(file);

@@ -1,8 +1,9 @@
 'use strict';
 
-const { mkdirSync, readdirSync, readFileSync, writeFileSync, renameSync, unlinkSync } = require('node:fs');
+const { mkdirSync, writeFileSync, renameSync, unlinkSync } = require('node:fs');
 const { randomUUID } = require('node:crypto');
 const { join } = require('node:path');
+const { listRecordFiles } = require('./record-files.cjs');
 const { nameKey } = require('./profile-choice.cjs');
 const { createInterface } = require('node:readline/promises');
 
@@ -14,16 +15,14 @@ const { dataDirectory } = require('./storage.cjs');
 const directory = join(dataDirectory, 'devices');
 
 function listDevices(root = directory) {
-  let files;
-  try { files = readdirSync(root, { withFileTypes: true }); }
-  catch (error) { if (error.code === 'ENOENT') return []; throw error; }
-  return files.filter(file => file.isFile() && file.name.endsWith('.json')).map(file => {
-    const record = JSON.parse(readFileSync(join(root, file.name), 'utf8'));
+  return listRecordFiles(root, /\.json$/u, (record, file) => {
     if (!record.name || !/^([A-F0-9]{2}:){5}[A-F0-9]{2}$|^[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}$/i.test(record.bluetooth?.address)) {
-      throw Error('Fiche appareil invalide : ' + file.name);
+      throw Error('Fiche appareil invalide : ' + file);
     }
     record.bluetooth.service ??= services[record.bluetooth.serviceUuid] ?? null;
-    devicePaths.set(record, join(root, file.name));
+    return record;
+  }).map(({ file, record }) => {
+    devicePaths.set(record, join(root, file));
     return record;
   });
 }
@@ -67,24 +66,26 @@ function findDevice(event, devices) {
 
 function updateDeviceMetadata(record, metadata) {
   const bluetooth = mergeDeviceMetadata(record, metadata);
-  if (JSON.stringify(bluetooth) === JSON.stringify(record.bluetooth)) return;
+  if (record.uuid && JSON.stringify(bluetooth) === JSON.stringify(record.bluetooth)) return;
+  const uuid = record.uuid ?? randomUUID();
   const file = devicePaths.get(record);
   if (file) {
     const temp = file + '.' + randomUUID() + '.tmp';
     try {
-      writeFileSync(temp, JSON.stringify({ ...record, bluetooth }, null, 2) + '\n', { flag: 'wx' });
+      writeFileSync(temp, JSON.stringify({ ...record, bluetooth, uuid }, null, 2) + '\n', { flag: 'wx' });
       renameSync(temp, file);
     } finally {
       try { unlinkSync(temp); } catch (error) { if (error.code !== 'ENOENT') throw error; }
     }
   }
   record.bluetooth = bluetooth;
+  record.uuid = uuid;
 }
 
 function registerDevice(name, event, root = directory, metadata = {}) {
-  const record = buildDevice(name, event, metadata);
+  const record = { ...buildDevice(name, event, metadata), uuid: randomUUID() };
   mkdirSync(root, { recursive: true });
-  const file = join(root, deviceFileKey(record.name) + '.json');
+  const file = join(root, record.uuid + '.json');
   writeFileSync(file, JSON.stringify(record, null, 2) + '\n', { flag: 'wx' });
   devicePaths.set(record, file);
   return record;

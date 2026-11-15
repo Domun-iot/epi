@@ -1,21 +1,14 @@
 'use strict';
 
-const { readdir, readFile } = require('node:fs/promises');
-const { join } = require('node:path');
+const { listProfileFiles } = require('./record-files.cjs');
 const { createInterface } = require('node:readline/promises');
 const { normalizeProfileName } = require('./profiles.cjs');
 
 const { nameKey } = require('../shared/profile-fields.cjs');
 
 async function listProfiles(directory) {
-  const files = await readdir(directory).catch(error => {
-    if (error.code === 'ENOENT') return [];
-    throw error;
-  });
-  const entries = await Promise.all(files.filter(file => /^profil-.+\.json$/u.test(file)).map(async file => {
-    const stem = file.slice(7, -5);
-    const stored = JSON.parse(await readFile(join(directory, file), 'utf8'));
-    return { file, name: stored.name || stem[0].toUpperCase() + stem.slice(1) };
+  const entries = listProfileFiles(directory).map(({ file, record }) => ({
+    file, name: record.name, uuid: record.uuid,
   }));
   return entries.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 }
