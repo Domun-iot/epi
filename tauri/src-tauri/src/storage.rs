@@ -1125,6 +1125,46 @@ mod tests {
     }
 
     #[test]
+    fn deleted_profile_preferences_survive_reload_and_restore() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let id = "bfa95fcb-0a16-40dc-852e-a940887ae76e";
+        let profile = json!({ "name": "Alice", "uuid": id });
+        let prefs = json!({ "theme": "dark", "columns": ["bmi", "fatPercent"] });
+        let prefs_path = profile_prefs_path(root, "Alice");
+        let initial = json!({ "profiles": [profile], "profilePreferences": { "Alice": prefs } });
+        save_dataset(root, &initial, &json!({})).unwrap();
+
+        let before = read_session(root).unwrap();
+        let mut deleted = before.clone();
+        deleted["profiles"] = json!([]);
+        deleted["profilePreferences"] = json!({});
+        deleted["notifications"] = json!([{
+            "id": id, "date": "2026-01-02T00:00:00.000Z", "type": "profile", "action": "deleted",
+            "record": before["profiles"][0], "preferences": before["profilePreferences"]["Alice"],
+        }]);
+        with_notifications(root, &deleted, &before, || {
+            save_dataset(root, &deleted, &before)
+        })
+        .unwrap();
+        assert!(!prefs_path.exists());
+
+        let reopened = read_session(root).unwrap();
+        let entry = &reopened["notifications"][0];
+        assert_eq!(entry["preferences"], prefs);
+        let mut restored = reopened.clone();
+        restored["profiles"] = json!([entry["record"]]);
+        restored["profilePreferences"]["Alice"] = entry["preferences"].clone();
+        save_dataset(root, &restored, &reopened).unwrap();
+
+        assert_eq!(read_json(&prefs_path).unwrap(), Some(prefs.clone()));
+        assert_eq!(
+            read_session(root).unwrap()["profilePreferences"]["Alice"],
+            prefs
+        );
+    }
+
+    #[test]
     fn profile_preferences_and_last_profile_are_stored_separately() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path();

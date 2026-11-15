@@ -217,16 +217,20 @@ test('keeps seven days plus the newest twenty and persists explicitly removed en
 
 test('stores deletion snapshots and restores profiles, measurements and devices independently', async () => {
   const anonymous = { ...prior, profile: null };
+  const preferences = { theme: 'dark', columns: ['bmi', 'fatPercent'] };
   const { session, disk } = fixture({ profiles: [lou, sam], devices: [device],
-    selectedProfile: 'Sam', measurements: [prior, anonymous] });
+    selectedProfile: 'Sam', measurements: [prior, anonymous], profilePreferences: { Lou: preferences } });
   const initial = await session.load();
   const removedProfile = (await session.deleteProfile('Lou')).notifications.at(-1);
   assert.equal(removedProfile.actor, 'Sam');
   assert.deepEqual(removedProfile.record, initial.profiles[0]);
   assert.deepEqual(removedProfile.measurements, [initial.measurements[0]]);
-  const reopened = fixture(disk()).session;
+  assert.deepEqual(disk().notifications.at(-1).preferences, preferences);
+  assert.equal(Object.hasOwn(disk().profilePreferences, 'Lou'), false);
+  const { session: reopened, disk: restoredDisk } = fixture(disk());
   const restored = await reopened.restoreNotification(removedProfile.id, false);
   assert.ok(restored.profiles.some(profile => profile.name === 'Lou'));
+  assert.deepEqual(restoredDisk().profilePreferences.Lou, preferences);
   assert.deepEqual(restored.measurements, [initial.measurements[1]]);
   await assert.rejects(reopened.restoreNotification(removedProfile.id), /déjà été restauré/);
 
