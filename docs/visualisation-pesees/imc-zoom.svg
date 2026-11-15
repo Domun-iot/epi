@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 325" role="img" aria-labelledby="title desc">
+<title id="title">IMC · zoom sur un franchissement</title>
+<desc id="desc">La courbe passe de 26,4 à 24,6. Trois bandes visibles dans un zoom entre 18,5 et 35 kg/m².</desc>
+<rect x="1" y="1" width="798" height="323" rx="14" fill="#f9fbfe" stroke="#dbe3ed"/>
+<g font-family="system-ui, sans-serif">
+<text x="28" y="36" fill="#182a42" font-size="23" font-weight="650" text-anchor="start">IMC · zoom sur un franchissement</text>
+<text x="28" y="61" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Proposition de zoom vertical · IMC (kg/m²)</text>
+<rect x="73" y="196.93939393939394" width="693" height="74.06060606060606" fill="#dcefe1"/>
+<text x="754" y="240" fill="#182a42" font-size="14" font-weight="650" text-anchor="end">Corpulence normale</text>
+<rect x="73" y="139.96969696969697" width="693" height="56.96969696969697" fill="#f9ecc6"/>
+<text x="754" y="158.96969696969697" fill="#182a42" font-size="14" font-weight="650" text-anchor="end">Surpoids</text>
+<rect x="73" y="83" width="693" height="56.96969696969697" fill="#f8e0cf"/>
+<text x="754" y="102" fill="#182a42" font-size="14" font-weight="650" text-anchor="end">Obésité I</text>
+<line x1="73" y1="271" x2="766" y2="271" stroke="#dbe3ed" />
+<text x="62" y="276" fill="#455972" font-size="14" font-weight="400" text-anchor="end">18,5</text>
+<line x1="73" y1="196.93939393939394" x2="766" y2="196.93939393939394" stroke="#dbe3ed" />
+<text x="62" y="201.93939393939394" fill="#455972" font-size="14" font-weight="400" text-anchor="end">25</text>
+<line x1="73" y1="139.96969696969697" x2="766" y2="139.96969696969697" stroke="#dbe3ed" />
+<text x="62" y="144.96969696969697" fill="#455972" font-size="14" font-weight="400" text-anchor="end">30</text>
+<line x1="73" y1="83" x2="766" y2="83" stroke="#dbe3ed" />
+<text x="62" y="88" fill="#455972" font-size="14" font-weight="400" text-anchor="end">35</text>
+<polyline points="73,180.9878787878788 246.25,188.96363636363637 419.5,195.79999999999998 592.75,199.21818181818182 766,201.4969696969697" fill="none" stroke="#2855b0" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="73" cy="180.9878787878788" r="4" fill="#2855b0" stroke="white" stroke-width="1.5"/>
+<circle cx="246.25" cy="188.96363636363637" r="4" fill="#2855b0" stroke="white" stroke-width="1.5"/>
+<circle cx="419.5" cy="195.79999999999998" r="4" fill="#2855b0" stroke="white" stroke-width="1.5"/>
+<circle cx="592.75" cy="199.21818181818182" r="4" fill="#2855b0" stroke="white" stroke-width="1.5"/>
+<circle cx="766" cy="201.4969696969697" r="4" fill="#2855b0" stroke="white" stroke-width="1.5"/>
+<text x="758" y="224.4969696969697" fill="#2855b0" font-size="14" font-weight="650" text-anchor="end">24,6</text>
+<text x="73" y="296" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">1 sept.</text>
+<text x="419.5" y="296" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">15 sept.</text>
+<text x="766" y="296" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">29 sept.</text>
+</g>
+</svg>

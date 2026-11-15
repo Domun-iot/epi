@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 330" role="img" aria-labelledby="title desc">
+<title id="title">Poids · points bruts et tendance</title>
+<desc id="desc">Le poids brut fluctue. La moyenne des sept pesées quotidiennes descend de 78,3 à 76,9 kg.</desc>
+<rect x="1" y="1" width="798" height="328" rx="14" fill="#f9fbfe" stroke="#dbe3ed"/>
+<g font-family="system-ui, sans-serif">
+<text x="28" y="36" fill="#182a42" font-size="23" font-weight="650" text-anchor="start">Poids · points bruts et tendance</text>
+<circle cx="36" cy="60" r="5" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<text x="54" y="64" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Pesées brutes (kg)</text>
+<line x1="249" y1="60" x2="267" y2="60" stroke="#2855b0" stroke-width="3"/>
+<text x="275" y="64" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Moyenne mobile sur 7 jours</text>
+<line x1="73" y1="251.42857142857142" x2="766" y2="251.42857142857142" stroke="#dbe3ed" />
+<text x="62" y="256.42857142857144" fill="#455972" font-size="14" font-weight="400" text-anchor="end">76</text>
+<line x1="73" y1="198.28571428571428" x2="766" y2="198.28571428571428" stroke="#dbe3ed" />
+<text x="62" y="203.28571428571428" fill="#455972" font-size="14" font-weight="400" text-anchor="end">77</text>
+<line x1="73" y1="145.14285714285714" x2="766" y2="145.14285714285714" stroke="#dbe3ed" />
+<text x="62" y="150.14285714285714" fill="#455972" font-size="14" font-weight="400" text-anchor="end">78</text>
+<line x1="73" y1="92" x2="766" y2="92" stroke="#dbe3ed" />
+<text x="62" y="97" fill="#455972" font-size="14" font-weight="400" text-anchor="end">79</text>
+<polyline points="280.9,126.9224489795919 315.55,134.51428571428556 350.2,136.79183673469382 384.85,143.62448979591858 419.5,148.93877551020395 454.15,155.01224489795905 488.8,159.56734693877632 523.45,164.1224489795913 558.1,169.4367346938767 592.75,176.26938775510146 627.4,185.37959183673522 662.05,186.89795918367454 696.7,189.17551020408203 731.35,199.80408163265287 766,205.11836734693827" fill="none" stroke="#2855b0" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="73" cy="107.94285714285701" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="107.65" cy="123.88571428571399" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="142.3" cy="102.62857142857158" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="176.95" cy="134.51428571428556" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="211.6" cy="150.45714285714257" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="246.25" cy="123.88571428571399" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="280.9" cy="145.14285714285714" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="315.55" cy="161.08571428571415" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="350.2" cy="139.82857142857173" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="384.85" cy="150.45714285714257" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="419.5" cy="171.71428571428572" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="454.15" cy="192.97142857142887" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="488.8" cy="155.77142857142871" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="523.45" cy="177.02857142857113" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="558.1" cy="198.28571428571428" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="592.75" cy="187.65714285714273" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="627.4" cy="214.22857142857129" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="662.05" cy="182.34285714285727" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="696.7" cy="208.91428571428588" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="731.35" cy="230.17142857142827" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<circle cx="766" cy="214.22857142857129" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
+<text x="280.9" y="113.9224489795919" fill="#2855b0" font-size="14" font-weight="650" text-anchor="start">78,3</text>
+<text x="757" y="192.11836734693827" fill="#2855b0" font-size="14" font-weight="650" text-anchor="end">76,9</text>
+<text x="73" y="303" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">1 nov.</text>
+<text x="419.5" y="303" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">11 nov.</text>
+<text x="766" y="303" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">21 nov.</text>
+</g>
+</svg>

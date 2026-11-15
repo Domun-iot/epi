@@ -83,7 +83,37 @@ Les libellés décrivent la classification adulte internationale. « Maigreur s�
 
 ---
 
-## 6. Ordre de réalisation proposé
+## 6. Exemples de graphiques à prototyper
+
+Les quatre maquettes utilisent des données fictives. Elles illustrent les interactions proposées pour éPI.
+
+### Poids · Garder les points bruts et la tendance à l’écran
+
+![Poids quotidien en points gris et moyenne mobile sur sept jours en bleu, de 78,3 à 76,9 kg.](./visualisation-pesees/poids.svg)
+
+Le 21 novembre, le poids remonte de **76,4 à 76,7 kg**, tandis que la moyenne continue de baisser. Au toucher d’un point, afficher les deux valeurs sous des libellés distincts, par exemple **Pesée 76,7 kg** et **Moyenne 7 j 76,9 kg**. La moyenne démarre ici au septième jour. Pour les historiques irréguliers, afficher l’effectif de la fenêtre et définir le minimum d’observations avant de dessiner la tendance.
+
+### Composition · Lire le poids, la graisse et la masse maigre ensemble
+
+![Trois panneaux alignés dans le temps avec un curseur au 15 juin. Le poids commence et finit à 78 kg, la masse grasse passe de 22 à 21 kg et la masse maigre de 56 à 57 kg.](./visualisation-pesees/composition.svg)
+
+Le poids est de **78 kg** aux deux extrémités. La masse grasse estimée passe de **22 à 21 kg** (environ **28,2 à 26,9 %**), tandis que la masse maigre estimée passe de **56 à 57 kg**. Un curseur commun permet de lire les trois valeurs à la même date. Dans le panneau Masse grasse, le bouton **kg / %** change l’unité et conserve la période. Une fiche de pesée peut présenter la décomposition **21 kg de graisse + 57 kg de masse maigre = 78 kg** lorsque les valeurs proviennent du même calcul.
+
+### IMC · Lire un franchissement sans perdre les repères
+
+![Zoom sur les bandes Corpulence normale, Surpoids et Obésité I. L’IMC descend de 26,4 à 24,6 et franchit le seuil de 25.](./visualisation-pesees/imc-zoom.svg)
+
+Dans cet exemple, la pesée du **15 septembre (25,1)** est au-dessus de 25 et celle du **22 septembre (24,8)** est en dessous. Le segment indique seulement que le franchissement se situe entre ces deux relevés. En complément de la vue actuelle à huit bandes, proposer **Zoom sur les mesures** et **Voir tous les repères**, avec les bornes affichées et la légende complète disponible dans les deux modes.
+
+### Provenance · Expliquer les ruptures de série
+
+![Deux segments de masse grasse, autour de 28 % avec la balance A puis de 32 % avec la balance B. Un espace sépare les segments.](./visualisation-pesees/provenance.svg)
+
+Les estimations tournent autour de **28 %** avec la balance A, puis autour de **32 %** après un changement d’appareil. Interrompre le trait et signaler la première mesure de la balance B. Dans le détail du point, afficher la balance et la formule. Appliquer la même logique à une longue interruption ou à un changement de méthode, avec un libellé adapté.
+
+---
+
+## 7. Ordre de réalisation proposé
 
 1. **Poids lisible au quotidien.** Ajouter « Points + tendance » à côté du brut. Sur les points, afficher la vraie valeur à sa vraie hauteur. Donner un libellé distinct à la moyenne et à l’écart entre première et dernière mesures. Pour le suivi au jour le jour, évaluer une moyenne mobile sur sept jours révolus à partir d’une valeur par jour, et signaler une fenêtre peu renseignée. Garder le détail intrajournalier en vue brute.
 2. **Composition synchronisée.** Aligner Poids, Masse grasse et Masse maigre avec un curseur partagé et des unités sur chaque axe. Le toucher ou les flèches déplacent le curseur de pesée en pesée. Si une métrique manque à la date sélectionnée, afficher « aucune mesure » dans son panneau. Tester les vues mobiles sur 30 jours puis sur un an.

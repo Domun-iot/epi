@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 325" role="img" aria-labelledby="title desc">
+<title id="title">Masse grasse · changement de balance</title>
+<desc id="desc">Les estimations autour de 28 % et de 32 % sont présentées en deux segments, avec une interruption et une indication de la nouvelle balance.</desc>
+<rect x="1" y="1" width="798" height="323" rx="14" fill="#f9fbfe" stroke="#dbe3ed"/>
+<g font-family="system-ui, sans-serif">
+<text x="28" y="36" fill="#182a42" font-size="23" font-weight="650" text-anchor="start">Masse grasse · changement de balance</text>
+<line x1="28" y1="60" x2="46" y2="60" stroke="#7744a5" stroke-width="3"/>
+<text x="54" y="64" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Balance A</text>
+<line x1="192" y1="60" x2="210" y2="60" stroke="#a14b15" stroke-width="3"/>
+<text x="218" y="64" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Balance B</text>
+<text x="73" y="87" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Masse grasse (%)</text>
+<line x1="73" y1="270" x2="766" y2="270" stroke="#dbe3ed" />
+<text x="62" y="275" fill="#455972" font-size="14" font-weight="400" text-anchor="end">24</text>
+<line x1="73" y1="236" x2="766" y2="236" stroke="#dbe3ed" />
+<text x="62" y="241" fill="#455972" font-size="14" font-weight="400" text-anchor="end">26</text>
+<line x1="73" y1="202" x2="766" y2="202" stroke="#dbe3ed" />
+<text x="62" y="207" fill="#455972" font-size="14" font-weight="400" text-anchor="end">28</text>
+<line x1="73" y1="168" x2="766" y2="168" stroke="#dbe3ed" />
+<text x="62" y="173" fill="#455972" font-size="14" font-weight="400" text-anchor="end">30</text>
+<line x1="73" y1="134" x2="766" y2="134" stroke="#dbe3ed" />
+<text x="62" y="139" fill="#455972" font-size="14" font-weight="400" text-anchor="end">32</text>
+<line x1="73" y1="100" x2="766" y2="100" stroke="#dbe3ed" />
+<text x="62" y="105" fill="#455972" font-size="14" font-weight="400" text-anchor="end">34</text>
+<line x1="535" y1="100" x2="535" y2="270" stroke="#455972" stroke-dasharray="5 4"/>
+<text x="544" y="115" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Première mesure avec la balance B</text>
+<polyline points="73,202 188.5,207.10000000000002 304,203.70000000000002" fill="none" stroke="#7744a5" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="535,134 650.5,137.39999999999998 766,132.29999999999998" fill="none" stroke="#a14b15" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="73" cy="202" r="4" fill="#7744a5" stroke="white" stroke-width="1.5"/>
+<circle cx="188.5" cy="207.10000000000002" r="4" fill="#7744a5" stroke="white" stroke-width="1.5"/>
+<circle cx="304" cy="203.70000000000002" r="4" fill="#7744a5" stroke="white" stroke-width="1.5"/>
+<circle cx="535" cy="134" r="4" fill="#a14b15" stroke="white" stroke-width="1.5"/>
+<circle cx="650.5" cy="137.39999999999998" r="4" fill="#a14b15" stroke="white" stroke-width="1.5"/>
+<circle cx="766" cy="132.29999999999998" r="4" fill="#a14b15" stroke="white" stroke-width="1.5"/>
+<text x="73" y="295" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">1 mars</text>
+<text x="304" y="295" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">15 mars</text>
+<text x="535" y="295" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">29 mars</text>
+<text x="766" y="295" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">12 avr.</text>
+</g>
+</svg>
