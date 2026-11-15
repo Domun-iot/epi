@@ -821,7 +821,7 @@ test('les suppressions demandent confirmation et persistent après rechargement'
 
   await choosePage(page, 'Mesures');
   await page.getByRole('button', { name: /Voir la pesée du/ }).last().click();
-  const deleteMeasurement = page.locator('#detail-actions').getByRole('button', { name: 'Supprimer la pesée' });
+  const deleteMeasurement = page.locator('#detail-actions').getByRole('button', { name: 'Supprimer', exact: true });
   await deleteMeasurement.click();
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'hidden' });
@@ -1143,7 +1143,7 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
   await choosePage(page, 'Mesures');
   await page.getByRole('button', { name: /Voir la pesée du/ }).first().click();
-  await page.getByRole('button', { name: 'Supprimer la pesée' }).click();
+  await page.locator('#detail-actions').getByRole('button', { name: 'Supprimer', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
   await notices.getByText('Pesée supprimée', { exact: true }).waitFor();
   await dismissNotificationBanner(page);
@@ -1171,7 +1171,7 @@ test('une réception ouvre la pesée enregistrée ou réactive son bandeau à la
   await receipt.click();
   const details = page.getByRole('heading', { name: 'Détails de la pesée', exact: true });
   await details.waitFor();
-  await page.getByRole('button', { name: 'Supprimer la pesée' }).click();
+  await page.locator('#detail-actions').getByRole('button', { name: 'Supprimer', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
   await receipt.waitFor();
   await dismissNotificationBanner(page);

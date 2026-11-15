@@ -1,7 +1,7 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { connect } from './service.js';
 import { bluetoothView, createBluetoothWatch } from './bluetooth-watch.js';
-import { deleteButton, escapeHtml as e, formatDate, nameKey, sortByName, userIcon } from './format.js';
+import { escapeHtml as e, formatDate, nameKey, sortByName, userIcon } from './format.js';
 import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
 import { viewPresetHeader, viewPresetTitles } from './view-presets.js';
@@ -20,7 +20,6 @@ const backButton = document.querySelector('#back-to-measurements');
 const restoreButton = document.querySelector('#restore-button');
 const detailActions = document.querySelector('#detail-actions');
 const deleteMeasurementButton = document.querySelector('#delete-measurement-button');
-deleteMeasurementButton.innerHTML = deleteButton('Supprimer la pesée', 'delete-measurement');
 const view = document.querySelector('#view');
 const main = view.closest('main');
 const viewHeader = document.querySelector('#view-header');
