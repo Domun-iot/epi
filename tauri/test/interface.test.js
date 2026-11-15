@@ -223,10 +223,14 @@ test('l’écoute Bluetooth filtre, décode et suit les trames jusqu’à une pe
   await page.getByText(`Écoute limitée à Salle de bain (${address}).`, { exact: true }).waitFor();
   const log = page.getByRole('region', { name: 'Trames Bluetooth reçues' });
   const payload = (id, data = 'DEAD', length = data.length / 2) => `PAYLOAD AABBCCDDEEFF -58 Manufacturer ${id} ${length} ${data} `;
-  await feed(page, payload('0157'));
-  await log.getByText(/^\[\d{2}\/\d{2}\/\d{4}.*\d{2}:\d{2}:\d{2}\].*Anhui Huami.*2 octets reçus.*DE AD/i).waitFor();
-  await feed(page, payload('FFFF', '', 120));
-  await log.getByText(/Fabricant 0xFFFF · -58 dBm · 120 octets reçus$/).waitFor();
+  await feed(page, payload('0157', '412020420A7F80FF'));
+  const shortFrame = log.getByText(/^\[\d{2}\/\d{2}\/\d{4}.*\d{2}:\d{2}:\d{2}\].*Anhui Huami.*8 octets reçus/);
+  assert.match(await shortFrame.innerText(), /8 octets reçus\n41 20 20 42 0A 7F 80 FF\nA  B····$/);
+  await feed(page, payload('FFFF', '41'.repeat(120)));
+  const longFrame = log.getByText(/Fabricant 0xFFFF · -58 dBm · 120 octets reçus/);
+  assert.deepEqual((await longFrame.innerText()).split('\n').slice(1), [
+    Array(120).fill('41').join(' '), 'A'.repeat(120),
+  ]);
   assert.deepEqual(await log.locator('.bluetooth-id-unknown').allTextContents(), ['0xFFFF']);
   assert.deepEqual(await log.locator('.bluetooth-id-known').allTextContents(), ['0x0157']);
   await feed(page, frame.replace('0226', '0206'));
@@ -261,7 +265,8 @@ test('l’écoute Bluetooth identifie le fabricant par préfixe MAC lorsque le c
   const log = page.getByRole('region', { name: 'Trames Bluetooth reçues' });
   await log.waitFor();
   await feed(page, 'PAYLOAD D4278722D707 -91 Manufacturer 3030 1 30 QVBfMzQxODczMTY0NA==');
-  await log.getByText(/AP_3418731644 · Shanghai High-Flying Electronics Technology Co\., Ltd \(0x3030\) · -91 dBm · 1 octet reçu · 30$/).waitFor();
+  const inferred = log.getByText(/AP_3418731644 · Shanghai High-Flying Electronics Technology Co\., Ltd \(0x3030\) · -91 dBm · 1 octet reçu/);
+  assert.match(await inferred.innerText(), /1 octet reçu\n30\n0$/);
   await feed(page, 'PAYLOAD D4278722D707 -91 Manufacturer 0157 1 30 ');
   await log.getByText(/Anhui Huami.* \(0x0157\)/).waitFor();
   const known = log.locator('.bluetooth-id-known');

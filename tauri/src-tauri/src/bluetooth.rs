@@ -86,11 +86,7 @@ impl Source {
     }
 
     fn payload(&self, app: &AppHandle, kind: &str, id: &str, payload: &[u8]) {
-        let hex = if payload.len() <= 32 {
-            hex(payload)
-        } else {
-            String::new()
-        };
+        let hex = hex(payload);
         let _ = app.emit(
             "ble-frame",
             format!(

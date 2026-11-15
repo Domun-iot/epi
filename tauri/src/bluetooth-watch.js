@@ -3,7 +3,6 @@ import { button, escapeHtml, formatDate, formatScaleTime, pageHeader, weight } f
 
 const logKey = 'epi-bluetooth-log-v1';
 const retentionMs = 24 * 60 * 60 * 1000;
-const maxRawBytes = 32;
 
 function recentFrames(frames) {
   const cutoff = Date.now() - retentionMs;
@@ -67,10 +66,18 @@ function formatFrame(frame) {
   if (Number.isFinite(frame.weight)) {
     fields.push(weight(frame), frame.removed ? 'Balance libérée' : frame.stable ? 'Poids stable' : 'Poids instable',
       frame.impedanceOhms ? `${frame.impedanceOhms} Ω` : '', frame.scaleTime ? formatScaleTime(frame.scaleTime) : '');
-  } else if (frame.bytes <= maxRawBytes && frame.hex) {
-    fields.push(frame.hex.match(/../g).join(' ').toUpperCase());
   }
-  return { text: fields.filter(Boolean).join(' · '), ...(highlights.length && { highlights }) };
+
+  let text = fields.filter(Boolean).join(' · ');
+  const bytes = frame.hex?.match(/../g);
+  if (bytes) {
+    const ascii = bytes.map(hex => {
+      const byte = Number.parseInt(hex, 16);
+      return byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : '·';
+    }).join('');
+    text += `\n${bytes.join(' ').toUpperCase()}\n${ascii}`;
+  }
+  return { text, ...(highlights.length && { highlights }) };
 }
 
 export function createBluetoothWatch() {

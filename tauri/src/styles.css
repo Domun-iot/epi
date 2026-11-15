@@ -287,6 +287,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
   overflow-anchor: none;
   padding: 10px 14px;
   font: .8rem/1.5 ui-monospace, monospace;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 #bluetooth-log:empty::before { content: "Aucune trame reçue."; }
