@@ -253,6 +253,23 @@ test('l’écoute Bluetooth filtre, décode et suit les trames jusqu’à une pe
   await page.getByRole('button', { name: 'Attribuer la pesée' }).waitFor();
 });
 
+test('the Bluetooth log fills the main view down to its bottom padding', async t => {
+  const page = await pageWith(t, undefined, { viewport: { width: 1200, height: 1000 } });
+  await page.getByRole('link', { name: 'Mode simulation' }).click();
+  const log = page.locator('#bluetooth-log');
+  await log.waitFor();
+
+  const bottomGap = () => log.evaluate(node => {
+    const scroll = node.closest('#view-scroll');
+    const gap = scroll.getBoundingClientRect().bottom - node.getBoundingClientRect().bottom;
+    const padding = parseFloat(getComputedStyle(scroll).paddingBottom);
+    return gap - padding;
+  });
+  assert.ok(Math.abs(await bottomGap()) < 1);
+  await page.setViewportSize({ width: 390, height: 480 });
+  assert.ok(Math.abs(await bottomGap()) < 1);
+});
+
 test('central views use the same spacing above and below the header', async t => {
   const page = await pageWith(t, {
     profiles: [alice], devices: [device], selectedProfile: 'Alice', measurements: [record],

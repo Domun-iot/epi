@@ -276,8 +276,13 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .editor-form label[hidden] { display: none; }
 .device-list { margin-bottom: 16px; }
 .bluetooth:hover, .bluetooth[aria-current] { text-decoration: underline; }
+#view-scroll:has(#bluetooth-log), #view-content:has(#bluetooth-log) {
+  display: flex;
+  flex-direction: column;
+}
+#view-content:has(#bluetooth-log) { flex: 1; min-height: 0; }
 #bluetooth-log {
-  height: clamp(12rem, 55vh, 36rem);
+  flex: 1;
   overflow: auto;
   overflow-anchor: none;
   padding: 10px 14px;
