@@ -44,25 +44,35 @@ export function renderChartDates(axis, width) {
   if (width <= 0) return;
   const start = Number(axis.dataset.start);
   const end = Number(axis.dataset.end);
-  const unit = timeUnit(start, end);
-  const date = periodStart(start, unit);
-  if (date < start) advancePeriod(date, unit);
-  const format = unit === 'month' ? axisMonth : axisDay;
+  const pixelsPerDay = width / (localDay(end) - localDay(start) + 1);
+  const unitForGap = gap => pixelsPerDay >= gap ? 'day' : pixelsPerDay * 7 >= gap ? 'week' : 'month';
   const labelGap = 80;
-  const labelInset = Math.min(35, width / 2);
-  const labels = [];
-  let previous = -Infinity;
-  // Clip the label centers at the edges, and omit labels whose text would overlap.
-  for (; date <= end; advancePeriod(date, unit)) {
-    const position = end === start ? width / 2 : width * (date - start) / (end - start);
-    const center = Math.max(labelInset, Math.min(width - labelInset, position));
-    if (center - previous < labelGap) continue;
-    labels.push(`<div class="chart-date-tick" data-time="${date.getTime()}" style="--x:${position}px;--label-offset:${center - position}px">
-      <span>${e(format.format(date))}</span>
-    </div>`);
-    previous = center;
+  const lastDay = periodStart(end, 'day').getTime();
+  const position = time => width * (time - start) / (end - start);
+  const ticks = new Map([[start, axisDate.format(start)], [end, axisDate.format(end)]]);
+
+  function addPeriods(unit, gap, format) {
+    const date = periodStart(start, unit);
+    advancePeriod(date, unit);
+    let previous = 0;
+    for (; date < lastDay; advancePeriod(date, unit)) {
+      const time = date.getTime();
+      const x = position(time);
+      if (x - previous < gap || width - x < gap) continue;
+      ticks.set(time, format ? format.format(date) : '');
+      previous = x;
+    }
   }
-  axis.innerHTML = labels.join('') || `<div class="chart-date-tick" style="--x:50%"><span>${e(axisDate.format(start))}</span></div>`;
+
+  addPeriods(unitForGap(12), 0);
+  // Reserve space for both edge dates before adding interior labels.
+  const labelUnit = unitForGap(labelGap);
+  addPeriods(labelUnit, labelGap, labelUnit === 'month' ? axisMonth : axisDay);
+  axis.innerHTML = [...ticks].sort(([left], [right]) => left - right).map(([time, label]) => {
+    const edge = time === start ? ' chart-date-start' : time === end ? ' chart-date-end' : '';
+    const major = label ? ' chart-date-major' : '';
+    return `<div class="chart-date-tick${major}${edge}" data-time="${time}" style="--x:${position(time)}px">${label ? `<span>${e(label)}</span>` : ''}</div>`;
+  }).join('');
 }
 
 function rangeLabel([start, end]) {
@@ -260,9 +270,9 @@ function chartPlot(rows, series, { period, range, mode, statuses, profileAge }, 
     .filter(({ time }) => Number.isFinite(time)).sort((a, b) => a.time - b.time);
   const latestTime = timeline.at(-1)?.time;
   const cutoff = period === 'all' ? -Infinity : latestTime - Number(period) * dayMs;
-  const [start, end] = range
-    ? [new Date(range[0]).setHours(0, 0, 0, 0), new Date(range[1]).setHours(23, 59, 59, 999)]
-    : [timeline.find(({ time }) => time >= cutoff)?.time, latestTime];
+  const [firstTime, lastTime] = range ?? [timeline.find(({ time }) => time >= cutoff)?.time, latestTime];
+  const start = new Date(firstTime).setHours(0, 0, 0, 0);
+  const end = new Date(lastTime).setHours(23, 59, 59, 999);
   const visible = series.filter(({ id }) => statuses[id] !== 'hidden');
   const lines = visible.map(item => plotSeries(item, timeline, start, end, mode)).filter(Boolean);
   if (!lines.length) {

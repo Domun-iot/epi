@@ -687,15 +687,23 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   assert.equal(Number(await plot.getAttribute('data-start')), Date.parse('2025-12-22T00:00:00+01:00'));
   assert.equal(Number(await plot.getAttribute('data-end')), Date.parse('2026-01-18T23:59:59.999+01:00'));
   assert.equal(await points.count(), 2);
-  const ticks = weightChart.locator('.chart-dates [data-time]');
-  await ticks.first().waitFor();
-  assert.ok(await ticks.count() < 4);
+  const dates = weightChart.locator('.chart-dates');
+  const edges = dates.locator('.chart-date-start span, .chart-date-end span');
+  const interiorLabels = dates.locator('.chart-date-major:not(.chart-date-start, .chart-date-end)');
+  const minorTicks = dates.locator('.chart-date-tick:not(.chart-date-major)');
+  const calendarDates = locator => locator.evaluateAll(nodes => nodes.map(node => {
+    const date = new Date(Number(node.dataset.time));
+    return [date.getMonth() + 1, date.getDate(), date.getHours()];
+  }));
+  await edges.last().waitFor();
+  assert.deepEqual(await edges.allTextContents(), ['22/12/2025', '18/01/2026']);
+  assert.deepEqual(await calendarDates(interiorLabels), [[1, 1, 0]]);
+  assert.deepEqual(await calendarDates(minorTicks), [[12, 29, 0], [1, 5, 0], [1, 12, 0]]);
   await page.setViewportSize({ width: 1100, height: 800 });
-  await ticks.nth(3).waitFor();
-  assert.deepEqual(await ticks.evaluateAll(labels => labels.map(label => {
-    const date = new Date(Number(label.dataset.time));
-    return [date.getDay(), date.getHours()];
-  })), Array.from({ length: 4 }, () => [1, 0]));
+  await interiorLabels.nth(2).waitFor();
+  assert.deepEqual(await edges.allTextContents(), ['22/12/2025', '18/01/2026']);
+  assert.deepEqual(await calendarDates(interiorLabels), [[12, 29, 0], [1, 5, 0], [1, 12, 0]]);
+  assert.ok((await minorTicks.count()) > 7);
   await page.setViewportSize({ width: 360, height: 800 });
   await page.reload();
   await selectedRange.waitFor();
