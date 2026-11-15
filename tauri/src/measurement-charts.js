@@ -74,9 +74,9 @@ function rangeLabel([start, end]) {
   return `Du ${axisDate.format(start)} au ${axisDate.format(end)} (${duration})`;
 }
 
-function valueScale(points, referenceTop = 0) {
+function valueScale(points) {
   let low = 0;
-  let high = referenceTop;
+  let high = 0;
   for (const { value, plottedValue } of points) {
     low = Math.min(low, value, plottedValue);
     high = Math.max(high, value, plottedValue);
@@ -102,10 +102,51 @@ const bmiBands = [
   { upper: Infinity, label: 'Obésité III', color: '#9b61cb' },
 ];
 
-function renderBmiBands({ y, min, max }) {
-  return bmiBands.map(({ upper, color }, index) => {
+function bmiScale(points) {
+  let low = Infinity;
+  let high = -Infinity;
+  for (const { value, plottedValue } of points) {
+    low = Math.min(low, value, plottedValue);
+    high = Math.max(high, value, plottedValue);
+  }
+
+  const finalBand = bmiBands.length - 1;
+  let first = bmiBands.findIndex(({ upper }) => low < upper);
+  let last = bmiBands.findIndex(({ upper }) => high < upper);
+  if (first === last) {
+    first = Math.max(0, first - 1);
+    last = Math.min(finalBand, last + 1);
+  } else {
+    const lower = bmiBands[first - 1]?.upper;
+    const upper = bmiBands[last].upper;
+    if (first > 0 && low < (lower + bmiBands[first].upper) / 2) first--;
+    if (last < finalBand && high > (bmiBands[last - 1].upper + upper) / 2) last++;
+  }
+
+  if (last - first < 2) {
+    const distanceBelow = first > 0 ? low - bmiBands[first - 1].upper : Infinity;
+    const distanceAbove = last < finalBand ? bmiBands[last].upper - high : Infinity;
+    if (distanceBelow <= distanceAbove) first--;
+    else last++;
+  }
+
+  const min = bmiBands[first - 1]?.upper ?? Math.min(15, Math.floor(low - .5));
+  const max = last === finalBand ? Math.max(45, Math.ceil(high + .5)) : bmiBands[last].upper;
+  const y = value => 100 * (max - value) / (max - min);
+  const bands = bmiBands.slice(first, last + 1);
+  const ticks = [min];
+  const minTickGap = (max - min) * .08;
+  for (const { upper } of bands) {
+    if (upper - ticks.at(-1) >= minTickGap && max - upper >= minTickGap) ticks.push(upper);
+  }
+  ticks.push(max);
+  return { min, max, y, ticks, bands };
+}
+
+function renderBmiBands({ y, min, max, bands }) {
+  return bands.map(({ upper, color }, index) => {
     const top = y(Math.min(max, upper));
-    const bottom = y(Math.max(min, bmiBands[index - 1]?.upper ?? min));
+    const bottom = y(bands[index - 1]?.upper ?? min);
     return `<rect class="chart-bmi-band" x="0" y="${top}" width="100" height="${bottom - top}" fill="${color}"/>`;
   }).join('');
 }
@@ -234,7 +275,7 @@ function chartPlot(rows, series, { period, range, mode, statuses, profileAge }, 
     const age = row.profile?.age ?? profileAge;
     return age == null || age >= 18;
   });
-  if (bmiReference) Object.assign(active, valueScale(active.points, 45));
+  if (bmiReference) Object.assign(active, bmiScale(active.points));
   const layered = [...lines.filter(line => line !== active), active];
   const x = time => end === start ? 50 : 100 * (time - start) / (end - start);
   const latest = active.points.at(-1);

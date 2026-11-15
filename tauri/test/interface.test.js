@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { chromium } from 'playwright';
 import { build } from 'vite';
 import { unzipSync } from 'fflate';
+import { measurementCharts } from '../src/measurement-charts.js';
 
 let browser;
 const url = 'http://localhost:1420/';
@@ -602,6 +603,25 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
 });
 
+test('l’axe IMC garde trois bandes au minimum et affiche les voisines proches', () => {
+  const bands = values => {
+    const rows = values.map((bmi, index) => ({ bmi, receivedAt: new Date(Date.UTC(2026, 0, index + 1)).toISOString() }));
+    const html = measurementCharts(rows, [{ id: 'bmi', label: 'IMC', read: row => row.bmi }], {
+      mode: 'raw', statuses: { bmi: 'bold' },
+    });
+    return [...html.matchAll(/class="chart-bmi-band"[^>]+fill="([^"]+)"/g)].map(match => match[1]);
+  };
+  const [red, orange, yellow, green, purple] = ['#d54848', '#e67e32', '#e5b72c', '#44a66b', '#9b61cb'];
+  assert.deepEqual(bands([20, 23]), [yellow, green, yellow]);
+  assert.deepEqual(bands([20, 25.1]), [yellow, green, yellow]);
+  assert.deepEqual(bands([22, 27]), [green, yellow, orange]);
+  assert.deepEqual(bands([19, 28]), [yellow, green, yellow, orange]);
+  assert.deepEqual(bands([21.75, 27.5]), [green, yellow, orange]);
+  assert.deepEqual(bands([12]), [red, orange, yellow]);
+  assert.deepEqual(bands([51]), [orange, red, purple]);
+  assert.deepEqual(bands([12, 51]), [red, orange, yellow, green, yellow, orange, red, purple]);
+});
+
 test('le graphique suit les pesées et mémorise la visualisation par profil', async t => {
   const earlier = { ...record, receivedAt: '2025-12-01T17:23:21Z',
     measures: { weight: 150, unit: 'lb' }, calculations: null };
@@ -628,7 +648,7 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   await weightChart.locator('.chart-line-active[data-series="bmi"]').waitFor({ state: 'attached' });
   assert.equal(await bmi.getAttribute('aria-pressed'), 'true');
   assert.deepEqual(await bands.evaluateAll(rects => rects.map(rect => rect.getAttribute('fill'))),
-    ['#d54848', '#e67e32', '#e5b72c', '#44a66b', '#e5b72c', '#e67e32', '#d54848', '#9b61cb']);
+    ['#44a66b', '#e5b72c', '#e67e32']);
   const reference = weightChart.getByText('Repères IMC adulte · Surpoids', { exact: true });
   await reference.click();
   assert.match(await weightChart.locator('.chart-bmi-reference ul').innerText(), /Corpulence normale \(18,5 à < 25\)/);

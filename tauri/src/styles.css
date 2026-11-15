@@ -215,7 +215,7 @@ p { line-height: 1.55; }
   border-inline: 1px solid #5279ee;
 }
 .chart-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.chart-bmi-band { opacity: .19; }
+.chart-bmi-band { opacity: .26; }
 .chart-bmi-reference { margin-top: 12px; color: var(--muted); font-size: .82rem; }
 .chart-bmi-reference summary { width: fit-content; cursor: pointer; }
 .chart-bmi-reference ul { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 0; padding: 0; list-style: none; }

@@ -45,7 +45,7 @@
 | Donnée éPI | Vue proposée | Détail à rendre lisible |
 | --- | --- | --- |
 | **Poids (kg)** | Points bruts fins et tendance épaisse sur le même axe. Ligne d’objectif ou zone de maintien facultative. | Dernière pesée, écart sur la période en kg, rythme lissé en kg/semaine si le recul suffit. Option d’axe resserré, avec ses bornes visibles. |
-| **IMC (kg/m²)** | Courbe sur huit bandes de référence adulte. | Seuils en texte, catégorie de la dernière mesure brute et indication d’un changement de taille de référence. |
+| **IMC (kg/m²)** | Courbe sur les bandes de référence adulte pertinentes pour la période. | Seuils en texte, catégorie de la dernière mesure brute et indication d’un changement de taille de référence. |
 | **Masse grasse (%)** | Points bruts et tendance, panneau synchronisé avec le poids. | Écart en **points de pourcentage**. Par exemple, de 29 à 27 % donne −2 points. Méthode visible. |
 | **Masse grasse (kg)** | Courbe en kg, face à la masse maigre sur un axe du temps commun. | Afficher aussi la proportion au survol. Une variation du poids total peut faire évoluer kg et pourcentage dans des sens différents. |
 | **Masse maigre (kg)** | Panneau jumeau de la masse grasse. Au détail d’une pesée, barre empilée graisse + masse maigre si elles proviennent de la même méthode. | La masse maigre comprend notamment eau, muscles et os. Le détail permet de retrouver le poids total. |
@@ -66,7 +66,7 @@ Certains résultats éPI dépendent seulement du poids, de la taille, de l’âg
 
 ## 5. Livré · Les bandes d’IMC
 
-Les bandes sont derrière la grille et les courbes quand l’IMC pilote l’axe. L’axe s’étend au-delà de 40 pour afficher la zone supérieure même quand les mesures sont dans une plage plus resserrée. Les bornes sont calculées sur l’axe de l’IMC et les points hors de cette plage restent visibles par extension de l’axe. La légende dépliable affiche les huit intervalles et indique la catégorie de la dernière mesure brute.
+Les bandes sont derrière la grille et les courbes quand l’IMC pilote l’axe. L’axe affiche au moins trois bandes. Une série entièrement dans la zone normale affiche aussi maigreur légère et surpoids. Quand la série couvre plusieurs bandes, une voisine s’ajoute si une valeur dépasse le milieu de la bande limitrophe dans sa direction. S’il manque une bande pour atteindre le minimum, la plus proche complète la vue. L’échelle tient compte des mesures brutes et de la courbe affichée. La légende dépliable affiche les huit intervalles et indique la catégorie de la dernière mesure brute.
 
 | Seuil en kg/m² | Libellé | Fond |
 | --- | --- | --- |
@@ -103,7 +103,7 @@ Le poids est de **78 kg** aux deux extrémités. La masse grasse estimée passe 
 
 ![Zoom sur les bandes Corpulence normale, Surpoids et Obésité I. L’IMC descend de 26,4 à 24,6 et franchit le seuil de 25.](./visualisation-pesees/imc-zoom.svg)
 
-Dans cet exemple, la pesée du **15 septembre (25,1)** est au-dessus de 25 et celle du **22 septembre (24,8)** est en dessous. Le segment indique seulement que le franchissement se situe entre ces deux relevés. En complément de la vue actuelle à huit bandes, proposer **Zoom sur les mesures** et **Voir tous les repères**, avec les bornes affichées et la légende complète disponible dans les deux modes.
+Dans cet exemple, la pesée du **15 septembre (25,1)** est au-dessus de 25 et celle du **22 septembre (24,8)** est en dessous. Le segment indique seulement que le franchissement se situe entre ces deux relevés. Le cadrage automatique affiche ici corpulence normale, surpoids et obésité I. Cette troisième bande est la plus proche des deux extrêmes de la série parmi les bandes encore masquées. Un bouton **Voir tous les repères** pourrait ouvrir les huit bandes d’un coup.
 
 ### Provenance · Expliquer les ruptures de série
 
