@@ -3,6 +3,8 @@ import { escapeHtml as e, formatDate } from './format.js';
 const axisDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'short' });
 const axisDay = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
 const axisMonth = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' });
+const axisEdgeDay = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'numeric' });
+const axisYear = new Intl.DateTimeFormat(undefined, { year: 'numeric' });
 const axisValue = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
 const dayMs = 86400_000;
 
@@ -45,30 +47,29 @@ export function renderChartDates(axis, width) {
   const start = Number(axis.dataset.start);
   const end = Number(axis.dataset.end);
   const pixelsPerDay = width / (localDay(end) - localDay(start) + 1);
-  const unitForGap = gap => pixelsPerDay >= gap ? 'day' : pixelsPerDay * 7 >= gap ? 'week' : 'month';
-  const labelGap = 80;
+  const unit = pixelsPerDay >= 12 ? 'day' : pixelsPerDay * 7 >= 12 ? 'week' : 'month';
   const lastDay = periodStart(end, 'day').getTime();
   const position = time => width * (time - start) / (end - start);
-  const ticks = new Map([[start, axisDate.format(start)], [end, axisDate.format(end)]]);
+  const edgeLabel = time => [axisEdgeDay.format(time), axisYear.format(time)].join('\n');
+  const dates = [];
+  const date = periodStart(start, unit);
+  advancePeriod(date, unit);
+  for (; date < lastDay; advancePeriod(date, unit)) dates.push(date.getTime());
 
-  function addPeriods(unit, gap, format) {
-    const date = periodStart(start, unit);
-    advancePeriod(date, unit);
-    let previous = 0;
-    for (; date < lastDay; advancePeriod(date, unit)) {
-      const time = date.getTime();
-      const x = position(time);
-      if (x - previous < gap || width - x < gap) continue;
-      ticks.set(time, format ? format.format(date) : '');
-      previous = x;
-    }
-  }
-
-  addPeriods(unitForGap(12), 0);
-  // Reserve space for both edge dates before adding interior labels.
-  const labelUnit = unitForGap(labelGap);
-  addPeriods(labelUnit, labelGap, labelUnit === 'month' ? axisMonth : axisDay);
-  axis.innerHTML = [...ticks].sort(([left], [right]) => left - right).map(([time, label]) => {
+  // Use one calendar grid and promote every Nth tick based on the tightest spacing.
+  const spacing = dates.reduce((gap, time, index) => index
+    ? Math.min(gap, position(time) - position(dates[index - 1])) : gap, Infinity);
+  const stride = Math.max(1, Math.ceil(48 / spacing));
+  const edgeGap = 60;
+  const firstMajor = dates.findIndex(time => position(time) >= edgeGap);
+  const format = unit === 'month' ? axisMonth : axisDay;
+  const ticks = [[start, edgeLabel(start)], ...dates.map((time, index) => {
+    const label = firstMajor >= 0 && index >= firstMajor && (index - firstMajor) % stride === 0
+      && width - position(time) >= edgeGap;
+    return [time, label ? format.formatToParts(time).filter(part => part.type !== 'literal')
+      .map(part => part.value).join('\n') : ''];
+  }), [end, edgeLabel(end)]];
+  axis.innerHTML = ticks.map(([time, label]) => {
     const edge = time === start ? ' chart-date-start' : time === end ? ' chart-date-end' : '';
     const major = label ? ' chart-date-major' : '';
     return `<div class="chart-date-tick${major}${edge}" data-time="${time}" style="--x:${position(time)}px">${label ? `<span>${e(label)}</span>` : ''}</div>`;

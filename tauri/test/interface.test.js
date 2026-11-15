@@ -699,15 +699,31 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
     const date = new Date(Number(node.dataset.time));
     return [date.getMonth() + 1, date.getDate(), date.getHours()];
   }));
+  const interiorTicks = dates.locator('.chart-date-tick:not(.chart-date-start, .chart-date-end)');
+  const assertReadableLabels = async () => {
+    const labels = await dates.locator('.chart-date-major span').evaluateAll(nodes => nodes.map(node => {
+      const { left, right } = node.getBoundingClientRect();
+      return { left, right, lines: node.textContent.split('\n').length };
+    }));
+    assert.ok(labels.every(({ lines }, index) => lines === 2
+      && (index === 0 || labels[index - 1].right < labels[index].left)));
+  };
+
   await edges.last().waitFor();
-  assert.deepEqual(await edges.allTextContents(), ['22/12/2025', '18/01/2026']);
-  assert.deepEqual(await calendarDates(interiorLabels), [[1, 1, 0]]);
-  assert.deepEqual(await calendarDates(minorTicks), [[12, 29, 0], [1, 5, 0], [1, 12, 0]]);
+  assert.deepEqual(await edges.allTextContents(), ['22/12\n2025', '18/01\n2026']);
+  assert.deepEqual(await calendarDates(interiorTicks), [[12, 29, 0], [1, 5, 0], [1, 12, 0]]);
+  assert.ok((await interiorLabels.count()) >= 2);
+  await assertReadableLabels();
+
   await page.setViewportSize({ width: 1100, height: 800 });
-  await interiorLabels.nth(2).waitFor();
-  assert.deepEqual(await edges.allTextContents(), ['22/12/2025', '18/01/2026']);
-  assert.deepEqual(await calendarDates(interiorLabels), [[12, 29, 0], [1, 5, 0], [1, 12, 0]]);
-  assert.ok((await minorTicks.count()) > 7);
+  await minorTicks.nth(7).waitFor({ state: 'attached' });
+  assert.equal(await interiorTicks.count(), 26);
+  const majorDays = await interiorLabels.evaluateAll(nodes => nodes.map(node => Number(node.dataset.time)));
+  assert.ok(majorDays.length > 3);
+  const stride = majorDays[1] - majorDays[0];
+  assert.ok(stride > 86_400_000);
+  assert.ok(majorDays.slice(1).every((day, index) => day - majorDays[index] === stride));
+  await assertReadableLabels();
   await page.setViewportSize({ width: 360, height: 800 });
   await page.reload();
   await selectedRange.waitFor();
