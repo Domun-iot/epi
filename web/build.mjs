@@ -18,7 +18,7 @@ const result = spawnSync(process.execPath, [
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status ?? 1);
 
-for (const file of ['package.json', 'server.js', 'actions.js', 'session-api.js']) {
+for (const file of ['package.json', 'server.js', 'actions.js', 'session-api.js', 'file-records.js']) {
   await copyFile(join(source, file), join(output, file));
 }
 await copyFile(join(source, 'config.js'), join(output, 'config.js'), constants.COPYFILE_EXCL)

@@ -1,10 +1,36 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { actions } from './actions.js';
+import { fileRecords, recordPath } from './file-records.js';
 
 export function json(response, status, payload) {
   response.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
   response.end(JSON.stringify(payload));
+}
+
+async function readDataset(dataDir, dataFolders) {
+  async function collect(folder, includeSubfolders) {
+    let entries;
+    try {
+      entries = await readdir(resolve(dataDir, folder), { withFileTypes: true });
+    } catch (error) {
+      if (error.code === 'ENOENT') return [];
+      throw error;
+    }
+    const files = [];
+    for (const entry of entries) {
+      const path = folder + '/' + entry.name;
+      if (includeSubfolders && entry.isDirectory()) {
+        files.push(...await collect(path, false));
+      } else if (entry.isFile() && recordPath.test(path)) {
+        files.push({ path, contents: await readFile(resolve(dataDir, path), 'utf8') });
+      }
+    }
+    return files;
+  }
+
+  const files = await Promise.all(dataFolders.map(folder => collect(folder, folder === 'measures')));
+  return fileRecords(files.flat());
 }
 
 export async function createSessionApi({ root, config, domain, storage }) {
@@ -23,7 +49,7 @@ export async function createSessionApi({ root, config, domain, storage }) {
           return JSON.parse(await readFile(snapshot, 'utf8'));
         } catch (error) {
           if (error.code !== 'ENOENT') throw error;
-          return null;
+          return readDataset(dataDir, storage.dataFolders);
         }
       },
       async save(state) {
