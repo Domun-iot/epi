@@ -20,9 +20,7 @@ const chartColumns = ['impedanceOhms', ...metrics.map(([id]) => id)];
 const chartStates = ['visible', 'bold', 'hidden'];
 const chartViewKey = preset => preset?.id ?? 'default';
 
-function measurementDisplayFor(prefs, chartOptions) {
-  return (chartOptions?.display ?? prefs.measurementDisplay) === 'chart' ? 'chart' : 'table';
-}
+const chartDefaults = { display: 'table', mode: 'smooth', period: 'all' };
 
 const emptyState = () => ({
   profiles: [],
@@ -67,7 +65,9 @@ function layoutFor(state, prefs, kind) {
   let modified = false;
   for (const [key, fallback] of Object.entries(defaults)) {
     const original = baseline[key] ?? fallback;
-    const value = layout[key] = (!id || preset ? prefs[key] : undefined) ?? original;
+    const personalColumns = kind === 'measurements' && key === 'columns'
+      ? prefs.chartByView?.[chartViewKey(preset)]?.columns : undefined;
+    const value = layout[key] = (!id || preset ? prefs[key] : undefined) ?? personalColumns ?? original;
     const ordered = key !== 'columns' && key !== 'splitColumns';
     modified ||= value.length !== original.length
       || value.some((item, index) => ordered ? item !== original[index] : !original.includes(item));
@@ -81,16 +81,33 @@ function selectLayout(prefs, kind, id) {
   return next;
 }
 
+function chartSeries(columns, stored) {
+  const ids = ['weight', ...chartColumns.filter(id => columns.includes(id))];
+  return Object.fromEntries(ids.map(id => {
+    const status = stored?.[id];
+    return [id, chartStates.includes(status) ? status : id === 'weight' ? 'bold' : 'visible'];
+  }));
+}
+
 function chartPreferences(prefs, { preset, layout }) {
   const key = chartViewKey(preset);
-  const stored = prefs.chartSeriesByView?.[key];
-  const ids = ['weight', ...chartColumns.filter(id => layout.columns.includes(id))];
-  const series = Object.fromEntries(ids.map(id => {
-    const status = stored?.[id];
-    const fallback = !stored && id === 'weight' ? 'bold' : 'visible';
-    return [id, chartStates.includes(status) ? status : fallback];
-  }));
-  return { key, stored, series };
+  const stored = prefs.chartByView?.[key];
+  const baseline = { ...chartDefaults, ...preset?.chart?.options };
+  const options = stored?.options ?? {
+    ...baseline,
+    ...(prefs.measurementDisplay === 'chart' && !preset?.chart ? { display: 'chart' } : {}),
+    ...prefs.chartOptionsByView?.[key],
+  };
+  const series = chartSeries(layout.columns, stored?.series ?? prefs.chartSeriesByView?.[key] ?? preset?.chart?.series);
+  const original = chartSeries(layout.columns, preset?.chart?.series);
+  const modified = Object.keys(chartDefaults).some(id => options[id] !== baseline[id])
+    || options.range?.[0] !== baseline.range?.[0] || options.range?.[1] !== baseline.range?.[1]
+    || Object.keys(series).some(id => series[id] !== original[id]);
+  return { key, stored, options, series, modified };
+}
+
+function withChartPreferences(prefs, key, chart) {
+  return { ...prefs, chartByView: { ...prefs.chartByView, [key]: chart } };
 }
 
 function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing }) {
@@ -120,11 +137,10 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     const prefs = preferencesFor(saved);
     const measurements = layoutFor(saved, prefs, 'measurements');
     const details = layoutFor(saved, prefs, 'details');
-    const key = chartViewKey(measurements.preset);
-    const chartOptions = prefs.chartOptionsByView?.[key];
+    const chart = chartPreferences(prefs, measurements);
+    measurements.modified ||= chart.modified;
     return { ...saved, ...measurements.layout, ...details.layout, viewLayouts: { measurements, details },
-      measurementDisplay: measurementDisplayFor(prefs, chartOptions), chartOptions,
-      chartSeries: prefs.chartSeriesByView?.[key],
+      measurementDisplay: chart.options.display, chartOptions: chart.options, chartSeries: chart.series,
       theme: prefs.theme, rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: prefs.detailSectionsOpen, enrollment, acquisitionError };
   }
 
@@ -167,13 +183,14 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     }
     const prefs = preferencesFor(draft);
     const measurements = layoutFor(draft, prefs, 'measurements');
-    const chartOptions = prefs.chartOptionsByView?.[chartViewKey(measurements.preset)];
-    if (measurementDisplayFor(prefs, chartOptions) === 'chart') {
-      const { key, stored, series } = chartPreferences(prefs, measurements);
-      if (!stored || Object.keys(stored).length !== Object.keys(series).length
-          || Object.entries(series).some(([id, status]) => stored[id] !== status)) {
-        saveChartPreferences(draft, draft.selectedProfile, prefs, key, series);
+    const { key, stored, options, series } = chartPreferences(prefs, measurements);
+    if (!stored && (measurements.preset || options.display === 'chart' || prefs.chartOptionsByView?.[key]
+        || prefs.chartSeriesByView?.[key])) {
+      const chart = { options, series };
+      if (options.display === 'chart' || prefs.chartOptionsByView?.[key] || prefs.chartSeriesByView?.[key]) {
+        chart.columns = measurements.layout.columns;
       }
+      savePreferences(draft, draft.selectedProfile, withChartPreferences(prefs, key, chart));
     }
     const remaining = retainNotifications(draft.notifications);
     if (remaining.length !== draft.notifications.length) draft.notifications = remaining;
@@ -378,19 +395,15 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     return setChartOptions(profile, viewId, { display });
   }
 
-  function saveChartPreferences(draft, profile, prefs, key, series) {
-    savePreferences(draft, profile, { ...prefs, chartSeriesByView: { ...prefs.chartSeriesByView, [key]: series } });
-  }
-
   function cycleChartSeries(profile, viewId, id) {
     return mutate(draft => {
       const target = profile == null ? null : findProfile(draft, profile);
       if (profile != null && !target) throw Error('Profil introuvable.');
       const name = target?.name ?? null;
       const prefs = preferencesFor(draft, name);
-      const layout = layoutFor(draft, prefs, 'measurements');
-      if ((layout.preset?.id ?? null) !== viewId) return;
-      const { key, series } = chartPreferences(prefs, layout);
+      const current = layoutFor(draft, prefs, 'measurements');
+      if ((current.preset?.id ?? null) !== viewId) return;
+      const { key, options, series } = chartPreferences(prefs, current);
       if (!Object.hasOwn(series, id)) return;
       const next = chartStates[(chartStates.indexOf(series[id]) + 1) % chartStates.length];
       if (next === 'bold') {
@@ -399,7 +412,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
         }
       }
       series[id] = next;
-      saveChartPreferences(draft, name, prefs, key, series);
+      savePreferences(draft, name, withChartPreferences(prefs, key, { options, series, columns: current.layout.columns }));
     });
   }
 
@@ -409,10 +422,10 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       if (profile != null && !target) throw Error('Profil introuvable.');
       const name = target?.name ?? null;
       const prefs = preferencesFor(draft, name);
-      const { preset } = layoutFor(draft, prefs, 'measurements');
-      if (viewId !== undefined && (preset?.id ?? null) !== viewId) return;
-      const key = chartViewKey(preset);
-      const next = { ...prefs.chartOptionsByView?.[key] };
+      const current = layoutFor(draft, prefs, 'measurements');
+      if (viewId !== undefined && (current.preset?.id ?? null) !== viewId) return;
+      const { key, options: original, series } = chartPreferences(prefs, current);
+      const next = { ...original };
       if (Object.hasOwn(options, 'display')) {
         if (!['chart', 'table'].includes(options.display)) throw Error('Visualisation des pesées invalide.');
         next.display = options.display;
@@ -435,7 +448,8 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
         }
         next.range = range;
       }
-      savePreferences(draft, name, { ...prefs, chartOptionsByView: { ...prefs.chartOptionsByView, [key]: next } });
+      savePreferences(draft, name, withChartPreferences(prefs, key,
+        { options: next, series, columns: current.layout.columns }));
     });
   }
 
@@ -447,11 +461,21 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
           || typeof enabled !== 'boolean') {
         throw Error('Préférence de colonne invalide.');
       }
-      const { prefs, layout } = editableLayout(draft, target?.name ?? null, 'measurements');
+      const current = editableLayout(draft, target?.name ?? null, 'measurements');
+      const { prefs, layout } = current;
       const values = new Set(layout[setting]);
       if (enabled) values.add(id);
       else values.delete(id);
-      savePreferences(draft, target?.name, { ...prefs, [setting]: [...values] });
+      const next = { ...prefs, [setting]: [...values] };
+      const { key, stored, options } = chartPreferences(prefs, current);
+      if (setting === 'columns' && (options.display === 'chart' || stored?.columns)) {
+        const columns = next.columns;
+        const { series } = chartPreferences(prefs, { ...current, layout: { ...layout, columns } });
+        delete next.columns;
+        savePreferences(draft, target?.name, withChartPreferences(next, key, { options, series, columns }));
+        return;
+      }
+      savePreferences(draft, target?.name, next);
     });
   }
 
@@ -472,13 +496,22 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       const target = profile == null ? null : findProfile(draft, profile);
       if (profile != null && !target) throw Error('Profil introuvable.');
       if (!Object.hasOwn(viewDefaults, kind)) throw Error('Vue inconnue.');
-      const { prefs, presets, layout } = editableLayout(draft, target?.name ?? null, kind);
+      const current = editableLayout(draft, target?.name ?? null, kind);
+      const { prefs, presets, layout } = current;
       const existing = presets.find(entry => entry.id === id);
       if (id && !existing) throw Error('Configuration introuvable.');
       const replace = entries => { draft.viewPresets = { ...draft.viewPresets, [kind]: entries }; };
-      const select = selected => savePreferences(draft, target?.name, selectLayout(prefs, kind, selected));
-      if (action === 'select') {
-        select(id);
+      const select = (selected, preferences = prefs) =>
+        savePreferences(draft, target?.name, selectLayout(preferences, kind, selected));
+      if (action === 'select' || action === 'reset') {
+        if (action === 'reset' && kind === 'measurements') {
+          const columns = existing?.layout.columns ?? viewDefaults.measurements.columns;
+          const { key, options, series } = chartPreferences({}, { preset: existing, layout: { columns } });
+          const chart = options.display === 'chart' ? { options, series, columns } : { options, series };
+          select(id, withChartPreferences(prefs, key, chart));
+        } else {
+          select(id);
+        }
         return;
       }
       if (action === 'delete' && existing) {
@@ -502,8 +535,14 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
         return;
       }
       const preset = { id: matching?.id ?? globalThis.crypto.randomUUID(), name: label, layout };
+      let next = prefs;
+      if (kind === 'measurements') {
+        const { options, series } = chartPreferences(prefs, current);
+        preset.chart = { options, series };
+        next = withChartPreferences(prefs, preset.id, { ...preset.chart, columns: layout.columns });
+      }
       replace(matching ? presets.map(entry => entry === matching ? preset : entry) : [...presets, preset]);
-      select(preset.id);
+      select(preset.id, next);
     });
   }
 

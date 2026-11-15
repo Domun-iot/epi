@@ -641,6 +641,8 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   assert.ok((await chart.boundingBox()).x < (await table.boundingBox()).x);
   await chart.click();
   await weightChart.waitFor();
+  assert.equal(await page.locator('.view-preset-title h1').textContent(), 'Pesées *');
+  assert.equal(await page.getByRole('button', { name: 'Sauvegarder la configuration' }).isVisible(), true);
   assert.equal(await chart.getAttribute('aria-pressed'), 'true');
   assert.equal(await page.getByRole('table', { name: 'Pesées' }).count(), 0);
   const series = weightChart.locator('svg .chart-line');

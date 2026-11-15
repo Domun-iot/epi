@@ -144,7 +144,8 @@ function render() {
   const layoutKey = layout ? [layout.presets, layout.preset, layout.modified, ...Object.values(layout.layout)] : [];
   const nextMain = page === 'bluetooth' ? [page, state.addressFilter, state.devices, session?.web]
     : detail ? [page, detail, state.selectedProfile, ...layoutKey] : [page, state.selectedProfile, ...(page === 'measurements'
-    ? [state.measurements, state.measurementDisplay, state.chartOptions, state.chartSeries, ...layoutKey]
+    ? [state.measurements, state.measurementDisplay, state.chartOptions?.mode, state.chartOptions?.period,
+      ...(state.chartOptions?.range ?? []), ...Object.values(state.chartSeries ?? {}), ...layoutKey]
     : page === 'profiles' ? [state.profiles] : page === 'devices' ? [state.devices, state.addressFilter]
       : [state.notifications, notificationId, state.devices, target?.record])];
   if (changed(lastMain, nextMain)) {
@@ -384,7 +385,7 @@ function changeViewPreset(action, id) {
   const kind = reading ? 'details' : 'measurements';
   const profile = state.selectedProfile;
   const { preset, modified } = state.viewLayouts[kind];
-  if (action === 'select') {
+  if (action === 'select' || action === 'reset') {
     const picker = view.querySelector('.view-preset-picker');
     picker.open = false;
     picker.querySelector('summary').focus();
@@ -449,6 +450,7 @@ const actions = {
     if (entry?.type === 'device') go('devices', entry.record.uuid);
   },
   'select-view-preset': id => changeViewPreset('select', id),
+  'reset-view-preset': id => changeViewPreset('reset', id),
   'save-view-preset': () => changeViewPreset('save'),
   'rename-view-preset': () => changeViewPreset('rename'),
   'delete-view-preset': () => changeViewPreset('delete'),

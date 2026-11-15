@@ -24,7 +24,7 @@ export function viewPresetHeader(kind, { presets, preset, modified }, extraActio
   const activeId = preset?.id ?? '';
   const options = choices.filter(({ id }) => id !== activeId || modified).map(({ id, name }) => {
     const reload = id === activeId;
-    return `<li><button class="button" type="button" data-action="select-view-preset" data-value="${e(id)}"${reload ? ' title="Recharger la configuration"' : ''}><span>${e(name)}</span>${reload ? icon('reload') : ''}</button></li>`;
+    return `<li><button class="button" type="button" data-action="${reload ? 'reset' : 'select'}-view-preset" data-value="${e(id)}"${reload ? ' title="Recharger la configuration"' : ''}><span>${e(name)}</span>${reload ? icon('reload') : ''}</button></li>`;
   }).join('');
   const heading = `<h1>${e(current)}${modified ? ' *' : ''}</h1>`;
   return `<header class="page-header view-preset-header">
