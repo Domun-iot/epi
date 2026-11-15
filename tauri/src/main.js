@@ -13,6 +13,23 @@ import { devicesView, noticesView, profilesView } from './management-view.js';
 import { startTransactionSync, requestTransactionSync } from './transaction-sync.js';
 import { enableLanguageSelection } from './account.js';
 
+for (const modal of document.querySelectorAll('dialog')) {
+  let startedOnBackdrop = false;
+  const isBackdrop = event => {
+    if (event.target !== modal) return false;
+    const { left, right, top, bottom } = modal.getBoundingClientRect();
+    return event.clientX < left || event.clientX >= right || event.clientY < top || event.clientY >= bottom;
+  };
+  modal.addEventListener('pointerdown', event => {
+    startedOnBackdrop = isBackdrop(event);
+  });
+  modal.addEventListener('click', event => {
+    const dismiss = startedOnBackdrop && event.detail > 0 && isBackdrop(event);
+    startedOnBackdrop = false;
+    if (dismiss && modal.dispatchEvent(new Event('cancel', { cancelable: true }))) modal.close();
+  });
+}
+
 const navigation = document.querySelector('#navigation');
 const profilePicker = document.querySelector('#profile');
 const profileName = document.querySelector('#profile-name');

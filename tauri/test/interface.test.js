@@ -421,6 +421,24 @@ test('rechecks the saved account from its button and every minute', async t => {
   assert.equal(checks, beforeTimer + 2);
 });
 
+test('dismisses a modal only when the click starts and ends on its backdrop', async t => {
+  const page = await pageWith(t);
+  await page.locator('#account-button').click();
+  const dialog = page.locator('#account-dialog');
+  const { x, y } = await dialog.boundingBox();
+  await page.mouse.click(x + 10, y + 10);
+  assert.ok(await dialog.isVisible());
+
+  await page.mouse.move(x + 10, y + 10);
+  await page.mouse.down();
+  await page.mouse.move(2, 2);
+  await page.mouse.up();
+  assert.ok(await dialog.isVisible());
+
+  await page.mouse.click(2, 2);
+  await dialog.waitFor({ state: 'hidden' });
+});
+
 test('opens the sign-in form when the saved token has expired', async t => {
   let checks = 0;
   const page = await pageWith(t, undefined, {}, undefined, async page => {
