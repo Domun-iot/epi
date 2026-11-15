@@ -51,19 +51,27 @@ export function bluetoothView({ addressFilter, devices }, web) {
   };
 }
 
-function frameText(frame) {
+function formatFrame(frame) {
   const source = [frame.localName, frame.model].filter(Boolean).join(' ');
   const manufacturer = frame.macManufacturer ? `${frame.macManufacturer} (préfixe MAC)` : '';
-  const fields = [frame.address, source, manufacturer, frame.label, frame.advertisementType === 'Gatt' ? 'GATT' : '',
+  const fields = [frame.address, source, manufacturer, frame.label].filter(Boolean);
+  const highlights = [];
+  if (frame.prefixStatus) highlights.push([0, 8, frame.prefixStatus]);
+  if (frame.codeStatus) {
+    const labelStart = fields.join(' · ').length - frame.label.length;
+    const start = labelStart + frame.label.lastIndexOf(frame.code);
+    highlights.push([start, start + frame.code.length, frame.codeStatus]);
+  }
+  fields.push(frame.advertisementType === 'Gatt' ? 'GATT' : '',
     frame.rssi == null ? '' : `${frame.rssi} dBm`,
-    `${frame.bytes} octet${frame.bytes === 1 ? ' reçu' : 's reçus'}`];
+    `${frame.bytes} octet${frame.bytes === 1 ? ' reçu' : 's reçus'}`);
   if (Number.isFinite(frame.weight)) {
     fields.push(weight(frame), frame.removed ? 'Balance libérée' : frame.stable ? 'Poids stable' : 'Poids instable',
       frame.impedanceOhms ? `${frame.impedanceOhms} Ω` : '', frame.scaleTime ? formatScaleTime(frame.scaleTime) : '');
   } else if (frame.bytes <= maxRawBytes && frame.hex) {
     fields.push(frame.hex.match(/../g).join(' ').toUpperCase());
   }
-  return fields.filter(Boolean).join(' · ');
+  return { text: fields.filter(Boolean).join(' · '), ...(highlights.length && { highlights }) };
 }
 
 export function createBluetoothWatch() {
@@ -93,7 +101,20 @@ export function createBluetoothWatch() {
       const frame = frames[index];
       if (filter && frame.address !== filter) continue;
       const row = document.createElement('div');
-      row.textContent = `[${formatDate(frame.at)}] ${frame.text}`;
+      row.textContent = `[${formatDate(frame.at)}] `;
+      let offset = 0;
+      for (const range of Array.isArray(frame.highlights) ? frame.highlights : []) {
+        if (!Array.isArray(range)) continue;
+        const [start, end, status] = range;
+        if (!Number.isInteger(start) || !Number.isInteger(end) || start < offset || end <= start
+            || end > frame.text.length || (status !== 'known' && status !== 'unknown')) continue;
+        const id = document.createElement('span');
+        id.className = `bluetooth-id-${status}`;
+        id.textContent = frame.text.slice(start, end);
+        row.append(frame.text.slice(offset, start), id);
+        offset = end;
+      }
+      row.append(frame.text.slice(offset));
       fragment.append(row);
     }
     output.append(fragment);
@@ -121,7 +142,7 @@ export function createBluetoothWatch() {
       if (!output?.isConnected && !line.startsWith('META ')) return;
       const frame = decode(line);
       if (!frame || !output?.isConnected || (filter && frame.address !== filter)) return;
-      frames.push({ at: Date.now(), address: frame.address, text: frameText(frame) });
+      frames.push({ at: Date.now(), address: frame.address, ...formatFrame(frame) });
       saveTimer ??= setTimeout(flush, 1000);
       repaint ??= requestAnimationFrame(paint);
     },

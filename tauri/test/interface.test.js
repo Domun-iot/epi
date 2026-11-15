@@ -227,6 +227,8 @@ test('l’écoute Bluetooth filtre, décode et suit les trames jusqu’à une pe
   await log.getByText(/^\[\d{2}\/\d{2}\/\d{4}.*\d{2}:\d{2}:\d{2}\].*Anhui Huami.*2 octets reçus.*DE AD/i).waitFor();
   await feed(page, payload('FFFF', '', 120));
   await log.getByText(/Fabricant 0xFFFF · -58 dBm · 120 octets reçus$/).waitFor();
+  assert.deepEqual(await log.locator('.bluetooth-id-unknown').allTextContents(), ['0xFFFF']);
+  assert.deepEqual(await log.locator('.bluetooth-id-known').allTextContents(), ['0x0157']);
   await feed(page, frame.replace('0226', '0206'));
   await feed(page, metadata);
   await feed(page, frame.replace('0226', '0206'));
@@ -262,6 +264,20 @@ test('l’écoute Bluetooth identifie le fabricant par préfixe MAC lorsque le c
   await log.getByText(/AP_3418731644 · Shanghai High-Flying Electronics Technology Co\., Ltd \(préfixe MAC, 0x3030\) · -91 dBm · 1 octet reçu · 30$/).waitFor();
   await feed(page, 'PAYLOAD D4278722D707 -91 Manufacturer 0157 1 30 ');
   await log.getByText(/Anhui Huami.* \(0x0157\)/).waitFor();
+  const known = log.locator('.bluetooth-id-known');
+  const unknown = log.locator('.bluetooth-id-unknown');
+  assert.deepEqual(await known.allTextContents(), ['D4:27:87', '0x0157']);
+  assert.deepEqual(await unknown.allTextContents(), []);
+
+  await feed(page, 'PAYLOAD FCFFFF000001 -58 Service 180F 1 7F ');
+  await feed(page, 'PAYLOAD FCFFFF000001 -58 Announcement 12345678-0000-1234-0000-123456789abc 0  ');
+  await log.getByText(/12345678-0000-1234-0000-123456789abc/).waitFor();
+  assert.deepEqual(await known.allTextContents(), ['D4:27:87', '0x0157', '0x180F']);
+  const unresolved = ['FC:FF:FF', 'FC:FF:FF', '12345678-0000-1234-0000-123456789abc'];
+  assert.deepEqual(await unknown.allTextContents(), unresolved);
+  await page.reload();
+  await unknown.last().waitFor();
+  assert.deepEqual(await unknown.allTextContents(), unresolved);
 });
 
 test('the Bluetooth log fills the main view down to its bottom padding', async t => {
