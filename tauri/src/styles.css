@@ -45,7 +45,7 @@ nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
 .profile-select { --toolbar-icon-width: 20px; --profile-gap: 10px; display: flex; align-items: center; gap: var(--profile-gap); min-width: 0; }
 .profile-select:has(#profile[hidden] + #profile-name[hidden]) { --profile-gap: var(--toolbar-icon-width); }
 .profile-select select { min-width: 0; }
-#profile-name:not([hidden]) { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#profile-name:not([hidden]) { display: block; border: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #theme-toggle { flex: none; }
 #theme-toggle { width: var(--action-button-height); padding: 0; }
 #theme-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
