@@ -36,9 +36,8 @@ export function devicesView(devices, filter, rawOpen, canScan = true) {
   return { header: pageHeader('Appareils', '', action), content };
 }
 
-export function noticesView({ pending, enrollment }, error) {
+export function noticesView({ pending, enrollment }) {
   const messages = [];
-  if (error) messages.push(`<div class="notice error" role="alert">${e(error)}</div>`);
   if (enrollment) messages.push(`<div class="notice">
     <p>En attente d’une pesée de l’appareil « ${e(enrollment.name)} ». Montez sur la balance pour envoyer ses données.</p>
     ${button('Annuler la capture', 'cancel-device')}</div>`);

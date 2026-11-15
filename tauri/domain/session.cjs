@@ -8,6 +8,8 @@ const { createAcquisition } = require('./acquisition.cjs');
 const { applyObservation, enrollmentRequest, findDevice } = require('./devices.cjs');
 const { ADDRESS, findProfile, profileFields, mergeLegacy } = require('./records.cjs');
 
+const notificationLifetime = 7 * 86400_000;
+
 const viewDefaults = {
   measurements: { columns: ['impedanceOhms', 'bmi'], splitColumns: [], columnOrder: [] },
   details: { methodColumnOrder: [], detailSectionOrder: [] },
@@ -17,6 +19,7 @@ const emptyState = () => ({
   devices: [],
   measurements: [],
   pending: [],
+  notifications: [],
   selectedProfile: null,
   profilePreferences: {},
   viewPresets: { measurements: [], details: [] },
@@ -28,9 +31,16 @@ function preferencesFor(state, profile = state.selectedProfile) {
   return Object.hasOwn(state.profilePreferences, profile) ? state.profilePreferences[profile] : {};
 }
 
+function retainNotifications(notifications) {
+  const cutoff = Date.now() - notificationLifetime;
+  const newest = new Set([...notifications].sort((a, b) => b.date - a.date).slice(0, 20));
+  return notifications.filter(item => item.date > cutoff || newest.has(item));
+}
+
 function restore(snapshot) {
   const { columns, ...stored } = snapshot ?? {};
   const state = { ...emptyState(), ...stored };
+  state.notifications ??= [];
   if (state.selectedProfile && Array.isArray(columns) && !Object.hasOwn(state.profilePreferences, state.selectedProfile)) {
     state.profilePreferences = { ...state.profilePreferences, [state.selectedProfile]: { columns } };
   }
@@ -109,7 +119,11 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
 
   async function transact(change) {
     const draft = { ...saved };
+    const retained = retainNotifications(draft.notifications);
+    if (retained.length !== draft.notifications.length) draft.notifications = retained;
     const result = change(draft);
+    const remaining = retainNotifications(draft.notifications);
+    if (remaining.length !== draft.notifications.length) draft.notifications = remaining;
     if (Object.keys(draft).some(key => draft[key] !== saved[key])) {
       await storage.save(draft, saved);
       saved = draft;
@@ -122,9 +136,43 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     return publish();
   });
 
+  function notify(draft, entry) {
+    const date = draft.notifications.reduce((latest, item) => Math.max(latest, item.date + 1), Date.now());
+    draft.notifications = [...draft.notifications, {
+      id: globalThis.crypto.randomUUID(), date, actor: draft.selectedProfile ?? null, ...entry,
+    }];
+  }
+
+  function restoreNotification(id, withMeasurements = false) {
+    return mutate(draft => {
+      const entry = draft.notifications.find(item => item.id === id && item.action === 'deleted');
+      if (!entry) throw Error('Notification de suppression introuvable.');
+      if (entry.restored) throw Error('Cet élément a déjà été restauré.');
+      const { record, type } = entry;
+      if (type === 'profile') {
+        if (findProfile(draft, record.name)) throw Error('Un profil porte déjà ce nom.');
+        draft.profiles = [...draft.profiles, record];
+        if (entry.preferences) draft.profilePreferences = { ...draft.profilePreferences, [record.name]: entry.preferences };
+        if (withMeasurements) draft.measurements = [...draft.measurements, ...entry.measurements];
+      } else if (type === 'device') {
+        enrollmentRequest(draft, { address: record.bluetooth.address, name: record.name });
+        if (findDevice(draft, record.bluetooth.address)) throw Error('Cet appareil est déjà enregistré.');
+        draft.devices = [...draft.devices, record];
+        resolveDevice(draft, record);
+      } else if (type === 'measurement') {
+        if (record.profile?.name && !findProfile(draft, record.profile.name)) {
+          throw Error('Restaure d’abord le profil de cette pesée.');
+        }
+        draft.measurements = [...draft.measurements, record];
+      }
+      draft.notifications = draft.notifications.map(item => item.id === id ? { ...item, restored: true } : item);
+    });
+  }
+
   function saveMeasurement(draft, event, profile, device) {
     const measurement = historyRecord(event, profile ? { ...profile, user: profile.name } : null, device);
     draft.measurements = [...draft.measurements, measurement];
+    notify(draft, { type: 'measurement', action: 'saved', record: measurement });
     if (profile?.name) draft.selectedProfile = profile.name;
   }
 
@@ -143,6 +191,10 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     draft.pending = pendingId
       ? draft.pending.map(item => item.id === id ? row : item)
       : [...draft.pending, row];
+    notify(draft, { type: 'pending', pendingId: id, reason: row.reason,
+      text: device ? 'Choisissez le profil auquel attribuer la pesée.'
+        : 'Enregistrez cette balance pour traiter sa pesée.',
+      record: { event, device } });
   }
 
   function resolveDevice(draft, device) {
@@ -172,6 +224,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
         draft.profiles = [...draft.profiles, profile];
         draft.selectedProfile ??= profile.name;
       }
+      notify(draft, { type: 'profile', action: 'saved', record: profile, actor: saved.selectedProfile });
     });
   }
 
@@ -180,6 +233,10 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       const profile = findProfile(draft, name);
       if (!profile) throw Error('Profil introuvable.');
       const key = nameKey(profile.name);
+      notify(draft, { type: 'profile', action: 'deleted', record: profile,
+        measurements: draft.measurements.filter(row =>
+          typeof row.profile?.name === 'string' && nameKey(row.profile.name) === key),
+        preferences: draft.profilePreferences[profile.name] });
       draft.profiles = draft.profiles.filter(candidate => candidate !== profile);
       draft.measurements = draft.measurements.filter(row =>
         typeof row.profile?.name !== 'string' || nameKey(row.profile.name) !== key);
@@ -193,6 +250,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     return mutate(draft => {
       const index = draft.measurements.indexOf(row);
       if (index < 0) throw Error('Pesée introuvable.');
+      notify(draft, { type: 'measurement', action: 'deleted', record: row });
       draft.measurements = draft.measurements.toSpliced(index, 1);
     });
   }
@@ -321,6 +379,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
         if (request.name !== existing.name) {
           const renamed = { ...existing, name: request.name };
           draft.devices = draft.devices.map(device => device === existing ? renamed : device);
+          notify(draft, { type: 'device', action: 'saved', record: renamed });
           if (draft.pending.some(item => item.device?.bluetooth.address === request.address)) {
             draft.pending = draft.pending.map(item => item.device?.bluetooth.address === request.address
               ? { ...item, device: renamed } : item);
@@ -338,6 +397,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       await transact(draft => {
         const device = findDevice(draft, address);
         if (!device) throw Error('Appareil introuvable.');
+        notify(draft, { type: 'device', action: 'deleted', record: device });
         draft.devices = draft.devices.filter(candidate => candidate !== device);
         if (draft.addressFilter === address) draft.addressFilter = null;
         draft.pending = draft.pending.map(item => item.event.address === address
@@ -358,11 +418,17 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
         await transact(draft => {
           const stagedMetadata = address => ({ ...pending.bluetoothMetadata, ...acquisition.metadataFor(address) });
           const device = applyObservation(draft, request, { event: pending.event }, stagedMetadata);
-          if (device) resolveDevice(draft, device);
+          if (device) {
+            notify(draft, { type: 'device', action: 'saved', record: device });
+            resolveDevice(draft, device);
+          }
         });
         enrollment = null;
       } else {
-        enrollment = request;
+        const id = globalThis.crypto.randomUUID();
+        await transact(draft => notify(draft, { type: 'enrollment', enrollmentId: id,
+          text: `En attente d’une pesée de l’appareil « ${request.name} ». Montez sur la balance pour envoyer ses données.` }));
+        enrollment = { ...request, id, actor: saved.selectedProfile };
       }
       return publish();
     });
@@ -412,7 +478,10 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       let enrolled;
       await transact(draft => {
         enrolled = applyObservation(draft, enrollment, observation, acquisition.metadataFor);
-        if (enrolled) resolveDevice(draft, enrolled);
+        if (enrolled) {
+          notify(draft, { type: 'device', action: 'saved', record: enrolled, actor: enrollment.actor });
+          resolveDevice(draft, enrolled);
+        }
         if (metadata && !findDevice(draft, address)) {
           const staged = acquisition.metadataFor(address);
           if (draft.pending.some(row => row.event.address === address
@@ -450,12 +519,13 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   function reload() {
     return enqueue(async () => {
       saved = restore(await storage.load());
+      await transact(() => {});
       return publish();
     });
   }
 
   return {
-    load: () => enqueue(view),
+    load: () => enqueue(async () => { await transact(() => {}); return view(); }),
     reload,
     subscribe(observer) {
       observers.add(observer);
@@ -466,7 +536,12 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
     moveDetailSection: (...args) => movePreference('detailSectionOrder', ...args),
-    discardPending, ingest, importLegacy, setAddressFilter,
+    discardPending, ingest, importLegacy, setAddressFilter, restoreNotification,
+    recordNotice: entry => mutate(draft => notify(draft, entry)),
+    deleteNotification: id => mutate(draft => {
+      draft.notifications = draft.notifications.filter(item => item.id !== id);
+    }),
+    pruneNotifications: () => mutate(() => {}),
   };
 }
 

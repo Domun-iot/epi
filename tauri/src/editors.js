@@ -20,11 +20,13 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
     previousFocus = null;
   }
 
-  function open(title, content, submit, submitLabel = 'Enregistrer', { modal = false, extraActions = '' } = {}) {
+  function open(title, content, submit, submitLabel = 'Enregistrer', { modal = false, extraActions = '', submitChoices = [] } = {}) {
     const host = modal ? dialog : view;
     const formId = modal ? 'modal-editor-form' : 'view-editor-form';
     const submitButton = submitLabel ? `<button class="button primary" type="submit" form="${formId}">${submitLabel}</button>` : '';
-    const actions = `${extraActions}${button('Annuler', 'close-editor')}${submitButton}`;
+    const choices = submitChoices.map(({ label, value, primary }) =>
+      `<button class="button${primary ? ' primary' : ''}" type="submit" form="${formId}" name="include" value="${value}">${label}</button>`).join('');
+    const actions = `${extraActions}${button('Annuler', 'close-editor')}${submitButton}${choices}`;
     host.innerHTML = `${modal ? `<h2 id="dialog-title">${title}</h2>` : pageHeader(title)}
       <form id="${formId}" class="editor-form${modal ? '' : ' panel'}">${content}<p class="notice error" role="alert" hidden></p></form>
       ${modal ? `<div class="actions">${actions}</div>` : ''}`;
@@ -178,5 +180,14 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
     confirmDeletion('Supprimer la configuration', `Supprimer « ${name} » pour tous les profils ?`, submit);
   }
 
-  return { closeView, profileEditor, deviceEditor, assignmentEditor, filterEditor, viewNameEditor, deleteViewEditor, confirmDeletion };
+  function confirmRestoreProfile(count, submit) {
+    open('Restaurer le profil', `<p>Restaurer aussi les pesées de ce profil (${count}) ?</p>`,
+      ({ include }) => submit(include === 'yes'), null, {
+        modal: true,
+        submitChoices: [{ label: 'Non', value: 'no' }, { label: 'Oui', value: 'yes', primary: true }],
+      });
+  }
+
+  return { closeView, profileEditor, deviceEditor, assignmentEditor, filterEditor, viewNameEditor, deleteViewEditor,
+    confirmDeletion, confirmRestoreProfile };
 }

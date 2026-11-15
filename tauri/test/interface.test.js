@@ -32,6 +32,12 @@ after(async () => {
   if (outDir) await rm(outDir, { recursive: true, force: true });
 });
 
+async function dismissNotificationBanner(page) {
+  const close = page.locator('#notices').getByRole('button', { name: 'Fermer le bandeau' });
+  await close.click();
+  await close.waitFor({ state: 'hidden' });
+}
+
 async function pageWith(t, snapshot, options = {}) {
   const page = await browser.newPage(options);
   page.setDefaultTimeout(10000);
@@ -744,7 +750,7 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   await choosePage(page, 'Profils');
   const deleteProfile = page.getByRole('button', { name: 'Supprimer le profil Alice' });
   await deleteProfile.click();
-  await dialog.getByText(/Toutes les mesures enregistrées pour ce profil/).waitFor();
+  await dialog.getByText(/Les pesées de ce profil seront aussi retirées/).waitFor();
   await cancel();
   await deleteProfile.click();
   await confirm();
@@ -783,7 +789,8 @@ test('capture et renommage, attribution automatique et flux brut horodaté', asy
   await page.locator('.toolbar').getByRole('button', { name: 'Enregistrer', exact: true }).click();
   const renamed = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Balance maison', exact: true }) });
   await renamed.getByText(address, { exact: true }).waitFor();
-  assert.equal(await page.getByText(/En attente d’une pesée/).count(), 0);
+  await page.getByText(/En attente d’une pesée/).waitFor();
+  await dismissNotificationBanner(page);
   await page.reload();
   await renamed.getByText(address, { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Écouter seulement cet appareil' }).click();
@@ -844,6 +851,7 @@ test('archive ZIP exportée, réimportée et idempotente dans le navigateur', as
   const page = await pageWith(t);
   await page.locator('#import-files').setInputFiles(archive);
   await page.getByText('Import terminé.', { exact: true }).waitFor();
+  await dismissNotificationBanner(page);
   await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('Alice');
   const table = page.getByRole('table', { name: 'Pesées' });
   await table.getByText('70 kg', { exact: true }).waitFor();
@@ -851,6 +859,7 @@ test('archive ZIP exportée, réimportée et idempotente dans le navigateur', as
   await page.getByText('Import terminé.', { exact: true }).waitFor();
   assert.equal(await table.getByText('70 kg', { exact: true }).count(), 1);
   assert.equal(await page.getByRole('combobox', { name: 'Profil actif' }).getByRole('option', { name: 'Alice' }).count(), 1);
+  await dismissNotificationBanner(page);
   await page.locator('#import-files').setInputFiles({ name: 'incorrect.zip', mimeType: 'application/zip', buffer: Buffer.from('Invalid ZIP') });
   await page.getByRole('alert').waitFor();
 });
@@ -893,4 +902,94 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   await page.getByRole('table').getByText('97,6 kg', { exact: true }).waitFor();
   assert.equal(await page.getByText('Colonnes', { exact: true }).count(), 0);
   await page.getByRole('table').getByRole('columnheader', { name: 'IMC (kg/m²)', exact: true }).waitFor();
+});
+
+test('le journal conserve ses entrées et restaure un profil avec ses pesées', async t => {
+  const page = await pageWith(t, { profiles: [alice, bob], devices: [device], selectedProfile: 'Bob',
+    measurements: [record] });
+  const icon = page.getByRole('button', { name: 'Notifications', exact: true });
+  assert.equal(await icon.count(), 0);
+  await choosePage(page, 'Profils');
+  await page.getByRole('button', { name: 'Supprimer le profil Alice' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Supprimer', exact: true }).click();
+  await icon.waitFor();
+  const profileIcon = page.locator('#profile-icon');
+  const frameColor = control => control.evaluate(node => getComputedStyle(node, '::before').borderTopColor);
+  const transparent = 'rgba(0, 0, 0, 0)';
+  for (const control of [profileIcon, icon]) {
+    assert.equal(await frameColor(control), transparent);
+    await control.hover();
+    assert.notEqual(await frameColor(control), transparent);
+    await page.getByRole('heading', { name: 'Profils', exact: true }).hover();
+    assert.equal(await frameColor(control), transparent);
+  }
+  await page.reload();
+  await icon.click();
+  const card = page.locator('.notification-item').filter({ hasText: 'Profil supprimé' });
+  await card.getByText(/Profil actif : Bob/).waitFor();
+  await card.getByRole('button', { name: /Profil supprimé/ }).click();
+  await page.getByText('Cet élément a été supprimé.', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Restaurer', exact: true }).click();
+  await dialog.getByText(/Restaurer aussi les pesées de ce profil/).waitFor();
+  const yes = dialog.getByRole('button', { name: 'Oui', exact: true });
+  assert.match(await yes.getAttribute('class'), /\bprimary\b/);
+  await yes.click();
+  await page.getByText('Cet élément a été restauré.', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Retour', exact: true }).click();
+  await card.getByRole('button', { name: 'Supprimer définitivement la notification' }).click();
+  await dialog.getByRole('button', { name: 'Supprimer', exact: true }).click();
+  await icon.waitFor({ state: 'hidden' });
+  await choosePage(page, 'Mesures');
+  await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('Alice');
+  await page.getByRole('table', { name: 'Pesées' }).getByText('70 kg').waitFor();
+});
+
+test('le bandeau laisse la barre dégagée sur smartphone et sa fermeture conserve le journal', async t => {
+  const page = await pageWith(t, { devices: [device] },
+    { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await feed(page, frame);
+  const banner = page.locator('.notification-banner');
+  await banner.getByText('Pesée reçue', { exact: true }).waitFor();
+  const geometry = await banner.evaluate(node => {
+    const toolbar = document.querySelector('.toolbar');
+    const icon = document.querySelector('#notifications-icon').getBoundingClientRect();
+    const theme = document.querySelector('#theme-toggle').getBoundingClientRect();
+    const profile = document.querySelector('#profile-icon').getBoundingClientRect();
+    const reduced = document.querySelector('#notices').getBoundingClientRect();
+    return [reduced.top - toolbar.getBoundingClientRect().bottom, node.offsetHeight - toolbar.offsetHeight,
+      getComputedStyle(node).transitionDuration, icon.width, theme.left - icon.right, icon.left - profile.right];
+  });
+  assert.equal(geometry[0], 0);
+  assert.ok(geometry[1] >= 0);
+  assert.equal(geometry[2], '0.18s');
+  assert.equal(geometry[3], geometry[4]);
+  assert.equal(geometry[3], geometry[5]);
+  await dismissNotificationBanner(page);
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+  await page.locator('.notification-item').getByText('Pesée reçue', { exact: true }).waitFor();
+  await page.locator('.notification-item').getByRole('button', { name: 'Attribuer la pesée' }).waitFor();
+});
+
+test('les notifications de pesée ouvrent le détail et la suppression permet de restaurer', async t => {
+  const page = await pageWith(t, { profiles: [alice], devices: [device], selectedProfile: 'Alice', measurements: [record] });
+  await feed(page, frame);
+  const icon = page.getByRole('button', { name: 'Notifications', exact: true });
+  await icon.click();
+  const saved = page.locator('.notification-item').getByRole('button', { name: /Pesée enregistrée/ });
+  await saved.click();
+  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
+  await choosePage(page, 'Mesures');
+  await page.getByRole('button', { name: /Voir la pesée du/ }).first().click();
+  await page.getByRole('button', { name: 'Supprimer la pesée' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
+  await icon.click();
+  const deleted = page.locator('.notification-item').getByRole('button', { name: /Pesée supprimée/ });
+  await deleted.click();
+  await page.getByText('Cet élément a été supprimé.', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Restaurer', exact: true }).click();
+  await page.getByText('Cet élément a été restauré.', { exact: true }).waitFor();
+  await choosePage(page, 'Mesures');
+  await page.getByRole('table', { name: 'Pesées' }).waitFor();
+  assert.equal(await page.getByRole('button', { name: /Voir la pesée du/ }).count(), 2);
 });

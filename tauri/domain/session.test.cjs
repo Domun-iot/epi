@@ -188,3 +188,40 @@ test('serializes writes and leaves published state unchanged if persistence reje
   assert.equal(states.at(-1).selectedProfile, 'Sam');
   assert.equal(states.at(-1).profiles.length, 2);
 });
+
+test('keeps seven days plus the newest twenty and persists explicitly removed entries', async () => {
+  const now = Date.now();
+  const notifications = Array.from({ length: 25 }, (_, index) => ({
+    id: String(index), date: now - (index < 3 ? 1 : 8) * 86400_000 - index,
+  }));
+  const { session, disk } = fixture({ notifications });
+  const loaded = await session.load();
+  assert.deepEqual(loaded.notifications.map(item => item.id), notifications.slice(0, 20).map(item => item.id));
+  await session.deleteNotification('2');
+  assert.equal((await fixture(disk()).session.load()).notifications.length, 19);
+
+  const recent = notifications.map((item, index) => ({ ...item, date: now - index }));
+  assert.equal((await fixture({ notifications: recent }).session.load()).notifications.length, 25);
+});
+
+test('stores deletion snapshots and restores profiles, measurements and devices independently', async () => {
+  const anonymous = { ...prior, profile: null };
+  const { session, disk } = fixture({ profiles: [lou, sam], devices: [device],
+    selectedProfile: 'Sam', measurements: [prior, anonymous] });
+  const removedProfile = (await session.deleteProfile('Lou')).notifications.at(-1);
+  assert.equal(removedProfile.actor, 'Sam');
+  assert.deepEqual(removedProfile.record, lou);
+  assert.deepEqual(removedProfile.measurements, [prior]);
+  const reopened = fixture(disk()).session;
+  const restored = await reopened.restoreNotification(removedProfile.id, false);
+  assert.ok(restored.profiles.some(profile => profile.name === 'Lou'));
+  assert.deepEqual(restored.measurements, [anonymous]);
+  await assert.rejects(reopened.restoreNotification(removedProfile.id), /déjà été restauré/);
+
+  const removedDevice = (await reopened.deleteDevice(address)).notifications.at(-1);
+  const restoredDevice = await reopened.restoreNotification(removedDevice.id);
+  assert.deepEqual(restoredDevice.devices, [device]);
+  const removedMeasurement = (await reopened.deleteMeasurement(restoredDevice.measurements[0])).notifications.at(-1);
+  const restoredMeasurement = await reopened.restoreNotification(removedMeasurement.id);
+  assert.deepEqual(restoredMeasurement.measurements, [anonymous]);
+});

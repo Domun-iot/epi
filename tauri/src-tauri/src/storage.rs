@@ -263,6 +263,7 @@ fn read_session(root: &Path) -> Result<Value, String> {
     }
     session["profilePreferences"] = Value::Object(preferences);
     session["viewPresets"] = read_view_presets(root)?;
+    session["notifications"] = read_notifications(root)?;
     session["profiles"] = json!(profiles);
     session["devices"] = json!(devices);
     session["measurements"] = json!(measurements);
@@ -529,6 +530,102 @@ fn save_deletion(root: &Path, session: &Value, previous: &Value) -> Result<(), S
     Ok(())
 }
 
+fn notification_path(root: &Path, id: &str) -> Result<PathBuf, String> {
+    let valid = id.len() == 36
+        && id.bytes().enumerate().all(|(index, byte)| {
+            if [8, 13, 18, 23].contains(&index) {
+                byte == b'-'
+            } else {
+                byte.is_ascii_hexdigit()
+            }
+        });
+    if !valid {
+        return Err("Identifiant de notification invalide.".into());
+    }
+    Ok(root.join("notifications").join(format!("{id}.json")))
+}
+
+fn read_notifications(root: &Path) -> Result<Value, String> {
+    let mut notifications = Vec::new();
+    for entry in entries(&root.join("notifications"))? {
+        let path = entry.path();
+        if !entry.file_type().map_err(message)?.is_file()
+            || path.extension().is_none_or(|ext| ext != "json")
+        {
+            continue;
+        }
+        if let Some(row) = read_json(&path)? {
+            if let Some(id) = row["id"].as_str() {
+                if notification_path(root, id).is_ok_and(|expected| expected == path)
+                    && row["date"].as_u64().is_some()
+                {
+                    notifications.push(row);
+                }
+            }
+        }
+    }
+    Ok(json!(notifications))
+}
+
+fn with_notifications(
+    root: &Path,
+    session: &Value,
+    previous: &Value,
+    save: impl FnOnce() -> Result<(), String>,
+) -> Result<(), String> {
+    fn by_id(state: &Value) -> HashMap<&str, &Value> {
+        rows(state, "notifications")
+            .iter()
+            .filter_map(|row| Some((row["id"].as_str()?, row)))
+            .collect()
+    }
+    let before = by_id(previous);
+    let after = by_id(session);
+    let ids: HashSet<_> = before.keys().chain(after.keys()).collect();
+    let mut undo = Vec::new();
+    let result = (|| {
+        for id in ids {
+            if before.get(id) == after.get(id) {
+                continue;
+            }
+            let path = notification_path(root, id)?;
+            let old = read_json(&path)?;
+            if let Some(row) = after.get(id) {
+                if before
+                    .get(id)
+                    .is_some_and(|previous| Some(*previous) != old.as_ref())
+                {
+                    return Err(
+                        "La notification a changé. Recharge les données avant de réessayer.".into(),
+                    );
+                }
+                json_write(&path, row, true)?;
+            } else if old.is_some() {
+                fs::remove_file(&path).map_err(message)?;
+            }
+            undo.push((path, old));
+        }
+        save()
+    })();
+    if let Err(error) = result {
+        let mut rollback = Vec::new();
+        for (path, old) in undo.into_iter().rev() {
+            let restored = match old {
+                Some(row) => json_write(&path, &row, true).map(|_| ()),
+                None => fs::remove_file(&path).map_err(message),
+            };
+            if let Err(error) = restored {
+                rollback.push(error);
+            }
+        }
+        if !rollback.is_empty() {
+            return Err(format!("{error} · Journal : {}", rollback.join(" · ")));
+        }
+        return Err(error);
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn load_session(app: AppHandle) -> Result<Value, String> {
     read_session(&data_root(&app)?)
@@ -542,14 +639,34 @@ pub fn save_session(
     device_paths: Value,
 ) -> Result<(), String> {
     let root = data_root(&app)?;
+    with_notifications(&root, &session, &previous, || {
+        if [
+            "profiles", "devices", "measurements", "viewPresets", "profilePreferences",
+            "pending", "selectedProfile", "addressFilter", "anonymousPreferences",
+        ]
+        .iter()
+        .all(|key| session[*key] == previous[*key])
+        {
+            return Ok(());
+        }
+        save_dataset(&root, &session, &previous, &device_paths)
+    })
+}
+
+fn save_dataset(
+    root: &Path,
+    session: &Value,
+    previous: &Value,
+    device_paths: &Value,
+) -> Result<(), String> {
     if ["profiles", "devices", "measurements"]
         .iter()
-        .any(|key| rows(&session, key).len() < rows(&previous, key).len())
+        .any(|key| rows(session, key).len() < rows(previous, key).len())
     {
-        return save_deletion(&root, &session, &previous);
+        return save_deletion(root, session, previous);
     }
     if session["profiles"] != previous["profiles"] {
-        save_records(&root, &session, &previous, "profiles", name, |row| {
+        save_records(root, session, previous, "profiles", name, |row| {
             Ok(format!(
                 "profiles/profil-{}.json",
                 safe_name(name(row).ok_or("Profil sans nom.")?)?.to_lowercase()
@@ -557,7 +674,7 @@ pub fn save_session(
         })?;
     }
     if session["devices"] != previous["devices"] {
-        save_records(&root, &session, &previous, "devices", address, |row| {
+        save_records(root, session, previous, "devices", address, |row| {
             let address = address(row).ok_or("Appareil sans adresse.")?;
             let path = device_paths[address]
                 .as_str()
@@ -566,14 +683,14 @@ pub fn save_session(
         })?;
     }
     save_measurements(
-        &root,
-        rows(&session, "measurements"),
-        rows(&previous, "measurements"),
+        root,
+        rows(session, "measurements"),
+        rows(previous, "measurements"),
     )?;
     if session["viewPresets"] != previous["viewPresets"] {
-        save_view_presets(&root, &session["viewPresets"], &previous["viewPresets"])?;
+        save_view_presets(root, &session["viewPresets"], &previous["viewPresets"])?;
     }
-    save_preferences(&root, &session, &previous)
+    save_preferences(root, session, previous)
 }
 
 fn save_view_presets(root: &Path, current: &Value, previous: &Value) -> Result<(), String> {
@@ -693,6 +810,38 @@ mod tests {
         }
         assert_eq!(shared_data(&release), Some(project.join("data")));
         assert_eq!(shared_data(root.path()), None);
+    }
+
+    #[test]
+    fn notifications_round_trip_individually_and_rollback_on_failed_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let id = "bfa95fcb-0a16-40dc-852e-a940887ae76e";
+        let row = json!({ "id": id, "date": 1, "type": "profile", "action": "deleted",
+            "record": { "name": "Alice" }, "measurements": [{ "receivedAt": "2026-01-01" }] });
+        let state = json!({ "notifications": [row] });
+        let empty = json!({});
+        let path = notification_path(root, id).unwrap();
+
+        let result = with_notifications(root, &state, &empty, || Err("Échec".into()));
+        assert!(result.is_err());
+        assert!(!path.exists());
+
+        with_notifications(root, &state, &empty, || Ok(())).unwrap();
+        assert_eq!(read_json(&path).unwrap(), Some(row));
+        assert_eq!(
+            read_session(root).unwrap()["notifications"],
+            state["notifications"]
+        );
+
+        with_notifications(root, &empty, &state, || Ok(())).unwrap();
+        assert!(!path.exists());
+        assert_eq!(read_session(root).unwrap()["notifications"], json!([]));
+
+        let mut stale = state.clone();
+        stale["notifications"][0]["restored"] = json!(true);
+        assert!(with_notifications(root, &stale, &state, || Ok(())).is_err());
+        assert!(!path.exists());
     }
 
     #[test]

@@ -34,17 +34,21 @@
           <div class="profile-select">
             <button type="button" id="profile-icon" aria-label="Créer un profil" title="Créer un profil"></button>
             <select id="profile" aria-label="Profil actif" hidden></select>
+            <button type="button" id="notifications-icon" aria-label="Notifications" title="Notifications" hidden>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+            </button>
             <button class="button" type="button" id="theme-toggle" aria-label="Changer de thème" disabled>
               <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.9 13.3A9 9 0 0 1 10.7 3.1a9 9 0 1 0 10.2 10.2Z"/></svg>
               <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
             </button>
           </div>
         </header>
+        <div id="notices" aria-live="polite"></div>
         <main>
           <section id="view" aria-label="Mesures">
             <div id="view-scroll">
               <div id="view-header"></div>
-              <div id="notices" aria-live="polite"></div>
+              <div id="pending-actions"></div>
               <div id="view-content">
                 <p class="notice" role="status">Chargement des données…</p>
               </div>
