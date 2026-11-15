@@ -26,7 +26,10 @@ const metadata = 'META AABBCCDDEEFF TUlCRlM= 0157';
 
 before(async () => {
   outDir = await mkdtemp(join(tmpdir(), 'epi-ui-'));
-  await build({ build: { outDir }, logLevel: 'error' });
+  await build({
+    build: { outDir }, logLevel: 'error',
+    define: { __DEV_ACCOUNT_API__: JSON.stringify('https://sync.epi.test') },
+  });
   browser = await chromium.launch({ channel: process.env.EPI_CHROMIUM_CHANNEL || 'chrome' });
 });
 after(async () => {
@@ -68,6 +71,46 @@ async function pageWith(t, snapshot, options = {}, mode) {
   await page.getByText(mode === 'web' ? 'Mode web' : 'Mode simulation', { exact: true }).waitFor();
   return page;
 }
+
+test('crée un compte avec Google et exige un mot de passe pour le délier', async t => {
+  const page = await pageWith(t);
+  const calls = [];
+  const callback = 'https://accounts.google.com/o/oauth2/v2/auth?state=test';
+  const details = { email: 'alice@example.org', googleLinked: true, hasPassword: false, googleAvailable: true };
+  await page.context().route(callback, route => route.fulfill({ body: 'Google', contentType: 'text/html' }));
+  await page.route('https://sync.epi.test/v1/**', route => {
+    const path = new URL(route.request().url()).pathname;
+    const body = route.request().postDataJSON();
+    calls.push({ path, body, token: route.request().headers().authorization });
+    const response = {
+      '/v1/google/config': { enabled: true },
+      '/v1/google/start': { url: callback, state: 'state', secret: 'secret' },
+      '/v1/google/finish': calls.some(call => call.body?.action === 'unlink')
+        ? { ...details, googleLinked: false, hasPassword: true }
+        : { ...details, token: 'device-token' },
+    };
+    return route.fulfill({ json: response[path], headers: { 'Access-Control-Allow-Origin': '*' } });
+  });
+
+  await page.getByRole('button', { name: 'Compte', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Connexion' });
+  await dialog.getByRole('button', { name: 'Créer un compte', exact: true }).click();
+  await page.getByRole('button', { name: 'Créer le compte avec Google' }).click();
+  await page.getByRole('dialog', { name: 'Compte' }).getByText(details.email).waitFor();
+  assert.equal(calls.find(call => call.path.endsWith('/start')).body.action, 'register');
+  assert.equal(await page.locator('#account-google-fields').isVisible(), false);
+  const unlink = page.getByRole('button', { name: 'Délier Google' });
+  await unlink.click();
+  await page.getByLabel('Nouveau mot de passe', { exact: true }).fill('secret-password');
+  await unlink.click();
+  await page.getByRole('alert').getByText('Les deux mots de passe doivent être identiques.').waitFor();
+  await page.getByLabel('Nouveau mot de passe (confirmation)').fill('secret-password');
+  await unlink.click();
+  await page.getByRole('button', { name: 'Associer Google' }).waitFor();
+  const request = calls.find(call => call.body?.action === 'unlink');
+  assert.equal(request.token, 'Bearer device-token');
+  assert.equal(request.body.password, 'secret-password');
+});
 
 test('l’icône crée le premier profil, puis partage un bouton avec son nom', async t => {
   const page = await pageWith(t);

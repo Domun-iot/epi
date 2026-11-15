@@ -11,6 +11,7 @@
       "identifier": "opener:allow-open-url",
       "allow": [
         { "url": "https://doi.org/*" },
+        { "url": "https://accounts.google.com/o/oauth2/v2/auth?*" },
         { "url": "https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight" },
         { "url": "https://github.com/lolouk44/xiaomi_mi_scale/blob/master/src/Xiaomi_Scale_Body_Metrics.py" }
       ]

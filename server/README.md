@@ -30,7 +30,7 @@ Les corps POST sont envoyés en JSON avec `Content-Type: application/json`. Les 
 | `GET /v1/transactions/pending` | | `200` et `{"transactions":[…]}`, dans l'ordre d'insertion serveur. |
 | `POST /v1/transactions/acknowledge` | `{"uuids":["…"]}` | `200` et `{"inserted":1}` pour un nouvel accusé. |
 
-Les erreurs ont la forme `{"error":"code"}`. L'inscription est ouverte. L'identifiant d'appareil est choisi par le client et doit rester stable pour cette instance. Il accepte 1 à 128 caractères parmi les lettres ASCII, chiffres, points, tirets et underscores. Chaque émission remplace le jeton précédent de l'appareil. Après plus de 30 jours sans utilisation, le jeton est effacé et l'API renvoie `401 token_expired` jusqu'à son renouvellement par email et mot de passe. Les accusés de l'appareil sont conservés.
+Les erreurs ont la forme `{"error":"code"}`. L'inscription est ouverte. L'identifiant d'appareil est choisi par le client et doit rester stable pour cette instance. Il accepte 1 à 128 caractères parmi les lettres ASCII, chiffres, points, tirets et underscores. Chaque émission remplace le jeton précédent de l'appareil. Après plus de 30 jours sans utilisation, le jeton est effacé et l'API renvoie `401 token_expired` jusqu'à une nouvelle connexion par mot de passe ou avec Google. Les accusés de l'appareil sont conservés.
 
 Les lots acceptent jusqu'à 100 entrées et les requêtes jusqu'à 4 Mio. Un UUID de transaction est au format canonique en minuscules. Le premier JSON déposé pour un UUID est conservé. Un accusé sur un UUID inconnu du compte est ignoré et peut être renvoyé après le dépôt.
 
@@ -40,7 +40,17 @@ Ouvrez « Compte » dans l’application web ou Tauri. La création du compte ou
 
 En développement, lancez `run/dev/server.bat` (ou `sh run/dev/server.sh`), puis `run/dev/web.bat` ou `run/dev/tauri.bat` (ou leurs équivalents `.sh`). Le client Vite lit le port de `server/config.js` au démarrage et appelle l’API directement sur `127.0.0.1`. Pour tester avec Tauri en mode développement sur Android via ADB, redirigez le port API avec `adb reverse tcp:8787 tcp:8787`, en remplaçant `8787` par le port configuré si besoin.
 
-Les builds utilisent une URL HTTPS provisoire dans `tauri/src/account.js`. Pour activer les comptes en production, remplacez-la par l’URL du proxy HTTPS et adaptez `connect-src` dans `tauri/src-tauri/tauri.conf.json` au même hôte. Le proxy relaie les méthodes `POST`, `DELETE` et `OPTIONS` des routes de compte vers le serveur HTTP, ainsi que les en-têtes CORS.
+Pour activer les comptes dans une build, définissez `VITE_EPI_ACCOUNT_API` avec l’origine du serveur public, par exemple `https://sync.example.org`, avant de compiler les clients. Pour Tauri, ajoutez aussi cette origine à `connect-src` dans `tauri/src-tauri/tauri.conf.json` (`devCsp` pour les builds de développement). Le proxy doit transmettre les méthodes `GET`, `POST`, `DELETE` et `OPTIONS` des routes de compte, ainsi que les en-têtes CORS.
+
+### Connexion Google
+
+1. Créez un client OAuth de type **Application Web** dans Google Cloud, configurez l’écran de consentement et ajoutez l’URI de redirection exacte, par exemple `https://sync.example.org/v1/google/callback`. En mode test, ajoutez les comptes Google autorisés.
+2. Avant de démarrer le serveur, définissez `EPI_GOOGLE_CLIENT_ID`, `EPI_GOOGLE_CLIENT_SECRET` et `EPI_GOOGLE_REDIRECT_URI`. Pour un essai sur le même ordinateur, vous pouvez enregistrer et utiliser `http://127.0.0.1:8787/v1/google/callback`. Le navigateur doit pouvoir joindre l’URI de retour. Le serveur doit pouvoir joindre les services Google en HTTPS.
+3. Relancez le serveur. Dans « Compte », l’action Google permet de se connecter, de créer un compte ou de gérer l’association. Tauri ouvre le navigateur système, y compris sur Android. Sur le web, le choix du compte s’affiche dans un nouvel onglet. Après validation, revenez dans éPI.
+
+Le serveur échange le code d’autorisation avec Google via PKCE, valide le jeton OpenID Connect reçu directement du serveur Google en HTTPS et conserve l’identifiant stable `sub`. Les jetons Google servent uniquement à cet échange. éPI délivre ensuite son jeton d’appareil habituel. Une adresse existante exige une connexion éPI et la confirmation du mot de passe pour associer Google. Pour délier un compte créé avec Google, sélectionnez de nouveau le compte Google associé et choisissez un mot de passe éPI.
+
+Les demandes Google expirent après cinq minutes et sont conservées en mémoire. Si vous utilisez plusieurs instances d’API, le début de la demande, le callback et sa finalisation doivent atteindre la même instance. Évitez de journaliser la chaîne de requête du callback, qui contient le code d’autorisation et le paramètre d’état. Sans configuration Google, les connexions par mot de passe restent disponibles.
 
 ## Boucle côté client
 

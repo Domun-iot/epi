@@ -75,9 +75,19 @@
           <label>Mot de passe <input name="password" type="password" autocomplete="current-password" required></label>
         </div>
         <p id="account-email" hidden></p>
+        <div id="account-google-fields" class="editor-form" hidden>
+          <label><span id="account-google-password-label"></span>
+            <input name="googlePassword" type="password" maxlength="1024" disabled>
+          </label>
+          <label id="account-google-confirm-field" hidden>Nouveau mot de passe (confirmation)
+            <input name="googlePasswordConfirm" type="password" autocomplete="new-password" maxlength="1024" disabled>
+          </label>
+        </div>
+        <p id="account-google-status" role="status" hidden></p>
         <p id="account-error" class="notice" role="alert" hidden></p>
       </form>
       <div class="actions">
+        <button type="button" class="button" id="account-google" hidden>Continuer avec Google</button>
         <button type="button" class="button" id="account-switch">Créer un compte</button>
         <button type="button" class="button" id="account-close">Fermer</button>
         <button type="submit" class="button primary" id="account-submit" form="account-form">Se connecter</button>

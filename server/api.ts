@@ -1,6 +1,7 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { promisify } from 'node:util';
+import { randomSecret, type Google, type GoogleIdentity } from './google.ts';
 import type { openStore } from './store.ts';
 
 type Store = ReturnType<typeof openStore>;
@@ -54,10 +55,21 @@ async function readBody(req: IncomingMessage) {
   return body;
 }
 
+function validEmail(email: string) {
+  return email.length <= 254 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/u.test(email);
+}
+
+function deviceIdFrom(value: unknown) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9._-]{1,128}$/u.test(value)) {
+    throw new ApiError(400, 'invalid_device_id');
+  }
+  return value;
+}
+
 function credentials(body: Record<string, unknown>) {
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const { password } = body;
-  if (email.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/u.test(email) ||
+  if (!validEmail(email) ||
       typeof password !== 'string' || !password.length || Buffer.byteLength(password) > 1024) {
     throw new ApiError(400, 'invalid_credentials_format');
   }
@@ -110,7 +122,68 @@ function batch(value: unknown): unknown[] {
   return value;
 }
 
-export function createApi(store: Store, now = Date.now) {
+type Account = NonNullable<ReturnType<Store['findById']>>;
+type GoogleAction =
+  | { kind: 'login' | 'register'; deviceId: string }
+  | { kind: 'link'; account: Account }
+  | { kind: 'unlink'; account: Account; newHash: string };
+
+type GoogleAttempt = {
+  action: GoogleAction;
+  verifier: string;
+  secretHash: string;
+  expires: number;
+  status: 'pending' | 'exchanging' | 'failed' | 'ready';
+  identity?: GoogleIdentity;
+};
+
+function accountInfo(account: Account) {
+  return { email: account.email, googleLinked: Boolean(account.google_sub), hasPassword: Boolean(account.password_hash) };
+}
+
+async function checkPassword(password: unknown, hash: string) {
+  if (typeof password !== 'string' || !password || Buffer.byteLength(password) > 1024) {
+    throw new ApiError(400, 'invalid_credentials_format');
+  }
+  if (!(await verifyPassword(password, hash || fallbackPasswordHash)) || !hash) {
+    throw new ApiError(401, 'invalid_credentials');
+  }
+}
+
+function browserResult(res: ServerResponse, succeeded: boolean) {
+  res.writeHead(succeeded ? 200 : 400, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'Referrer-Policy': 'no-referrer',
+    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+  });
+  res.end('<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>éPI</title><h1>éPI</h1><p>' +
+    (succeeded ? 'Retourne dans éPI pour terminer.' : 'La connexion Google a échoué ou a été annulée. Retourne dans éPI.') +
+    '</p></html>');
+}
+
+export function createApi(store: Store, now = Date.now, google?: Google) {
+  const attempts = new Map<string, GoogleAttempt>();
+  const cleanupAttempts = () => {
+    for (const [state, attempt] of attempts) {
+      if (attempt.expires <= now()) attempts.delete(state);
+    }
+  };
+
+  function currentAccount(req: IncomingMessage) {
+    const { account_id } = authenticate(req, store, now());
+    const account = store.findById(account_id);
+    if (!account) throw new ApiError(401, 'invalid_token');
+    return account;
+  }
+
+  function issueToken(account: Account, deviceId: string) {
+    const selector = randomBytes(16).toString('hex');
+    const secret = randomSecret();
+    store.issueToken(account.id, deviceId, selector, hashToken(secret), now());
+    return selector + '.' + secret;
+  }
+
   const sweep = () => store.expireTokens(now() - tokenLifetime);
   sweep();
   const timer = setInterval(() => {
@@ -124,15 +197,126 @@ export function createApi(store: Store, now = Date.now) {
   const server = createServer({ requestTimeout: 30_000 }, async (req, res) => {
     try {
       const route = req.method + ' ' + req.url;
-      if (req.url === '/v1/accounts' || req.url === '/v1/device-tokens') {
+      if (req.url === '/v1/accounts' || req.url === '/v1/device-tokens' ||
+          req.url === '/v1/account' || req.url?.startsWith('/v1/google/')) {
         res.setHeader('Access-Control-Allow-Origin', '*');
         if (req.method === 'OPTIONS') {
           res.writeHead(204, {
-            'Access-Control-Allow-Methods': req.url === '/v1/accounts' ? 'POST' : 'POST, DELETE',
+            'Access-Control-Allow-Methods': 'GET, POST, DELETE',
             'Access-Control-Allow-Headers': 'Content-Type, Authorization',
           });
           return res.end();
         }
+      }
+      if (route === 'GET /v1/account') {
+        return send(res, 200, { ...accountInfo(currentAccount(req)), googleAvailable: Boolean(google) });
+      }
+      if (route === 'GET /v1/google/config') {
+        return send(res, 200, { enabled: Boolean(google) });
+      }
+      if (route === 'POST /v1/google/unlink') {
+        const account = currentAccount(req);
+        const { password } = await readBody(req);
+        if (!account.google_sub) throw new ApiError(409, 'google_not_linked');
+        if (!account.password_hash) throw new ApiError(409, 'google_password_required');
+        await checkPassword(password, account.password_hash);
+        if (!store.unlinkGoogle(account.id, account.google_sub, account.password_hash, account.password_hash)) {
+          throw new ApiError(409, 'google_conflict');
+        }
+        return send(res, 200, { ...accountInfo(account), googleLinked: false });
+      }
+      if (route === 'POST /v1/google/start') {
+        if (!google) throw new ApiError(503, 'google_disabled');
+        const body = await readBody(req);
+        let action: GoogleAction;
+        if (body.action === 'login' || body.action === 'register') {
+          action = { kind: body.action, deviceId: deviceIdFrom(body.deviceId) };
+        } else if (body.action === 'link') {
+          const account = currentAccount(req);
+          if (account.google_sub) throw new ApiError(409, 'google_conflict');
+          await checkPassword(body.password, account.password_hash);
+          action = { kind: 'link', account };
+        } else if (body.action === 'unlink') {
+          const account = currentAccount(req);
+          if (!account.google_sub || account.password_hash) throw new ApiError(409, 'google_conflict');
+          const { password } = body;
+          if (typeof password !== 'string' || !password || Buffer.byteLength(password) > 1024) {
+            throw new ApiError(400, 'invalid_credentials_format');
+          }
+          action = { kind: 'unlink', account, newHash: await hashPassword(password) };
+        } else {
+          throw new ApiError(400, 'invalid_google_action');
+        }
+        cleanupAttempts();
+        if (attempts.size >= 1000) throw new ApiError(503, 'google_busy');
+        const state = randomSecret();
+        const secret = randomSecret();
+        const verifier = randomSecret();
+        attempts.set(state, { action, verifier, secretHash: hashToken(secret),
+          expires: now() + 5 * 60 * 1000, status: 'pending' });
+        return send(res, 200, { state, secret, url: google.authorize(state, verifier) });
+      }
+      if (req.method === 'GET' && req.url?.split('?')[0] === '/v1/google/callback') {
+        cleanupAttempts();
+        const query = new URLSearchParams(req.url.split('?')[1]);
+        const state = query.get('state');
+        const attempt = state && attempts.get(state);
+        if (!google || !attempt || attempt.status !== 'pending') return browserResult(res, false);
+        const code = query.get('code');
+        if (!code || query.has('error')) {
+          attempt.status = 'failed';
+          return browserResult(res, false);
+        }
+        attempt.status = 'exchanging';
+        try {
+          attempt.identity = await google.identify(code, attempt.verifier);
+          if (attempt.expires <= now()) return browserResult(res, false);
+          attempt.status = 'ready';
+          return browserResult(res, true);
+        } catch {
+          attempt.status = 'failed';
+          return browserResult(res, false);
+        }
+      }
+      if (route === 'POST /v1/google/finish') {
+        const { state, secret } = await readBody(req);
+        cleanupAttempts();
+        const attempt = typeof state === 'string' ? attempts.get(state) : undefined;
+        if (!attempt || typeof secret !== 'string' || !/^[0-9a-f]{64}$/u.test(secret) ||
+            !timingSafeEqual(Buffer.from(attempt.secretHash, 'hex'), Buffer.from(hashToken(secret), 'hex'))) {
+          throw new ApiError(400, 'google_attempt_expired');
+        }
+        const { action, identity } = attempt;
+        if ('account' in action && currentAccount(req).id !== action.account.id) {
+          throw new ApiError(401, 'invalid_token');
+        }
+        if (attempt.status === 'pending' || attempt.status === 'exchanging') return send(res, 202, { pending: true });
+        attempts.delete(state as string);
+        if (!identity || attempt.status !== 'ready') throw new ApiError(401, 'google_failed');
+        if (action.kind === 'link') {
+          const { account } = action;
+          if (!store.linkGoogle(account.id, identity.sub, account.password_hash)) {
+            throw new ApiError(409, 'google_conflict');
+          }
+          return send(res, 200, { ...accountInfo(account), googleLinked: true });
+        }
+        if (action.kind === 'unlink') {
+          const { account } = action;
+          if (identity.sub !== account.google_sub) throw new ApiError(401, 'google_wrong_account');
+          if (!store.unlinkGoogle(account.id, identity.sub, account.password_hash, action.newHash)) {
+            throw new ApiError(409, 'google_conflict');
+          }
+          return send(res, 200, { ...accountInfo(account), googleLinked: false, hasPassword: true });
+        }
+        let account = store.findGoogle(identity.sub);
+        if (!account && action.kind === 'register') {
+          const email = identity.email?.trim().toLowerCase() ?? '';
+          if (!validEmail(email)) throw new ApiError(400, 'google_unverified_email');
+          account = store.createGoogle(email, identity.sub) ?? store.findGoogle(identity.sub);
+          if (!account) throw new ApiError(409, 'account_exists');
+        }
+        if (!account) throw new ApiError(404, 'google_not_linked');
+        return send(res, 200, { ...accountInfo(account), token: issueToken(account, action.deviceId) });
       }
       if (route === 'POST /v1/accounts') {
         const { email, password } = credentials(await readBody(req));
@@ -145,17 +329,11 @@ export function createApi(store: Store, now = Date.now) {
       if (route === 'POST /v1/device-tokens') {
         const body = await readBody(req);
         const { email, password } = credentials(body);
-        const { deviceId } = body;
-        if (typeof deviceId !== 'string' || !/^[A-Za-z0-9._-]{1,128}$/u.test(deviceId)) {
-          throw new ApiError(400, 'invalid_device_id');
-        }
+        const deviceId = deviceIdFrom(body.deviceId);
         const account = store.findAccount(email);
-        const verified = await verifyPassword(password, account?.password_hash ?? fallbackPasswordHash);
-        if (!account || !verified) throw new ApiError(401, 'invalid_credentials');
-        const selector = randomBytes(16).toString('hex');
-        const secret = randomBytes(32).toString('hex');
-        store.issueToken(account.id, deviceId, selector, hashToken(secret), now());
-        return send(res, 200, { token: selector + '.' + secret });
+        await checkPassword(password, account?.password_hash ?? '');
+        if (!account) throw new ApiError(401, 'invalid_credentials');
+        return send(res, 200, { token: issueToken(account, deviceId) });
       }
 
       if (route === 'DELETE /v1/device-tokens') {

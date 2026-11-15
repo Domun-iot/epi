@@ -38,11 +38,36 @@ export function openStore(path: string) {
     ) STRICT;
   `);
 
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    if (!db.prepare("SELECT 1 FROM pragma_table_info('accounts') WHERE name = 'google_sub'").get()) {
+      db.exec('ALTER TABLE accounts ADD COLUMN google_sub TEXT');
+    }
+    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS accounts_google_sub ON accounts(google_sub)');
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    db.close();
+    throw error;
+  }
+
   const createAccount = db.prepare(`
     INSERT INTO accounts (email, password_hash) VALUES (?, ?)
     ON CONFLICT (email) DO NOTHING
   `);
-  const findAccount = db.prepare('SELECT id, password_hash FROM accounts WHERE email = ?');
+  type Account = { id: number; email: string; password_hash: string; google_sub: string | null };
+  const findAccount = db.prepare('SELECT * FROM accounts WHERE email = ?');
+  const findById = db.prepare('SELECT * FROM accounts WHERE id = ?');
+  const findGoogle = db.prepare('SELECT * FROM accounts WHERE google_sub = ?');
+  const createGoogle = db.prepare(
+    "INSERT INTO accounts (email, password_hash, google_sub) VALUES (?, '', ?) ON CONFLICT DO NOTHING RETURNING *"
+  );
+  const linkGoogle = db.prepare(
+    'UPDATE OR IGNORE accounts SET google_sub = ? WHERE id = ? AND google_sub IS NULL AND password_hash = ?'
+  );
+  const unlinkGoogle = db.prepare(
+    'UPDATE accounts SET google_sub = NULL, password_hash = ? WHERE id = ? AND google_sub = ? AND password_hash = ?'
+  );
   const issueToken = db.prepare(`
     INSERT INTO devices (account_id, device_id, token_selector, token_hash, last_used_at)
     VALUES (?, ?, ?, ?, ?)
@@ -99,7 +124,13 @@ export function openStore(path: string) {
 
   return {
     createAccount: (email: string, hash: string) => createAccount.run(email, hash).changes === 1,
-    findAccount: (email: string) => findAccount.get(email) as { id: number; password_hash: string } | undefined,
+    findAccount: (email: string) => findAccount.get(email) as Account | undefined,
+    findById: (id: number) => findById.get(id) as Account | undefined,
+    findGoogle: (sub: string) => findGoogle.get(sub) as Account | undefined,
+    createGoogle: (email: string, sub: string) => createGoogle.get(email, sub) as Account | undefined,
+    linkGoogle: (id: number, sub: string, hash: string) => linkGoogle.run(sub, id, hash).changes === 1,
+    unlinkGoogle: (id: number, sub: string, oldHash: string, newHash: string) =>
+      unlinkGoogle.run(newHash, id, sub, oldHash).changes === 1,
     issueToken: (accountId: number, deviceId: string, selector: string, hash: string, now: number) =>
       issueToken.run(accountId, deviceId, selector, hash, now),
     useToken: (now: number, selector: string, hash: string, cutoff: number) =>
