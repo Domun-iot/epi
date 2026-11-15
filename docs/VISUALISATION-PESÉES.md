@@ -8,7 +8,7 @@
 - **Dans quel sens ça évolue ?** Les pesées brutes et une tendance identifiée, sur une période choisie.
 - **Qu’est-ce qui évolue ensemble ?** Des graphiques alignés dans le temps, avec une échelle et une unité par métrique. Un curseur commun retrouve la même date sur tous les panneaux.
 
-ÉPI dispose déjà des vues Graphique et Tableau, de périodes prédéfinies, d’une sélection par glisser, des modes Brut et Adouci (moyenne centrée sur sept jours) et du choix des séries. Dans le graphique combiné, chaque série est mise à l’échelle séparément et l’ordonnée affichée appartient à la série au premier plan. Les intersections de courbes y sont donc visuelles. Pour comparer le poids, la masse grasse et l’eau, les panneaux synchronisés donneraient à chaque mesure sa propre échelle lisible.
+ÉPI dispose déjà des vues Graphique et Tableau, de périodes prédéfinies, d’une sélection par glisser, des modes Brut et Tendance et du choix des séries. Les points indiquent les valeurs brutes dans les deux modes. Le mode Tendance trace une moyenne centrée sur sept jours. Dans le graphique combiné, chaque série est mise à l’échelle séparément et l’ordonnée affichée appartient à la série au premier plan. Les intersections de courbes y sont donc visuelles. Pour comparer le poids, la masse grasse et l’eau, les panneaux synchronisés donneraient à chaque mesure sa propre échelle lisible.
 
 ---
 
@@ -115,7 +115,7 @@ Les estimations tournent autour de **28 %** avec la balance A, puis autour de **
 
 ## 7. Ordre de réalisation proposé
 
-1. **Poids lisible au quotidien.** Ajouter « Points + tendance » à côté du brut. Sur les points, afficher la vraie valeur à sa vraie hauteur. Donner un libellé distinct à la moyenne et à l’écart entre première et dernière mesures. Pour le suivi au jour le jour, évaluer une moyenne mobile sur sept jours révolus à partir d’une valeur par jour, et signaler une fenêtre peu renseignée. Garder le détail intrajournalier en vue brute.
+1. **Poids lisible au quotidien.** Dans le mode Tendance, afficher la moyenne dans l’infobulle à côté de la pesée et distinguer sa variation de l’écart entre première et dernière mesures. Pour le suivi au jour le jour, évaluer une moyenne mobile sur sept jours révolus à partir d’une valeur par jour, et signaler une fenêtre peu renseignée. Garder le détail intrajournalier en vue brute.
 2. **Composition synchronisée.** Aligner Poids, Masse grasse et Masse maigre avec un curseur partagé et des unités sur chaque axe. Le toucher ou les flèches déplacent le curseur de pesée en pesée. Si une métrique manque à la date sélectionnée, afficher « aucune mesure » dans son panneau. Tester les vues mobiles sur 30 jours puis sur un an.
 3. **Provenance et agrégation.** Afficher la balance, la formule et les changements de source. Pour l’historique long, donner la médiane, l’étendue et l’effectif des périodes renseignées, puis revenir aux points bruts au zoom. Utiliser un espace vide ou des segments explicitement signalés pour les longues interruptions.
 4. **Objectifs et contexte au choix.** Ajouter une ligne cible ou une zone de stabilité choisie par profil, des annotations datées et un résumé de période. Donner une couleur neutre aux écarts signés hors contexte d’un objectif. Vérifier les seuils et libellés sur thèmes clair et sombre, au clavier et sur écran tactile.

@@ -206,13 +206,13 @@ function renderLine({ id, color, samples, y }, x, active) {
 }
 
 function renderPoints({ id, label, color, points, y }, x, active) {
-  return points.map(({ index, time, value, plottedValue }) => {
+  return points.map(({ index, time, value }) => {
     const text = formatDate(time);
     const formatted = axisValue.format(value);
     const position = x(time);
     return `<button type="button" class="chart-point${active ? ' chart-point-active' : ''}" data-action="reading"
       data-series="${id}" data-value="${index}"
-      style="--series-color:${color};--x:${position}%;--y:${y(plottedValue)}%;--tooltip-offset:${-position}%"
+      style="--series-color:${color};--x:${position}%;--y:${y(value)}%;--tooltip-offset:${-position}%"
       aria-label="${e(label + ' · ' + text + ' · ' + formatted)}">
       <span class="chart-tooltip" aria-hidden="true"><strong>${e(label)} · ${formatted}</strong><span>${e(text)}</span></span>
     </button>`;
@@ -240,10 +240,10 @@ export function measurementCharts(rows, series, { period = 'all', range, mode = 
   return `<section class="panel measurement-chart" aria-labelledby="measurement-chart-title">
     <div class="chart-heading">
       <h2 id="measurement-chart-title">Évolution des pesées</h2>
-      <div class="chart-periods" role="group" aria-label="Lissage">
+      <div class="chart-periods" role="group" aria-label="Tracé de la courbe">
         <button type="button" data-action="chart-mode" data-value="raw" aria-pressed="${mode === 'raw'}">Brut</button>
         <button type="button" data-action="chart-mode" data-value="smooth" aria-pressed="${mode === 'smooth'}"
-          title="Moyenne centrée sur sept jours">Adouci</button>
+          title="Moyenne centrée sur sept jours">Tendance</button>
       </div>
       <div class="chart-periods" role="group" aria-label="Période">
         ${periods.map(([id, label]) => `<button type="button" data-action="chart-period" data-value="${id}"
