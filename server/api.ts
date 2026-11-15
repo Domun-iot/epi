@@ -71,7 +71,7 @@ function transactionRow(value: unknown) {
   return { uuid: value.uuid, payload };
 }
 
-async function uploadStream(req: IncomingMessage, store: Store, accountId: number) {
+async function uploadStream(req: IncomingMessage, store: Store, accountId: number, deviceId: string) {
   const uuids = new Set<string>();
   let inserted = 0;
   const rows: ReturnType<typeof transactionRow>[] = [];
@@ -87,7 +87,7 @@ async function uploadStream(req: IncomingMessage, store: Store, accountId: numbe
 
   function flush() {
     if (!rows.length) return;
-    const result = store.upload(accountId, rows);
+    const result = store.upload(accountId, deviceId, rows);
     inserted += result.inserted;
     for (const uuid of result.uuids) uuids.add(uuid);
     rows.length = 0;
@@ -500,14 +500,14 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
       }
 
       if (route === 'POST /v1/transactions') {
-        const { account_id } = authenticate(req, store, now());
+        const { account_id, device_id } = authenticate(req, store, now());
         const contentType = req.headers['content-type']?.split(';')[0].trim().toLowerCase();
         if (contentType === 'application/x-ndjson') {
-          return send(res, 200, await uploadStream(req, store, account_id));
+          return send(res, 200, await uploadStream(req, store, account_id, device_id));
         }
         const body = await readBody(req);
         const rows = batch(body.transactions).map(transactionRow);
-        return send(res, 200, store.upload(account_id, rows));
+        return send(res, 200, store.upload(account_id, device_id, rows));
       }
 
       if (route === 'POST /v1/transactions/acknowledge') {

@@ -150,27 +150,30 @@ export function openStore(path: string) {
     expireToken: (selector: string, hash: string, cutoff: number) => expireToken.get(selector, hash, cutoff),
     expireTokens: (cutoff: number) => expireTokens.run(cutoff),
     revokeToken: (selector: string, hash: string) => revokeToken.run(selector, hash),
-    upload(accountId: number, rows: { uuid: string; payload: string }[]) {
+    upload(accountId: number, deviceId: string, rows: { uuid: string; payload: string }[]) {
       const uuids = new Set<string>();
       const inserted = writeBatch(rows, ({ uuid, payload }) => {
         const result = insertTransaction.run(accountId, uuid, payload);
         const stored = result.changes ? undefined : storedTransaction.get(accountId, uuid)?.payload;
-        if (result.changes || stored === payload) {
-          uuids.add(uuid);
-        } else if (typeof stored === 'string') {
+        let accepted = Boolean(result.changes) || stored === payload;
+        if (!accepted && typeof stored === 'string') {
           const previous = JSON.parse(stored);
           const current = JSON.parse(payload);
           if (isDeepStrictEqual(previous, current)) {
-            uuids.add(uuid);
+            accepted = true;
           } else {
             const { name: previousName, ...previousTransaction } = previous;
             const { name: currentName, ...currentTransaction } = current;
             if ((previousName === undefined || currentName === undefined) &&
               isDeepStrictEqual(previousTransaction, currentTransaction)) {
               if (currentName !== undefined) updateTransactionPayload.run(payload, accountId, uuid);
-              uuids.add(uuid);
+              accepted = true;
             }
           }
+        }
+        if (accepted) {
+          acknowledge.run(deviceId, accountId, uuid);
+          uuids.add(uuid);
         }
         return result;
       });

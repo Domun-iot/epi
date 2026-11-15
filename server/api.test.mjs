@@ -106,9 +106,10 @@ test('synchronizes batches per account and preserves receipts after token expira
     assert.deepEqual(await pending(other), []);
     assert.deepEqual(await acknowledge(other, [first.uuid]), { inserted: 0 });
     assert.deepEqual(await upload(other, [first]), { inserted: 1, uuids: [first.uuid] });
-    assert.deepEqual(await pending(other), [first]);
-    assert.deepEqual(await pending(pc), [first, second]);
-    assert.deepEqual(await acknowledge(pc, [first.uuid, second.uuid]), { inserted: 2 });
+    assert.deepEqual(await pending(other), []);
+    assert.deepEqual(await pending(pc), []);
+    assert.deepEqual(await acknowledge(pc, [first.uuid, second.uuid]), { inserted: 0 });
+    assert.deepEqual(await upload(phone, [{ ...first, type: 'update' }]), { inserted: 0, uuids: [] });
     assert.deepEqual(await pending(phone), [first, second]);
     assert.deepEqual(await pending(phone), [first, second]);
     assert.deepEqual(await acknowledge(phone, [first.uuid, first.uuid]), { inserted: 1 });
@@ -136,6 +137,8 @@ test('synchronizes batches per account and preserves receipts after token expira
       assert.deepEqual(await response.json(), { inserted, uuids: backlog.map(row => row.uuid) });
     }
 
+    assert.deepEqual(await pending(other), []);
+
     const timestamped = Array.from({ length: 101 }, (_, index) => {
       const uuid = randomUUID();
       return { ...first, uuid, name: '2026-01-15T17-23-21.' + String(index).padStart(6, '0') + 'Z-' + uuid + '.json' };
@@ -156,6 +159,8 @@ test('synchronizes batches per account and preserves receipts after token expira
     assert.deepEqual(await upload(other, [stampedFirst]), { inserted: 0, uuids: [first.uuid] });
     assert.deepEqual(await upload(other, [first]), { inserted: 0, uuids: [first.uuid] });
     assert.deepEqual((await pending(chronologicalReader))[0], stampedFirst);
+    assert.deepEqual(await upload(chronologicalReader, [stampedFirst]), { inserted: 0, uuids: [first.uuid] });
+    assert.ok((await pending(chronologicalReader)).every(row => row.uuid !== first.uuid));
 
     now += tokenLifetime;
     assert.deepEqual(await pending(pc), []);
@@ -172,7 +177,7 @@ test('synchronizes batches per account and preserves receipts after token expira
     } finally {
       inspection.close();
     }
-    assert.deepEqual(await pending(pc), []);
+    assert.deepEqual(await pending(await login(alice, 'pc')), []);
     const renewed = await login(alice, 'phone');
     assert.deepEqual(await pending(renewed), [second]);
     assert.deepEqual(await request('/transactions/pending', { token: phone, status: 401 }),
