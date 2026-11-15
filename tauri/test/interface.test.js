@@ -709,7 +709,7 @@ test('le graphique s’adapte à la hauteur et conserve la marge sous les en-tê
   await chart.waitFor({ state: 'detached' });
 });
 
-test('les commandes du graphique restent sur une ligne quand la vue rétrécit', async t => {
+test('les commandes du graphique restent groupées et s’alignent à gauche sous le titre', async t => {
   const page = await pageWith(t, {
     profiles: [alice], selectedProfile: 'Alice',
     profilePreferences: { Alice: { chartByView: { default: {
@@ -757,6 +757,7 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
   assert.ok(wide.modeLeftGap > 0);
   assert.ok(Math.abs(wide.modeLeftGap - (wide.groupGap - wide.fullscreenGap)) < 1);
   await page.setViewportSize({ width: 420, height: 900 });
+  await chart.locator('.chart-controls-wrapped').waitFor();
   const medium = await layout();
   await page.setViewportSize({ width: 320, height: 900 });
   const narrow = await layout();
@@ -768,17 +769,22 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
   }
   for (const { centers, right, headingRight } of [wide, medium, narrow]) {
     assert.equal(new Set(centers).size, 1);
-    assert.ok(Math.abs(right - headingRight) < 1, `Fin des commandes : ${right}, en-tête : ${headingRight}`);
+    assert.ok(right <= headingRight + 1, `Fin des commandes : ${right}, en-tête : ${headingRight}`);
   }
-  for (const { toolbarLeft, headingLeft, subtitleBottom, toolbarTop, legendGap, marginTop, marginBottom }
+  assert.ok(Math.abs(wide.right - wide.headingRight) < 1);
+  for (const { toolbarLeft, headingLeft, modeLeftGap, subtitleBottom, toolbarTop, legendGap, marginTop, marginBottom }
     of [medium, narrow]) {
     assert.equal(toolbarLeft, headingLeft);
+    assert.equal(modeLeftGap, 0);
     const titleGap = toolbarTop - subtitleBottom;
     assert.ok(titleGap > 0 && titleGap <= legendGap);
     assert.equal(legendGap, 6);
     assert.equal(marginTop, '6px');
     assert.equal(marginBottom, '6px');
   }
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await chart.locator('.chart-controls-wrapped').waitFor({ state: 'detached' });
+  assert.equal((await layout()).modeLeftGap, wide.modeLeftGap);
 });
 
 test('le graphique grandit quand les repères IMC sont dépliés dans une vue courte', async t => {

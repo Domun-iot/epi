@@ -192,11 +192,16 @@ function render() {
     viewHeader.innerHTML = markup.header;
     chartDatesResize.disconnect();
     chartHeightResize.disconnect();
+    chartHeadingResize.disconnect();
     const hadChart = Boolean(viewContent.querySelector('.measurement-chart'));
     viewContent.innerHTML = markup.content;
     const chart = viewContent.querySelector('.measurement-chart');
-    if (chart) updateChartFullscreenButton();
-    else if (document.fullscreenElement === viewContent) void perform(() => document.exitFullscreen());
+    if (chart) {
+      updateChartFullscreenButton();
+      const heading = chart.querySelector('.chart-heading');
+      alignChartControls(heading);
+      chartHeadingResize.observe(heading);
+    } else if (document.fullscreenElement === viewContent) void perform(() => document.exitFullscreen());
     const chartDates = viewContent.querySelector('.chart-dates');
     if (chartDates) chartDatesResize.observe(chartDates);
     bluetoothWatch.attach(viewContent.querySelector('#bluetooth-log'), state.addressFilter);
@@ -653,6 +658,13 @@ function updateChartHeight() {
   chart.style.setProperty('--chart-leading-space', `${leadingSpace}px`);
 }
 
+function alignChartControls(heading) {
+  const [title, controls] = heading.children;
+  controls.classList.toggle('chart-controls-wrapped',
+    controls.getBoundingClientRect().top >= title.getBoundingClientRect().bottom);
+}
+
+const chartHeadingResize = new ResizeObserver(([{ target }]) => alignChartControls(target));
 const chartHeightResize = new ResizeObserver(updateChartHeight);
 const chartDatesResize = new ResizeObserver(([{ target, contentRect }]) => renderChartDates(target, contentRect.width));
 const pinnedHeaderResize = new ResizeObserver(positionPinnedHeader);

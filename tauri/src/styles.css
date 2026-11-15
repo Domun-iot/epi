@@ -197,6 +197,7 @@ p { line-height: 1.55; }
 /* Share spare space on wide views, then close the gap after the mode group. */
 .chart-controls::before, .chart-controls::after { content: ""; flex: 1 1 0; }
 .chart-controls::after { max-width: max(0px, calc((var(--chart-control-width) - 400px) / 3)); }
+.chart-controls-wrapped::before, .chart-controls-wrapped::after { content: none; }
 .chart-controls > :nth-child(n+2) { order: 1; margin-inline-start: var(--chart-group-gap); }
 .chart-controls:has([data-value="custom"]) { --chart-control-width: calc(100cqw - 110px); }
 .chart-periods { display: flex; gap: clamp(0px, calc((var(--chart-control-width) - 240px) / 70), 2px); padding: 3px; border-radius: 10px; background: var(--hover); }
