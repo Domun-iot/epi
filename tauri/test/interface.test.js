@@ -43,12 +43,16 @@ async function dismissNotificationBanner(page) {
   await close.waitFor({ state: 'hidden' });
 }
 
-async function pageWith(t, snapshot, options = {}, mode) {
+async function pageWith(t, snapshot, options = {}, mode, setup) {
   const page = await browser.newPage({ locale: 'fr-FR', ...options });
   page.setDefaultTimeout(10000);
   await page.route(url + '**', async route => {
     const path = new URL(route.request().url()).pathname;
-    if (mode === 'web' && path === '/api/session') return route.fulfill({ json: snapshot });
+    if (mode === 'web' && path === '/api/session') {
+      if (typeof snapshot === 'function') return snapshot(route);
+      const { action } = route.request().postDataJSON();
+      return route.fulfill({ json: action === 'pendingTransactions' ? [] : snapshot });
+    }
     const file = path === '/' ? 'index.html' : path.slice(1);
     if (!/^(?:index\.html|assets\/[\w.-]+)$/.test(file)) return route.fulfill({ status: 404 });
     return route.fulfill({ body: await readFile(join(outDir, mode ?? '.', file)), contentType: types.get(file.split('.').at(-1)) });
@@ -67,6 +71,7 @@ async function pageWith(t, snapshot, options = {}, mode) {
       }
     }, snapshot);
   }
+  await setup?.(page);
   await page.goto(url);
   await page.locator('#status span:last-child').filter({ hasText: /\S/ }).waitFor();
   await page.locator('#theme-toggle:enabled').waitFor();
@@ -292,13 +297,100 @@ async function chosenProfile(page) {
 }
 const feed = (page, line) => page.evaluate(value => window.dispatchEvent(new CustomEvent('epi:frame', { detail: value })), line);
 
+let webBuild;
+function buildWeb() {
+  webBuild ??= build({
+    mode: 'web',
+    build: { outDir: join(outDir, 'web') },
+    logLevel: 'error',
+    define: { __DEV_ACCOUNT_API__: JSON.stringify('https://sync.epi.test') },
+  });
+  return webBuild;
+}
+
 test('le mode web ouvre l’écran expliquant où écouter le Bluetooth', async t => {
-  await build({ mode: 'web', build: { outDir: join(outDir, 'web') }, logLevel: 'error' });
+  await buildWeb();
   const page = await pageWith(t, { profiles: [], devices: [], measurements: [], pending: [], notifications: [] }, {}, 'web');
   await page.getByRole('link', { name: 'Mode web', exact: true }).click();
   await page.getByRole('heading', { name: 'Écoute Bluetooth' }).waitFor();
   await page.getByText('L’écoute Bluetooth est disponible uniquement avec l’application ou la version standalone.').waitFor();
   assert.equal(await page.getByRole('region', { name: 'Trames Bluetooth reçues' }).count(), 0);
+});
+
+test('retries a stalled upload and archives only confirmed transactions', async t => {
+  await buildWeb();
+  const ids = ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002'];
+  let pending = ids.map(uuid => ({
+    name: '2026-01-15T17-23-21.000000Z-' + uuid + '.json',
+    transaction: { uuid, type: 'create', data: {} },
+  }));
+  const archived = [];
+  const uploads = [];
+  let releaseFirst;
+  let signalUpload;
+  const firstResponse = new Promise(resolve => { releaseFirst = resolve; });
+  const firstUpload = new Promise(resolve => { signalUpload = resolve; });
+  t.after(releaseFirst);
+  const snapshot = { profiles: [], devices: [], measurements: [], pending: [], notifications: [] };
+  const page = await pageWith(t, route => {
+    const { action, args } = route.request().postDataJSON();
+    if (action === 'pendingTransactions') return route.fulfill({ json: pending });
+    if (action === 'archiveTransactions') {
+      archived.push(...args[0]);
+      pending = pending.filter(row => !args[0].includes(row.name));
+      return route.fulfill({ json: {} });
+    }
+    if (action === 'setTheme') {
+      const uuid = '00000000-0000-4000-8000-000000000003';
+      pending.push({ name: '2026-01-15T17-24-21.000000Z-' + uuid + '.json', transaction: { uuid } });
+      return route.fulfill({ json: snapshot, headers: { 'X-Epi-Transactions': 'pending' } });
+    }
+    return route.fulfill({ json: snapshot });
+  }, { timezoneId: 'Europe/Paris' }, 'web', async page => {
+    await page.clock.install();
+    await page.addInitScript(() => {
+      localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({
+        email: 'alice@example.org', token: 'test-token',
+      }));
+    });
+    await page.route('https://sync.epi.test/v1/transactions', async route => {
+      uploads.push(route.request().postData().trim().split('\n').map(line => JSON.parse(line).uuid));
+      if (uploads.length === 1) {
+        signalUpload();
+        await firstResponse;
+        return route.abort().catch(() => {});
+      }
+      return route.fulfill({ json: { uuids: uploads.length === 2 ? [ids[0]] : uploads.at(-1) } });
+    });
+  });
+
+  const icon = page.locator('#sync-status');
+  await firstUpload;
+  assert.equal(await icon.isVisible(), false);
+  await page.clock.runFor(5_000);
+  await icon.waitFor();
+  assert.match(await icon.getAttribute('class'), /syncing/);
+  await icon.click();
+  await page.locator('#sync-message').getByText(/15 janv\. 2026.*18:23/).waitFor();
+  await page.locator('#sync-dialog').getByRole('button').click();
+  await page.clock.runFor(15_000);
+  assert.equal(await icon.isVisible(), true);
+  assert.doesNotMatch(await icon.getAttribute('class'), /syncing/);
+  assert.deepEqual(archived, []);
+  assert.deepEqual(uploads, [ids]);
+  releaseFirst();
+
+  const archiveRequest = () => page.waitForResponse(response => response.url().endsWith('/api/session') &&
+    response.request().postDataJSON().action === 'archiveTransactions');
+  await Promise.all([archiveRequest(), page.clock.runFor(41_000)]);
+  assert.deepEqual(uploads, [ids, ids]);
+  assert.equal(archived.length, 1);
+  assert.ok(archived[0].endsWith(ids[0] + '.json'));
+  assert.equal(await icon.isVisible(), true);
+
+  await Promise.all([archiveRequest(), page.locator('#theme-toggle').click()]);
+  await icon.waitFor({ state: 'hidden' });
+  assert.deepEqual(uploads, [ids, ids, [ids[1], '00000000-0000-4000-8000-000000000003']]);
 });
 
 test('l’écoute Bluetooth conserve les trames récentes et purge celles de plus de 24 heures', async t => {

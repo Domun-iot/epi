@@ -18,7 +18,14 @@
           <button type="button" data-page="measurements"><span aria-hidden="true">▤</span><span data-i18n="measurements"></span></button>
           <button type="button" data-page="profiles"><span aria-hidden="true">◉</span><span data-i18n="profiles"></span></button>
           <button type="button" data-page="devices"><span aria-hidden="true">⌁</span><span data-i18n="devices"></span></button>
-          <button type="button" id="account-button"><span aria-hidden="true">◎</span><span data-i18n="account"></span></button>
+          <div class="account-nav">
+            <button type="button" id="account-button"><span aria-hidden="true">◎</span><span data-i18n="account"></span></button>
+            <button type="button" id="sync-status" aria-haspopup="dialog" aria-controls="sync-dialog" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M20 7v5h-5M4 17v-5h5M5 8a8 8 0 0 1 13-2l2 3M4 15l2 3a8 8 0 0 0 13-2"/>
+              </svg>
+            </button>
+          </div>
         </nav>
         <a class="bluetooth" id="status" href="#bluetooth" aria-controls="view"><span class="status-dot" aria-hidden="true"></span><span aria-live="polite" data-i18n="bluetoothInitialising"></span></a>
         <button type="button" id="retry-bluetooth" hidden data-i18n="restartBluetooth"></button>
@@ -67,6 +74,13 @@
       </div>
     </div>
     <dialog id="editor" aria-labelledby="dialog-title"></dialog>
+    <dialog id="sync-dialog" aria-labelledby="sync-title" aria-describedby="sync-message">
+      <h2 id="sync-title" data-i18n="syncPending"></h2>
+      <p id="sync-message"></p>
+      <form method="dialog" class="actions">
+        <button class="button" type="submit" data-i18n="close"></button>
+      </form>
+    </dialog>
     <dialog id="account-dialog" aria-labelledby="account-title">
       <h2 id="account-title" data-i18n="signInHeading"></h2>
       <form id="account-form" class="editor-form">

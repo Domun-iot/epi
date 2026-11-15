@@ -17,17 +17,19 @@ export const METRICS = composition.metrics.map(([id, , precision]) =>
 const snapshotKey = 'epi-session-v1';
 const zipFilters = [{ name: t('zipArchive'), extensions: ['zip'] }];
 
-export async function connect(onState, onStatus, onRaw, onWeighing) {
+export async function connect(onState, onStatus, onRaw, onWeighing, onTransactions) {
   const native = isTauri();
   const web = import.meta.env.MODE === 'web' && !native;
   const storage = native ? {
     load: () => invoke('load_session'),
-    save: (session, previous) => invoke('save_session', { session, previous }),
+    async save(session, previous) {
+      if (await invoke('save_session', { session, previous })) onTransactions();
+    },
   } : {
     load: () => JSON.parse(localStorage.getItem(snapshotKey) ?? 'null'),
     save: session => localStorage.setItem(snapshotKey, JSON.stringify(session)),
   };
-  const session = web ? createWebSession(onState) : domain.createSession({ storage, onWeighing });
+  const session = web ? createWebSession(onState, onTransactions) : domain.createSession({ storage, onWeighing });
   if (!web) {
     session.subscribe(onState);
     onState(await session.load());
@@ -71,12 +73,17 @@ export async function connect(onState, onStatus, onRaw, onWeighing) {
     await domain.createSession({ storage: { load: () => null, save: () => {} } }).importLegacy(records);
     if (web) return session.importFiles(files);
     const added = await invoke('import_files', { files });
+    if (added) onTransactions();
     await session.reload();
     return added;
   }
 
   return {
     ...session,
+    ...(native && {
+      pendingTransactions: () => invoke('pending_transactions'),
+      archiveTransactions: names => invoke('archive_transactions', { names }),
+    }),
     retryBluetooth: native ? retryBluetooth : undefined,
     native,
     web,

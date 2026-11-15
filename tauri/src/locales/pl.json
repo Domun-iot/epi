@@ -1,4 +1,6 @@
 {
+  "syncPending": "Dane oczekują na synchronizację",
+  "syncDelay": "Dane czekają na wysłanie od {date}. Połącz się.",
   "account": "Konto",
   "accountAlreadyExists": "Konto już istnieje dla tego adresu. Zaloguj się na to konto, aby powiązać z nim Google.",
   "accountServerBusy": "Serwer jest zajęty. Spróbuj ponownie za kilka minut.",

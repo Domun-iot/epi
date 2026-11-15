@@ -1,4 +1,6 @@
 {
+  "syncPending": "Dati gaida sinhronizāciju",
+  "syncDelay": "Dati gaida nosūtīšanu kopš {date}. Lūdzu, izveidojiet savienojumu.",
   "account": "Konts",
   "accountAlreadyExists": "Konts šai adresei jau pastāv. Piesakieties šajā kontā, lai saistītu ar to Google.",
   "accountServerBusy": "Serveris ir aizņemts. Mēģiniet vēlreiz pēc dažām minūtēm.",

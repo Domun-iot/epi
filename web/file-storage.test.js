@@ -54,7 +54,13 @@ test('shares native dataset files across web restarts and reloads', async t => {
   assert.deepEqual(reloaded.viewPresets.measurements, [preset]);
   const deletion = reloaded.notifications.find(row => row.type === 'measurement' && row.action === 'deleted');
   assert.equal((await get('notifications/' + deletion.id + '.json')).record.uuid, measurementId);
-  const archive = readArchive(writeArchive(await fileStorage(root, transactions).exportFiles()));
+  const files = fileStorage(root, transactions);
+  const [confirmed, stillPending] = await files.pendingTransactions();
+  await files.archiveTransactions([confirmed.name]);
+  assert.deepEqual(await files.pendingTransactions().then(rows => rows[0]), stillPending);
+  await assert.rejects(readFile(join(root, 'transactions', confirmed.name)), { code: 'ENOENT' });
+  assert.equal((await get('transactions.sent/' + confirmed.name)).uuid, confirmed.transaction.uuid);
+  const archive = readArchive(writeArchive(await files.exportFiles()));
   const paths = archive.map(file => file.path);
   assert.ok(paths.includes('prefs/global.json'));
   assert.ok(paths.includes('prefs/profil-Louise.json'));

@@ -99,11 +99,13 @@ test('synchronizes batches per account and preserves receipts after token expira
       token: pc, body: { transactions: [first, {}] }, status: 400,
     }), { error: 'invalid_transaction' });
     assert.deepEqual(await pending(pc), []);
-    assert.deepEqual(await upload(pc, [first, second]), { inserted: 2 });
-    assert.deepEqual(await upload(pc, [{ ...first, type: 'update' }]), { inserted: 0 });
+    assert.deepEqual(await upload(pc, [first, second]), { inserted: 2, uuids: [first.uuid, second.uuid] });
+    assert.deepEqual(await upload(pc, [{ data: first.data, type: first.type, uuid: first.uuid }]),
+      { inserted: 0, uuids: [first.uuid] });
+    assert.deepEqual(await upload(pc, [{ ...first, type: 'update' }]), { inserted: 0, uuids: [] });
     assert.deepEqual(await pending(other), []);
     assert.deepEqual(await acknowledge(other, [first.uuid]), { inserted: 0 });
-    assert.deepEqual(await upload(other, [first]), { inserted: 1 });
+    assert.deepEqual(await upload(other, [first]), { inserted: 1, uuids: [first.uuid] });
     assert.deepEqual(await pending(other), [first]);
     assert.deepEqual(await pending(pc), [first, second]);
     assert.deepEqual(await acknowledge(pc, [first.uuid, second.uuid]), { inserted: 2 });
@@ -111,6 +113,28 @@ test('synchronizes batches per account and preserves receipts after token expira
     assert.deepEqual(await pending(phone), [first, second]);
     assert.deepEqual(await acknowledge(phone, [first.uuid, first.uuid]), { inserted: 1 });
     assert.deepEqual(await pending(phone), [second]);
+
+    const uploadPreflight = await fetch(baseUrl + '/transactions', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'http://localhost:1421',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'authorization,content-type',
+      },
+    });
+    assert.equal(uploadPreflight.status, 204);
+    assert.equal(uploadPreflight.headers.get('Access-Control-Allow-Origin'), '*');
+    const backlog = Array.from({ length: 130 }, () => ({ ...first, uuid: randomUUID() }));
+    const body = backlog.map(row => JSON.stringify(row)).join('\n') + '\n';
+    for (const inserted of [backlog.length, 0]) {
+      const response = await fetch(baseUrl + '/transactions', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + other, 'Content-Type': 'application/x-ndjson' },
+        body,
+      });
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), { inserted, uuids: backlog.map(row => row.uuid) });
+    }
 
     now += tokenLifetime;
     assert.deepEqual(await pending(pc), []);

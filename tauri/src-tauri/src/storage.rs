@@ -899,8 +899,9 @@ pub fn load_session(app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn save_session(app: AppHandle, session: Value, previous: Value) -> Result<(), String> {
+pub fn save_session(app: AppHandle, session: Value, previous: Value) -> Result<bool, String> {
     let root = data_root(&app)?;
+    let revision = transactions::record_revision();
     with_notifications(&root, &session, &previous, || {
         if [
             "profiles",
@@ -919,7 +920,8 @@ pub fn save_session(app: AppHandle, session: Value, previous: Value) -> Result<(
             return Ok(());
         }
         save_dataset(&root, &session, &previous)
-    })
+    })?;
+    Ok(revision != transactions::record_revision())
 }
 
 fn save_dataset(root: &Path, session: &Value, previous: &Value) -> Result<(), String> {
@@ -1044,7 +1046,7 @@ fn valid_extra_path(path: &str) -> bool {
         ["prefs", "measurements" | "measurement-details", name] | ["notifications", name] => {
             name.ends_with(".json")
         }
-        ["transactions" | "transactions.incoming", name] => {
+        ["transactions" | "transactions.incoming" | "transactions.sent", name] => {
             transactions::filename_uuid(name).is_some()
         }
         _ => false,
@@ -1061,6 +1063,7 @@ fn snapshot_files(root: &Path) -> Result<Vec<DataFile>, String> {
         "notifications",
         "transactions",
         "transactions.incoming",
+        "transactions.sent",
     ] {
         let directory = root.join(folder);
         if !folder.is_empty()
@@ -1128,7 +1131,7 @@ fn merge_snapshot(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
                         file.path
                     ));
                 }
-                let complete = file.path.starts_with("transactions/");
+                let complete = !file.path.starts_with("transactions.incoming/");
                 if complete {
                     ids.insert(uuid);
                 }

@@ -1,4 +1,6 @@
 {
+  "syncPending": "Transactions awaiting sync",
+  "syncDelay": "Data has been waiting to be sent since {date}. Please connect.",
   "account": "Account",
   "accountAlreadyExists": "An account already exists for this email address. Sign in to that account to link Google.",
   "accountServerBusy": "The server is busy. Try again in a few minutes.",

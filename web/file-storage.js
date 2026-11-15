@@ -53,7 +53,7 @@ async function writeAtomic(path, contents, replace) {
   }
 }
 
-export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importHistory, prepareHistory }) {
+export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importHistory, prepareHistory }, onTransactions) {
   const read = path => optional(() => readFile(join(root, path), 'utf8'));
   const entries = async folder => (await optional(() => readdir(join(root, folder), { withFileTypes: true }))) ?? [];
   const readJson = async path => parse(await read(path));
@@ -197,6 +197,7 @@ export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importH
       recordTransaction(root, [...changes].map(([path, { contents, next }]) => ({
         path, before: contents, after: next,
       })));
+      if (changes.size) onTransactions?.();
     } catch (error) {
       const failures = [];
       for (const path of applied.reverse()) {
@@ -213,13 +214,48 @@ export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importH
     }
   }
 
+  async function pendingTransactions() {
+    ensureNoSymlinks(root, 'transactions');
+    const names = (await entries('transactions')).filter(entry =>
+      entry.isFile() && snapshotPath('transactions/' + entry.name)).map(entry => entry.name).sort();
+    const pending = [];
+    for (const name of names) {
+      let transaction = null;
+      try {
+        const contents = await read('transactions/' + name);
+        if (contents === undefined) continue;
+        const value = parse(contents);
+        if (uuid.test(value?.uuid) && name.endsWith('-' + value.uuid + '.json')) transaction = value;
+      } catch {
+        // Keep unreadable files pending while sending the readable ones.
+      }
+      pending.push({ name, transaction });
+    }
+    return pending;
+  }
+
+  async function archiveTransactions(names) {
+    ensureNoSymlinks(root, 'transactions');
+    ensureNoSymlinks(root, 'transactions.sent');
+    const sent = join(root, 'transactions.sent');
+    await mkdir(sent, { recursive: true });
+    for (const name of names) {
+      if (typeof name !== 'string' || !snapshotPath('transactions/' + name)) {
+        throw new Error('Nom de transaction invalide.');
+      }
+      const path = 'transactions/' + name;
+      ensureNoSymlinks(root, path);
+      await optional(() => rename(join(root, path), join(sent, name)));
+    }
+  }
+
   async function exportFiles() {
     const files = [];
     async function collect(folder) {
       for (const entry of await entries(folder)) {
         const path = folder ? folder + '/' + entry.name : entry.name;
         if (entry.isDirectory() && (['profiles', 'devices', 'measures', 'notifications', 'prefs',
-          'prefs/measurements', 'prefs/measurement-details', 'transactions', 'transactions.incoming'].includes(path) ||
+          'prefs/measurements', 'prefs/measurement-details', 'transactions', 'transactions.incoming', 'transactions.sent'].includes(path) ||
           folder === 'measures')) {
           await collect(path);
         } else if (entry.isFile() && snapshotPath(path)) {
@@ -291,8 +327,12 @@ export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importH
       }
       throw error;
     }
-    return applied.length + importHistory(root, historyPlan);
+    const imported = importHistory(root, historyPlan);
+    if (applied.length || historyPlan.archives.some(({ path }) => path.startsWith('transactions/'))) {
+      onTransactions?.();
+    }
+    return applied.length + imported;
   }
 
-  return { load, save, exportFiles, importFiles };
+  return { load, save, exportFiles, importFiles, pendingTransactions, archiveTransactions };
 }

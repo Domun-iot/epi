@@ -1,4 +1,6 @@
 {
+  "syncPending": "Laukiama duomenų sinchronizavimo",
+  "syncDelay": "Duomenys laukia išsiuntimo nuo {date}. Prisijunkite.",
   "account": "sąskaita",
   "accountAlreadyExists": "Šiam adresui skirta paskyra jau yra. Prisijunkite prie šios paskyros, kad su ja susietumėte „Google“.",
   "accountServerBusy": "Serveris užimtas. Bandykite dar kartą po kelių minučių.",

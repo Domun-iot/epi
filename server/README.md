@@ -26,13 +26,13 @@ Les corps POST sont envoyés en JSON avec `Content-Type: application/json`. Les 
 | `POST /v1/accounts` | `{"email":"a@example.org","password":"mot-de-passe"}` | `201` et `{"email":"a@example.org"}`. `409 account_exists` si l'adresse existe déjà. |
 | `POST /v1/device-tokens` | `{"email":"a@example.org","password":"mot-de-passe","deviceId":"pc-1"}` | `200` et `{"token":"…"}`. |
 | `DELETE /v1/device-tokens` | En-tête `Authorization: Bearer <token>` | `204`. Révoque ce jeton sans supprimer les accusés de l’appareil. |
-| `POST /v1/transactions` | `{"transactions":[{"uuid":"…","type":"create","data":{}}]}` | `200` et `{"inserted":1}` si un UUID est nouveau pour le compte. |
+| `POST /v1/transactions` | Objet JSON `{"transactions":[…]}` ou une transaction JSON par ligne (`application/x-ndjson`). | `200` et `{"inserted":1,"uuids":["…"]}` avec les UUID confirmés. |
 | `GET /v1/transactions/pending` | | `200` et `{"transactions":[…]}`, dans l'ordre d'insertion serveur. |
 | `POST /v1/transactions/acknowledge` | `{"uuids":["…"]}` | `200` et `{"inserted":1}` pour un nouvel accusé. |
 
 Les erreurs ont la forme `{"error":"code"}`. L'inscription est ouverte. L'identifiant d'appareil est choisi par le client et doit rester stable pour cette instance. Il accepte 1 à 128 caractères parmi les lettres ASCII, chiffres, points, tirets et underscores. Chaque émission remplace le jeton précédent de l'appareil. Après plus de 30 jours sans utilisation, le jeton est effacé et l'API renvoie `401 token_expired` jusqu'à une nouvelle connexion par mot de passe ou avec Google. Les accusés de l'appareil sont conservés.
 
-Les lots acceptent jusqu'à 100 entrées et les requêtes jusqu'à 4 Mio. Un UUID de transaction est au format canonique en minuscules. Le premier JSON déposé pour un UUID est conservé. Un accusé sur un UUID inconnu du compte est ignoré et peut être renvoyé après le dépôt.
+Le format d’envoi JSON accepte jusqu’à 100 entrées et 4 Mio par requête. Le format NDJSON permet d’envoyer la file locale en une requête, avec la même limite de taille par transaction. Le serveur valide et enregistre le flux par groupes d’au plus 100 transactions et 4 Mio. Si l’envoi est interrompu, le client peut renvoyer le lot entier. Le premier JSON déposé pour un UUID est conservé et un nouvel envoi du même JSON confirme aussi cet UUID. Un UUID associé à un JSON différent reste absent de la liste des confirmations. Les UUID utilisent le format canonique en minuscules. Un accusé de téléchargement sur un UUID inconnu du compte est ignoré et peut être renvoyé après le dépôt.
 
 ## Comptes dans l’application
 

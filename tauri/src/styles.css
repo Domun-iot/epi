@@ -39,6 +39,16 @@ nav { display: grid; gap: 6px; }
 nav button { display: flex; gap: 12px; align-items: center; text-align: left; border: 0; border-radius: 8px; background: transparent; color: #b6c7de; padding: 11px 12px; min-height: 43px; }
 nav button span[aria-hidden] { flex: none; width: 16px; text-align: center; font-size: 1.1rem; }
 nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
+.account-nav { display: flex; align-items: center; }
+#account-button { flex: 1; }
+#sync-status { color: #f5cd83; padding-inline: 8px; }
+#sync-status[hidden] { display: none; }
+#sync-status svg { width: 18px; height: 18px; }
+#sync-status.syncing svg { animation: sync-rotate 1.5s linear 10; }
+@keyframes sync-rotate { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  #sync-status.syncing svg { animation: none; }
+}
 .bluetooth { text-decoration: none; display: flex; align-items: baseline; gap: 9px; margin-top: auto; font-size: .82rem; color: #c9d7ea; line-height: 1.45; overflow-wrap: anywhere; }
 .status-dot { flex: 0 0 7px; height: 7px; border-radius: 50%; background: #61d4a4; }
 .workspace { --view-inline-padding: clamp(9px, 2vw, 27px); min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }

@@ -1,4 +1,6 @@
 {
+  "syncPending": "Údaje čakajú na synchronizáciu",
+  "syncDelay": "Údaje čakajú na odoslanie od {date}. Pripojte sa, prosím.",
   "account": "účtu",
   "accountAlreadyExists": "Pre túto adresu už existuje účet. Prihláste sa do tohto účtu a priraďte k nemu Google.",
   "accountServerBusy": "Server je zaneprázdnený. Skúste to znova o niekoľko minút.",

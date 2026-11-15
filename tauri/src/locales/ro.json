@@ -1,4 +1,6 @@
 {
+  "syncPending": "Date în așteptarea sincronizării",
+  "syncDelay": "Există date care așteaptă să fie trimise din {date}. Conectați-vă.",
   "account": "Cont",
   "accountAlreadyExists": "Există deja un cont pentru această adresă. Conectați-vă la acest cont pentru a asocia Google cu acesta.",
   "accountServerBusy": "Serverul este ocupat. Încercați din nou peste câteva minute.",

@@ -1,4 +1,5 @@
 import { DatabaseSync, type StatementResultingChanges } from 'node:sqlite';
+import { isDeepStrictEqual } from 'node:util';
 
 export function openStore(path: string) {
   const db = new DatabaseSync(path, { enableForeignKeyConstraints: true });
@@ -99,6 +100,7 @@ export function openStore(path: string) {
     INSERT INTO transactions (account_id, uuid, payload) VALUES (?, ?, ?)
     ON CONFLICT (account_id, uuid) DO NOTHING
   `);
+  const storedTransaction = db.prepare('SELECT payload FROM transactions WHERE account_id = ? AND uuid = ?');
   const pending = db.prepare(`
     SELECT t.payload FROM transactions t
     WHERE t.account_id = ? AND NOT EXISTS (
@@ -145,8 +147,17 @@ export function openStore(path: string) {
     expireToken: (selector: string, hash: string, cutoff: number) => expireToken.get(selector, hash, cutoff),
     expireTokens: (cutoff: number) => expireTokens.run(cutoff),
     revokeToken: (selector: string, hash: string) => revokeToken.run(selector, hash),
-    upload: (accountId: number, rows: { uuid: string; payload: string }[]) => writeBatch(rows, ({ uuid, payload }) =>
-      insertTransaction.run(accountId, uuid, payload)),
+    upload(accountId: number, rows: { uuid: string; payload: string }[]) {
+      const uuids = new Set<string>();
+      const inserted = writeBatch(rows, ({ uuid, payload }) => {
+        const result = insertTransaction.run(accountId, uuid, payload);
+        const stored = result.changes ? undefined : storedTransaction.get(accountId, uuid)?.payload;
+        if (result.changes || (typeof stored === 'string' &&
+          (stored === payload || isDeepStrictEqual(JSON.parse(stored), JSON.parse(payload))))) uuids.add(uuid);
+        return result;
+      });
+      return { inserted, uuids: [...uuids] };
+    },
     pending: (accountId: number, deviceId: string, limit: number) =>
       pending.iterate(accountId, deviceId, limit) as IterableIterator<{ payload: string }>,
     acknowledge: (accountId: number, deviceId: string, uuids: string[]) => writeBatch(uuids, uuid =>

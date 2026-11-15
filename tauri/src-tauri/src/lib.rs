@@ -57,7 +57,9 @@ pub fn run() {
             storage::load_session,
             storage::save_session,
             storage::import_files,
-            storage::export_files
+            storage::export_files,
+            transactions::pending_transactions,
+            transactions::archive_transactions
         ])
         .run(context)
         .expect("impossible de démarrer éPI");

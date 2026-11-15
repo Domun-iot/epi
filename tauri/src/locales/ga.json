@@ -1,4 +1,6 @@
 {
+  "syncPending": "Sonraí le sioncronú",
+  "syncDelay": "Tá sonraí le seoladh ó {date}. Ceangail le do thoil.",
   "account": "Cuntas",
   "accountAlreadyExists": "Tá cuntas ann cheana don seoladh seo. Logáil isteach sa chuntas seo chun Google a cheangal leis.",
   "accountServerBusy": "Tá an freastalaí gnóthach. Bain triail eile as i gceann cúpla bomaite.",

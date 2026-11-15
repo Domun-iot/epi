@@ -49,6 +49,15 @@ function readAccount() {
   return typeof saved?.email === 'string' && typeof saved.token === 'string' ? saved : null;
 }
 
+export function syncToken() {
+  try { return configured ? readAccount()?.token : undefined; }
+  catch { return undefined; }
+}
+
+window.addEventListener('storage', event => {
+  if (event.key === sessionKey || event.key === null) window.dispatchEvent(new Event('epi:account'));
+});
+
 function getDeviceId() {
   const existing = localStorage.getItem(deviceKey);
   if (existing) return existing;
@@ -112,35 +121,47 @@ const errors = {
   invalid_credentials_format: t('checkCredentials'),
 };
 
-async function request(path, { method = 'POST', body, token } = {}) {
+async function request(path, { method = 'POST', body, token, contentType = 'application/json' } = {}) {
   const headers = {};
-  if (body) headers['Content-Type'] = 'application/json';
+  if (body) headers['Content-Type'] = contentType;
   if (token) headers.Authorization = 'Bearer ' + token;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   let response;
+  let result;
   try {
     response = await fetch(api + '/v1/' + path, {
       method,
       headers,
-      body: body && JSON.stringify(body),
+      body: body && (contentType === 'application/json' ? JSON.stringify(body) : body),
       credentials: 'omit',
       redirect: 'error',
       signal: controller.signal,
     });
+    if (response.status === 204) return;
+    result = await response.json().catch(() => null);
   } catch {
     throw new Error(t('accountServerUnavailable'));
   } finally {
     clearTimeout(timeout);
   }
-  if (response.status === 204) return;
-  const result = await response.json().catch(() => null);
+  if (controller.signal.aborted) throw new Error(t('accountServerUnavailable'));
   if (!response.ok || !result) {
     const error = new Error(Object.hasOwn(errors, result?.error) ? errors[result.error] : t('accountServerError'));
     error.code = result?.error;
     throw error;
   }
   return result;
+}
+
+export function uploadTransactions(body, token) {
+  return request('transactions', { body, token, contentType: 'application/x-ndjson' });
+}
+
+function clearSession() {
+  localStorage.removeItem(sessionKey);
+  account = null;
+  window.dispatchEvent(new Event('epi:account'));
 }
 
 function saveSession(email, token) {
@@ -150,6 +171,7 @@ function saveSession(email, token) {
   const session = { email, token };
   localStorage.setItem(sessionKey, JSON.stringify(session));
   account = session;
+  window.dispatchEvent(new Event('epi:account'));
   form.reset();
 }
 
@@ -162,8 +184,7 @@ async function refreshAccountInfo() {
     if (session === account) accountInfo = info;
   } catch (error) {
     if (session === account && ['invalid_token', 'token_expired'].includes(error.code)) {
-      localStorage.removeItem(sessionKey);
-      account = null;
+      clearSession();
       showError(error.message);
     }
   } finally {
@@ -320,8 +341,7 @@ form.addEventListener('submit', async event => {
   try {
     if (account) {
       await request('device-tokens', { method: 'DELETE', token: account.token });
-      localStorage.removeItem(sessionKey);
-      account = null;
+      clearSession();
       form.reset();
       useAccountLanguage();
     } else {

@@ -1,4 +1,6 @@
 {
+  "syncPending": "Datos pendientes de sincronizar",
+  "syncDelay": "Hay datos pendientes de envío desde el {date}. Conéctate.",
   "account": "cuenta",
   "accountAlreadyExists": "Ya existe una cuenta para esta dirección. Inicie sesión en esta cuenta para asociar Google con ella.",
   "accountServerBusy": "El servidor está ocupado. Inténtalo de nuevo en unos minutos.",

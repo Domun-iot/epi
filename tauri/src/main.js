@@ -10,7 +10,7 @@ import { viewPresetHeader, viewPresetTitles } from './view-presets.js';
 import { notificationBody, notificationDetailHeader, notificationRecordView, notificationsView, resolveNotification } from './notifications-view.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
 
-import './account.js';
+import { startTransactionSync, requestTransactionSync } from './transaction-sync.js';
 
 const navigation = document.querySelector('#navigation');
 const profilePicker = document.querySelector('#profile');
@@ -991,7 +991,8 @@ try {
       window.history.pushState(null, '', '#measurements');
       renderPageChange();
     }
-  });
+  }, requestTransactionSync);
+  startTransactionSync(session);
   themeToggle.disabled = false;
   reloadButton.hidden = !session.native && !session.web;
   canRetryBluetooth = Boolean(session.retryBluetooth);

@@ -1,8 +1,8 @@
 import { actions } from '../../web/actions.js';
 
-export function createWebSession(onState) {
+export function createWebSession(onState, onTransactions) {
   let pending = Promise.resolve();
-  return Object.fromEntries([...actions, 'exportFiles', 'importFiles'].map(action => [action, (...args) => {
+  return Object.fromEntries([...actions, 'exportFiles', 'importFiles', 'pendingTransactions', 'archiveTransactions'].map(action => [action, (...args) => {
     const task = pending.then(async () => {
       const response = await fetch('/api/session', {
         method: 'POST',
@@ -11,6 +11,8 @@ export function createWebSession(onState) {
       });
       const state = await response.json();
       if (!response.ok) throw new Error(state.error);
+      if (response.headers.get('X-Epi-Transactions') === 'pending') onTransactions();
+      if (action === 'pendingTransactions' || action === 'archiveTransactions') return state;
       if (action === 'exportFiles') return state.files;
       if (action === 'importFiles') {
         onState(state.state);

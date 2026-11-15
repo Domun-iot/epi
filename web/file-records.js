@@ -5,7 +5,7 @@ export function snapshotPath(path) {
     !part || /^(?:\.|(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$))|[. ]$|[\\:*?"<>|\p{Cc}]/iu.test(part))) {
     return false;
   }
-  return recordPath.test(path) || /^(?:(?:interface|session)\.json|transactions\.index|prefs\/(?:global|profil[-~][^/]+|(?:measurements|measurement-details)\/[^/]+)\.json|notifications\/[^/]+\.json|transactions(?:\.incoming)?\/\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d\.\d{6}Z-[0-9a-f-]{36}\.json)$/u.test(path);
+  return recordPath.test(path) || /^(?:(?:interface|session)\.json|transactions\.index|prefs\/(?:global|profil[-~][^/]+|(?:measurements|measurement-details)\/[^/]+)\.json|notifications\/[^/]+\.json|transactions(?:\.(?:incoming|sent))?\/\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d\.\d{6}Z-[0-9a-f-]{36}\.json)$/u.test(path);
 }
 
 export function fileRecords(files) {

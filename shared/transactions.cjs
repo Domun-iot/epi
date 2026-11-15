@@ -131,7 +131,7 @@ function prepareHistory(entries) {
       }
     } else {
       const uuid = archiveUuid(path.split('/').at(-1), contents);
-      const completed = path.startsWith('transactions/');
+      const completed = !path.startsWith('transactions.incoming/');
       if (completed) ids.add(uuid);
       archives.push({ path, contents, completed, uuid });
     }
@@ -180,7 +180,7 @@ function replayIncoming(root, incoming) {
     const { type, data } = parse(contents);
     if (!index.has(uuid)) {
       const destination = join(root, 'transactions', name);
-      const archived = readOptional(destination);
+      const archived = readOptional(destination) ?? readOptional(join(root, 'transactions.sent', name));
       if (archived === undefined) {
         const operations = type === 'batch' ? data : [{ ...data, type }];
         if (!Array.isArray(operations) || !operations.length) throw new Error('Transaction vide ou invalide · ' + name);

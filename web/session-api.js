@@ -12,7 +12,8 @@ export function json(response, status, payload) {
 export async function createSessionApi({ root, domain, storage, transactions }) {
   const dataDir = resolve(storage.resolveDataDirectory(root));
   await Promise.all(storage.dataFolders.map(folder => mkdir(resolve(dataDir, folder), { recursive: true })));
-  const files = fileStorage(dataDir, transactions);
+  let transactionRevision = 0;
+  const files = fileStorage(dataDir, transactions, () => { transactionRevision += 1; });
   const session = domain.createSession({ storage: files });
   let pending = Promise.resolve();
   await session.load();
@@ -38,11 +39,26 @@ export async function createSessionApi({ root, domain, storage, transactions }) 
     } catch {
       return json(response, 400, { error: 'JSON invalide.' });
     }
-    if (![...actions, 'exportFiles', 'importFiles'].includes(input?.action) || !Array.isArray(input.args)) {
+    if (![...actions, 'exportFiles', 'importFiles', 'pendingTransactions', 'archiveTransactions'].includes(input?.action) || !Array.isArray(input.args)) {
       return json(response, 400, { error: 'Action invalide.' });
     }
     try {
       const task = pending.then(async () => {
+        const revision = transactionRevision;
+        const result = await performAction();
+        if (revision !== transactionRevision) response.setHeader('X-Epi-Transactions', 'pending');
+        return result;
+      });
+      pending = task.catch(() => {});
+      return json(response, 200, await task);
+
+      async function performAction() {
+        if (input.action === 'pendingTransactions') return files.pendingTransactions();
+        if (input.action === 'archiveTransactions') {
+          if (!Array.isArray(input.args[0])) throw new Error('Liste de transactions invalide.');
+          await files.archiveTransactions(input.args[0]);
+          return {};
+        }
         if (input.action === 'exportFiles') return { files: await files.exportFiles() };
         if (input.action === 'importFiles') {
           if (!Array.isArray(input.args[0])) throw new Error('Liste de fichiers invalide.');
@@ -53,9 +69,7 @@ export async function createSessionApi({ root, domain, storage, transactions }) 
           return { added, state: await session.reload() };
         }
         return session[input.action](...input.args);
-      });
-      pending = task.catch(() => {});
-      return json(response, 200, await task);
+      }
     } catch (error) {
       return json(response, 400, { error: error.message });
     }

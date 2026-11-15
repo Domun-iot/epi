@@ -1,4 +1,6 @@
 {
+  "syncPending": "Andmed ootavad sünkroonimist",
+  "syncDelay": "Andmed ootavad saatmist alates {date}. Palun loo ühendus.",
   "account": "konto",
   "accountAlreadyExists": "Selle aadressi jaoks on konto juba olemas. Google'i seostamiseks logige sellele kontole sisse.",
   "accountServerBusy": "Server on hõivatud. Proovige mõne minuti pärast uuesti.",

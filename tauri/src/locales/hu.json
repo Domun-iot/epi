@@ -1,4 +1,6 @@
 {
+  "syncPending": "Szinkronizálásra váró adatok",
+  "syncDelay": "Az adatok ekkortól várnak elküldésre: {date}. Kérjük, csatlakozzon.",
   "account": "fiók",
   "accountAlreadyExists": "Már létezik fiók ehhez a címhez. Jelentkezzen be ebbe a fiókba a Google társításához.",
   "accountServerBusy": "A szerver foglalt. Próbálja újra néhány perc múlva.",

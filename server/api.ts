@@ -56,6 +56,67 @@ async function readBody(req: IncomingMessage) {
   return body;
 }
 
+function transactionRow(value: unknown) {
+  if (!isObject(value) || !isUuid(value.uuid)) throw new ApiError(400, 'invalid_transaction');
+  const payload = JSON.stringify(value);
+  if (Buffer.byteLength(payload) > maxBodyBytes - '{"transactions":[]}'.length) {
+    throw new ApiError(413, 'transaction_too_large');
+  }
+  return { uuid: value.uuid, payload };
+}
+
+async function uploadStream(req: IncomingMessage, store: Store, accountId: number) {
+  const uuids = new Set<string>();
+  let inserted = 0;
+  const rows: ReturnType<typeof transactionRow>[] = [];
+  let batchBytes = 0;
+  let parts: Buffer[] = [];
+  let bytes = 0;
+
+  function append(part: Buffer) {
+    bytes += part.length;
+    if (bytes > maxBodyBytes) throw new ApiError(413, 'transaction_too_large');
+    parts.push(part);
+  }
+
+  function flush() {
+    if (!rows.length) return;
+    const result = store.upload(accountId, rows);
+    inserted += result.inserted;
+    for (const uuid of result.uuids) uuids.add(uuid);
+    rows.length = 0;
+    batchBytes = 0;
+  }
+
+  function save() {
+    let value: unknown;
+    try {
+      value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(parts, bytes)));
+    } catch {
+      throw new ApiError(400, 'invalid_json');
+    }
+    if (batchBytes + bytes > maxBodyBytes) flush();
+    rows.push(transactionRow(value));
+    batchBytes += bytes;
+    if (rows.length === maxBatchSize) flush();
+    parts = [];
+    bytes = 0;
+  }
+
+  for await (const chunk of req.iterator({ destroyOnReturn: false }) as AsyncIterable<Buffer>) {
+    let start = 0;
+    for (let end = chunk.indexOf(10); end !== -1; end = chunk.indexOf(10, start)) {
+      append(chunk.subarray(start, end));
+      save();
+      start = end + 1;
+    }
+    if (start < chunk.length) append(chunk.subarray(start));
+  }
+  if (bytes) save();
+  flush();
+  return { inserted, uuids: [...uuids] };
+}
+
 function validEmail(email: string) {
   return email.length <= 254 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/u.test(email);
 }
@@ -255,7 +316,7 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
     try {
       const route = req.method + ' ' + req.url;
       if (req.url === '/v1/accounts' || req.url === '/v1/device-tokens' ||
-          req.url === '/v1/account' || req.url?.startsWith('/v1/google/')) {
+          req.url === '/v1/account' || req.url === '/v1/transactions' || req.url?.startsWith('/v1/google/')) {
         res.setHeader('Access-Control-Allow-Origin', '*');
         if (req.method === 'OPTIONS') {
           res.writeHead(204, {
@@ -423,17 +484,14 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
       }
 
       if (route === 'POST /v1/transactions') {
-        const body = await readBody(req);
         const { account_id } = authenticate(req, store, now());
-        const rows = batch(body.transactions).map(value => {
-          if (!isObject(value) || !isUuid(value.uuid)) throw new ApiError(400, 'invalid_transaction');
-          const payload = JSON.stringify(value);
-          if (Buffer.byteLength(payload) > maxBodyBytes - '{"transactions":[]}'.length) {
-            throw new ApiError(413, 'transaction_too_large');
-          }
-          return { uuid: value.uuid, payload };
-        });
-        return send(res, 200, { inserted: store.upload(account_id, rows) });
+        const contentType = req.headers['content-type']?.split(';')[0].trim().toLowerCase();
+        if (contentType === 'application/x-ndjson') {
+          return send(res, 200, await uploadStream(req, store, account_id));
+        }
+        const body = await readBody(req);
+        const rows = batch(body.transactions).map(transactionRow);
+        return send(res, 200, store.upload(account_id, rows));
       }
 
       if (route === 'POST /v1/transactions/acknowledge') {

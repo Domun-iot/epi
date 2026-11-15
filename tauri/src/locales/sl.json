@@ -1,4 +1,6 @@
 {
+  "syncPending": "Podatki čakajo na sinhronizacijo",
+  "syncDelay": "Podatki čakajo na pošiljanje od {date}. Vzpostavite povezavo.",
   "account": "Račun",
   "accountAlreadyExists": "Za ta naslov že obstaja račun. Prijavite se v ta račun, da z njim povežete Google.",
   "accountServerBusy": "Strežnik je zaseden. Poskusite znova čez nekaj minut.",

@@ -1,4 +1,6 @@
 {
+  "syncPending": "Tiedot odottavat synkronointia",
+  "syncDelay": "Tietoja on odottanut lähetystä {date} lähtien. Muodosta yhteys.",
   "account": "Tili",
   "accountAlreadyExists": "Tälle osoitteelle on jo tili. Kirjaudu sisään tähän tiliin yhdistääksesi Googlen siihen.",
   "accountServerBusy": "Palvelin on varattu. Yritä uudelleen muutaman minuutin kuluttua.",

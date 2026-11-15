@@ -1,4 +1,6 @@
 {
+  "syncPending": "Data afventer synkronisering",
+  "syncDelay": "Der har været data klar til afsendelse siden {date}. Opret forbindelse.",
   "account": "Konto",
   "accountAlreadyExists": "Der findes allerede en konto for denne adresse. Log ind på denne konto for at knytte Google til den.",
   "accountServerBusy": "Serveren er optaget. Prøv igen om et par minutter.",

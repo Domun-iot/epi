@@ -1,4 +1,6 @@
 {
+  "syncPending": "Podaci čekaju sinkronizaciju",
+  "syncDelay": "Podaci čekaju slanje od {date}. Povežite se.",
   "account": "Račun",
   "accountAlreadyExists": "Račun već postoji za ovu adresu. Prijavite se na ovaj račun kako biste s njim povezali Google.",
   "accountServerBusy": "Poslužitelj je zauzet. Pokušajte ponovno za nekoliko minuta.",
