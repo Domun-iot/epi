@@ -256,6 +256,10 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       if (entry.measurementUuid && draft.measurements.some(row => row.uuid === entry.measurementUuid)) {
         throw Error('Cette pesée est déjà disponible.');
       }
+      if (entry.measurementUuid && draft.notifications.some(item => item.type === 'measurement'
+        && item.action === 'deleted' && item.record?.uuid === entry.measurementUuid)) {
+        throw Error('Cette pesée peut être restaurée depuis son historique.');
+      }
       updateReceipt(draft, entry.pendingId, () => ({ replaying: true }));
       assign(draft, entry.record.event, entry.pendingId, entry.record.bluetoothMetadata, true);
     });

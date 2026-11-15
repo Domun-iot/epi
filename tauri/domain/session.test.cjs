@@ -273,13 +273,24 @@ test('links one complete receipt through enrollment, attribution, deletion and r
   const deleted = await reopened.deleteMeasurement(measurement);
   const archive = deleted.notifications.find(item => item.action === 'deleted');
   assert.equal(archive.record.uuid, measurement.uuid);
+  await assert.rejects(reopened.replayReceipt(receipt.id), /peut être restaurée/);
+
+  const unlinked = disk();
+  unlinked.measurements = [];
+  unlinked.notifications = deleted.notifications.map(item => item.id === receipt.id
+    ? { ...item, measurementUuid: null, text: 'Pesée ignorée.' } : item);
+  const recovered = fixture(unlinked).session;
+  const recoveredState = await recovered.load();
+  assert.equal(recoveredState.notifications.find(item => item.id === receipt.id).measurementUuid, measurement.uuid);
+  await assert.rejects(recovered.replayReceipt(receipt.id), /peut être restaurée/);
+
+  await reopened.deleteNotification(archive.id);
   const pending = await reopened.replayReceipt(receipt.id);
   assert.equal(pending.pending[0].reason, 'profile');
   assert.deepEqual(pending.pending[0].event, receipt.record.event);
   assert.equal(pending.notifications.find(item => item.id === receipt.id).date, receipt.date);
   assert.deepEqual((await reopened.replayReceipt(receipt.id)).pending, pending.pending);
   await reopened.discardPending(receipt.pendingId);
-  await reopened.deleteNotification(archive.id);
   await reopened.deleteDevice(address);
 
   const replayed = await reopened.replayReceipt(receipt.id);

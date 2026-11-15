@@ -58,8 +58,8 @@ function upgradeIdentities(state) {
     return { ...entry, record, ...(measurements && { measurements }) };
   });
 
-  // Old receipts predate direct references. Link only when the received frame
-  // identifies a single saved measurement or deletion snapshot.
+  // Old receipts and receipts replayed after deletion may lack a direct link.
+  // Repair it only when the frame identifies a single measurement.
   const receipts = new Map();
   for (const row of measurementsByUuid.values()) {
     const key = receiptKey({ ...(row.measures ?? row), receivedAt: row.receivedAt,
@@ -69,14 +69,17 @@ function upgradeIdentities(state) {
     else if (receipts.get(key)?.uuid !== row.uuid) receipts.set(key, null);
   }
   updateRows(state, 'notifications', entry => {
-    if (entry.type !== 'pending' || !entry.record?.event || Object.hasOwn(entry, 'measurementUuid')) return entry;
+    if (entry.type !== 'pending' || !entry.record?.event || entry.measurementUuid) return entry;
     const { event, device } = entry.record;
-    const pending = state.pending.find(row => row.id === entry.pendingId);
+    const pendingId = entry.pendingId ?? entry.id;
+    const pending = state.pending.find(row => row.id === pendingId);
     const linked = !pending && receipts.get(receiptKey(event));
-    return { ...entry, pendingId: entry.pendingId ?? entry.id,
+    if (!linked && Object.hasOwn(entry, 'measurementUuid')) return entry;
+    return { ...entry, pendingId,
       deviceUuid: linked?.device?.uuid ?? device?.uuid ?? devices.get(event.address) ?? null,
       profileUuid: linked?.profile?.uuid ?? null, measurementUuid: linked?.uuid ?? null,
-      record: { ...entry.record, bluetoothMetadata: pending?.bluetoothMetadata ?? null } };
+      ...(linked && { text: 'Pesée enregistrée.' }),
+      record: { ...entry.record, bluetoothMetadata: entry.record.bluetoothMetadata ?? pending?.bluetoothMetadata ?? null } };
   });
 }
 

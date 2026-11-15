@@ -1286,7 +1286,7 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   assert.equal(await page.getByRole('button', { name: /Voir la pesée du/ }).count(), 2);
 });
 
-test('une réception ouvre la pesée enregistrée ou réactive son bandeau à la date d’origine', async t => {
+test('une réception ouvre la pesée active ou supprimée et réactive le bandeau si sa fiche disparaît', async t => {
   const page = await pageWith(t, { profiles: [alice], devices: [device], selectedProfile: 'Alice', measurements: [record] });
   await feed(page, frame);
   await page.getByRole('button', { name: 'Notifications', exact: true }).click();
@@ -1296,10 +1296,20 @@ test('une réception ouvre la pesée enregistrée ou réactive son bandeau à la
   await details.waitFor();
   await page.locator('#detail-actions').getByRole('button', { name: 'Supprimer', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
-  await receipt.waitFor();
+  await page.getByText('Cet élément a été supprimé.', { exact: true }).waitFor();
   await dismissNotificationBanner(page);
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
 
   const originalDate = await receipt.locator('small').innerText();
+  await receipt.click();
+  await details.waitFor();
+  await page.getByText('Cet élément a été supprimé.', { exact: true }).waitFor();
+  await page.locator('.toolbar').getByRole('button', { name: 'Restaurer', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+  const archive = page.locator('.notification-item').filter({ hasText: 'Pesée supprimée' });
+  await archive.getByRole('button', { name: 'Supprimer définitivement la notification' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
+  await archive.waitFor({ state: 'hidden' });
   await receipt.click();
   const pending = page.locator('#pending-actions');
   await pending.getByRole('button', { name: 'Attribuer la pesée' }).waitFor();

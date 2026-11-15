@@ -68,12 +68,11 @@ export function resolveNotification(state, entry) {
   if (!uuid || !records) return entry;
   const live = records.find(row => row.uuid === uuid);
   if (live) return { ...entry, type, record: live, live: true, restored: entry.action === 'deleted' };
-  if (receipt) return entry;
   const archive = state.notifications.reduce((latest, item) => {
     if (item.type !== type || item.action !== 'deleted' || item.record.uuid !== uuid) return latest;
     return !latest || Date.parse(item.date) > Date.parse(latest.date) ? item : latest;
   }, null);
-  return archive ? { ...archive, restored: false } : { ...entry, missing: true };
+  return archive ? { ...archive, restored: false } : receipt ? entry : { ...entry, missing: true };
 }
 
 export function notificationDetailHeader(entry, title) {
