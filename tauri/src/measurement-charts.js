@@ -66,25 +66,17 @@ const colors = [
 const periods = [['30', '30 j'], ['90', '90 j'], ['365', '1 an'], ['all', 'Tout']];
 const signedValue = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2, signDisplay: 'exceptZero' });
 
-export function measurementCharts(rows, series, { period, axis, selected }) {
-  const timeline = rows.map((row, index) => ({ row, index, time: Date.parse(row.receivedAt) }))
-    .filter(({ time }) => Number.isFinite(time)).sort((a, b) => a.time - b.time);
-  const end = timeline.at(-1)?.time;
-  const cutoff = period === 'all' ? -Infinity : end - Number(period) * 86400_000;
-  const readings = timeline.filter(({ time }) => time >= cutoff);
-  const lines = series.map((item, index) => item.id === 'weight' || selected.has(item.id)
-    ? plotSeries(item, readings, colors[index]) : null).filter(Boolean);
-  if (!lines.length) return '<p class="panel empty">Aucune donnée à afficher sur le graphique.</p>';
+const statusLabels = { visible: 'Visible', bold: 'En gras', hidden: 'Masquée' };
 
-  const start = readings[0].time;
-  const active = lines.find(({ id }) => id === axis) ?? lines[0];
-  const layered = [...lines.filter(line => line !== active), active];
-  const x = time => end === start ? 50 : 100 * (time - start) / (end - start);
-  const dateLabel = axisDate.format(start) === axisDate.format(end) && start !== end ? axisTime : axisDate;
-  const latest = active.points.at(-1);
-  const change = latest.value - active.points[0].value;
-  const changeLabel = active.points.length > 1
-    ? `<span class="chart-change">${signedValue.format(change)} sur la période</span>` : '';
+export function measurementCharts(rows, series, { period, statuses = {} }) {
+  const configured = series.map((item, index) => ({ ...item, color: colors[index] }))
+    .filter(({ id }) => Object.hasOwn(statuses, id));
+  const legend = `<div class="chart-legend" role="group" aria-labelledby="chart-series-label">
+    <span id="chart-series-label">Courbes</span>
+    ${configured.map(({ id, label, color }) => `<button type="button" data-action="chart-axis" data-value="${id}"
+      data-status="${statuses[id]}" aria-pressed="${statuses[id] === 'bold'}" aria-description="${statusLabels[statuses[id]]}"
+      style="--series-color:${color}">${e(label)}</button>`).join('')}
+  </div>`;
   return `<section class="panel measurement-chart" aria-labelledby="measurement-chart-title">
     <div class="chart-heading">
       <h2 id="measurement-chart-title">Évolution des pesées</h2>
@@ -93,28 +85,49 @@ export function measurementCharts(rows, series, { period, axis, selected }) {
           aria-pressed="${period === id}">${label}</button>`).join('')}
       </div>
     </div>
-    <div class="chart-summary">
+    ${chartPlot(rows, configured, period, statuses, legend)}
+  </section>`;
+}
+
+function chartPlot(rows, series, period, statuses, legend) {
+  const timeline = rows.map((row, index) => ({ row, index, time: Date.parse(row.receivedAt) }))
+    .filter(({ time }) => Number.isFinite(time)).sort((a, b) => a.time - b.time);
+  const end = timeline.at(-1)?.time;
+  const cutoff = period === 'all' ? -Infinity : end - Number(period) * 86400_000;
+  const readings = timeline.filter(({ time }) => time >= cutoff);
+  const visible = series.filter(({ id }) => statuses[id] !== 'hidden');
+  const lines = visible.map(item => plotSeries(item, readings, item.color)).filter(Boolean);
+  if (!lines.length) {
+    const message = visible.length ? 'Aucune donnée à afficher sur le graphique.' : 'Toutes les courbes sont masquées.';
+    return `${legend}<p class="empty">${message}</p>`;
+  }
+
+  const start = readings[0].time;
+  const active = lines.find(({ id }) => statuses[id] === 'bold') ?? lines[0];
+  const layered = [...lines.filter(line => line !== active), active];
+  const x = time => end === start ? 50 : 100 * (time - start) / (end - start);
+  const dateLabel = axisDate.format(start) === axisDate.format(end) && start !== end ? axisTime : axisDate;
+  const latest = active.points.at(-1);
+  const change = latest.value - active.points[0].value;
+  const changeLabel = active.points.length > 1
+    ? `<span class="chart-change">${signedValue.format(change)} sur la période</span>` : '';
+  return `<div class="chart-summary">
       <span>${e(active.label)}</span>
       <div><strong>${axisValue.format(latest.value)}</strong>${changeLabel}</div>
     </div>
-    <div class="chart-legend" role="group" aria-labelledby="chart-scale-label">
-      <span id="chart-scale-label">Échelle verticale</span>
-      ${lines.map(({ id, label, color }) => `<button type="button" data-action="chart-axis" data-value="${id}"
-        aria-pressed="${id === active.id}" style="--series-color:${color}">${e(label)}</button>`).join('')}
-    </div>
+    ${legend}
     <div class="chart-frame">
       <div class="chart-values" aria-hidden="true">${active.ticks.map(value =>
         `<span style="--y:${active.y(value)}%">${axisValue.format(value)}</span>`).join('')}</div>
       <div class="chart-plot">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           ${active.ticks.map(value => `<path class="chart-gridline" d="M0,${active.y(value)} H100" vector-effect="non-scaling-stroke"/>`).join('')}
-          ${layered.map(line => renderLine(line, x, line === active)).join('')}
+          ${layered.map(line => renderLine(line, x, statuses[line.id] === 'bold')).join('')}
         </svg>
-        ${layered.map(line => renderPoints(line, x, line === active)).join('')}
+        ${layered.map(line => renderPoints(line, x, statuses[line.id] === 'bold')).join('')}
       </div>
       <div class="chart-dates" aria-hidden="true">${start === end
         ? `<span class="chart-date-single">${e(dateLabel.format(start))}</span>`
         : `<span>${e(dateLabel.format(start))}</span><span class="chart-date-middle">${e(dateLabel.format((start + end) / 2))}</span><span>${e(dateLabel.format(end))}</span>`}</div>
-    </div>
-  </section>`;
+    </div>`;
 }

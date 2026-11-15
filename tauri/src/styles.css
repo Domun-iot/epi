@@ -189,6 +189,8 @@ p { line-height: 1.55; }
 .chart-legend > span { padding-right: 4px; color: var(--muted); font-size: .82rem; }
 .chart-legend button { display: inline-flex; align-items: center; gap: 6px; text-align: left; }
 .chart-legend button::before { content: ""; flex: 0 0 8px; height: 8px; border-radius: 50%; background: var(--series-color); }
+.chart-legend [data-status="hidden"] { text-decoration: line-through; }
+.chart-legend [data-status="hidden"]::before { opacity: .35; }
 .chart-frame {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);

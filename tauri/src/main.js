@@ -55,7 +55,6 @@ let reading = null;
 let historyScroll;
 let columnQuery = '';
 let chartPeriod = 'all';
-let chartAxis = 'weight';
 let notificationId = null;
 let activeNotice = null;
 let noticeQueue = [];
@@ -144,7 +143,7 @@ function render() {
   const layoutKey = layout ? [layout.presets, layout.preset, layout.modified, ...Object.values(layout.layout)] : [];
   const nextMain = page === 'bluetooth' ? [page, state.addressFilter, state.devices, session?.web]
     : detail ? [page, detail, state.selectedProfile, ...layoutKey] : [page, state.selectedProfile, ...(page === 'measurements'
-    ? [state.measurements, state.measurementDisplay, chartPeriod, chartAxis, ...layoutKey]
+    ? [state.measurements, state.measurementDisplay, chartPeriod, state.chartSeries, ...layoutKey]
     : page === 'profiles' ? [state.profiles] : page === 'devices' ? [state.devices, state.addressFilter]
       : [state.notifications, notificationId, state.devices, target?.record])];
   if (changed(lastMain, nextMain)) {
@@ -179,7 +178,7 @@ function render() {
     const focusedPresetAction = active?.closest('.view-preset-header') && active.dataset.action;
     const markup = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder,
-        columnsOpen, columnQuery, header, state.measurementDisplay, { period: chartPeriod, axis: chartAxis })
+        columnsOpen, columnQuery, header, state.measurementDisplay, { period: chartPeriod, statuses: state.chartSeries })
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile)
       : page === 'devices' ? devicesView(state.devices, state.addressFilter, state.rawOpen, !session?.web)
       : page === 'bluetooth' ? bluetoothView(state, session?.web)
@@ -504,7 +503,7 @@ const actions = {
     if (item) return session.discardPending(item.id);
   },
   'chart-period': period => { chartPeriod = period; render(); },
-  'chart-axis': axis => { chartAxis = axis; render(); },
+  'chart-axis': id => session.cycleChartSeries(state.selectedProfile, state.viewLayouts.measurements.preset?.id ?? null, id),
   'measurement-display': display => session.setMeasurementDisplay(state.selectedProfile, display),
   'split-column': id => session.setColumnPreference(state.selectedProfile, id, 'splitColumns',
     !state.splitColumns.includes(id)),

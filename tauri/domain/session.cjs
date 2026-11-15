@@ -4,6 +4,7 @@ const { buildDevice, deviceFileKey } = require('../../shared/device-fields.cjs')
 const { canonicalAddress } = require('../../shared/scale.cjs');
 const { historyRecord, latestWeights, matchWeight } = require('../../shared/history.cjs');
 const { nameKey } = require('../../shared/profile-fields.cjs');
+const { metrics } = require('../../shared/composition.cjs');
 const { createAcquisition } = require('./acquisition.cjs');
 const { applyObservation, enrollmentRequest, findDevice } = require('./devices.cjs');
 const { ADDRESS, findProfile, profileFields, mergeLegacy, measurementSlot } = require('./records.cjs');
@@ -15,6 +16,10 @@ const viewDefaults = {
   measurements: { columns: ['impedanceOhms', 'bmi'], splitColumns: [], columnOrder: [] },
   details: { methodColumnOrder: [], detailSectionOrder: [] },
 };
+const chartColumns = ['impedanceOhms', ...metrics.map(([id]) => id)];
+const chartStates = ['visible', 'bold', 'hidden'];
+const chartViewKey = preset => preset?.id ?? 'default';
+
 const emptyState = () => ({
   profiles: [],
   devices: [],
@@ -72,6 +77,18 @@ function selectLayout(prefs, kind, id) {
   return next;
 }
 
+function chartPreferences(prefs, { preset, layout }) {
+  const key = chartViewKey(preset);
+  const stored = prefs.chartSeriesByView?.[key];
+  const ids = ['weight', ...chartColumns.filter(id => layout.columns.includes(id))];
+  const series = Object.fromEntries(ids.map(id => {
+    const status = stored?.[id];
+    const fallback = !stored && id === 'weight' ? 'bold' : 'visible';
+    return [id, chartStates.includes(status) ? status : fallback];
+  }));
+  return { key, stored, series };
+}
+
 function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing }) {
   let saved;
   let enrollment = null;
@@ -101,6 +118,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     const details = layoutFor(saved, prefs, 'details');
     return { ...saved, ...measurements.layout, ...details.layout, viewLayouts: { measurements, details },
       measurementDisplay: prefs.measurementDisplay === 'chart' ? 'chart' : 'table',
+      chartSeries: prefs.chartSeriesByView?.[chartViewKey(measurements.preset)],
       theme: prefs.theme, rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: prefs.detailSectionsOpen, enrollment, acquisitionError };
   }
 
@@ -140,6 +158,14 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     const result = change(draft);
     if (!draft.selectedProfile && draft.profiles.length === 1) {
       draft.selectedProfile = draft.profiles[0].name;
+    }
+    const prefs = preferencesFor(draft);
+    if (prefs.measurementDisplay === 'chart') {
+      const { key, stored, series } = chartPreferences(prefs, layoutFor(draft, prefs, 'measurements'));
+      if (!stored || Object.keys(stored).length !== Object.keys(series).length
+          || Object.entries(series).some(([id, status]) => stored[id] !== status)) {
+        saveChartPreferences(draft, draft.selectedProfile, prefs, key, series);
+      }
     }
     const remaining = retainNotifications(draft.notifications);
     if (remaining.length !== draft.notifications.length) draft.notifications = remaining;
@@ -352,6 +378,31 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       if (prefs.measurementDisplay !== measurementDisplay) {
         savePreferences(draft, name, { ...prefs, measurementDisplay });
       }
+    });
+  }
+
+  function saveChartPreferences(draft, profile, prefs, key, series) {
+    savePreferences(draft, profile, { ...prefs, chartSeriesByView: { ...prefs.chartSeriesByView, [key]: series } });
+  }
+
+  function cycleChartSeries(profile, viewId, id) {
+    return mutate(draft => {
+      const target = profile == null ? null : findProfile(draft, profile);
+      if (profile != null && !target) throw Error('Profil introuvable.');
+      const name = target?.name ?? null;
+      const prefs = preferencesFor(draft, name);
+      const layout = layoutFor(draft, prefs, 'measurements');
+      if ((layout.preset?.id ?? null) !== viewId) return;
+      const { key, series } = chartPreferences(prefs, layout);
+      if (!Object.hasOwn(series, id)) return;
+      const next = chartStates[(chartStates.indexOf(series[id]) + 1) % chartStates.length];
+      if (next === 'bold') {
+        for (const entry of Object.keys(series)) {
+          if (series[entry] === 'bold') series[entry] = 'visible';
+        }
+      }
+      series[id] = next;
+      saveChartPreferences(draft, name, prefs, key, series);
     });
   }
 
@@ -627,7 +678,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       return () => observers.delete(observer);
     },
     selectProfile, saveProfile, setColumnPreference, renameDevice, beginDevice, cancelDevice, confirmProfile,
-    deleteProfile, deleteDevice, deleteMeasurement, setPanelOpen, changeViewPreset, setTheme, setMeasurementDisplay,
+    deleteProfile, deleteDevice, deleteMeasurement, setPanelOpen, changeViewPreset, setTheme, setMeasurementDisplay, cycleChartSeries,
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
     moveDetailSection: (...args) => movePreference('detailSectionOrder', ...args),

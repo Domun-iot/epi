@@ -620,8 +620,11 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   assert.deepEqual((await series.evaluateAll(lines => lines.map(line => line.dataset.series))).sort(), ['bmi', 'impedanceOhms', 'weight']);
   const bmi = weightChart.getByRole('button', { name: 'IMC (kg/m²)', exact: true });
   await bmi.click();
+  await weightChart.locator('.chart-line-active[data-series="bmi"]').waitFor({ state: 'attached' });
   assert.equal(await bmi.getAttribute('aria-pressed'), 'true');
-  assert.equal(await weightChart.locator('.chart-line-active').getAttribute('data-series'), 'bmi');
+  await bmi.click();
+  await weightChart.locator('.chart-line[data-series="bmi"]').waitFor({ state: 'detached' });
+  assert.equal(await bmi.getAttribute('data-status'), 'hidden');
   const points = weightChart.locator('.chart-point[data-series="weight"]');
   await weightChart.getByRole('button', { name: '30 j', exact: true }).click();
   assert.equal(await points.count(), 1);
@@ -641,6 +644,20 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   await weightChart.waitFor();
   await page.reload();
   await weightChart.waitFor();
+  assert.equal(await bmi.getAttribute('data-status'), 'hidden');
+  await bmi.click();
+  await weightChart.locator('.chart-line[data-series="bmi"]').waitFor({ state: 'attached' });
+  assert.equal(await bmi.getAttribute('data-status'), 'visible');
+
+  for (const id of ['bmi', 'weight', 'impedanceOhms']) {
+    const button = weightChart.locator(`[data-action="chart-axis"][data-value="${id}"]`);
+    await button.click();
+    await button.click();
+    await weightChart.locator(`[data-value="${id}"][data-status="hidden"]`).waitFor();
+  }
+  await weightChart.getByText('Toutes les courbes sont masquées.').waitFor();
+  await bmi.click();
+  await weightChart.locator('.chart-line[data-series="bmi"]').waitFor({ state: 'attached' });
   await table.click();
   await page.getByRole('table', { name: 'Pesées' }).waitFor();
   await page.reload();

@@ -54,6 +54,41 @@ test('keeps the manual selection on reopen and edits profile details without cha
   assert.deepEqual(reopened.splitColumns, ['fatPercent']);
 });
 
+test('persists chart series by profile and view UUID and reconciles changed columns', async () => {
+  const { session, disk } = fixture({ profiles: [lou, sam], selectedProfile: 'Lou' });
+  await session.load();
+  await session.setMeasurementDisplay('Lou', 'chart');
+  const created = await session.changeViewPreset('Lou', 'measurements', 'create', { name: 'Composition' });
+  const id = created.viewLayouts.measurements.preset.id;
+  assert.match(id, /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/);
+
+  await Promise.all([
+    session.cycleChartSeries('Lou', id, 'bmi'),
+    session.cycleChartSeries('Lou', id, 'bmi'),
+  ]);
+  const renamed = await session.changeViewPreset('Lou', 'measurements', 'rename', { id, name: 'Corps' });
+  assert.equal(renamed.viewLayouts.measurements.preset.id, id);
+  assert.deepEqual(renamed.chartSeries, { weight: 'visible', impedanceOhms: 'visible', bmi: 'hidden' });
+  assert.deepEqual(disk().profilePreferences.Lou.chartSeriesByView.default,
+    { weight: 'bold', impedanceOhms: 'visible', bmi: 'visible' });
+
+  await session.selectProfile('Sam');
+  await session.changeViewPreset('Sam', 'measurements', 'select', { id });
+  const other = await session.setMeasurementDisplay('Sam', 'chart');
+  assert.equal(other.chartSeries.bmi, 'visible');
+  await session.setColumnPreference('Sam', 'impedanceOhms', 'columns', false);
+  await session.setColumnPreference('Sam', 'fatPercent', 'columns', true);
+  await session.changeViewPreset('Sam', 'measurements', 'save', { id, name: 'Corps' });
+
+  const edited = disk();
+  edited.selectedProfile = 'Lou';
+  const reopened = fixture(edited);
+  const expected = { weight: 'visible', bmi: 'hidden', fatPercent: 'visible' };
+  assert.deepEqual((await reopened.session.load()).chartSeries, expected);
+  assert.deepEqual(reopened.disk().profilePreferences.Lou.chartSeriesByView[id], expected);
+  assert.equal((await reopened.session.cycleChartSeries('Lou', id, 'bmi')).chartSeries.bmi, 'visible');
+});
+
 test('settles parallel readings, replaces weight-only with impedance, and switches profile', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const { session, disk } = fixture({ profiles: [lou, sam], devices: [device],
