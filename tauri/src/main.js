@@ -511,7 +511,8 @@ const actions = {
   'chart-mode': mode => session.setChartOptions(state.selectedProfile,
     state.viewLayouts.measurements.preset?.id ?? null, { mode }),
   'chart-axis': id => session.cycleChartSeries(state.selectedProfile, state.viewLayouts.measurements.preset?.id ?? null, id),
-  'measurement-display': display => session.setMeasurementDisplay(state.selectedProfile, display),
+  'measurement-display': display => session.setMeasurementDisplay(state.selectedProfile, display,
+    state.viewLayouts.measurements.preset?.id ?? null),
   'split-column': id => session.setColumnPreference(state.selectedProfile, id, 'splitColumns',
     !state.splitColumns.includes(id)),
   reading: index => {

@@ -55,9 +55,9 @@ test('keeps the manual selection on reopen and edits profile details without cha
 });
 
 test('persists chart series by profile and view UUID and reconciles changed columns', async () => {
-  const { session, disk } = fixture({ profiles: [lou, sam], selectedProfile: 'Lou' });
-  await session.load();
-  await session.setMeasurementDisplay('Lou', 'chart');
+  const { session, disk } = fixture({ profiles: [lou, sam], selectedProfile: 'Lou',
+    profilePreferences: { Lou: { measurementDisplay: 'chart' } } });
+  assert.equal((await session.load()).measurementDisplay, 'chart');
   await session.setColumnPreference('Lou', 'impedanceOhms', 'columns', true);
   const created = await session.changeViewPreset('Lou', 'measurements', 'create', { name: 'Composition' });
   const id = created.viewLayouts.measurements.preset.id;
@@ -82,7 +82,7 @@ test('persists chart series by profile and view UUID and reconciles changed colu
   await session.changeViewPreset('Sam', 'measurements', 'select', { id });
   const other = await session.setMeasurementDisplay('Sam', 'chart');
   assert.equal(other.chartSeries.bmi, 'visible');
-  assert.equal(other.chartOptions, undefined);
+  assert.deepEqual(other.chartOptions, { display: 'chart' });
   await session.setColumnPreference('Sam', 'impedanceOhms', 'columns', false);
   await session.setColumnPreference('Sam', 'fatPercent', 'columns', true);
   await session.changeViewPreset('Sam', 'measurements', 'save', { id, name: 'Corps' });
@@ -99,6 +99,28 @@ test('persists chart series by profile and view UUID and reconciles changed colu
     { mode: 'raw', period: 'all' });
   assert.deepEqual(reopened.disk().profilePreferences.Lou.chartSeriesByView[id], expected);
   assert.equal((await reopened.session.cycleChartSeries('Lou', id, 'bmi')).chartSeries.bmi, 'visible');
+});
+
+test('persists the weighing display per profile and view alongside chart options', async () => {
+  const { session, disk } = fixture({ profiles: [lou, sam], selectedProfile: 'Lou' });
+  await session.load();
+  await session.setMeasurementDisplay('Lou', 'chart', null);
+  const created = await session.changeViewPreset('Lou', 'measurements', 'create', { name: 'Composition' });
+  const id = created.viewLayouts.measurements.preset.id;
+  assert.equal(created.measurementDisplay, 'table');
+  await session.setChartOptions('Lou', id, { mode: 'raw' });
+  await session.setMeasurementDisplay('Lou', 'chart', id);
+  await session.setMeasurementDisplay('Lou', 'table', id);
+  await session.selectProfile('Sam');
+  await session.changeViewPreset('Sam', 'measurements', 'select', { id });
+  await session.setMeasurementDisplay('Sam', 'chart', id);
+
+  const reopened = fixture(disk()).session;
+  assert.equal((await reopened.load()).measurementDisplay, 'chart');
+  const restored = await reopened.selectProfile('Lou');
+  assert.equal(restored.measurementDisplay, 'table');
+  assert.deepEqual(restored.chartOptions, { mode: 'raw', display: 'table' });
+  assert.equal((await reopened.changeViewPreset('Lou', 'measurements', 'select')).measurementDisplay, 'chart');
 });
 
 test('settles parallel readings, replaces weight-only with impedance, and switches profile', async t => {

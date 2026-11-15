@@ -20,6 +20,10 @@ const chartColumns = ['impedanceOhms', ...metrics.map(([id]) => id)];
 const chartStates = ['visible', 'bold', 'hidden'];
 const chartViewKey = preset => preset?.id ?? 'default';
 
+function measurementDisplayFor(prefs, chartOptions) {
+  return (chartOptions?.display ?? prefs.measurementDisplay) === 'chart' ? 'chart' : 'table';
+}
+
 const emptyState = () => ({
   profiles: [],
   devices: [],
@@ -116,10 +120,11 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     const prefs = preferencesFor(saved);
     const measurements = layoutFor(saved, prefs, 'measurements');
     const details = layoutFor(saved, prefs, 'details');
+    const key = chartViewKey(measurements.preset);
+    const chartOptions = prefs.chartOptionsByView?.[key];
     return { ...saved, ...measurements.layout, ...details.layout, viewLayouts: { measurements, details },
-      measurementDisplay: prefs.measurementDisplay === 'chart' ? 'chart' : 'table',
-      chartSeries: prefs.chartSeriesByView?.[chartViewKey(measurements.preset)],
-      chartOptions: prefs.chartOptionsByView?.[chartViewKey(measurements.preset)],
+      measurementDisplay: measurementDisplayFor(prefs, chartOptions), chartOptions,
+      chartSeries: prefs.chartSeriesByView?.[key],
       theme: prefs.theme, rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: prefs.detailSectionsOpen, enrollment, acquisitionError };
   }
 
@@ -161,8 +166,10 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       draft.selectedProfile = draft.profiles[0].name;
     }
     const prefs = preferencesFor(draft);
-    if (prefs.measurementDisplay === 'chart') {
-      const { key, stored, series } = chartPreferences(prefs, layoutFor(draft, prefs, 'measurements'));
+    const measurements = layoutFor(draft, prefs, 'measurements');
+    const chartOptions = prefs.chartOptionsByView?.[chartViewKey(measurements.preset)];
+    if (measurementDisplayFor(prefs, chartOptions) === 'chart') {
+      const { key, stored, series } = chartPreferences(prefs, measurements);
       if (!stored || Object.keys(stored).length !== Object.keys(series).length
           || Object.entries(series).some(([id, status]) => stored[id] !== status)) {
         saveChartPreferences(draft, draft.selectedProfile, prefs, key, series);
@@ -367,19 +374,8 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     });
   }
 
-  function setMeasurementDisplay(profile, measurementDisplay) {
-    return mutate(draft => {
-      const target = profile == null ? null : findProfile(draft, profile);
-      if (profile != null && !target) throw Error('Profil introuvable.');
-      if (measurementDisplay !== 'chart' && measurementDisplay !== 'table') {
-        throw Error('Visualisation des pesées invalide.');
-      }
-      const name = target?.name ?? null;
-      const prefs = preferencesFor(draft, name);
-      if (prefs.measurementDisplay !== measurementDisplay) {
-        savePreferences(draft, name, { ...prefs, measurementDisplay });
-      }
-    });
+  function setMeasurementDisplay(profile, display, viewId) {
+    return setChartOptions(profile, viewId, { display });
   }
 
   function saveChartPreferences(draft, profile, prefs, key, series) {
@@ -414,9 +410,13 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       const name = target?.name ?? null;
       const prefs = preferencesFor(draft, name);
       const { preset } = layoutFor(draft, prefs, 'measurements');
-      if ((preset?.id ?? null) !== viewId) return;
+      if (viewId !== undefined && (preset?.id ?? null) !== viewId) return;
       const key = chartViewKey(preset);
       const next = { ...prefs.chartOptionsByView?.[key] };
+      if (Object.hasOwn(options, 'display')) {
+        if (!['chart', 'table'].includes(options.display)) throw Error('Visualisation des pesées invalide.');
+        next.display = options.display;
+      }
       if (Object.hasOwn(options, 'mode')) {
         if (!['raw', 'smooth'].includes(options.mode)) throw Error('Mode de graphique invalide.');
         next.mode = options.mode;
