@@ -66,7 +66,14 @@ function webSessionApi() {
   };
 }
 
-export default defineConfig(({ command, mode }) => ({
+async function devAccountApi(command, isPreview) {
+  if (command !== 'serve' || isPreview) return null;
+  const { default: config } = await import(new URL('../server/config.js', appPath).href);
+  return 'http://127.0.0.1:' + config.port;
+}
+
+export default defineConfig(async ({ command, mode, isPreview }) => ({
+  define: { __DEV_ACCOUNT_API__: JSON.stringify(await devAccountApi(command, isPreview)) },
   clearScreen: false,
   plugins: [sharedModules(), ...(command === 'serve' && mode === 'web' ? [webSessionApi()] : [])],
   server: {

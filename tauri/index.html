@@ -18,6 +18,7 @@
           <button type="button" data-page="measurements"><span aria-hidden="true">▤</span>Mesures</button>
           <button type="button" data-page="profiles"><span aria-hidden="true">◉</span>Profils</button>
           <button type="button" data-page="devices"><span aria-hidden="true">⌁</span>Appareils</button>
+          <button type="button" id="account-button"><span aria-hidden="true">◎</span>Compte</button>
         </nav>
         <a class="bluetooth" id="status" href="#bluetooth" aria-controls="view"><span class="status-dot" aria-hidden="true"></span><span aria-live="polite">Initialisation du Bluetooth…</span></a>
         <button type="button" id="retry-bluetooth" hidden>Relancer le Bluetooth</button>
@@ -66,6 +67,22 @@
       </div>
     </div>
     <dialog id="editor" aria-labelledby="dialog-title"></dialog>
+    <dialog id="account-dialog" aria-labelledby="account-title">
+      <h2 id="account-title">Connexion</h2>
+      <form id="account-form" class="editor-form">
+        <div id="account-fields" class="editor-form">
+          <label>Adresse e-mail <input name="email" type="email" autocomplete="username" maxlength="254" required></label>
+          <label>Mot de passe <input name="password" type="password" autocomplete="current-password" required></label>
+        </div>
+        <p id="account-email" hidden></p>
+        <p id="account-error" class="notice" role="alert" hidden></p>
+      </form>
+      <div class="actions">
+        <button type="button" class="button" id="account-switch">Créer un compte</button>
+        <button type="button" class="button" id="account-close">Fermer</button>
+        <button type="submit" class="button primary" id="account-submit" form="account-form">Se connecter</button>
+      </div>
+    </dialog>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

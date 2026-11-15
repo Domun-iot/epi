@@ -25,6 +25,7 @@ Les corps POST sont envoyés en JSON avec `Content-Type: application/json`. Les 
 | --- | --- | --- |
 | `POST /v1/accounts` | `{"email":"a@example.org","password":"mot-de-passe"}` | `201` et `{"email":"a@example.org"}`. `409 account_exists` si l'adresse existe déjà. |
 | `POST /v1/device-tokens` | `{"email":"a@example.org","password":"mot-de-passe","deviceId":"pc-1"}` | `200` et `{"token":"…"}`. |
+| `DELETE /v1/device-tokens` | En-tête `Authorization: Bearer <token>` | `204`. Révoque ce jeton sans supprimer les accusés de l’appareil. |
 | `POST /v1/transactions` | `{"transactions":[{"uuid":"…","type":"create","data":{}}]}` | `200` et `{"inserted":1}` si un UUID est nouveau pour le compte. |
 | `GET /v1/transactions/pending` | | `200` et `{"transactions":[…]}`, dans l'ordre d'insertion serveur. |
 | `POST /v1/transactions/acknowledge` | `{"uuids":["…"]}` | `200` et `{"inserted":1}` pour un nouvel accusé. |
@@ -32,6 +33,14 @@ Les corps POST sont envoyés en JSON avec `Content-Type: application/json`. Les 
 Les erreurs ont la forme `{"error":"code"}`. L'inscription est ouverte. L'identifiant d'appareil est choisi par le client et doit rester stable pour cette instance. Il accepte 1 à 128 caractères parmi les lettres ASCII, chiffres, points, tirets et underscores. Chaque émission remplace le jeton précédent de l'appareil. Après plus de 30 jours sans utilisation, le jeton est effacé et l'API renvoie `401 token_expired` jusqu'à son renouvellement par email et mot de passe. Les accusés de l'appareil sont conservés.
 
 Les lots acceptent jusqu'à 100 entrées et les requêtes jusqu'à 4 Mio. Un UUID de transaction est au format canonique en minuscules. Le premier JSON déposé pour un UUID est conservé. Un accusé sur un UUID inconnu du compte est ignoré et peut être renvoyé après le dépôt.
+
+## Comptes dans l’application
+
+Ouvrez « Compte » dans l’application web ou Tauri. La création du compte ouvre une session. La déconnexion révoque le jeton de cette installation. En cas d’échec de la révocation, la session reste ouverte et la déconnexion peut être relancée.
+
+En développement, lancez `run/rundev-server.bat` (ou `sh run/rundev-server.sh`), puis `run/dev-web.bat` ou `run/dev-tauri.bat` (ou leurs équivalents `.sh`). Le client Vite lit le port de `server/config.js` au démarrage et appelle l’API directement sur `127.0.0.1`. Pour tester avec Tauri en mode développement sur Android via ADB, redirigez le port API avec `adb reverse tcp:8787 tcp:8787`, en remplaçant `8787` par le port configuré si besoin.
+
+Les builds utilisent une URL HTTPS provisoire dans `tauri/src/account.js`. Pour activer les comptes en production, remplacez-la par l’URL du proxy HTTPS et adaptez `connect-src` dans `tauri/src-tauri/tauri.conf.json` au même hôte. Le proxy relaie les méthodes `POST`, `DELETE` et `OPTIONS` des routes de compte vers le serveur HTTP, ainsi que les en-têtes CORS.
 
 ## Boucle côté client
 

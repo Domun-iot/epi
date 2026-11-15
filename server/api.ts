@@ -80,11 +80,15 @@ function hashToken(secret: string) {
   return createHash('sha256').update(secret).digest('hex');
 }
 
-function authenticate(req: IncomingMessage, store: Store, now: number) {
+function readToken(req: IncomingMessage) {
   const token = /^Bearer ([0-9a-f]{32})\.([0-9a-f]{64})$/i.exec(req.headers.authorization ?? '');
   if (!token) throw new ApiError(401, 'invalid_token');
   const [, selector, secret] = token;
-  const hash = hashToken(secret);
+  return { selector, hash: hashToken(secret) };
+}
+
+function authenticate(req: IncomingMessage, store: Store, now: number) {
+  const { selector, hash } = readToken(req);
   const cutoff = now - tokenLifetime;
   const device = store.useToken(now, selector, hash, cutoff);
   if (device) return device;
@@ -120,6 +124,16 @@ export function createApi(store: Store, now = Date.now) {
   const server = createServer({ requestTimeout: 30_000 }, async (req, res) => {
     try {
       const route = req.method + ' ' + req.url;
+      if (req.url === '/v1/accounts' || req.url === '/v1/device-tokens') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, {
+            'Access-Control-Allow-Methods': req.url === '/v1/accounts' ? 'POST' : 'POST, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          });
+          return res.end();
+        }
+      }
       if (route === 'POST /v1/accounts') {
         const { email, password } = credentials(await readBody(req));
         if (!store.createAccount(email, await hashPassword(password))) {
@@ -142,6 +156,13 @@ export function createApi(store: Store, now = Date.now) {
         const secret = randomBytes(32).toString('hex');
         store.issueToken(account.id, deviceId, selector, hashToken(secret), now());
         return send(res, 200, { token: selector + '.' + secret });
+      }
+
+      if (route === 'DELETE /v1/device-tokens') {
+        const { selector, hash } = readToken(req);
+        store.revokeToken(selector, hash);
+        res.writeHead(204, { 'Cache-Control': 'no-store' });
+        return res.end();
       }
 
       if (route === 'GET /v1/transactions/pending') {

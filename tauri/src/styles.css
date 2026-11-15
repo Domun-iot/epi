@@ -402,6 +402,9 @@ dialog h2 { font-size: 1.3rem; }
 dialog .actions { justify-content: flex-end; margin-top: 14px; }
 dialog .notice { margin: 0; }
 .editor-form .notice[hidden] { display: none; }
+#account-fields[hidden] { display: none; }
+#account-email { overflow-wrap: anywhere; }
+#account-dialog .actions { flex-wrap: wrap; }
 dl { display: grid; grid-template-columns: minmax(100px, .8fr) minmax(0, 1fr); gap: 5px 14px; margin: 8px 0; font-size: .87rem; }
 dt { color: var(--muted); }
 dd { margin: 0; overflow-wrap: anywhere; }
@@ -420,7 +423,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
   .sidebar { padding: max(10px, env(safe-area-inset-top)) 12px 8px; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
   .brand { gap: 4px; font-size: 1.05rem; }
   .brand span { height: 30px; width: 30px; }
-  nav { display: flex; justify-content: flex-end; gap: 2px; }
+  nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
   nav button { gap: 3px; padding: 6px; min-height: 36px; font-size: .83rem; }
   nav button span { width: auto; }
   .bluetooth { grid-column: 1 / -1; font-size: .74rem; margin-left: 3px; }

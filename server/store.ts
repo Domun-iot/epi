@@ -63,6 +63,9 @@ export function openStore(path: string) {
   const expireTokens = db.prepare(`
     UPDATE devices SET token_hash = NULL WHERE token_hash IS NOT NULL AND last_used_at < ?
   `);
+  const revokeToken = db.prepare(`
+    UPDATE devices SET token_hash = NULL WHERE token_selector = ? AND token_hash = ?
+  `);
   const insertTransaction = db.prepare(`
     INSERT INTO transactions (account_id, uuid, payload) VALUES (?, ?, ?)
     ON CONFLICT (account_id, uuid) DO NOTHING
@@ -103,6 +106,7 @@ export function openStore(path: string) {
       useToken.get(now, selector, hash, cutoff) as { account_id: number; device_id: string } | undefined,
     expireToken: (selector: string, hash: string, cutoff: number) => expireToken.get(selector, hash, cutoff),
     expireTokens: (cutoff: number) => expireTokens.run(cutoff),
+    revokeToken: (selector: string, hash: string) => revokeToken.run(selector, hash),
     upload: (accountId: number, rows: { uuid: string; payload: string }[]) => writeBatch(rows, ({ uuid, payload }) =>
       insertTransaction.run(accountId, uuid, payload)),
     pending: (accountId: number, deviceId: string, limit: number) =>

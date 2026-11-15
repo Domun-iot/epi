@@ -9,6 +9,8 @@ import { viewPresetHeader, viewPresetTitles } from './view-presets.js';
 import { notificationBody, notificationDetailHeader, notificationRecordView, notificationsView, resolveNotification } from './notifications-view.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
 
+import './account.js';
+
 const navigation = document.querySelector('#navigation');
 const profilePicker = document.querySelector('#profile');
 const profileName = document.querySelector('#profile-name');

@@ -66,6 +66,33 @@ test('synchronizes batches per account and preserves receipts after token expira
     const pc = await login(alice, 'pc');
     const phone = await login(alice, 'phone');
     const other = await login(bob, 'pc');
+    const preflight = await fetch(baseUrl + '/device-tokens', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'http://localhost:1421',
+        'Access-Control-Request-Method': 'DELETE',
+        'Access-Control-Request-Headers': 'authorization',
+      },
+    });
+    assert.equal(preflight.status, 204);
+    assert.equal(preflight.headers.get('Access-Control-Allow-Origin'), '*');
+    assert.match(preflight.headers.get('Access-Control-Allow-Methods'), /DELETE/);
+    assert.match(preflight.headers.get('Access-Control-Allow-Headers'), /Authorization/);
+
+    const revoke = async token => {
+      const response = await fetch(baseUrl + '/device-tokens', {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + token },
+      });
+      assert.equal(response.status, 204);
+    };
+    const replaced = await login(alice, 'temporary');
+    const temporary = await login(alice, 'temporary');
+    await revoke(replaced);
+    assert.deepEqual(await pending(temporary), []);
+    await revoke(temporary);
+    await revoke(temporary);
+    await request('/transactions/pending', { token: temporary, status: 401 });
     const first = { uuid: randomUUID(), type: 'create', data: { path: 'profiles/a.json', value: {} } };
     const second = { uuid: randomUUID(), type: 'delete', data: { path: 'profiles/a.json' } };
     assert.deepEqual(await request('/transactions', {
