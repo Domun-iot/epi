@@ -13,7 +13,7 @@ const { uuid, identify, upgradeIdentities } = require('./identities.cjs');
 const notificationLifetime = 7 * 86400_000;
 
 const viewDefaults = {
-  measurements: { columns: ['impedanceOhms', 'bmi'], splitColumns: [], columnOrder: [] },
+  measurements: { columns: ['bmi'], splitColumns: [], columnOrder: [] },
   details: { methodColumnOrder: [], detailSectionOrder: [] },
 };
 const chartColumns = ['impedanceOhms', ...metrics.map(([id]) => id)];

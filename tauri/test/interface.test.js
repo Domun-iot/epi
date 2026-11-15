@@ -483,6 +483,8 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await table.getByRole('columnheader', { name: 'Date', exact: true }).waitFor();
   await table.getByRole('columnheader', { name: 'Poids', exact: true }).waitFor();
   await table.getByText('70 kg', { exact: true }).waitFor();
+  await table.getByRole('columnheader', { name: 'IMC (kg/m²)', exact: true }).waitFor();
+  assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
   await page.getByText('Données', { exact: true }).click();
   const search = page.getByRole('searchbox', { name: 'Recherche' });
   await page.locator('.column-search:focus').waitFor();
@@ -498,6 +500,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await search.fill('GRASSE masse, impéd');
   assert.deepEqual(await options.evaluateAll(nodes => nodes.map(node => node.dataset.columnOption)),
     labels.filter(label => /impédance|masse grasse/i.test(label)));
+  await page.getByLabel('Impédance (Ω)', { exact: true }).check();
   await search.fill('% GRASSE masse');
   assert.equal(await options.count(), 1);
   await page.getByLabel('Masse grasse (%)', { exact: true }).check();
@@ -518,11 +521,12 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await table.getByText('32,5', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Éclater Masse grasse (%)', exact: true }).click();
   await search.fill('');
-  await page.getByLabel('Impédance (Ω)', { exact: true }).uncheck();
   await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('Bob');
-  assert.equal(await page.getByLabel('Impédance (Ω)', { exact: true }).isChecked(), true);
+  assert.equal(await page.getByLabel('Impédance (Ω)', { exact: true }).isChecked(), false);
   assert.equal(await page.getByLabel('Masse grasse (%)', { exact: true }).isChecked(), false);
   await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('Alice');
+  assert.equal(await page.getByLabel('Impédance (Ω)', { exact: true }).isChecked(), true);
+  await page.getByLabel('Impédance (Ω)', { exact: true }).uncheck();
   await table.getByRole('columnheader', { name: 'Mi', exact: true }).waitFor();
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
   await page.setViewportSize({ width: 1800, height: 900 });
@@ -640,7 +644,7 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   assert.equal(await chart.getAttribute('aria-pressed'), 'true');
   assert.equal(await page.getByRole('table', { name: 'Pesées' }).count(), 0);
   const series = weightChart.locator('svg .chart-line');
-  assert.deepEqual((await series.evaluateAll(lines => lines.map(line => line.dataset.series))).sort(), ['bmi', 'impedanceOhms', 'weight']);
+  assert.deepEqual((await series.evaluateAll(lines => lines.map(line => line.dataset.series))).sort(), ['bmi', 'weight']);
   const bmi = weightChart.getByRole('button', { name: 'IMC (kg/m²)', exact: true });
   const bands = weightChart.locator('svg .chart-bmi-band');
   assert.equal(await bands.count(), 0);
@@ -730,7 +734,7 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   await weightChart.locator('.chart-line[data-series="bmi"]').waitFor({ state: 'attached' });
   assert.equal(await bmi.getAttribute('data-status'), 'visible');
 
-  for (const id of ['bmi', 'weight', 'impedanceOhms']) {
+  for (const id of ['bmi', 'weight']) {
     const button = weightChart.locator(`[data-action="chart-axis"][data-value="${id}"]`);
     await button.click();
     await button.click();
@@ -835,6 +839,9 @@ test('un glissement de souris depuis une cellule fait défiler le tableau sans d
   }));
   const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements },
     { viewport: { width: 360, height: 600 } });
+  await page.getByText('Données', { exact: true }).click();
+  await page.getByLabel('Impédance (Ω)', { exact: true }).check();
+  await page.getByText('Données', { exact: true }).click();
   const panel = page.getByRole('region', { name: 'Pesées' });
   const headers = panel.locator('thead tr').first().locator('th');
   const order = await headers.allTextContents();

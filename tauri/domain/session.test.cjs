@@ -44,13 +44,13 @@ test('keeps the manual selection on reopen and edits profile details without cha
   await session.setColumnPreference('Lou', 'fatPercent', 'columns', true);
   await session.setColumnPreference('Lou', 'fatPercent', 'splitColumns', true);
   const other = await session.selectProfile('Sam');
-  assert.deepEqual(other.columns, ['impedanceOhms', 'bmi']);
+  assert.deepEqual(other.columns, ['bmi']);
   assert.deepEqual(other.splitColumns, []);
   await session.setColumnPreference('Sam', 'bmi', 'columns', false);
   assert.deepEqual((await session.selectProfile('Lou')).splitColumns, ['fatPercent']);
   const reopened = await fixture(disk()).session.load();
   assert.equal(reopened.selectedProfile, 'Lou');
-  assert.deepEqual(reopened.columns, ['impedanceOhms', 'bmi', 'fatPercent']);
+  assert.deepEqual(reopened.columns, ['bmi', 'fatPercent']);
   assert.deepEqual(reopened.splitColumns, ['fatPercent']);
 });
 
@@ -58,6 +58,7 @@ test('persists chart series by profile and view UUID and reconciles changed colu
   const { session, disk } = fixture({ profiles: [lou, sam], selectedProfile: 'Lou' });
   await session.load();
   await session.setMeasurementDisplay('Lou', 'chart');
+  await session.setColumnPreference('Lou', 'impedanceOhms', 'columns', true);
   const created = await session.changeViewPreset('Lou', 'measurements', 'create', { name: 'Composition' });
   const id = created.viewLayouts.measurements.preset.id;
   assert.match(id, /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/);
