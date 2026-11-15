@@ -735,6 +735,7 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
       headingLeft: heading.getBoundingClientRect().left,
       titleRight: heading.firstElementChild.getBoundingClientRect().right,
       toolbarLeft: toolbar.getBoundingClientRect().left,
+      toolbarTop: toolbar.getBoundingClientRect().top,
       headingGap: parseFloat(getComputedStyle(heading).columnGap),
       modeLeftGap: mode.left - toolbar.getBoundingClientRect().left,
       modeRightGap: periods.left - mode.right - parseFloat(getComputedStyle(toolbar).columnGap),
@@ -762,10 +763,11 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
     assert.ok(Math.abs(right - headingRight) < 1, `Fin des commandes : ${right}, en-tête : ${headingRight}`);
     assert.ok(Math.abs(modeLeftGap - modeRightGap) < 1);
   }
-  for (const { toolbarLeft, headingLeft, subtitleBottom, controlsTop, legendGap, marginTop, marginBottom }
+  for (const { toolbarLeft, headingLeft, subtitleBottom, toolbarTop, legendGap, marginTop, marginBottom }
     of [medium, narrow]) {
     assert.equal(toolbarLeft, headingLeft);
-    assert.ok(subtitleBottom < controlsTop);
+    const titleGap = toolbarTop - subtitleBottom;
+    assert.ok(titleGap > 0 && titleGap <= legendGap);
     assert.equal(legendGap, 6);
     assert.equal(marginTop, '6px');
     assert.equal(marginBottom, '6px');

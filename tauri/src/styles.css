@@ -163,6 +163,7 @@ p { line-height: 1.55; }
 .measurement-display [aria-pressed="true"] { background: var(--hover); border-color: var(--blue); }
 .measurement-settings .column-search-field { margin-right: 102px; }
 .measurement-chart {
+  --chart-heading-row-gap: 6px;
   --chart-min-height: 24rem;
   display: flex;
   flex-direction: column;
@@ -183,7 +184,7 @@ p { line-height: 1.55; }
   border: 0;
   border-radius: 0;
 }
-.chart-heading { container-type: inline-size; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.chart-heading { container-type: inline-size; display: flex; align-items: center; flex-wrap: wrap; gap: var(--chart-heading-row-gap) 10px; }
 .chart-heading > :first-child { flex: none; max-width: 100%; }
 .chart-heading h2 { margin: 0; }
 .chart-change { margin: 4px 0 0; color: var(--muted); font-size: .86rem; }
@@ -219,7 +220,7 @@ p { line-height: 1.55; }
   background: var(--surface);
   font-weight: 650;
 }
-.chart-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; margin-block: 6px; }
+.chart-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; margin-block: var(--chart-heading-row-gap) 6px; }
 .chart-legend > span { padding-right: 4px; color: var(--muted); font-size: .82rem; }
 .chart-legend button { display: inline-flex; align-items: center; gap: 6px; text-align: left; }
 .chart-legend button::before { content: ""; flex: 0 0 8px; height: 8px; border-radius: 50%; background: var(--series-color); }
