@@ -644,9 +644,9 @@ test('l’axe IMC garde trois bandes au minimum et affiche les voisines proches'
   assert.deepEqual(bands([12, 51]), [red, orange, yellow, green, yellow, orange, red, purple]);
 });
 
-test('le graphique remplit la vue et le passage en mode graphique fait défiler jusqu’en bas', async t => {
+test('le graphique s’adapte à la hauteur et conserve la marge sous les en-têtes', async t => {
   const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [record] }, {
-    viewport: { width: 1100, height: 400 },
+    viewport: { width: 1100, height: 330 },
   });
   const scroll = page.locator('#view-scroll');
   const chart = page.locator('.measurement-chart');
@@ -654,8 +654,12 @@ test('le graphique remplit la vue et le passage en mode graphique fait défiler 
   await chart.waitFor();
   const layout = () => scroll.evaluate(view => {
     const { paddingTop, paddingBottom } = getComputedStyle(view);
+    const chart = view.querySelector('.measurement-chart').getBoundingClientRect();
     return {
-      height: view.querySelector('.measurement-chart').offsetHeight,
+      height: Math.round(chart.height),
+      bottomGap: view.getBoundingClientRect().bottom - chart.bottom,
+      paddingBottom: parseFloat(paddingBottom),
+      unscrolledTop: chart.top + view.scrollTop,
       available: view.clientHeight - parseFloat(paddingTop) - parseFloat(paddingBottom),
       top: view.scrollTop,
       remaining: view.scrollHeight - view.clientHeight - view.scrollTop,
@@ -669,9 +673,31 @@ test('le graphique remplit la vue et le passage en mode graphique fait défiler 
   assert.ok(short.headerBottom <= short.viewTop);
   const shortPlot = (await chart.locator('.chart-plot').boundingBox()).height;
 
-  await page.setViewportSize({ width: 360, height: 800 });
+  await page.setViewportSize({ width: 1100, height: 500 });
+  await page.waitForFunction(() => document.querySelector('.measurement-chart').offsetHeight === 384);
+  const middle = await layout();
+  assert.ok(middle.height < middle.available);
+
+  await page.setViewportSize({ width: 1100, height: Math.ceil(middle.unscrolledTop + middle.height + middle.paddingBottom) });
+  await page.waitForFunction(() => {
+    const view = document.querySelector('#view-scroll');
+    return view.scrollHeight === view.clientHeight;
+  });
+  const threshold = await layout();
+  assert.equal(threshold.top, 0);
+  assert.ok(Math.abs(threshold.bottomGap - threshold.paddingBottom) <= 1);
+
+  await page.setViewportSize({ width: 360, height: 1000 });
+  await page.waitForFunction(() => {
+    const view = document.querySelector('#view-scroll');
+    const chart = view.querySelector('.measurement-chart');
+    const gap = view.getBoundingClientRect().bottom - chart.getBoundingClientRect().bottom;
+    return Math.abs(gap - parseFloat(getComputedStyle(view).paddingBottom)) <= 1;
+  });
   const tall = await layout();
-  assert.equal(tall.height, tall.available);
+  assert.equal(tall.top, 0);
+  assert.equal(tall.remaining, 0);
+  assert.ok(tall.height > threshold.height);
   assert.ok((await chart.locator('.chart-plot').boundingBox()).height > shortPlot);
 
   await scroll.evaluate(view => { view.scrollTop = 0; });

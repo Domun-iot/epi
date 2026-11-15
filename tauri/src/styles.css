@@ -163,9 +163,10 @@ p { line-height: 1.55; }
 .measurement-display [aria-pressed="true"] { background: var(--hover); border-color: var(--blue); }
 .measurement-settings .column-search-field { margin-right: 102px; }
 .measurement-chart {
+  --chart-min-height: 24rem;
   display: flex;
   flex-direction: column;
-  height: 100cqh;
+  height: clamp(min(var(--chart-min-height), 100cqh), calc(100cqh - var(--chart-leading-space, 0px)), 100cqh);
   min-width: 0;
   overflow: auto;
   padding: clamp(14px, 2vw, 26px);

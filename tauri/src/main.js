@@ -191,9 +191,10 @@ function render() {
         : notificationRecordView(target);
     viewHeader.innerHTML = markup.header;
     chartDatesResize.disconnect();
+    chartHeightResize.disconnect();
     const hadChart = Boolean(viewContent.querySelector('.measurement-chart'));
     viewContent.innerHTML = markup.content;
-    const enteredChart = !hadChart && viewContent.querySelector('.measurement-chart');
+    const chart = viewContent.querySelector('.measurement-chart');
     const chartDates = viewContent.querySelector('.chart-dates');
     if (chartDates) chartDatesResize.observe(chartDates);
     bluetoothWatch.attach(viewContent.querySelector('#bluetooth-log'), state.addressFilter);
@@ -224,7 +225,13 @@ function render() {
     if (searchFocused) view.querySelector('.column-search')?.focus({ preventScroll: true });
     if (scroll && page === 'measurements') view.querySelector('.table-scroll')?.scrollTo({ left: scroll });
     if (focusedColumn) view.querySelector(`[data-column="${CSS.escape(focusedColumn)}"]`)?.focus({ preventScroll: true });
-    if (enteredChart) viewScroll.scrollTop = viewScroll.scrollHeight;
+    if (chart) {
+      updateChartHeight();
+      for (const element of [viewScroll, viewHeader, ...viewContent.children]) {
+        if (element !== chart) chartHeightResize.observe(element);
+      }
+      if (!hadChart) viewScroll.scrollTop = viewScroll.scrollHeight;
+    }
   }
 }
 
@@ -617,6 +624,15 @@ function positionPinnedHeader() {
   panel.style.setProperty('--header-offset', `${offset}px`);
 }
 
+function updateChartHeight() {
+  const chart = viewContent.querySelector('.measurement-chart');
+  if (!chart || !chart.getClientRects().length) return;
+  const contentTop = viewScroll.getBoundingClientRect().top + parseFloat(getComputedStyle(viewScroll).paddingTop);
+  const leadingSpace = chart.getBoundingClientRect().top - contentTop + viewScroll.scrollTop;
+  chart.style.setProperty('--chart-leading-space', `${leadingSpace}px`);
+}
+
+const chartHeightResize = new ResizeObserver(updateChartHeight);
 const chartDatesResize = new ResizeObserver(([{ target, contentRect }]) => renderChartDates(target, contentRect.width));
 const pinnedHeaderResize = new ResizeObserver(positionPinnedHeader);
 pinnedHeaderResize.observe(viewScroll);
