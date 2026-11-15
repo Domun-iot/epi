@@ -43,11 +43,11 @@ async function checkRelease(shell, target, scenario) {
     const run = path.join(checkout, 'run');
     const launcher = desktop ? (batch ? 'éPI.bat' : 'éPI.sh') : (batch ? 'run/cli.bat' : 'run/cli.sh');
     const check = batch ? 'check-windows-build.ps1' : 'check-linux-build.sh';
-    const build = desktop ? (batch ? 'build-windows.bat' : 'build-linux.sh') : (batch ? 'build-cli.bat' : 'build-cli.sh');
+    const build = desktop ? (batch ? 'windows.bat' : 'linux.sh') : (batch ? 'cli.bat' : 'cli.sh');
     const binary = desktop
       ? (batch ? 'release/windows/epi.exe' : 'release/linux/epi')
       : (batch ? 'release/cli/windows/epi-cli.exe' : 'release/cli/linux/epi-cli');
-    fs.mkdirSync(run, { recursive: true });
+    fs.mkdirSync(path.join(run, 'build'), { recursive: true });
     fs.mkdirSync(path.join(checkout, 'cli'));
     fs.mkdirSync(path.dirname(path.join(checkout, binary)), { recursive: true });
     fs.mkdirSync(path.join(checkout, 'scripts'));
@@ -86,7 +86,7 @@ async function checkRelease(shell, target, scenario) {
       '[ "$EPI_SMOKE_FAIL" != yes ] || exit 1',
       'cp "$EPI_SMOKE_STUB" "$EPI_SMOKE_EXE" && chmod +x "$EPI_SMOKE_EXE"',
     ].join('\n');
-    fs.writeFileSync(path.join(run, build), batch ? batchBuild : shellBuild);
+    fs.writeFileSync(path.join(run, 'build', build), batch ? batchBuild : shellBuild);
 
     if (scenario !== 'missing') {
       fs.copyFileSync(stub, executable);

@@ -9,14 +9,14 @@ if ($Target -eq 'web') {
     }
     $exe = Get-Item -LiteralPath (Join-Path $root 'release/web/build.ok')
     $inputs += @('tauri/index.html', 'tauri/package.json', 'tauri/package-lock.json',
-        'tauri/vite.config.js', 'tauri/src', 'tauri/domain', 'tauri/public', 'web', 'run/build-web.bat')
+        'tauri/vite.config.js', 'tauri/src', 'tauri/domain', 'tauri/public', 'web', 'run/build/web.bat')
 } elseif ($Target -eq 'cli') {
     $exe = Get-Item -LiteralPath (Join-Path $root 'release/cli/windows/epi-cli.exe')
     $inputs += @(
         'cli/package.json'
         'cli/package-lock.json'
         'cli/scan.cs'
-        'run/build-cli.bat'
+        'run/build/cli.bat'
     )
     $inputs += Get-ChildItem -LiteralPath (Join-Path $root 'cli') -Filter '*.cjs' -File |
         Where-Object Name -NotLike '*.test.cjs' | ForEach-Object { 'cli/' + $_.Name }
@@ -39,7 +39,7 @@ if ($Target -eq 'web') {
         'tauri/src-tauri/capabilities'
         'tauri/src-tauri/icons'
         'tauri/src-tauri/src'
-        'run/build-windows.bat'
+        'run/build/windows.bat'
     )
 }
 foreach ($inputPath in $inputs) {

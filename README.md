@@ -5,11 +5,11 @@
 | Version | Démarrage |
 | --- | --- |
 | Tauri de release | `run\tauri.bat` sous Windows ou `sh run/tauri.sh` sous Linux. `éPI.bat` et `sh éPI.sh` restent disponibles à la racine. |
-| Tauri en développement | `run\dev-tauri.bat` sous Windows ou `sh run/dev-tauri.sh` sous Linux |
+| Tauri en développement | `run\dev\tauri.bat` sous Windows ou `sh run/dev/tauri.sh` sous Linux |
 | CLI de release | `run\cli.bat` sous Windows ou `sh run/cli.sh` sous Linux. Le lanceur reconstruit la release si elle manque ou si ses sources ou sa configuration de build sont plus récentes. |
-| CLI en développement | `run\dev-cli.bat` sous Windows ou `sh run/dev-cli.sh` sous Linux |
+| CLI en développement | `run\dev\cli.bat` sous Windows ou `sh run/dev/cli.sh` sous Linux |
 | Web de release | `run\web.bat` sous Windows ou `sh run/web.sh` sous Linux. Depuis la release, lance `npm start`. |
-| Web en développement | `run\dev-web.bat` sous Windows ou `sh run/dev-web.sh` sous Linux. Vite ouvre l’adresse locale dans le navigateur par défaut (port 1421 par défaut). |
+| Web en développement | `run\dev\web.bat` sous Windows ou `sh run/dev/web.sh` sous Linux. Vite ouvre l’adresse locale dans le navigateur par défaut (port 1421 par défaut). |
 | Tests CLI | `npm --prefix cli test` |
 | Tests du domaine Tauri | `npm --prefix tauri test` |
 | Tests interactifs | `npm --prefix tauri run test:ui` |
@@ -18,7 +18,7 @@ Les [tests de démarrage](docs/TEST-DEMARRAGE.md) couvrent les lanceurs et décr
 
 ## Version web
 
-Lance `run\web.bat` ou `sh run/web.sh` depuis le dépôt. Le lanceur construit la version web si elle manque ou si ses sources sont plus récentes. Pour préparer ou construire manuellement, utilise `run\prep-web.bat` et `run\build-web.bat` sous Windows, ou `sh run/prep-web.sh` et `sh run/build-web.sh` sous Linux. Le build lance la préparation si son marqueur manque.
+Lance `run\web.bat` ou `sh run/web.sh` depuis le dépôt. Le lanceur construit la version web si elle manque ou si ses sources sont plus récentes. Pour préparer ou construire manuellement, utilise `run\prep\web.bat` et `run\build\web.bat` sous Windows, ou `sh run/prep/web.sh` et `sh run/build/web.sh` sous Linux. Le build lance la préparation si son marqueur manque.
 
 Copie le dossier `release/web/` sur le serveur Linux ou Windows, puis lance `npm start` depuis ce dossier. Node.js 20.19 ou supérieur et npm doivent être disponibles sur le serveur. La release contient le serveur et les fichiers statiques, sans installation npm à effectuer.
 
@@ -67,25 +67,25 @@ Sur un PC x64, choisis le script de préparation correspondant au build.
 
 | Cible | Préparation |
 | --- | --- |
-| Windows 10/11 | `run\prep-windows.bat` |
-| Ubuntu et AppImage sur une base Ubuntu/Debian | `sh run/prep-linux.sh` ou `sh run/prep-ubuntu.sh` |
-| Android depuis Windows | `run\prep-android.bat` |
-| Android depuis Ubuntu/Debian | `sh run/prep-android.sh` |
-| CLI | `run\prep-cli.bat` sous Windows ou `sh run/prep-cli.sh` sous Linux |
+| Windows 10/11 | `run\prep\windows.bat` |
+| Ubuntu et AppImage sur une base Ubuntu/Debian | `sh run/prep/linux.sh` ou `sh run/prep/ubuntu.sh` |
+| Android depuis Windows | `run\prep\android.bat` |
+| Android depuis Ubuntu/Debian | `sh run/prep/android.sh` |
+| CLI | `run\prep\cli.bat` sous Windows ou `sh run/prep/cli.sh` sous Linux |
 
 La préparation de l’interface installe Node.js, Rust et les dépendances npm nécessaires. La préparation du CLI installe Node.js et vérifie sous Windows la présence du compilateur C# et des références WinRT. La préparation Android ajoute le JDK et le SDK/NDK et demande d’accepter les licences nécessaires. Sous Windows, elle vérifie aussi le Mode développeur et propose d’ouvrir les paramètres. Les composants système peuvent demander une élévation UAC sous Windows ou `sudo` sous Linux. Aucun installateur Git n’est lancé.
 
 Tu peux lancer directement le script de build ou le lanceur de développement. Si le marqueur de sa cible manque dans `tmp/prep/`, le script lance la préparation correspondante. Chaque préparation vérifie les prérequis et réutilise ceux déjà installés. Elle enregistre son succès dans `tmp/prep/`, un dossier local ignoré par Git. Pour vérifier les prérequis à nouveau, relance le script de préparation ou supprime le marqueur de la cible avant le prochain build.
 
-Les lanceurs `run\tauri.bat` et `sh run/tauri.sh` ouvrent le binaire autonome dans `release/windows/` ou `release/linux/`. S’il manque, ils exécutent le build de bureau avec `--portable`. Les deux lanceurs reconstruisent aussi le binaire lorsque les sources ou la configuration du build sont plus récentes. Les lanceurs `run\dev-tauri.bat` et `sh run/dev-tauri.sh` démarrent la version de développement via `tauri dev`.
+Les lanceurs `run\tauri.bat` et `sh run/tauri.sh` ouvrent le binaire autonome dans `release/windows/` ou `release/linux/`. S’il manque, ils exécutent le build de bureau avec `--portable`. Les deux lanceurs reconstruisent aussi le binaire lorsque les sources ou la configuration du build sont plus récentes. Les lanceurs `run\dev\tauri.bat` et `sh run/dev/tauri.sh` démarrent la version de développement via `tauri dev`.
 
 | Plateforme | Génération | Résultat |
 | --- | --- | --- |
-| Windows | `run\build-windows.bat` | `release/windows/` contient `epi.exe` et les installateurs NSIS (EXE) et MSI. |
-| Ubuntu | `sh run/build-ubuntu.sh` | `release/linux/` contient le binaire `epi` et le paquet `.deb`. |
-| Linux, AppImage | `sh run/build-linux.sh` | `release/linux/` contient le binaire `epi` et l’AppImage. |
-| Android | `run\build-android.bat` ou `sh run/build-android.sh` | `release/android/epi-debug.apk` |
-| CLI | `run\build-cli.bat` ou `sh run/build-cli.sh` | `release/cli/windows/` ou `release/cli/linux/`. Un fichier par plateforme, `epi-cli.exe` sous Windows et `epi-cli` sous Linux, avec Node.js embarqué. Le scan Bluetooth du CLI est disponible sous Windows. |
+| Windows | `run\build\windows.bat` | `release/windows/` contient `epi.exe` et les installateurs NSIS (EXE) et MSI. |
+| Ubuntu | `sh run/build/ubuntu.sh` | `release/linux/` contient le binaire `epi` et le paquet `.deb`. |
+| Linux, AppImage | `sh run/build/linux.sh` | `release/linux/` contient le binaire `epi` et l’AppImage. |
+| Android | `run\build\android.bat` ou `sh run/build/android.sh` | `release/android/epi-debug.apk` |
+| CLI | `run\build\cli.bat` ou `sh run/build/cli.sh` | `release/cli/windows/` ou `release/cli/linux/`. Un fichier par plateforme, `epi-cli.exe` sous Windows et `epi-cli` sous Linux, avec Node.js embarqué. Le scan Bluetooth du CLI est disponible sous Windows. |
 
 Le lanceur de développement du CLI utilise Node.js pour exécuter les sources.
 
@@ -93,7 +93,7 @@ Sous Windows, active le [Mode développeur](https://learn.microsoft.com/windows/
 
 L’APK est signé avec la clé de débogage Gradle pour l’installation directe sur un téléphone. Le module Bluetooth requiert Android 8.0 ou plus récent.
 
-Les lanceurs de bureau acceptent `--portable` pour compiler uniquement le binaire et un ou plusieurs noms de formats, par exemple `sh run/build-linux.sh rpm`.
+Les lanceurs de bureau acceptent `--portable` pour compiler uniquement le binaire et un ou plusieurs noms de formats, par exemple `sh run/build/linux.sh rpm`.
 
 L’AppImage se lance directement sur des distributions compatibles de même architecture. Tauri recommande de compiler sur la plus ancienne distribution que tu veux prendre en charge, par exemple Ubuntu 22.04 ou Debian 12. La version de glibc du poste de build peut exclure les distributions plus anciennes. Pour la balance Bluetooth, BlueZ doit être disponible sur le poste qui exécute éPI. [Limites de l’AppImage Tauri](https://v2.tauri.app/distribute/appimage/#limitations)
 

@@ -6,7 +6,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0..\scripts\check-w
 if not errorlevel 1 goto launch
 
 :build
-call "%~dp0build-windows.bat" --portable
+call "%~dp0build\windows.bat" --portable
 if errorlevel 1 exit /b 1
 
 :launch

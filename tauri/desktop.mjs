@@ -59,7 +59,7 @@ function buildAndroid() {
   const javaHome = process.env.JAVA_HOME || (windows ? join(tools, 'jdk-17') : '/usr/lib/jvm/java-17-openjdk-amd64');
   const ndkHome = process.env.NDK_HOME || join(androidHome, 'ndk', '28.2.13676358');
   if (![androidHome, javaHome, ndkHome].every(path => existsSync(path))) {
-    throw new Error(`Outils Android manquants. Lance ${windows ? 'run/prep-android.bat' : 'sh run/prep-android.sh'}.`);
+    throw new Error(`Outils Android manquants. Lance ${windows ? 'run/prep/android.bat' : 'sh run/prep/android.sh'}.`);
   }
 
   ensureDependencies();

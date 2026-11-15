@@ -82,7 +82,7 @@ if (!$DesktopOnly) {
             Read-Host 'Active le Mode developpeur, puis appuie sur Entree' | Out-Null
         }
         $developerMode = Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' -Name AllowDevelopmentWithoutDevLicense -ErrorAction SilentlyContinue
-        if ($developerMode -ne 1) { throw 'Mode developpeur desactive. Active-le, puis relance run/prep-android.bat.' }
+        if ($developerMode -ne 1) { throw 'Mode developpeur desactive. Active-le, puis relance run/prep/android.bat.' }
     }
     Write-Host 'Installation du JDK et du SDK Android dans le profil utilisateur...'
     Install-Archive 'https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jdk/hotspot/normal/eclipse' $jdk 'jdk-*' 'bin\java.exe'

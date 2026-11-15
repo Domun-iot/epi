@@ -10,11 +10,11 @@ case "$1" in
             tauri/src-tauri/Cargo.toml tauri/src-tauri/Cargo.lock tauri/src-tauri/build.rs \
             tauri/src-tauri/tauri.conf.json tauri/src-tauri/tauri.linux.conf.json \
             tauri/src-tauri/capabilities tauri/src-tauri/icons tauri/src-tauri/src \
-            run/build-linux.sh
+            run/build/linux.sh
         ;;
     cli)
         exe=release/cli/linux/epi-cli
-        set -- shared cli/*.cjs cli/package.json cli/package-lock.json run/build-cli.sh
+        set -- shared cli/*.cjs cli/package.json cli/package-lock.json run/build/cli.sh
         ;;
     web)
         exe=release/web/build.ok
@@ -22,7 +22,7 @@ case "$1" in
             [ -f "release/web/$file" ] || exit 1
         done
         set -- shared tauri/index.html tauri/package.json tauri/package-lock.json \
-            tauri/vite.config.js tauri/src tauri/domain tauri/public web run/build-web.sh
+            tauri/vite.config.js tauri/src tauri/domain tauri/public web run/build/web.sh
         ;;
     *) exit 1 ;;
 esac
