@@ -718,7 +718,9 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
   const chart = page.locator('.measurement-chart');
   const layout = () => chart.evaluate(element => {
     const heading = element.querySelector('.chart-heading');
-    const controls = [...heading.querySelectorAll('button')];
+    const toolbar = heading.querySelector('.chart-controls');
+    const [mode, periods] = [...toolbar.children].map(child => child.getBoundingClientRect());
+    const controls = [...toolbar.querySelectorAll('button')];
     const boxes = controls.map(button => button.getBoundingClientRect());
     const legend = element.querySelector('.chart-legend');
     const { marginTop, marginBottom } = getComputedStyle(legend);
@@ -726,6 +728,12 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
       centers: boxes.map(({ top, height }) => top + height / 2),
       right: boxes.at(-1).right,
       headingRight: heading.getBoundingClientRect().right,
+      headingLeft: heading.getBoundingClientRect().left,
+      titleRight: heading.firstElementChild.getBoundingClientRect().right,
+      toolbarLeft: toolbar.getBoundingClientRect().left,
+      headingGap: parseFloat(getComputedStyle(heading).columnGap),
+      modeLeftGap: mode.left - toolbar.getBoundingClientRect().left,
+      modeRightGap: periods.left - mode.right - parseFloat(getComputedStyle(toolbar).columnGap),
       subtitleBottom: heading.querySelector('.chart-change').getBoundingClientRect().bottom,
       controlsTop: Math.min(...boxes.map(({ top }) => top)),
       legendGap: legend.getBoundingClientRect().top - heading.getBoundingClientRect().bottom,
@@ -737,15 +745,21 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
 
   const wide = await layout();
   assert.ok(wide.controlsTop < wide.subtitleBottom);
+  assert.equal(wide.toolbarLeft, wide.titleRight + wide.headingGap);
+  assert.ok(wide.modeLeftGap > 0);
   await page.setViewportSize({ width: 420, height: 900 });
   const medium = await layout();
   await page.setViewportSize({ width: 320, height: 900 });
   const narrow = await layout();
   assert.ok(wide.buttonPadding > medium.buttonPadding && medium.buttonPadding > narrow.buttonPadding);
-  for (const { centers, right, headingRight, subtitleBottom, controlsTop, legendGap, marginTop, marginBottom }
-    of [medium, narrow]) {
+  for (const { centers, right, headingRight, modeLeftGap, modeRightGap } of [wide, medium, narrow]) {
     assert.equal(new Set(centers).size, 1);
-    assert.ok(right <= headingRight);
+    assert.ok(Math.abs(right - headingRight) < 1);
+    assert.ok(Math.abs(modeLeftGap - modeRightGap) < 1);
+  }
+  for (const { toolbarLeft, headingLeft, subtitleBottom, controlsTop, legendGap, marginTop, marginBottom }
+    of [medium, narrow]) {
+    assert.equal(toolbarLeft, headingLeft);
     assert.ok(subtitleBottom < controlsTop);
     assert.equal(legendGap, 6);
     assert.equal(marginTop, '6px');

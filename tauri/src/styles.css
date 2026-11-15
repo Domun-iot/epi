@@ -183,10 +183,17 @@ p { line-height: 1.55; }
   border: 0;
   border-radius: 0;
 }
-.chart-heading { container-type: inline-size; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.chart-heading { container-type: inline-size; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.chart-heading > :first-child { flex: none; max-width: 100%; }
 .chart-heading h2 { margin: 0; }
 .chart-change { margin: 4px 0 0; color: var(--muted); font-size: .86rem; }
-.chart-controls { display: flex; align-items: center; gap: clamp(2px, calc((100cqw - 240px) / 12), 10px); }
+.chart-controls {
+  display: grid;
+  flex: 1 0 auto;
+  grid-template-columns: 1fr auto auto;
+  place-items: center;
+  gap: clamp(2px, calc((100cqw - 240px) / 12), 10px);
+}
 .chart-periods { display: flex; gap: clamp(0px, calc((100cqw - 270px) / 40), 2px); padding: 3px; border-radius: 10px; background: var(--hover); }
 .chart-periods button, .chart-legend button {
   min-height: 32px;
