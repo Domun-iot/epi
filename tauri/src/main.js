@@ -168,7 +168,7 @@ function render() {
     const focusedColumn = active?.dataset.column;
     const focusedToggle = active?.dataset.action === 'split-column' ? active.dataset.value : undefined;
     const focusedDisplay = active?.dataset.action === 'measurement-display' ? active.dataset.value : undefined;
-    const focusedChartControl = ['chart-period', 'chart-mode', 'chart-axis'].includes(active?.dataset.action);
+    const focusedChartControl = ['chart-period', 'chart-mode', 'chart-axis', 'chart-fullscreen'].includes(active?.dataset.action);
     const toggleScope = active?.classList.contains('column-toggle') ? '.column-toggle' : '.column-option button';
     const searchFocused = active?.matches('.column-search');
     const previousComparison = view.querySelector('.comparison-scroll');
@@ -195,6 +195,8 @@ function render() {
     const hadChart = Boolean(viewContent.querySelector('.measurement-chart'));
     viewContent.innerHTML = markup.content;
     const chart = viewContent.querySelector('.measurement-chart');
+    if (chart) updateChartFullscreenButton();
+    else if (document.fullscreenElement === viewContent) void perform(() => document.exitFullscreen());
     const chartDates = viewContent.querySelector('.chart-dates');
     if (chartDates) chartDatesResize.observe(chartDates);
     bluetoothWatch.attach(viewContent.querySelector('#bluetooth-log'), state.addressFilter);
@@ -221,7 +223,11 @@ function render() {
     if (page === 'measurements') filterColumnOptions(view, columnQuery);
     if (focusedToggle) view.querySelector(`${toggleScope}[data-action="split-column"][data-value="${CSS.escape(focusedToggle)}"]`)?.focus({ preventScroll: true });
     if (focusedDisplay) view.querySelector(`[data-action="measurement-display"][data-value="${CSS.escape(focusedDisplay)}"]`)?.focus({ preventScroll: true });
-    if (focusedChartControl) view.querySelector(`[data-action="${active.dataset.action}"][data-value="${CSS.escape(active.dataset.value)}"]`)?.focus({ preventScroll: true });
+    if (focusedChartControl) {
+      const value = active.dataset.value;
+      const filter = value === undefined ? '' : `[data-value="${CSS.escape(value)}"]`;
+      view.querySelector(`[data-action="${active.dataset.action}"]${filter}`)?.focus({ preventScroll: true });
+    }
     if (searchFocused) view.querySelector('.column-search')?.focus({ preventScroll: true });
     if (scroll && page === 'measurements') view.querySelector('.table-scroll')?.scrollTo({ left: scroll });
     if (focusedColumn) view.querySelector(`[data-column="${CSS.escape(focusedColumn)}"]`)?.focus({ preventScroll: true });
@@ -518,6 +524,8 @@ const actions = {
     const item = state.pending.find(entry => String(entry.id) === id);
     if (item) return session.discardPending(item.id);
   },
+  'chart-fullscreen': () => document.fullscreenElement === viewContent
+    ? document.exitFullscreen() : viewContent.requestFullscreen(),
   'chart-period': period => session.setChartOptions(state.selectedProfile,
     state.viewLayouts.measurements.preset?.id ?? null, { period }),
   'chart-mode': mode => session.setChartOptions(state.selectedProfile,
@@ -624,9 +632,22 @@ function positionPinnedHeader() {
   panel.style.setProperty('--header-offset', `${offset}px`);
 }
 
+function updateChartFullscreenButton() {
+  const button = viewContent.querySelector('[data-action="chart-fullscreen"]');
+  if (!button) return;
+  const fullscreen = document.fullscreenElement === viewContent;
+  button.setAttribute('aria-pressed', String(fullscreen));
+  button.title = fullscreen ? 'Quitter le plein écran' : 'Plein écran';
+}
+
+document.addEventListener('fullscreenchange', () => {
+  updateChartFullscreenButton();
+  updateChartHeight();
+});
+
 function updateChartHeight() {
   const chart = viewContent.querySelector('.measurement-chart');
-  if (!chart || !chart.getClientRects().length) return;
+  if (!chart || document.fullscreenElement === viewContent || !chart.getClientRects().length) return;
   const contentTop = viewScroll.getBoundingClientRect().top + parseFloat(getComputedStyle(viewScroll).paddingTop);
   const leadingSpace = chart.getBoundingClientRect().top - contentTop + viewScroll.scrollTop;
   chart.style.setProperty('--chart-leading-space', `${leadingSpace}px`);

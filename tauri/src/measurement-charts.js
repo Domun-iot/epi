@@ -274,6 +274,14 @@ export function measurementCharts(rows, series, { period = 'all', range, mode = 
         ${periods.map(([id, label]) => `<button type="button" data-action="chart-period" data-value="${id}"
           aria-pressed="${!range && period === id}">${label}</button>`).join('')}
       </div>
+      <button type="button" class="button icon-button" data-action="chart-fullscreen"
+        aria-label="Plein écran" aria-pressed="false" title="Plein écran">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path class="chart-expand" d="M9 3H3v6m12-6h6v6m0 6v6h-6M3 15v6h6"/>
+          <path class="chart-collapse" d="M3 9h6V3m6 0v6h6m0 6h-6v6m-6 0v-6H3"/>
+        </svg>
+      </button>
     </div>
     ${range ? `<p class="chart-range">${e(rangeLabel(range))}</p>` : ''}
     ${legend}

@@ -173,6 +173,16 @@ p { line-height: 1.55; }
   background: linear-gradient(155deg, light-dark(#f7faff, #1c2c48), var(--surface) 55%);
 }
 .measurement-chart > :not(.chart-frame) { flex: none; }
+#view-content:fullscreen > :not(.measurement-chart),
+#view-content:fullscreen .chart-bmi-reference,
+#view-content:fullscreen .chart-expand,
+#view-content:not(:fullscreen) .chart-collapse { display: none; }
+#view-content:fullscreen > .measurement-chart {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+}
 .chart-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 .chart-heading h2 { margin: 0; }
 .chart-change { margin: 4px 0 0; color: var(--muted); font-size: .86rem; }

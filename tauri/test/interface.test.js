@@ -709,6 +709,44 @@ test('le graphique s’adapte à la hauteur et conserve la marge sous les en-tê
   await chart.waitFor({ state: 'detached' });
 });
 
+test('le plein écran du graphique reste temporaire', async t => {
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [record] });
+  await page.getByRole('button', { name: 'Graphique', exact: true }).click();
+  const chart = page.locator('.measurement-chart');
+  const bmi = chart.getByRole('button', { name: 'IMC (kg/m\u00b2)', exact: true });
+  await bmi.click();
+  const reference = chart.locator('.chart-bmi-reference');
+  await reference.waitFor();
+  const fullscreen = chart.getByRole('button', { name: 'Plein écran', exact: true });
+  const stored = () => page.evaluate(() => localStorage.getItem('epi-session-v1'));
+  const before = await stored();
+
+  await fullscreen.click();
+  await page.locator('#view-content:fullscreen').waitFor();
+  await reference.waitFor({ state: 'hidden' });
+  await chart.locator('[data-action="chart-fullscreen"][aria-pressed="true"]').waitFor();
+  assert.equal(await chart.locator('h2').isVisible(), true);
+  assert.equal(await chart.getByRole('button', { name: 'Brut', exact: true }).isVisible(), true);
+  assert.equal(await bmi.isVisible(), true);
+  assert.deepEqual(await chart.evaluate(element => {
+    const { x, y, width, height } = element.getBoundingClientRect();
+    const { borderWidth, borderRadius } = getComputedStyle(element);
+    return [x, y, width - innerWidth, height - innerHeight, borderWidth, borderRadius];
+  }), [0, 0, 0, 0, '0px', '0px']);
+  await fullscreen.click();
+  await reference.waitFor();
+  await chart.locator('[data-action="chart-fullscreen"][aria-pressed="false"]').waitFor();
+  assert.equal(await stored(), before);
+
+  await fullscreen.click();
+  const period = chart.getByRole('button', { name: '30 j', exact: true });
+  await period.click();
+  await chart.locator('[data-value="30"][aria-pressed="true"]').waitFor();
+  await chart.locator('[data-action="chart-fullscreen"][aria-pressed="true"]').waitFor();
+  await fullscreen.click();
+  await reference.waitFor();
+});
+
 test('le graphique suit les pesées et mémorise la visualisation par profil', async t => {
   const earlier = { ...record, receivedAt: '2025-12-01T17:23:21Z',
     measures: { weight: 150, unit: 'lb' }, calculations: null };
