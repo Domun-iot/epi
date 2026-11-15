@@ -4,7 +4,7 @@ set "ROOT=%~dp0..\"
 set "FLAG=%ROOT%tmp\prep\cli-windows.ok"
 if exist "%FLAG%" del /q "%FLAG%"
 if exist "%FLAG%" exit /b 1
-call "%~dp0prepare.bat" -NodeOnly
+call "%~dp0..\scripts\prepare.bat" -NodeOnly
 if errorlevel 1 exit /b %errorlevel%
 set "PATH=%LOCALAPPDATA%\epi-dev\node;%PATH%"
 pushd "%ROOT%cli"

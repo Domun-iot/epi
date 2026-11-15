@@ -50,7 +50,10 @@ async function checkRelease(shell, target, scenario) {
     fs.mkdirSync(run, { recursive: true });
     fs.mkdirSync(path.join(checkout, 'cli'));
     fs.mkdirSync(path.dirname(path.join(checkout, binary)), { recursive: true });
-    for (const file of [launcher, 'run/' + check]) fs.copyFileSync(path.join(repo, file), path.join(checkout, file));
+    fs.mkdirSync(path.join(checkout, 'scripts'));
+    const files = [launcher, 'scripts/' + check];
+    if (desktop) files.push(batch ? 'run/tauri.bat' : 'run/tauri.sh');
+    for (const file of files) fs.copyFileSync(path.join(repo, file), path.join(checkout, file));
 
     const probe = path.join(sandbox, 'probe.cjs');
     const marker = path.join(sandbox, 'launched.json');

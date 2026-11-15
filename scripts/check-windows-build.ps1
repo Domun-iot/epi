@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $inputs = @('shared')
 if ($Target -eq 'web') {
-    foreach ($file in @('build.ok', 'package.json', 'config.js', 'server.js', 'actions.js', 'public/index.html')) {
+    foreach ($file in @('build.ok', 'package.json', 'config.js', 'server.js', 'actions.js', 'session-api.js', 'public/index.html')) {
         if (!(Test-Path -LiteralPath (Join-Path $root "release/web/$file") -PathType Leaf)) { exit 1 }
     }
     $exe = Get-Item -LiteralPath (Join-Path $root 'release/web/build.ok')

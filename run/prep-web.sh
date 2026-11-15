@@ -3,6 +3,6 @@ set -eu
 root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 flag="$root/tmp/prep/web-linux.ok"
 rm -f -- "$flag"
-sh "$root/run/prepare.sh" --node-only
+sh "$root/scripts/prepare.sh" --node-only
 mkdir -p -- "$(dirname -- "$flag")"
 printf 'ok\n' > "$flag"

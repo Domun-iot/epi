@@ -18,7 +18,7 @@ case "$1" in
         ;;
     web)
         exe=release/web/build.ok
-        for file in build.ok package.json config.js server.js actions.js public/index.html; do
+        for file in build.ok package.json config.js server.js actions.js session-api.js public/index.html; do
             [ -f "release/web/$file" ] || exit 1
         done
         set -- shared tauri/index.html tauri/package.json tauri/package-lock.json \
