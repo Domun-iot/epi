@@ -1,8 +1,4 @@
-use std::{
-    fmt::Write as _,
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
-};
+use std::{fmt::Write as _, sync::Mutex, time::Duration};
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use tauri::{AppHandle, Emitter};
@@ -22,20 +18,29 @@ const COMPOSITION: Uuid = uuid!("0000181b-0000-1000-8000-00805f9b34fb");
 const WEIGHT: Uuid = uuid!("0000181d-0000-1000-8000-00805f9b34fb");
 const WEIGHT_MEASUREMENT: Uuid = uuid!("00002a9d-0000-1000-8000-00805f9b34fb");
 const RETRY: Duration = Duration::from_secs(4);
-static STARTED: AtomicBool = AtomicBool::new(false);
+// None means there is no scanner task running.
+static SCAN_STATUS: Mutex<Option<String>> = Mutex::new(None);
 
-/// Call once the webview has installed the BLE event listeners.
+/// Start the scanner or replay its current status to the reloaded webview.
 pub fn start(app: AppHandle) {
-    if STARTED.swap(true, Ordering::AcqRel) {
-        return;
+    {
+        let mut current = SCAN_STATUS.lock().unwrap();
+        if let Some(message) = current.as_deref() {
+            let _ = app.emit("ble-status", message);
+            return;
+        }
+        *current = Some("Démarrage du Bluetooth…".to_owned());
     }
     tauri::async_runtime::spawn(async move {
         platform::run(&app).await;
-        STARTED.store(false, Ordering::Release);
+        *SCAN_STATUS.lock().unwrap() = None;
     });
 }
 
 fn status(app: &AppHandle, message: &str) {
+    // Serialize status updates with replays so a replay cannot overwrite a newer event.
+    let mut current = SCAN_STATUS.lock().unwrap();
+    *current = Some(message.to_owned());
     let _ = app.emit("ble-status", message);
 }
 
