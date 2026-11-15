@@ -4,7 +4,7 @@ import { deleteButton, escapeHtml as e, formatDate, nameKey, sortByName, userIco
 import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
 import { viewPresetHeader, viewPresetTitles } from './view-presets.js';
-import { notificationBody, notificationControls, notificationDetailHeader, notificationRecordView, notificationsView, receiptDetail, resolveReceipt } from './notifications-view.js';
+import { notificationBody, notificationControls, notificationDetailHeader, notificationRecordView, notificationsView, receiptDetail, resolveNotification } from './notifications-view.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
 
 const navigation = document.querySelector('#navigation');
@@ -16,6 +16,10 @@ const profileIcon = document.querySelector('#profile-icon');
 profileIcon.innerHTML = userIcon;
 const dataActions = document.querySelector('#data-actions');
 const backButton = document.querySelector('#back-to-measurements');
+const restoreButton = document.querySelector('#restore-button');
+const detailActions = document.querySelector('#detail-actions');
+const deleteMeasurementButton = document.querySelector('#delete-measurement-button');
+deleteMeasurementButton.innerHTML = deleteButton('Supprimer la pesée', 'delete-measurement');
 const view = document.querySelector('#view');
 const main = view.closest('main');
 const viewHeader = document.querySelector('#view-header');
@@ -55,6 +59,7 @@ let notificationId = null;
 let activeNotice = null;
 let noticeQueue = [];
 let closingNotice = false;
+let bannerTimeout;
 let previousAcquisitionError;
 let notificationDeadline;
 let initializedNotifications = false;
@@ -71,7 +76,7 @@ function changed(previous, next) {
 }
 
 const currentPage = () => {
-  const hash = window.location.hash.slice(1);
+  const [hash] = window.location.hash.slice(1).split('/');
   return Object.hasOwn(pages, hash) ? hash : 'measurements';
 };
 
@@ -116,12 +121,19 @@ function render() {
     pendingActions.innerHTML = noticesView({ pending, enrollment });
   }
   const entry = page === 'notifications' ? state.notifications.find(item => item.id === notificationId) : null;
-  const target = resolveReceipt(state, entry);
+  const target = resolveNotification(state, entry);
   const receipt = target?.type === 'pending' ? receiptDetail(target, state) : null;
   const detail = page === 'measurements' ? reading : null;
   const editing = !editorView.hidden;
   dataActions.hidden = editing || Boolean(detail || entry);
-  backButton.hidden = editing || (!detail && !entry);
+  detailActions.hidden = editing || (!detail && !entry);
+  backButton.hidden = detailActions.hidden;
+  deleteMeasurementButton.hidden = detailActions.hidden || !(detail || (target?.type === 'measurement' && target.live));
+  const restoreAction = receipt?.canReplay ? 'replay-receipt'
+    : target?.action === 'deleted' && !target.live ? 'restore-notification' : '';
+  restoreButton.hidden = editing || !restoreAction;
+  restoreButton.dataset.action = restoreAction;
+  restoreButton.dataset.value = target?.id ?? '';
   const kind = detail ? 'details' : 'measurements';
   const layout = page === 'measurements' ? state.viewLayouts?.[kind] : undefined;
   const layoutKey = layout ? [layout.presets, layout.preset, layout.modified, ...Object.values(layout.layout)] : [];
@@ -155,8 +167,7 @@ function render() {
     const previousPinnedTable = view.querySelector('.pinned-header');
     if (previousPinnedTable) pinnedHeaderResize.unobserve(previousPinnedTable);
     stopReorder();
-    const header = layout && viewPresetHeader(kind, layout,
-      detail ? deleteButton('Supprimer la pesée', 'delete-measurement') : '');
+    const header = layout && viewPresetHeader(kind, layout);
     const focusedPresetAction = active?.closest('.view-preset-header') && active.dataset.action;
     const markup = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, columnsOpen, columnQuery, header)
@@ -169,7 +180,10 @@ function render() {
         : notificationRecordView(target);
     viewHeader.innerHTML = markup.header;
     viewContent.innerHTML = markup.content;
-    if (pageChanged) viewScroll.scrollTop = 0;
+    if (pageChanged) {
+      viewScroll.scrollTop = 0;
+      focusRecord();
+    }
     for (const panel of view.querySelectorAll('details[data-expand="raw"], details[data-detail-section]')) {
       panelStates.set(panel, panel.open);
     }
@@ -213,6 +227,13 @@ function renderBanner() {
 }
 
 function enqueueBanners(entries) {
+  const timed = entries.filter(entry => entry.durationMs);
+  if (timed.length && activeNotice && !closingNotice && !activeNotice.durationMs) {
+    noticeQueue.unshift(...timed, activeNotice);
+    noticeQueue.push(...entries.filter(entry => !entry.durationMs));
+    dismissBanner();
+    return;
+  }
   noticeQueue.push(...entries);
   if (activeNotice || closingNotice) return;
   while (noticeQueue.length) {
@@ -227,11 +248,13 @@ function enqueueBanners(entries) {
   // Commit the collapsed frame before beginning the transition.
   notices.getBoundingClientRect();
   notices.classList.add('is-open');
+  if (activeNotice.durationMs) bannerTimeout = window.setTimeout(dismissBanner, activeNotice.durationMs);
 }
 
 function dismissBanner() {
   if (!activeNotice || closingNotice) return;
   closingNotice = true;
+  window.clearTimeout(bannerTimeout);
   if (notices.contains(document.activeElement)) notificationIcon.focus({ preventScroll: true });
   notices.inert = true;
   notices.classList.remove('is-open');
@@ -296,8 +319,31 @@ async function perform(action) {
   }
 }
 
-function go(page) {
-  if (window.location.hash !== '#' + page) window.location.hash = page;
+function focusRecord() {
+  const fragment = window.location.hash.slice(1);
+  const card = fragment.includes('/') && document.getElementById(fragment);
+  if (card) {
+    card.scrollIntoView({ block: 'nearest' });
+    card.focus({ preventScroll: true });
+  }
+}
+
+function go(page, uuid) {
+  const fragment = uuid ? `${page}/${uuid}` : page;
+  if (window.location.hash !== '#' + fragment) window.location.hash = fragment;
+  else if (uuid) focusRecord();
+}
+
+function editProfile(profile) {
+  if (!profile) return;
+  editor.profileEditor(profile, fields => session.saveProfile(fields), false, {
+    onDelete: () => editor.confirmDeletion('Supprimer le profil',
+      `Supprimer le profil « ${profile.name} » ? Les pesées de ce profil seront aussi retirées de l’historique.`,
+      async () => {
+        await session.deleteProfile(profile.name);
+        editor.closeView();
+      }),
+  });
 }
 
 function addProfile(item) {
@@ -330,6 +376,20 @@ function changeViewPreset(action, id) {
 
 const actions = {
   'open-notification': id => {
+    const target = resolveNotification(state, state.notifications.find(item => item.id === id));
+    if (target?.type === 'profile' && target.live) return editProfile(target.record);
+    if (target?.type === 'device' && target.live) return go('devices', target.record.uuid);
+    if (target?.type === 'profile' && target.action === 'deleted') {
+      editor.profileEditor(target.record, profile => {
+        editor.confirmRestoreProfile(target.measurements.length, async include => {
+          await session.restoreNotification(target.id, include, profile);
+          editor.closeView();
+          go('profiles', target.record.uuid);
+        });
+        return false;
+      }, false, { restore: true });
+      return;
+    }
     notificationId = id;
     render();
     viewScroll.scrollTop = 0;
@@ -343,30 +403,25 @@ const actions = {
       noticeQueue = noticeQueue.filter(item => item.id !== id);
       if (activeNotice?.id === id) dismissBanner();
     }),
-  'restore-notification': id => {
+  'restore-notification': async id => {
     const entry = state.notifications.find(item => item.id === id);
-    if (entry?.type === 'profile') {
-      editor.confirmRestoreProfile(entry.measurements.length, include => session.restoreNotification(id, include));
-    } else {
-      return session.restoreNotification(id);
-    }
-  },  'select-view-preset': id => changeViewPreset('select', id),
+    await session.restoreNotification(id);
+    if (entry?.type === 'device') go('devices', entry.record.uuid);
+  },
+  'select-view-preset': id => changeViewPreset('select', id),
   'save-view-preset': () => changeViewPreset('save'),
   'rename-view-preset': () => changeViewPreset('rename'),
   'delete-view-preset': () => changeViewPreset('delete'),
   'new-profile': () => addProfile(),
-  'edit-profile': name => editor.profileEditor(state.profiles.find(profile => profile.name === name), profile => session.saveProfile(profile)),
+  'edit-profile': name => editProfile(state.profiles.find(profile => profile.name === name)),
   'select-profile': name => session.selectProfile(name),
-  'delete-profile': name => editor.confirmDeletion('Supprimer le profil',
-    `Supprimer le profil « ${name} » ? Les pesées de ce profil seront aussi retirées de l’historique.`,
-    () => session.deleteProfile(name)),
   'delete-device': address => {
     const device = state.devices.find(entry => entry.bluetooth.address === address);
     if (device) editor.confirmDeletion('Supprimer l’appareil',
       `Supprimer l’appareil « ${device.name} » ?`, () => session.deleteDevice(address));
   },
   'delete-measurement': () => {
-    const target = notificationId && resolveReceipt(state, state.notifications.find(entry => entry.id === notificationId));
+    const target = notificationId && resolveNotification(state, state.notifications.find(entry => entry.id === notificationId));
     const row = reading ?? (target?.live ? target.record : null);
     if (!row) return;
     editor.confirmDeletion('Supprimer la pesée', `Supprimer la pesée du ${formatDate(row.receivedAt)} ?`, async () => {
@@ -445,6 +500,11 @@ notificationIcon.addEventListener('click', () => {
   notificationId = null;
   if (currentPage() === 'notifications') render();
   else go('notifications');
+});
+deleteMeasurementButton.addEventListener('click', () => void perform(actions['delete-measurement']));
+restoreButton.addEventListener('click', () => {
+  const { action, value } = restoreButton.dataset;
+  void perform(() => actions[action](value));
 });
 backButton.addEventListener('click', () => {
   if (currentPage() === 'notifications') {
@@ -698,6 +758,7 @@ window.addEventListener('hashchange', () => {
     editor.closeView();
   }
   render();
+  focusRecord();
   renderFrames();
 });
 

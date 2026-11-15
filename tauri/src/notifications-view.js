@@ -1,4 +1,10 @@
-import { button, deleteButton, deviceFields, escapeHtml as e, formatCalendarDate, formatDate, number, pageHeader, pairs, weight } from './format.js';
+import { deviceCard } from './management-view.js';
+import { button, deleteButton, escapeHtml as e, formatCalendarDate, formatDate, number, pageHeader, pairs, weight } from './format.js';
+
+const restorationDate = new Intl.DateTimeFormat('fr-FR', {
+  day: '2-digit', month: '2-digit', year: 'numeric',
+  hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+});
 
 export function notificationText(entry, state) {
   const { type, action, record, actor } = entry;
@@ -9,10 +15,12 @@ export function notificationText(entry, state) {
   }
   if (!action) return { title: entry.text };
   const by = actor ? `Profil actif : ${actor}.` : 'Aucun profil actif.';
-  const verb = action === 'deleted' ? 'supprimé' : 'enregistré';
+  const verb = action === 'deleted' ? 'supprimé' : action === 'restored' ? 'restauré' : 'enregistré';
   if (type === 'measurement') {
     const measures = record.measures ?? record;
-    const impedance = measures.impedanceOhms > 0 ? `Impédance reçue (${number(measures.impedanceOhms)} Ω)` : 'Sans impédance';
+    const impedance = measures.impedanceOhms > 0
+      ? action === 'deleted' ? 'avec impédance' : `Impédance reçue (${number(measures.impedanceOhms)} Ω)`
+      : 'Sans impédance';
     const method = record.profile?.name
       ? `${record.calculations ? 'Calculs enregistrés · ' : ''}Profil sélectionné : ${record.profile.name}`
       : record.calculations ? 'Calcul sans profil enregistré' : 'Sans profil ni calcul';
@@ -39,8 +47,11 @@ export function notificationControls(entry, state) {
 
 export function notificationBody(entry, date = false, state) {
   const { title, text } = notificationText(entry, state);
+  const restoredAt = date ? Date.parse(entry.restoredAt) : NaN;
+  const restoration = entry.type === 'measurement' || entry.type === 'pending' ? 'Restaurée' : 'Restauré';
   return `<strong>${e(title)}</strong>${date ? `<small>${e(formatDate(entry.date))}</small>` : ''}
-    ${text ? `<span>${e(text)}</span>` : ''}`;
+    ${text ? `<span>${e(text)}</span>` : ''}
+    ${Number.isFinite(restoredAt) ? `<small>${restoration} le ${e(restorationDate.format(restoredAt))}</small>` : ''}`;
 }
 
 export function notificationsView(state) {
@@ -57,26 +68,31 @@ export function notificationsView(state) {
   return { header: pageHeader('Notifications'), content: content || '<p class="panel empty">Aucune notification.</p>' };
 }
 
-export function resolveReceipt(state, entry) {
-  if (entry?.type !== 'pending' || !entry.measurementUuid) return entry;
-  const live = state.measurements.find(row => row.uuid === entry.measurementUuid);
-  if (live) return { type: 'measurement', record: live, live: true };
-  return state.notifications.reduce((latest, item) => {
-    if (item.type !== 'measurement' || item.action !== 'deleted' || item.record.uuid !== entry.measurementUuid) return latest;
-    return latest.type !== 'measurement' || Date.parse(item.date) > Date.parse(latest.date)
-      ? { ...item, restored: false } : latest;
-  }, entry);
+export function resolveNotification(state, entry) {
+  if (!entry) return entry;
+  const receipt = entry.type === 'pending';
+  const type = receipt ? 'measurement' : entry.type;
+  const uuid = receipt ? entry.measurementUuid : entry.record?.uuid;
+  const records = { measurement: state.measurements, profile: state.profiles, device: state.devices }[type];
+  if (!uuid || !records) return entry;
+  const live = records.find(row => row.uuid === uuid);
+  if (live) return { ...entry, type, record: live, live: true, restored: entry.action === 'deleted' };
+  const archive = state.notifications.reduce((latest, item) => {
+    if (item.type !== type || item.action !== 'deleted' || item.record.uuid !== uuid) return latest;
+    return !latest || Date.parse(item.date) > Date.parse(latest.date) ? item : latest;
+  }, null);
+  return archive ? { ...archive, restored: false } : receipt ? entry : { ...entry, missing: true };
 }
 
 export function receiptDetail(entry, state) {
   const { event, bluetoothMetadata } = entry.record;
   const pending = state.pending.find(row => row.id === entry.pendingId);
-  const controls = pending ? notificationControls({ ...entry, reason: pending.reason }, state)
-    : button('Restaurer', 'replay-receipt', { value: entry.id, primary: true });
+  const controls = pending ? notificationControls({ ...entry, reason: pending.reason }, state) : '';
   return {
+    canReplay: !pending,
     header: pageHeader('Pesée reçue',
       pending ? entry.text : 'Restaurer relance la recherche de la balance et du profil.',
-      `<div class="actions">${controls}</div>`),
+      controls ? `<div class="actions">${controls}</div>` : ''),
     record: {
       receivedAt: event.receivedAt,
       measures: { weight: event.weight, unit: event.unit, impedanceOhms: event.impedanceOhms },
@@ -91,19 +107,19 @@ export function receiptDetail(entry, state) {
 }
 
 export function notificationDetailHeader(entry, title) {
-  const removed = entry.action === 'deleted' && !entry.restored;
-  return pageHeader(title, removed ? 'Cet élément a été supprimé.' : entry.restored ? 'Cet élément a été restauré.' : '',
-    removed ? button('Restaurer', 'restore-notification', { value: entry.id, primary: true })
-      : entry.live ? deleteButton('Supprimer la pesée', 'delete-measurement') : '');
+  const removed = entry.action === 'deleted' && !entry.live;
+  return pageHeader(title, removed ? 'Cet élément a été supprimé.'
+    : entry.restored ? 'Cet élément a été restauré.' : entry.missing ? 'Cet élément est introuvable.' : '');
 }
 
 export function notificationRecordView(entry) {
   const { record, type } = entry;
-  const fields = type === 'profile' ? [
+  if (type === 'device') return { header: notificationDetailHeader(entry, 'Appareil'), content: deviceCard(record) };
+  const fields = [
     ['Sexe utilisé par les formules', record.sex === 'F' ? 'Femme' : 'Homme'],
     record.birthDate ? ['Date de naissance', formatCalendarDate(record.birthDate)] : ['Âge', number(record.age)],
     ['Taille (cm)', number(record.heightCm)],
     ...(entry.measurements ? [['Pesées sauvegardées', entry.measurements.length]] : []),
-  ] : deviceFields(record);
+  ];
   return { header: notificationDetailHeader(entry, e(record.name)), content: `<div class="panel">${pairs(fields)}</div>` };
 }

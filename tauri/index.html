@@ -30,7 +30,11 @@
             <input id="import-files" type="file" accept=".zip,application/zip" aria-label="Importer une archive ZIP" hidden>
           </div>
           <div class="actions editor-actions" id="editor-actions" hidden></div>
-          <button class="button" type="button" id="back-to-measurements" hidden>Retour</button>
+          <div class="actions" id="detail-actions" hidden>
+            <button class="button" type="button" id="back-to-measurements" hidden>Retour</button>
+            <span id="delete-measurement-button" hidden></span>
+            <button class="button primary" type="button" id="restore-button" hidden>Restaurer</button>
+          </div>
           <div class="profile-select">
             <button type="button" id="profile-icon" aria-label="Créer un profil" title="Créer un profil"></button>
             <select id="profile" aria-label="Profil actif" hidden></select>

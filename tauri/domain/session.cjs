@@ -154,31 +154,37 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   function notify(draft, entry) {
     const timestamp = draft.notifications.reduce((latest, item) => Math.max(latest, Date.parse(item.date) + 1), Date.now());
     const date = new Date(timestamp).toISOString();
+    const timed = ['profile', 'device'].includes(entry.type) && ['saved', 'restored'].includes(entry.action);
     draft.notifications = [...draft.notifications, {
-      id: globalThis.crypto.randomUUID(), date, actor: draft.selectedProfile ?? null, ...entry,
+      id: globalThis.crypto.randomUUID(), date, actor: draft.selectedProfile ?? null,
+      ...(timed && { banner: true, durationMs: 3000 }), ...entry,
     }];
   }
 
-  function restoreNotification(id, withMeasurements = false) {
+  function restoreNotification(id, withMeasurements = false, profileFieldsOverride) {
     return mutate(draft => {
       const entry = draft.notifications.find(item => item.id === id && item.action === 'deleted');
       if (!entry) throw Error('Notification de suppression introuvable.');
       const { record, type } = entry;
       const measurementExists = type === 'measurement' && draft.measurements.some(row =>
         measurementSlot(row, draft.profiles) === measurementSlot(record, draft.profiles));
-      if (measurementExists || (entry.restored && type !== 'measurement')) {
+      const profileExists = type === 'profile' && draft.profiles.some(profile => profile.uuid === record.uuid);
+      if (measurementExists || profileExists) {
         throw Error('Cet élément a déjà été restauré.');
       }
       if (type === 'profile') {
-        if (findProfile(draft, record.name)) throw Error('Un profil porte déjà ce nom.');
-        draft.profiles = [...draft.profiles, record];
-        if (entry.preferences) draft.profilePreferences = { ...draft.profilePreferences, [record.name]: entry.preferences };
+        const profile = profileFieldsOverride ? { ...profileFields(profileFieldsOverride), uuid: record.uuid } : record;
+        if (findProfile(draft, profile.name)) throw Error('Un profil porte déjà ce nom.');
+        draft.profiles = [...draft.profiles, profile];
+        if (entry.preferences) draft.profilePreferences = { ...draft.profilePreferences, [profile.name]: entry.preferences };
         if (withMeasurements) draft.measurements = [...draft.measurements, ...entry.measurements];
+        notify(draft, { type, action: 'restored', record: profile });
       } else if (type === 'device') {
         enrollmentRequest(draft, { address: record.bluetooth.address, name: record.name });
         if (findDevice(draft, record.bluetooth.address)) throw Error('Cet appareil est déjà enregistré.');
         draft.devices = [...draft.devices, record];
         resolveDevice(draft, record);
+        notify(draft, { type, action: 'restored', record });
       } else if (type === 'measurement') {
         const profile = record.profile?.uuid ? draft.profiles.find(row => row.uuid === record.profile?.uuid)
           : findProfile(draft, record.profile?.name);
@@ -187,7 +193,8 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
         }
         draft.measurements = [...draft.measurements, record];
       }
-      draft.notifications = draft.notifications.map(item => item.id === id ? { ...item, restored: true } : item);
+      const restoredAt = new Date().toISOString();
+      draft.notifications = draft.notifications.map(item => item.id === id ? { ...item, restored: true, restoredAt } : item);
     });
   }
 
@@ -200,14 +207,14 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     const measurement = historyRecord(event, profile ? { ...profile, user: profile.name } : null, device);
     const slot = measurementSlot(measurement, draft.profiles);
     const existing = draft.measurements.find(row => measurementSlot(row, draft.profiles) === slot);
-    if (existing) {
-      updateReceipt(draft, pendingId, () => ({ reason: null, text: 'Pesée déjà enregistrée.',
-        measurementUuid: existing.uuid, profileUuid: existing.profile?.uuid ?? null, deviceUuid: existing.device?.uuid ?? null }));
-      return;
-    }
+    const stored = existing ?? measurement;
+    updateReceipt(draft, pendingId, entry => ({ reason: null,
+      text: existing ? 'Pesée déjà enregistrée.' : 'Pesée enregistrée.',
+      measurementUuid: stored.uuid, profileUuid: stored.profile?.uuid ?? null, deviceUuid: stored.device?.uuid ?? null,
+      ...(entry.replaying && { replaying: false, restoredAt: new Date().toISOString() }),
+    }));
+    if (existing) return;
     draft.measurements = [...draft.measurements, measurement];
-    updateReceipt(draft, pendingId, () => ({ reason: null, text: 'Pesée enregistrée.',
-      measurementUuid: measurement.uuid, profileUuid: measurement.profile?.uuid ?? null, deviceUuid: measurement.device?.uuid ?? null }));
     notify(draft, { type: 'measurement', action: 'saved', record: measurement });
     if (profile?.name) draft.selectedProfile = profile.name;
   }
@@ -246,7 +253,8 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
               && item.record.uuid === entry.measurementUuid)))) {
         throw Error('Cette pesée est déjà disponible.');
       }
-      assign(draft, entry.record.event, entry.pendingId ?? uuid(), entry.record.bluetoothMetadata);
+      updateReceipt(draft, entry.pendingId, () => ({ replaying: true }));
+      assign(draft, entry.record.event, entry.pendingId, entry.record.bluetoothMetadata);
     });
   }
 
@@ -520,7 +528,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       const pending = draft.pending.filter(row => row.id !== id);
       if (pending.length === draft.pending.length) return;
       draft.pending = pending;
-      updateReceipt(draft, id, () => ({ reason: null, text: 'Pesée ignorée.' }));
+      updateReceipt(draft, id, () => ({ reason: null, text: 'Pesée ignorée.', replaying: false }));
     });
   }
 

@@ -20,14 +20,14 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
     previousFocus = null;
   }
 
-  function open(title, content, submit, submitLabel = 'Enregistrer', { modal = false, extraActions = '', submitChoices = [] } = {}) {
+  function open(title, content, submit, submitLabel = 'Enregistrer', { modal = false, extraActions = '', submitChoices = [], subtitle = '' } = {}) {
     const host = modal ? dialog : view;
     const formId = modal ? 'modal-editor-form' : 'view-editor-form';
     const submitButton = submitLabel ? `<button class="button primary" type="submit" form="${formId}">${submitLabel}</button>` : '';
     const choices = submitChoices.map(({ label, value, primary }) =>
       `<button class="button${primary ? ' primary' : ''}" type="submit" form="${formId}" name="include" value="${value}">${label}</button>`).join('');
     const actions = `${extraActions}${button('Annuler', 'close-editor')}${submitButton}${choices}`;
-    host.innerHTML = `${modal ? `<h2 id="dialog-title">${title}</h2>` : pageHeader(title)}
+    host.innerHTML = `${modal ? `<h2 id="dialog-title">${title}</h2>` : pageHeader(title, subtitle)}
       <form id="${formId}" class="editor-form${modal ? '' : ' panel'}">${content}<p class="notice error" role="alert" hidden></p></form>
       ${modal ? `<div class="actions">${actions}</div>` : ''}`;
     const controls = modal ? dialog : toolbar;
@@ -45,8 +45,8 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
       for (const control of buttons) control.disabled = true;
       error.hidden = true;
       try {
-        await submit(Object.fromEntries(values));
-        if (form.isConnected) close();
+        const result = await submit(Object.fromEntries(values));
+        if (result !== false && form.isConnected) close();
       } catch (exception) {
         error.textContent = exception?.message || String(exception);
         error.hidden = false;
@@ -77,10 +77,12 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
     return form;
   }
 
-  function profileEditor(profile, submit, anonymous = false) {
-    const edit = Boolean(profile);
+  function profileEditor(profile, submit, anonymous = false, { restore = false, onDelete } = {}) {
+    const edit = Boolean(profile) && !restore;
     const ageType = profile?.age != null && !profile?.birthDate ? 'age' : 'birthDate';
-    const form = open(anonymous ? 'Calculer sans profil enregistré' : edit ? 'Modifier le profil' : 'Créer un profil', `
+    const title = restore ? 'Restaurer le profil'
+      : anonymous ? 'Calculer sans profil enregistré' : edit ? 'Modifier le profil' : 'Créer un profil';
+    const form = open(title, `
       ${anonymous ? '' : field('Nom', 'name', `value="${e(profile?.name)}" maxlength="64" required autofocus`)}
       <label>Sexe utilisé par les formules<select name="sex" required>${option('', 'Choisir', false)}${option('H', 'Homme', profile?.sex === 'H')}${option('F', 'Femme', profile?.sex === 'F')}</select></label>
       <label>Âge utilisé par les formules<select name="ageType">${option('birthDate', 'Date de naissance', ageType === 'birthDate')}${option('age', 'Âge fixe', ageType === 'age')}</select></label>
@@ -93,8 +95,12 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
       if (edit) data.editUuid = profile.uuid;
       if (source === 'age') data.age = Number(age);
       else data.birthDate = birthDate;
-      await submit(data);
+      return submit(data);
+    }, restore ? 'Restaurer' : 'Enregistrer', {
+      subtitle: restore ? 'Ce profil a été supprimé.' : '',
+      extraActions: edit && onDelete ? button('Supprimer', 'delete-profile') : '',
     });
+    if (edit && onDelete) toolbar.querySelector('[data-action="delete-profile"]').addEventListener('click', onDelete);
     const selector = form.querySelector('[name="ageType"]');
     const syncAge = () => ['age', 'birthDate'].forEach(name => {
       const input = form.querySelector(`[name="${name}"]`);

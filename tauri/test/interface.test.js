@@ -740,7 +740,7 @@ test('les suppressions demandent confirmation et persistent après rechargement'
 
   await choosePage(page, 'Mesures');
   await page.getByRole('button', { name: /Voir la pesée du/ }).last().click();
-  const deleteMeasurement = page.getByRole('button', { name: 'Supprimer la pesée' });
+  const deleteMeasurement = page.locator('#detail-actions').getByRole('button', { name: 'Supprimer la pesée' });
   await deleteMeasurement.click();
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'hidden' });
@@ -750,7 +750,9 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   assert.deepEqual((await stored()).measurements, initial.measurements.slice(1));
 
   await choosePage(page, 'Profils');
-  const deleteProfile = page.getByRole('button', { name: 'Supprimer le profil Alice' });
+  const profile = page.getByRole('article').filter({ has: page.getByRole('heading', { name: /^Alice\b/ }) });
+  await profile.getByRole('button', { name: 'Modifier', exact: true }).click();
+  const deleteProfile = page.locator('.toolbar').getByRole('button', { name: 'Supprimer', exact: true });
   await deleteProfile.click();
   await dialog.getByText(/Les pesées de ce profil seront aussi retirées/).waitFor();
   await cancel();
@@ -791,8 +793,7 @@ test('capture et renommage, attribution automatique et flux brut horodaté', asy
   await page.locator('.toolbar').getByRole('button', { name: 'Enregistrer', exact: true }).click();
   const renamed = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Balance maison', exact: true }) });
   await renamed.getByText(address, { exact: true }).waitFor();
-  await page.getByText(/En attente d’une pesée/).waitFor();
-  await dismissNotificationBanner(page);
+  await page.locator('#notices').getByText('Appareil enregistré', { exact: true }).waitFor();
   await page.reload();
   await renamed.getByText(address, { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Écouter seulement cet appareil' }).click();
@@ -919,7 +920,9 @@ test('le journal conserve ses entrées et restaure un profil avec ses pesées', 
   const icon = page.getByRole('button', { name: 'Notifications', exact: true });
   assert.equal(await icon.count(), 0);
   await choosePage(page, 'Profils');
-  await page.getByRole('button', { name: 'Supprimer le profil Alice' }).click();
+  await page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Alice', exact: true }) })
+    .getByRole('button', { name: 'Modifier', exact: true }).click();
+  await page.locator('.toolbar').getByRole('button', { name: 'Supprimer', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Supprimer', exact: true }).click();
   await icon.waitFor();
@@ -938,19 +941,39 @@ test('le journal conserve ses entrées et restaure un profil avec ses pesées', 
   const card = page.locator('.notification-item').filter({ hasText: 'Profil supprimé' });
   await card.getByText(/Profil actif : Bob/).waitFor();
   await card.getByRole('button', { name: /Profil supprimé/ }).click();
-  await page.getByText('Cet élément a été supprimé.', { exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Restaurer', exact: true }).click();
+  const form = page.locator('#editor-view');
+  const toolbar = page.locator('.toolbar');
+  await form.getByRole('heading', { name: 'Restaurer le profil', exact: true }).waitFor();
+  assert.equal(await form.getByLabel('Nom', { exact: true }).inputValue(), 'Alice');
+  assert.equal(await form.getByLabel('Taille (cm)').inputValue(), '165');
+  await form.getByLabel('Nom', { exact: true }).fill('Alicia');
+  assert.equal(await toolbar.getByRole('button', { name: 'Supprimer', exact: true }).count(), 0);
+  const restore = toolbar.getByRole('button', { name: 'Restaurer', exact: true });
+  await restore.click();
+  await dialog.getByRole('button', { name: 'Annuler', exact: true }).click();
+  assert.equal(await form.getByLabel('Nom', { exact: true }).inputValue(), 'Alicia');
+  await restore.click();
   await dialog.getByText(/Restaurer aussi les pesées de ce profil/).waitFor();
   const yes = dialog.getByRole('button', { name: 'Oui', exact: true });
   assert.match(await yes.getAttribute('class'), /\bprimary\b/);
   await yes.click();
-  await page.getByText('Cet élément a été restauré.', { exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Retour', exact: true }).click();
+  await form.waitFor({ state: 'hidden' });
+  await page.waitForURL(/#profiles\/[0-9a-f-]+$/);
+  await page.getByRole('heading', { name: 'Alicia', exact: true }).waitFor();
+  await page.locator('#notices').getByText('Profil restauré', { exact: true }).waitFor();
+  await icon.click();
+  await card.getByText(/^Restauré le /).waitFor();
+  await card.getByRole('button', { name: /Profil supprimé/ }).click();
+  await form.getByRole('heading', { name: 'Modifier le profil', exact: true }).waitFor();
+  assert.equal(await form.getByLabel('Nom', { exact: true }).inputValue(), 'Alicia');
+  assert.equal(await restore.count(), 0);
+  await toolbar.getByRole('button', { name: 'Annuler', exact: true }).click();
   await card.getByRole('button', { name: 'Supprimer définitivement la notification' }).click();
   await dialog.getByRole('button', { name: 'Supprimer', exact: true }).click();
-  await icon.waitFor({ state: 'hidden' });
+  await card.waitFor({ state: 'hidden' });
+  await page.locator('.notification-item').getByText('Profil restauré', { exact: true }).waitFor();
   await choosePage(page, 'Mesures');
-  await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('Alice');
+  await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('Alicia');
   await page.getByRole('table', { name: 'Pesées' }).getByText('70 kg').waitFor();
 });
 
@@ -994,9 +1017,10 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
   await icon.click();
   const deleted = page.locator('.notification-item').getByRole('button', { name: /Pesée supprimée/ });
+  assert.match(await deleted.innerText(), /avec impédance/);
   await deleted.click();
   await page.getByText('Cet élément a été supprimé.', { exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Restaurer', exact: true }).click();
+  await page.locator('.toolbar').getByRole('button', { name: 'Restaurer', exact: true }).click();
   await page.getByText('Cet élément a été restauré.', { exact: true }).waitFor();
   await choosePage(page, 'Mesures');
   await page.getByRole('table', { name: 'Pesées' }).waitFor();
@@ -1011,7 +1035,7 @@ test('une notification de réception suit la pesée active, supprimée puis rela
   await receipt.click();
   const details = page.getByRole('heading', { name: 'Détails de la pesée', exact: true });
   const archived = page.getByText('Cet élément a été supprimé.', { exact: true });
-  const restore = page.getByRole('button', { name: 'Restaurer', exact: true });
+  const restore = page.locator('.toolbar').getByRole('button', { name: 'Restaurer', exact: true });
   await details.waitFor();
   const removeMeasurement = async () => {
     await page.getByRole('button', { name: 'Supprimer la pesée' }).click();
@@ -1037,4 +1061,38 @@ test('une notification de réception suit la pesée active, supprimée puis rela
   await restore.click();
   await details.waitFor();
   assert.equal(await archived.count(), 0);
+});
+
+test('un appareil lié disparu ouvre sa carte de restauration et revient à sa fiche dans la liste', async t => {
+  const page = await pageWith(t, { devices: [device] });
+  await choosePage(page, 'Appareils');
+  const toolbar = page.locator('.toolbar');
+  const notices = page.locator('#notices');
+  await page.getByRole('button', { name: 'Renommer', exact: true }).click();
+  await page.getByLabel('Nom de l’appareil').fill('Balance cuisine');
+  await toolbar.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await notices.getByText('Appareil enregistré', { exact: true }).waitFor();
+  await dismissNotificationBanner(page);
+
+  const live = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Balance cuisine', exact: true }) });
+  const id = await live.getAttribute('id');
+  await live.getByRole('button', { name: 'Supprimer l’appareil Balance cuisine' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+  await page.locator('.notification-item').getByRole('button', { name: /^Appareil enregistré/ }).click();
+  await page.locator('.list-item').getByText(address, { exact: true }).waitFor();
+
+  const commands = toolbar.locator('#detail-actions').getByRole('button');
+  assert.deepEqual(await commands.allTextContents(), ['Retour', 'Restaurer']);
+  await commands.last().click();
+  await page.waitForURL(url => url.hash === '#' + id);
+  await live.getByText(address, { exact: true }).waitFor();
+  assert.equal(await live.evaluate(card => document.activeElement === card), true);
+  const restored = notices.getByText('Appareil restauré', { exact: true });
+  await restored.waitFor();
+  await restored.waitFor({ state: 'hidden', timeout: 4500 });
+
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+  const archived = page.locator('.notification-item').filter({ hasText: 'Appareil supprimé' });
+  await archived.getByText(/^Restauré le \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/).waitFor();
 });

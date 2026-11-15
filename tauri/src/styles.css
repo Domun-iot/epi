@@ -273,7 +273,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .toolbar { min-width: 0; gap: 10px; justify-content: space-between; }
 .data-actions { flex: 1 1 0; min-width: 92px; flex-wrap: nowrap; }
 .data-actions:has(#reload-data:not([hidden])) { min-width: 142px; }
-.data-actions[hidden], .editor-actions[hidden], .toolbar .button[hidden] { display: none; }
+.data-actions[hidden], .editor-actions[hidden], #detail-actions[hidden], .toolbar .button[hidden] { display: none; }
 .data-actions .button { flex: none; font-size: .85rem; white-space: nowrap; }
 #reload-data, .data-actions.compact .button { width: var(--action-button-height); padding: 0; }
 .data-actions svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
