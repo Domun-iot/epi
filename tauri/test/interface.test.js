@@ -1331,7 +1331,11 @@ test('une réception ouvre la pesée enregistrée ou réactive son bandeau à la
   await pending.waitFor({ state: 'hidden' });
 
   await icon.click();
-  await receipt.click();
+  const ignored = page.locator('.notification-item').getByRole('button', { name: /^Pesée ignorée/ });
+  await ignored.waitFor();
+  assert.equal(await receipt.count(), 0);
+  assert.equal(await ignored.locator('small').innerText(), originalDate);
+  await ignored.click();
   await pending.getByRole('button', { name: 'Attribuer la pesée' }).waitFor();
   assert.ok((await pending.innerText()).includes(originalDate));
 });

@@ -11,7 +11,8 @@ export function notificationText(entry, state) {
   if (type === 'pending') {
     const label = state?.devices.find(device => device.uuid === entry.deviceUuid)?.name
       ?? record.device?.name ?? record.event.address;
-    return { title: 'Pesée reçue', text: `${weight(record.event)} · ${label}` };
+    const title = entry.text === 'Pesée ignorée.' ? 'Pesée ignorée' : 'Pesée reçue';
+    return { title, text: `${weight(record.event)} · ${label}` };
   }
   if (!action) return { title: entry.text };
   const by = actor ? `Profil actif : ${actor}.` : 'Aucun profil actif.';
