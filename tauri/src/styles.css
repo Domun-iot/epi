@@ -294,6 +294,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
 #bluetooth-log > div { padding: 4px 0; }
 #bluetooth-log .bluetooth-id-known { color: light-dark(#067647, #75d9a8); }
 #bluetooth-log .bluetooth-id-unknown { color: light-dark(#b42318, #ff8b80); }
+#bluetooth-log .bluetooth-decoded { color: light-dark(#245bd7, #91b8ff); }
 #raw-frames { max-height: 260px; overflow: auto; margin: 10px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
 .toolbar { min-width: 0; gap: 10px; justify-content: space-between; }
 .data-actions { flex: 1 1 0; min-width: 92px; flex-wrap: nowrap; }

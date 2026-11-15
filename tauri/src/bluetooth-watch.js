@@ -63,12 +63,23 @@ function formatFrame(frame) {
   fields.push(frame.advertisementType === 'Gatt' ? 'GATT' : '',
     frame.rssi == null ? '' : `${frame.rssi} dBm`,
     `${frame.bytes} octet${frame.bytes === 1 ? ' reçu' : 's reçus'}`);
+  let text = fields.filter(Boolean).join(' · ');
   if (Number.isFinite(frame.weight)) {
-    fields.push(weight(frame), frame.removed ? 'Balance libérée' : frame.stable ? 'Poids stable' : 'Poids instable',
-      frame.impedanceOhms ? `${frame.impedanceOhms} Ω` : '', frame.scaleTime ? formatScaleTime(frame.scaleTime) : '');
+    text += ' · ';
+    const weightStart = text.length;
+    text += weight(frame);
+    highlights.push([weightStart, text.length, 'decoded']);
+    const state = frame.removed ? 'Balance libérée' : frame.stable ? 'Poids stable' : 'Poids instable';
+    text += ` · ${state}`;
+    if (frame.impedanceOhms) {
+      text += ' · ';
+      const impedanceStart = text.length;
+      text += `${frame.impedanceOhms} Ω`;
+      highlights.push([impedanceStart, text.length, 'decoded']);
+    }
+    if (frame.scaleTime) text += ` · ${formatScaleTime(frame.scaleTime)}`;
   }
 
-  let text = fields.filter(Boolean).join(' · ');
   const bytes = frame.hex?.match(/../g);
   if (bytes) {
     const ascii = bytes.map(hex => {
@@ -113,11 +124,11 @@ export function createBluetoothWatch() {
         if (!Array.isArray(range)) continue;
         const [start, end, status] = range;
         if (!Number.isInteger(start) || !Number.isInteger(end) || start < offset || end <= start
-            || end > frame.text.length || (status !== 'known' && status !== 'unknown')) continue;
-        const id = document.createElement('span');
-        id.className = `bluetooth-id-${status}`;
-        id.textContent = frame.text.slice(start, end);
-        row.append(frame.text.slice(offset, start), id);
+            || end > frame.text.length || !['known', 'unknown', 'decoded'].includes(status)) continue;
+        const highlight = document.createElement('span');
+        highlight.className = status === 'decoded' ? 'bluetooth-decoded' : `bluetooth-id-${status}`;
+        highlight.textContent = frame.text.slice(start, end);
+        row.append(frame.text.slice(offset, start), highlight);
         offset = end;
       }
       row.append(frame.text.slice(offset));

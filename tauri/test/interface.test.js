@@ -236,7 +236,9 @@ test('l’écoute Bluetooth filtre, décode et suit les trames jusqu’à une pe
   await feed(page, frame.replace('0226', '0206'));
   await feed(page, metadata);
   await feed(page, frame.replace('0226', '0206'));
-  await log.getByText(/XMTZC05HM.*13 octets reçus.*70,9 kg.*Poids instable/).waitFor();
+  const decodedFrame = log.getByText(/XMTZC05HM.*13 octets reçus.*70,9 kg.*Poids instable/);
+  await decodedFrame.waitFor();
+  assert.deepEqual(await decodedFrame.locator('.bluetooth-decoded').allTextContents(), ['70,9 kg', '489 Ω']);
   await feed(page, frame.replace('AABBCCDDEEFF', '000000000001'));
 
   const atBottom = () => log.evaluate(el => el.scrollHeight - el.clientHeight - el.scrollTop <= 1);
