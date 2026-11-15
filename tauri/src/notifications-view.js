@@ -30,20 +30,22 @@ export function notificationText(entry, state) {
     text: `${record.name} · ${by}` };
 }
 
-export function notificationBody(entry, date = false, state) {
+export function notificationBody(entry, state, detailed = false) {
   const { title, text } = notificationText(entry, state);
+  const heading = `<strong>${e(title)}</strong>`;
+  if (!detailed) return heading;
   const receipt = entry.type === 'pending';
   const receivedAt = receipt ? entry.record.event.receivedAt : entry.date;
-  const restoredAt = date && !receipt ? Date.parse(entry.restoredAt) : NaN;
+  const restoredAt = !receipt ? Date.parse(entry.restoredAt) : NaN;
   const restoration = entry.type === 'measurement' ? 'Restaurée' : 'Restauré';
-  return `<strong>${e(title)}</strong>${date ? `<small>${e(formatDate(receivedAt))}</small>` : ''}
+  return `${heading}<small>${e(formatDate(receivedAt))}</small>
     ${text ? `<span>${e(text)}</span>` : ''}
     ${Number.isFinite(restoredAt) ? `<small>${restoration} le ${e(restorationDate.format(restoredAt))}</small>` : ''}`;
 }
 
 export function notificationsView(state) {
   const content = [...state.notifications].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).map(entry => {
-    const body = notificationBody(entry, true, state);
+    const body = notificationBody(entry, state, true);
     const summary = entry.action || entry.type === 'pending'
       ? `<button type="button" class="notification-summary" data-action="open-notification" data-value="${e(entry.id)}">${body}</button>`
       : `<div class="notification-summary">${body}</div>`;

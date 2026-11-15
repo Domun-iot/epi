@@ -1133,10 +1133,12 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   const notices = page.locator('#notices');
   await feed(page, frame);
   await notices.getByText('Pesée enregistrée', { exact: true }).waitFor();
+  assert.equal(await notices.locator('.notification-summary').innerText(), 'Pesée enregistrée');
   await dismissNotificationBanner(page);
   const icon = page.getByRole('button', { name: 'Notifications', exact: true });
   await icon.click();
   const saved = page.locator('.notification-item').getByRole('button', { name: /^Pesée enregistrée/ });
+  assert.match(await saved.innerText(), /Impédance reçue/);
   await saved.click();
   await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
   await choosePage(page, 'Mesures');

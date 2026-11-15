@@ -223,7 +223,7 @@ function renderBanner() {
   const error = activeNotice.type === 'error';
   notices.innerHTML = `<article class="notice notification-banner${error ? ' error' : ''}"${error ? ' role="alert"' : ''}>
     <div class="notification-banner-content">
-      <div class="notification-summary">${notificationBody(activeNotice, false, state)}</div>
+      <div class="notification-summary">${notificationBody(activeNotice, state)}</div>
     </div>
     <button class="button" type="button" data-action="dismiss-banner">Vu</button>
   </article>`;
