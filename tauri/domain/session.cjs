@@ -221,9 +221,9 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     if (profile?.name) draft.selectedProfile = profile.name;
   }
 
-  function assign(draft, event, id = uuid(), archivedMetadata = null) {
+  function assign(draft, event, id = uuid(), archivedMetadata = null, requireAttribution = false) {
     const device = findDevice(draft, event.address);
-    const profile = device && matchWeight(event, draft.profiles, latestWeights(draft.measurements));
+    const profile = device && !requireAttribution && matchWeight(event, draft.profiles, latestWeights(draft.measurements));
     const bluetoothMetadata = { ...acquisition.metadataFor(event.address), ...archivedMetadata };
     const reason = device ? 'profile' : 'device';
     const update = {
@@ -249,14 +249,12 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     return mutate(draft => {
       const entry = draft.notifications.find(item => item.id === id && item.type === 'pending');
       if (!entry?.record?.event) throw Error('Réception de pesée introuvable.');
-      if (draft.pending.some(item => item.id === entry.pendingId)
-          || (entry.measurementUuid && (draft.measurements.some(row => row.uuid === entry.measurementUuid)
-            || draft.notifications.some(item => item.type === 'measurement' && item.action === 'deleted'
-              && item.record.uuid === entry.measurementUuid)))) {
+      if (draft.pending.some(item => item.id === entry.pendingId)) return;
+      if (entry.measurementUuid && draft.measurements.some(row => row.uuid === entry.measurementUuid)) {
         throw Error('Cette pesée est déjà disponible.');
       }
       updateReceipt(draft, entry.pendingId, () => ({ replaying: true }));
-      assign(draft, entry.record.event, entry.pendingId, entry.record.bluetoothMetadata);
+      assign(draft, entry.record.event, entry.pendingId, entry.record.bluetoothMetadata, true);
     });
   }
 

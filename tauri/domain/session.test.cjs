@@ -269,7 +269,12 @@ test('links one complete receipt through enrollment, attribution, deletion and r
   const deleted = await reopened.deleteMeasurement(measurement);
   const archive = deleted.notifications.find(item => item.action === 'deleted');
   assert.equal(archive.record.uuid, measurement.uuid);
-  await assert.rejects(reopened.replayReceipt(receipt.id), /déjà disponible/);
+  const pending = await reopened.replayReceipt(receipt.id);
+  assert.equal(pending.pending[0].reason, 'profile');
+  assert.deepEqual(pending.pending[0].event, receipt.record.event);
+  assert.equal(pending.notifications.find(item => item.id === receipt.id).date, receipt.date);
+  assert.deepEqual((await reopened.replayReceipt(receipt.id)).pending, pending.pending);
+  await reopened.discardPending(receipt.pendingId);
   await reopened.deleteNotification(archive.id);
   await reopened.deleteDevice(address);
 
@@ -278,7 +283,7 @@ test('links one complete receipt through enrollment, attribution, deletion and r
   assert.deepEqual(replayed.pending[0].event, receipt.record.event);
   assert.deepEqual(replayed.pending[0].bluetoothMetadata, receipt.record.bluetoothMetadata);
   assert.equal(replayed.notifications.filter(item => item.id === receipt.id).length, 1);
-  await assert.rejects(reopened.replayReceipt(receipt.id), /déjà disponible/);
+  assert.deepEqual((await reopened.replayReceipt(receipt.id)).pending, replayed.pending);
 });
 
 test('links old receipts and migration IDs stay stable across reload', async () => {

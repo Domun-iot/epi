@@ -1,4 +1,4 @@
-import { button, deviceFields, escapeHtml as e, formatCalendarDate, number, pairs, pageHeader, sortByName, userIcon, weight } from './format.js';
+import { button, deviceFields, escapeHtml as e, formatCalendarDate, formatDate, number, pairs, pageHeader, sortByName, userIcon, weight } from './format.js';
 
 export function profilesView(profiles, selected) {
   const action = button('Créer un profil', 'new-profile', { primary: true });
@@ -41,18 +41,18 @@ export function devicesView(devices, filter, rawOpen, canScan = true) {
 
 export function noticesView({ pending, enrollment }) {
   const messages = [];
-  if (enrollment) messages.push(`<div class="notice">
-    <p>En attente d’une pesée de l’appareil « ${e(enrollment.name)} ». Montez sur la balance pour envoyer ses données.</p>
-    ${button('Annuler la capture', 'cancel-device')}</div>`);
   for (const item of pending) {
     const unknownDevice = item.reason === 'device';
     const deviceLabel = item.device?.name ?? item.event.address;
     const controls = unknownDevice
       ? button('Enregistrer l’appareil', 'register-pending-device', { value: item.id, primary: true })
       : button('Attribuer la pesée', 'assign-profile', { value: item.id, primary: true });
-    messages.push(`<aside class="notice"><p><strong>Pesée reçue</strong> · ${weight(item.event)} · ${e(deviceLabel)}</p>
+    messages.push(`<aside class="notice" data-pending-id="${e(item.id)}"><p><strong>Pesée reçue</strong> · ${weight(item.event)} · ${e(deviceLabel)} · ${e(formatDate(item.event.receivedAt))}</p>
       <p>${unknownDevice ? 'Enregistrez cette balance pour traiter sa pesée.' : 'Choisissez le profil auquel attribuer la pesée.'}</p>
       <div class="actions">${controls}${button('Ignorer la pesée', 'discard', { value: item.id })}</div></aside>`);
   }
+  if (enrollment) messages.push(`<div class="notice">
+    <p>En attente d’une pesée de l’appareil « ${e(enrollment.name)} ». Montez sur la balance pour envoyer ses données.</p>
+    ${button('Annuler la capture', 'cancel-device')}</div>`);
   return messages.join('');
 }

@@ -779,7 +779,6 @@ test('une trame reçue pendant la saisie prépare l’enregistrement de la balan
   assert.equal(await name.evaluate(input => input === document.activeElement), true);
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1')).devices.length), 0);
   await name.fill('Balance capturée');
-  await dismissNotificationBanner(page);
   await save.click();
   await editor.waitFor({ state: 'hidden' });
   await page.getByRole('heading', { name: 'Balance capturée', exact: true }).waitFor();
@@ -969,7 +968,7 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   const profileNames = ['Alice', 'Bob Martin', 'Élise', 'zoé'];
   assert.deepEqual((await page.locator('#profile option').allTextContents()).slice(1), profileNames);
   await feed(page, frame);
-  const banner = page.locator('#notices');
+  const banner = page.locator('#pending-actions');
   await banner.getByRole('button', { name: 'Enregistrer l’appareil' }).click();
   const editor = page.locator('#editor-view');
   const toolbar = page.locator('.toolbar');
@@ -1068,9 +1067,9 @@ test('le journal conserve ses entrées et restaure un profil avec ses pesées', 
 test('le bandeau recouvre la barre sur smartphone et sa fermeture conserve le journal', async t => {
   const page = await pageWith(t, { devices: [device] },
     { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  await feed(page, frame);
+  await page.getByRole('button', { name: 'Export ZIP' }).click();
   const banner = page.locator('.notification-banner');
-  await banner.getByText('Pesée reçue', { exact: true }).waitFor();
+  await banner.getByText('Archive ZIP exportée.', { exact: true }).waitFor();
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.notification-banner')).transform === 'matrix(1, 0, 0, 1, 0, 0)');
   const geometry = await banner.evaluate(node => {
     const toolbar = document.querySelector('.toolbar');
@@ -1096,8 +1095,7 @@ test('le bandeau recouvre la barre sur smartphone et sa fermeture conserve le jo
   assert.deepEqual(geometry.gaps, [geometry.iconWidth, geometry.iconWidth]);
   await dismissNotificationBanner(page);
   await page.getByRole('button', { name: 'Notifications', exact: true }).click();
-  await page.locator('.notification-item').getByText('Pesée reçue', { exact: true }).waitFor();
-  await page.locator('.notification-item').getByRole('button', { name: 'Attribuer la pesée', exact: true }).waitFor();
+  await page.locator('.notification-item').getByText('Archive ZIP exportée.', { exact: true }).waitFor();
 });
 
 test('les informations expirent après trois secondes et les erreurs attendent une validation', async t => {
@@ -1163,40 +1161,54 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   assert.equal(await page.getByRole('button', { name: /Voir la pesée du/ }).count(), 2);
 });
 
-test('une notification de réception suit la pesée active, supprimée puis relancée sans archive', async t => {
+test('une réception ouvre la pesée enregistrée ou réactive son bandeau à la date d’origine', async t => {
   const page = await pageWith(t, { profiles: [alice], devices: [device], selectedProfile: 'Alice', measurements: [record] });
   await feed(page, frame);
   await page.getByRole('button', { name: 'Notifications', exact: true }).click();
   const receipt = page.locator('.notification-item').getByRole('button', { name: /Pesée reçue/ });
   await receipt.click();
   const details = page.getByRole('heading', { name: 'Détails de la pesée', exact: true });
-  const archived = page.getByText('Cet élément a été supprimé.', { exact: true });
-  const restore = page.locator('.toolbar').getByRole('button', { name: 'Restaurer', exact: true });
   await details.waitFor();
-  const removeMeasurement = async () => {
-    await page.getByRole('button', { name: 'Supprimer la pesée' }).click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
-    await archived.waitFor();
-  };
+  await page.getByRole('button', { name: 'Supprimer la pesée' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
+  await receipt.waitFor();
+  await dismissNotificationBanner(page);
 
-  await removeMeasurement();
-  await restore.click();
-  await archived.waitFor({ state: 'hidden' });
-  await removeMeasurement();
-  await page.getByRole('button', { name: 'Retour', exact: true }).click();
-  const snapshots = page.locator('.notification-item').filter({ hasText: 'Pesée supprimée' });
-  for (const count of [2, 1]) {
-    assert.equal(await snapshots.count(), count);
-    await snapshots.first().getByRole('button', { name: 'Supprimer définitivement la notification' }).click();
-    const dialog = page.getByRole('dialog');
-    await dialog.getByRole('button', { name: 'Supprimer', exact: true }).click();
-    await dialog.waitFor({ state: 'hidden' });
-  }
+  const originalDate = await receipt.locator('small').innerText();
   await receipt.click();
-  await page.getByRole('heading', { name: 'Pesée reçue', exact: true }).waitFor();
-  await restore.click();
-  await details.waitFor();
-  assert.equal(await archived.count(), 0);
+  const pending = page.locator('#pending-actions');
+  await pending.getByRole('button', { name: 'Attribuer la pesée' }).waitFor();
+  await page.waitForURL('**/#measurements');
+  const geometry = await pending.locator('.notice').evaluate(node => {
+    const view = document.querySelector('#view').getBoundingClientRect();
+    const { left, right, top } = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    return { fullWidth: left === view.left && right === view.right, first: top === view.top,
+      radius: style.borderRadius, margin: style.margin, padding: parseFloat(style.paddingLeft) };
+  });
+  assert.equal(geometry.fullWidth, true);
+  assert.equal(geometry.first, true);
+  assert.equal(geometry.radius, '0px');
+  assert.equal(geometry.margin, '0px');
+  assert.ok(geometry.padding > 0);
+  assert.ok((await pending.innerText()).includes(originalDate));
+  assert.equal(await page.locator('#notices').getByText('Pesée reçue', { exact: true }).count(), 0);
+
+  const icon = page.getByRole('button', { name: 'Notifications', exact: true });
+  await icon.click();
+  const logEntry = page.locator('.notification-item').filter({ hasText: 'Pesée reçue' });
+  await receipt.waitFor();
+  assert.equal(await logEntry.count(), 1);
+  assert.equal(await logEntry.getByRole('button', { name: 'Attribuer la pesée' }).count(), 0);
+  assert.equal(await logEntry.getByRole('button', { name: 'Ignorer la pesée' }).count(), 0);
+  await receipt.click();
+  await pending.getByRole('button', { name: 'Ignorer la pesée' }).click();
+  await pending.waitFor({ state: 'hidden' });
+
+  await icon.click();
+  await receipt.click();
+  await pending.getByRole('button', { name: 'Attribuer la pesée' }).waitFor();
+  assert.ok((await pending.innerText()).includes(originalDate));
 });
 
 test('un appareil lié disparu ouvre sa carte de restauration et revient à sa fiche dans la liste', async t => {

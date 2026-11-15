@@ -1,5 +1,5 @@
 import { deviceCard } from './management-view.js';
-import { button, deleteButton, escapeHtml as e, formatCalendarDate, formatDate, number, pageHeader, pairs, weight } from './format.js';
+import { deleteButton, escapeHtml as e, formatCalendarDate, formatDate, number, pageHeader, pairs, weight } from './format.js';
 
 const restorationDate = new Intl.DateTimeFormat('fr-FR', {
   day: '2-digit', month: '2-digit', year: 'numeric',
@@ -11,7 +11,7 @@ export function notificationText(entry, state) {
   if (type === 'pending') {
     const label = state?.devices.find(device => device.uuid === entry.deviceUuid)?.name
       ?? record.device?.name ?? record.event.address;
-    return { title: 'Pesée reçue', text: `${weight(record.event)} · ${label} · ${entry.text}` };
+    return { title: 'Pesée reçue', text: `${weight(record.event)} · ${label}` };
   }
   if (!action) return { title: entry.text };
   const by = actor ? `Profil actif : ${actor}.` : 'Aucun profil actif.';
@@ -30,39 +30,25 @@ export function notificationText(entry, state) {
     text: `${record.name} · ${by}` };
 }
 
-export function notificationControls(entry, state) {
-  if (entry.type === 'pending') {
-    const pending = state.pending.find(item => item.id === entry.pendingId && item.reason === entry.reason);
-    if (!pending) return '';
-    const unknown = pending.reason === 'device';
-    return button(unknown ? 'Enregistrer l’appareil' : 'Attribuer la pesée',
-      unknown ? 'register-pending-device' : 'assign-profile', { value: pending.id, primary: true })
-      + button('Ignorer la pesée', 'discard', { value: pending.id });
-  }
-  if (entry.type === 'enrollment' && entry.enrollmentId === state.enrollment?.id) {
-    return button('Annuler la capture', 'cancel-device');
-  }
-  return '';
-}
-
 export function notificationBody(entry, date = false, state) {
   const { title, text } = notificationText(entry, state);
-  const restoredAt = date ? Date.parse(entry.restoredAt) : NaN;
-  const restoration = entry.type === 'measurement' || entry.type === 'pending' ? 'Restaurée' : 'Restauré';
-  return `<strong>${e(title)}</strong>${date ? `<small>${e(formatDate(entry.date))}</small>` : ''}
+  const receipt = entry.type === 'pending';
+  const receivedAt = receipt ? entry.record.event.receivedAt : entry.date;
+  const restoredAt = date && !receipt ? Date.parse(entry.restoredAt) : NaN;
+  const restoration = entry.type === 'measurement' ? 'Restaurée' : 'Restauré';
+  return `<strong>${e(title)}</strong>${date ? `<small>${e(formatDate(receivedAt))}</small>` : ''}
     ${text ? `<span>${e(text)}</span>` : ''}
     ${Number.isFinite(restoredAt) ? `<small>${restoration} le ${e(restorationDate.format(restoredAt))}</small>` : ''}`;
 }
 
 export function notificationsView(state) {
   const content = [...state.notifications].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).map(entry => {
-    const controls = notificationControls(entry, state);
     const body = notificationBody(entry, true, state);
     const summary = entry.action || entry.type === 'pending'
       ? `<button type="button" class="notification-summary" data-action="open-notification" data-value="${e(entry.id)}">${body}</button>`
       : `<div class="notification-summary">${body}</div>`;
     return `<article class="notice notification-item${entry.type === 'error' ? ' error' : ''}">
-      <div>${summary}${controls ? `<div class="actions">${controls}</div>` : ''}</div>
+      ${summary}
       ${deleteButton('Supprimer définitivement la notification', 'delete-notification', entry.id)}</article>`;
   }).join('');
   return { header: pageHeader('Notifications'), content: content || '<p class="panel empty">Aucune notification.</p>' };
@@ -77,33 +63,12 @@ export function resolveNotification(state, entry) {
   if (!uuid || !records) return entry;
   const live = records.find(row => row.uuid === uuid);
   if (live) return { ...entry, type, record: live, live: true, restored: entry.action === 'deleted' };
+  if (receipt) return entry;
   const archive = state.notifications.reduce((latest, item) => {
     if (item.type !== type || item.action !== 'deleted' || item.record.uuid !== uuid) return latest;
     return !latest || Date.parse(item.date) > Date.parse(latest.date) ? item : latest;
   }, null);
-  return archive ? { ...archive, restored: false } : receipt ? entry : { ...entry, missing: true };
-}
-
-export function receiptDetail(entry, state) {
-  const { event, bluetoothMetadata } = entry.record;
-  const pending = state.pending.find(row => row.id === entry.pendingId);
-  const controls = pending ? notificationControls({ ...entry, reason: pending.reason }, state) : '';
-  return {
-    canReplay: !pending,
-    header: pageHeader('Pesée reçue',
-      pending ? entry.text : 'Restaurer relance la recherche de la balance et du profil.',
-      controls ? `<div class="actions">${controls}</div>` : ''),
-    record: {
-      receivedAt: event.receivedAt,
-      measures: { weight: event.weight, unit: event.unit, impedanceOhms: event.impedanceOhms },
-      reception: {
-        raw: event.hex ? { hex: event.hex } : null,
-        bluetooth: { address: event.address, serviceUuid: event.serviceUuid, rssiDbm: event.rssi },
-        scale: { stable: event.stable, removed: event.removed, scaleTime: event.scaleTime },
-      },
-      ...(bluetoothMetadata && Object.keys(bluetoothMetadata).length > 0 && { 'Métadonnées Bluetooth': bluetoothMetadata }),
-    },
-  };
+  return archive ? { ...archive, restored: false } : { ...entry, missing: true };
 }
 
 export function notificationDetailHeader(entry, title) {

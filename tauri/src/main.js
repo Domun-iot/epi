@@ -5,7 +5,7 @@ import { deleteButton, escapeHtml as e, formatDate, nameKey, sortByName, userIco
 import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
 import { viewPresetHeader, viewPresetTitles } from './view-presets.js';
-import { notificationBody, notificationControls, notificationDetailHeader, notificationRecordView, notificationsView, receiptDetail, resolveNotification } from './notifications-view.js';
+import { notificationBody, notificationDetailHeader, notificationRecordView, notificationsView, resolveNotification } from './notifications-view.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
 
 const navigation = document.querySelector('#navigation');
@@ -97,7 +97,8 @@ function renderEditorView() {
   const editing = !editorView.hidden;
   previewDeviceCapture = undefined;
   if (editing) scrollBeforeEditor ??= viewScroll.scrollTop;
-  for (const element of [viewHeader, pendingActions, viewContent]) element.hidden = editing;
+  for (const element of [viewHeader, viewContent]) element.hidden = editing;
+  pendingActions.inert = editing;
   render();
   viewScroll.scrollTop = editing ? 0 : scrollBeforeEditor ?? 0;
   if (!editing) scrollBeforeEditor = undefined;
@@ -112,26 +113,22 @@ function render() {
   notificationIcon.hidden = state.notifications.length === 0;
   notificationIcon.setAttribute('aria-pressed', String(page === 'notifications'));
   renderBanner();
-  const nextNotices = [state.pending, state.enrollment, state.notifications, page];
+  const nextNotices = [state.pending, state.enrollment];
   if (changed(lastNotices, nextNotices)) {
     lastNotices = nextNotices;
-    const pending = state.pending.filter(row => !state.notifications.some(entry =>
-      entry.pendingId === row.id && entry.reason === row.reason));
-    const enrollment = state.enrollment && !state.notifications.some(entry => entry.enrollmentId === state.enrollment.id)
-      ? state.enrollment : null;
-    pendingActions.innerHTML = noticesView({ pending, enrollment });
+    pendingActions.innerHTML = noticesView(state);
+    pendingActions.hidden = !state.pending.length && !state.enrollment;
   }
-  const entry = page === 'notifications' ? state.notifications.find(item => item.id === notificationId) : null;
-  const target = resolveNotification(state, entry);
-  const receipt = target?.type === 'pending' ? receiptDetail(target, state) : null;
+  const selectedNotice = page === 'notifications' ? state.notifications.find(item => item.id === notificationId) : null;
+  const target = resolveNotification(state, selectedNotice);
+  const entry = target?.type === 'pending' ? null : selectedNotice;
   const detail = page === 'measurements' ? reading : null;
   const editing = !editorView.hidden;
   dataActions.hidden = editing || Boolean(detail || entry);
   detailActions.hidden = editing || (!detail && !entry);
   backButton.hidden = detailActions.hidden;
   deleteMeasurementButton.hidden = detailActions.hidden || !(detail || (target?.type === 'measurement' && target.live));
-  const restoreAction = receipt?.canReplay ? 'replay-receipt'
-    : target?.action === 'deleted' && !target.live ? 'restore-notification' : '';
+  const restoreAction = target?.action === 'deleted' && !target.live ? 'restore-notification' : '';
   restoreButton.hidden = editing || !restoreAction;
   restoreButton.dataset.action = restoreAction;
   restoreButton.dataset.value = target?.id ?? '';
@@ -142,7 +139,7 @@ function render() {
     : detail ? [page, detail, state.selectedProfile, ...layoutKey] : [page, state.selectedProfile, ...(page === 'measurements'
     ? [state.measurements, ...layoutKey]
     : page === 'profiles' ? [state.profiles] : page === 'devices' ? [state.devices, state.addressFilter]
-      : [state.notifications, notificationId, state.pending, state.enrollment, target?.record])];
+      : [state.notifications, notificationId, state.devices, target?.record])];
   if (changed(lastMain, nextMain)) {
     const pageChanged = lastMain[0] !== page;
     lastMain = nextMain;
@@ -177,9 +174,9 @@ function render() {
       : page === 'devices' ? devicesView(state.devices, state.addressFilter, state.rawOpen, !session?.web)
       : page === 'bluetooth' ? bluetoothView(state, session?.web)
       : !entry ? notificationsView(state)
-      : receipt || target.type === 'measurement'
-        ? measurementDetails(receipt?.record ?? target.record, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen,
-          receipt?.header ?? notificationDetailHeader(target, 'Détails de la pesée'))
+      : target.type === 'measurement'
+        ? measurementDetails(target.record, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen,
+          notificationDetailHeader(target, 'Détails de la pesée'))
         : notificationRecordView(target);
     viewHeader.innerHTML = markup.header;
     viewContent.innerHTML = markup.content;
@@ -220,15 +217,13 @@ function renderFrames() {
 
 function renderBanner() {
   if (!activeNotice || closingNotice) return;
-  const controls = notificationControls(activeNotice, state);
-  const next = [activeNotice, controls];
+  const next = [activeNotice];
   if (!changed(lastBanner, next)) return;
   lastBanner = next;
   const error = activeNotice.type === 'error';
   notices.innerHTML = `<article class="notice notification-banner${error ? ' error' : ''}"${error ? ' role="alert"' : ''}>
     <div class="notification-banner-content">
       <div class="notification-summary">${notificationBody(activeNotice, false, state)}</div>
-      ${controls ? `<div class="actions">${controls}</div>` : ''}
     </div>
     <button class="button" type="button" data-action="dismiss-banner">Vu</button>
   </article>`;
@@ -241,21 +236,8 @@ function bannerDuration(entry) {
 
 function enqueueBanners(entries) {
   noticeQueue.push(...entries);
-  if (activeNotice && !closingNotice && activeNotice.type !== 'error'
-      && !bannerDuration(activeNotice) && entries.some(bannerDuration)) {
-    noticeQueue.unshift(activeNotice);
-    dismissBanner();
-  }
-  if (activeNotice || closingNotice) return;
-  while (noticeQueue.length) {
-    // A pending action must not block later confirmations.
-    const next = noticeQueue.findIndex(entry => entry.type === 'error' || bannerDuration(entry));
-    const [entry] = noticeQueue.splice(Math.max(next, 0), 1);
-    if ((entry.type === 'pending' || entry.type === 'enrollment') && !notificationControls(entry, state)) continue;
-    activeNotice = entry;
-    break;
-  }
-  if (!activeNotice) return;
+  if (activeNotice || closingNotice || !noticeQueue.length) return;
+  activeNotice = noticeQueue.shift();
   renderBanner();
   notices.inert = false;
   // Commit the collapsed frame before beginning the transition.
@@ -301,17 +283,11 @@ function onState(next) {
   state = next;
   if (previous.notifications !== state.notifications) {
     const known = new Map(previous.notifications.map(item => [item.id, item]));
-    const oldPending = new Map(previous.pending.map(item => [item.id, item.reason]));
     const current = new Map(state.notifications.map(item => [item.id, item]));
     if (activeNotice && !closingNotice) activeNotice = current.get(activeNotice.id) ?? activeNotice;
     noticeQueue = noticeQueue.map(item => current.get(item.id) ?? item);
-    const incoming = state.notifications.filter(item => {
-      if (item.type === 'pending') return item.reason && notificationControls(item, state)
-        && oldPending.get(item.pendingId) !== item.reason
-        && (closingNotice || activeNotice?.id !== item.id)
-        && !noticeQueue.some(queued => queued.id === item.id);
-      return !known.has(item.id) && (item.banner || item.type === 'enrollment');
-    });
+    const incoming = state.notifications.filter(item => item.banner && !known.has(item.id)
+      && item.type !== 'pending' && item.type !== 'enrollment');
     if (initializedNotifications) enqueueBanners(incoming);
     initializedNotifications = true;
     scheduleNotificationExpiry();
@@ -389,8 +365,16 @@ function changeViewPreset(action, id) {
 }
 
 const actions = {
-  'open-notification': id => {
+  'open-notification': async id => {
     const target = resolveNotification(state, state.notifications.find(item => item.id === id));
+    if (target?.type === 'pending') {
+      await session.replayReceipt(id);
+      go('measurements');
+      const receipt = pendingActions.querySelector(`[data-pending-id="${CSS.escape(String(target.pendingId))}"]`);
+      receipt?.scrollIntoView({ block: 'nearest' });
+      receipt?.querySelector('button')?.focus({ preventScroll: true });
+      return;
+    }
     if (target?.type === 'profile' && target.live) return editProfile(target.record);
     if (target?.type === 'device' && target.live) return go('devices', target.record.uuid);
     if (target?.type === 'profile' && target.action === 'deleted') {
@@ -409,7 +393,6 @@ const actions = {
     viewScroll.scrollTop = 0;
     backButton.focus();
   },
-  'replay-receipt': id => session.replayReceipt(id),
   'delete-notification': id => editor.confirmDeletion('Supprimer la notification',
     'Supprimer définitivement cette notification et les données qu’elle contient ?',
     async () => {
@@ -531,14 +514,7 @@ backButton.addEventListener('click', () => {
   }
   actions['back-to-measurements']();
 });
-notices.addEventListener('click', event => {
-  const control = event.target.closest('[data-action]');
-  if (control && control.dataset.action !== 'dismiss-banner') {
-    const action = actions[control.dataset.action];
-    if (action) void perform(() => action(control.dataset.value));
-  }
-  if (activeNotice) dismissBanner();
-});
+notices.addEventListener('click', dismissBanner);
 main.addEventListener('click', event => {
   const columnsSummary = event.target.closest('details[data-expand="columns"] > summary');
   if (columnsSummary && desktopSearchFocus) {
