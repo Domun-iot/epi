@@ -9,6 +9,7 @@
 | CLI de release | `run\cli.bat` sous Windows ou `sh run/cli.sh` sous Linux. Le lanceur reconstruit la release si elle manque ou si ses sources ou sa configuration de build sont plus récentes. |
 | CLI en développement | `run\dev-cli.bat` sous Windows ou `sh run/dev-cli.sh` sous Linux |
 | Web de release | `run\web.bat` sous Windows ou `sh run/web.sh` sous Linux. Depuis la release, lance `npm start`. |
+| Web en développement | `run\dev-web.bat` sous Windows ou `sh run/dev-web.sh` sous Linux. Vite affiche l’adresse locale (port 1421 par défaut). |
 | Tests CLI | `npm --prefix cli test` |
 | Tests du domaine Tauri | `npm --prefix tauri test` |
 | Tests interactifs | `npm --prefix tauri run test:ui` |

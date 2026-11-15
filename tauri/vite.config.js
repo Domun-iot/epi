@@ -1,7 +1,10 @@
 import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import { build } from 'esbuild';
 import { resolve } from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import config from '../web/config.js';
+import { createSessionApi } from '../web/session-api.js';
 
 const appPath = import.meta.url;
 const modules = {
@@ -47,14 +50,30 @@ function sharedModules() {
   };
 }
 
-export default defineConfig({
+function webSessionApi() {
+  return {
+    name: 'epi-web-session-api',
+    async configureServer(server) {
+      const root = fileURLToPath(new URL('../web/', appPath));
+      const require = createRequire(appPath);
+      const domain = require('./domain/session.cjs');
+      const storage = require('../shared/data-directory.cjs');
+      const { handleAction } = await createSessionApi({ root, config, domain, storage });
+      server.middlewares.use('/api/session', (request, response, next) => {
+        handleAction(request, response).catch(next);
+      });
+    },
+  };
+}
+
+export default defineConfig(({ command, mode }) => ({
   clearScreen: false,
-  plugins: [sharedModules()],
+  plugins: [sharedModules(), ...(command === 'serve' && mode === 'web' ? [webSessionApi()] : [])],
   server: {
     host: process.env.TAURI_DEV_HOST || '127.0.0.1',
-    port: 1420,
+    port: mode === 'web' ? 1421 : 1420,
     strictPort: true,
     fs: { allow: [searchForWorkspaceRoot(process.cwd()), fileURLToPath(new URL('..', appPath))] },
   },
   build: { target: ['chrome105', 'safari15'] },
-});
+}));
