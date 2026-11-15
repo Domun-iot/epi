@@ -226,7 +226,6 @@ p { line-height: 1.55; }
 .chart-values, .chart-plot { position: relative; }
 .chart-values { text-align: right; font-weight: 650; }
 .chart-values span { display: block; position: relative; top: var(--y); height: 0; transform: translateY(-.65em); }
-.chart-range { margin: 8px 0 0; color: var(--muted); font-size: .82rem; }
 .chart-plot[data-start] { cursor: crosshair; user-select: none; }
 .chart-selection {
   position: absolute;

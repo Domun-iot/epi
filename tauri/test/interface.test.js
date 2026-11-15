@@ -852,10 +852,10 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   await page.mouse.move(x + width + 2, y + height / 2, { steps: 5 });
   await weightChart.locator('.chart-selection').waitFor();
   await page.mouse.up();
-  const selectedRange = weightChart.locator('.chart-range');
-  await selectedRange.waitFor();
-  assert.match(await selectedRange.textContent(), /^Du 22\/12\/2025 au 18\/01\/2026 \(28\sjours\)$/);
-  assert.equal(Number(await plot.getAttribute('data-start')), Date.parse('2025-12-22T00:00:00+01:00'));
+  const selectedStart = Date.parse('2025-12-22T00:00:00+01:00');
+  const selectedPlot = weightChart.locator(`.chart-plot[data-start="${selectedStart}"]`);
+  await selectedPlot.waitFor();
+  assert.equal(await weightChart.locator('.chart-range').count(), 0);
   assert.equal(Number(await plot.getAttribute('data-end')), Date.parse('2026-01-18T23:59:59.999+01:00'));
   assert.equal(await points.count(), 2);
   const dates = weightChart.locator('.chart-dates');
@@ -893,7 +893,7 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   await assertReadableLabels();
   await page.setViewportSize({ width: 360, height: 800 });
   await page.reload();
-  await selectedRange.waitFor();
+  await selectedPlot.waitFor();
   assert.equal(await brut.getAttribute('aria-pressed'), 'true');
   assert.equal(await points.count(), 2);
   await weightChart.getByRole('button', { name: 'Tout', exact: true }).click();

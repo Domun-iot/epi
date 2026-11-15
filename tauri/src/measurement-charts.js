@@ -1,6 +1,5 @@
 import { escapeHtml as e, formatDate } from './format.js';
 
-const axisDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'short' });
 const axisDay = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
 const axisMonth = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' });
 const axisEdgeDay = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'numeric' });
@@ -74,15 +73,6 @@ export function renderChartDates(axis, width) {
     const major = label ? ' chart-date-major' : '';
     return `<div class="chart-date-tick${major}${edge}" data-time="${time}" style="--x:${position(time)}px">${label ? `<span>${e(label)}</span>` : ''}</div>`;
   }).join('');
-}
-
-function rangeLabel([start, end]) {
-  const days = localDay(end) - localDay(start) + 1;
-  const [unit, divisor] = days > 365 ? ['year', 365] : days > 30 ? ['month', 30] : ['day', 1];
-  const duration = new Intl.NumberFormat('fr-FR', {
-    style: 'unit', unit, unitDisplay: 'long', maximumFractionDigits: 1,
-  }).format(days / divisor);
-  return `Du ${axisDate.format(start)} au ${axisDate.format(end)} (${duration})`;
 }
 
 function valueScale(points) {
@@ -285,7 +275,6 @@ export function measurementCharts(rows, series, { period = 'all', range, mode = 
         </button>
       </div>
     </div>
-    ${range ? `<p class="chart-range">${e(rangeLabel(range))}</p>` : ''}
     ${legend}
     ${active ? chartPlot(lines, active, { start, end, statuses, profileAge })
       : `<p class="empty">${visible.length ? 'Aucune donnée à afficher sur le graphique.' : 'Toutes les courbes sont masquées.'}</p>`}
