@@ -1,6 +1,10 @@
 {
   "syncPending": "Gegevens wachten op synchronisatie",
-  "syncDelay": "Sinds {date} wachten er gegevens op verzending. Maak verbinding.",
+  "syncDelay": "Sinds {date} wachten er gegevens op verzending.",
+  "syncCountdown": "Volgende automatische synchronisatie over {time}",
+  "syncInProgress": "Bezig met synchroniseren…",
+  "syncSignInRequired": "Meld je aan om je gegevens te synchroniseren.",
+  "syncNow": "Nu synchroniseren",
   "account": "Rekening",
   "accountAlreadyExists": "Er bestaat al een account voor dit adres. Log in op dit account om Google eraan te koppelen.",
   "accountConnected": "Aangemeld",

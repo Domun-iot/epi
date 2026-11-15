@@ -1,6 +1,10 @@
 {
   "syncPending": "Sonraí le sioncronú",
-  "syncDelay": "Tá sonraí le seoladh ó {date}. Ceangail le do thoil.",
+  "syncDelay": "Tá sonraí le seoladh ó {date}.",
+  "syncCountdown": "An chéad sioncronú uathoibríoch eile i gceann {time}",
+  "syncInProgress": "Sioncronú ar siúl…",
+  "syncSignInRequired": "Sínigh isteach chun do shonraí a shioncronú.",
+  "syncNow": "Sioncronaigh anois",
   "account": "Cuntas",
   "accountAlreadyExists": "Tá cuntas ann cheana don seoladh seo. Logáil isteach sa chuntas seo chun Google a cheangal leis.",
   "accountConnected": "Sínithe isteach",

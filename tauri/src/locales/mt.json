@@ -1,6 +1,10 @@
 {
   "syncPending": "Dejta pendenti għas-sinkronizzazzjoni",
-  "syncDelay": "Hemm dejta li ilha tistenna biex tintbagħat minn {date}. Jekk jogħġbok, ikkonnettja.",
+  "syncDelay": "Hemm dejta li ilha tistenna biex tintbagħat minn {date}.",
+  "syncCountdown": "Is-sinkronizzazzjoni awtomatika li jmiss fi żmien {time}",
+  "syncInProgress": "Is-sinkronizzazzjoni għaddejja…",
+  "syncSignInRequired": "Idħol fil-kont tiegħek biex tissinkronizza d-dejta.",
+  "syncNow": "Issinkronizza issa",
   "account": "Kont",
   "accountAlreadyExists": "Kont diġà jeżisti għal dan l-indirizz. Idħol f'dan il-kont biex tassoċja lil Google miegħu.",
   "accountConnected": "Illoggjat",

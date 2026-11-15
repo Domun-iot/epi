@@ -1,6 +1,10 @@
 {
   "syncPending": "Andmed ootavad sünkroonimist",
-  "syncDelay": "Andmed ootavad saatmist alates {date}. Palun loo ühendus.",
+  "syncDelay": "Andmed ootavad saatmist alates {date}.",
+  "syncCountdown": "Järgmine automaatne sünkroonimine {time} pärast",
+  "syncInProgress": "Sünkroonimine käib…",
+  "syncSignInRequired": "Andmete sünkroonimiseks logige sisse.",
+  "syncNow": "Sünkrooni kohe",
   "account": "konto",
   "accountAlreadyExists": "Selle aadressi jaoks on konto juba olemas. Google'i seostamiseks logige sellele kontole sisse.",
   "accountConnected": "Sisse logitud",

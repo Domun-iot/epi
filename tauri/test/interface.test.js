@@ -439,7 +439,7 @@ test('opens the sign-in form when the saved token has expired', async t => {
   assert.equal(checks, 1);
 });
 
-test('retries a stalled upload and archives only confirmed transactions', async t => {
+test('counts down to automatic sync and can retry immediately', async t => {
   await buildWeb();
   const ids = ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002'];
   let pending = ids.map(uuid => ({
@@ -449,10 +449,13 @@ test('retries a stalled upload and archives only confirmed transactions', async 
   const archived = [];
   const uploads = [];
   let releaseFirst;
+  let releaseManual;
   let signalUpload;
   const firstResponse = new Promise(resolve => { releaseFirst = resolve; });
+  const manualResponse = new Promise(resolve => { releaseManual = resolve; });
   const firstUpload = new Promise(resolve => { signalUpload = resolve; });
   t.after(releaseFirst);
+  t.after(releaseManual);
   const snapshot = { profiles: [], devices: [], measurements: [], pending: [], notifications: [] };
   const page = await pageWith(t, route => {
     const { action, args } = route.request().postDataJSON();
@@ -469,7 +472,8 @@ test('retries a stalled upload and archives only confirmed transactions', async 
     }
     return route.fulfill({ json: snapshot });
   }, { timezoneId: 'Europe/Paris' }, 'web', async page => {
-    await page.clock.install();
+    await page.clock.install({ time: new Date('2026-01-15T17:30:00Z') });
+    await page.clock.pauseAt(new Date('2026-01-15T17:30:05Z'));
     await page.addInitScript(() => {
       localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({
         email: 'alice@example.org', token: 'test-token',
@@ -484,6 +488,10 @@ test('retries a stalled upload and archives only confirmed transactions', async 
         await firstResponse;
         return route.abort().catch(() => {});
       }
+      if (uploads.length === 3) {
+        await manualResponse;
+        return route.fulfill({ json: { uuids: [] } });
+      }
       return route.fulfill({ json: { uuids: uploads.length === 2 ? [ids[0]] : uploads.at(-1) } });
     });
   });
@@ -495,26 +503,46 @@ test('retries a stalled upload and archives only confirmed transactions', async 
   await icon.waitFor();
   assert.match(await icon.getAttribute('class'), /syncing/);
   await icon.click();
-  await page.locator('#sync-message').getByText(/15 janv\. 2026.*18:23/).waitFor();
-  await page.locator('#sync-dialog').getByRole('button').click();
+  const dialog = page.getByRole('dialog', { name: 'Données en attente de synchronisation' });
+  const syncNow = dialog.getByRole('button', { name: 'Synchroniser maintenant' });
+  const countdown = dialog.locator('#sync-countdown');
+  await dialog.getByText(/15 janv\. 2026.*18:23/).waitFor();
+  assert.equal(await countdown.textContent(), 'Synchronisation en cours…');
+  assert.equal(await syncNow.isDisabled(), true);
   await page.clock.runFor(15_000);
   assert.equal(await icon.isVisible(), true);
   assert.doesNotMatch(await icon.getAttribute('class'), /syncing/);
   assert.deepEqual(archived, []);
   assert.deepEqual(uploads, [ids]);
   releaseFirst();
+  await dialog.getByText('Prochaine synchronisation automatique dans 0:40').waitFor();
+  await page.clock.runFor(1_000);
+  assert.equal(await countdown.textContent(), 'Prochaine synchronisation automatique dans 0:39');
 
   const archiveRequest = () => page.waitForResponse(response => response.url().endsWith('/api/session') &&
     response.request().postDataJSON().action === 'archiveTransactions');
-  await Promise.all([archiveRequest(), page.clock.runFor(41_000)]);
+  await Promise.all([archiveRequest(), page.clock.runFor(39_000)]);
   assert.deepEqual(uploads, [ids, ids]);
   assert.equal(archived.length, 1);
   assert.ok(archived[0].endsWith(ids[0] + '.json'));
   assert.equal(await icon.isVisible(), true);
 
+  await dialog.getByText('Prochaine synchronisation automatique dans 1:00').waitFor();
+  await page.clock.runFor(12_000);
+  assert.equal(await countdown.textContent(), 'Prochaine synchronisation automatique dans 0:48');
+  const manualUpload = page.waitForRequest('https://sync.epi.test/v1/transactions');
+  await syncNow.click();
+  const manualRequest = await manualUpload;
+  assert.deepEqual(manualRequest.postData().trim().split('\n').map(line => JSON.parse(line).uuid), [ids[1]]);
+  assert.equal(await countdown.textContent(), 'Synchronisation en cours…');
+  assert.equal(await syncNow.isDisabled(), true);
+  releaseManual();
+  await dialog.getByText('Prochaine synchronisation automatique dans 0:48').waitFor();
+
+  await dialog.getByRole('button', { name: 'Fermer' }).click();
   await Promise.all([archiveRequest(), page.locator('#theme-toggle').click()]);
   await icon.waitFor({ state: 'hidden' });
-  assert.deepEqual(uploads, [ids, ids, [ids[1], '00000000-0000-4000-8000-000000000003']]);
+  assert.deepEqual(uploads, [ids, ids, [ids[1]], [ids[1], '00000000-0000-4000-8000-000000000003']]);
 });
 
 test('l’écoute Bluetooth conserve les trames récentes et purge celles de plus de 24 heures', async t => {

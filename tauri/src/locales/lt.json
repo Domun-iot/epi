@@ -1,6 +1,10 @@
 {
   "syncPending": "Laukiama duomenų sinchronizavimo",
-  "syncDelay": "Duomenys laukia išsiuntimo nuo {date}. Prisijunkite.",
+  "syncDelay": "Duomenys laukia išsiuntimo nuo {date}.",
+  "syncCountdown": "Kitas automatinis sinchronizavimas po {time}",
+  "syncInProgress": "Sinchronizuojama…",
+  "syncSignInRequired": "Prisijunkite, kad sinchronizuotumėte duomenis.",
+  "syncNow": "Sinchronizuoti dabar",
   "account": "sąskaita",
   "accountAlreadyExists": "Šiam adresui skirta paskyra jau yra. Prisijunkite prie šios paskyros, kad su ja susietumėte „Google“.",
   "accountConnected": "Prisijungta prie paskyros",

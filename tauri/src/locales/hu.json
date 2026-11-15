@@ -1,6 +1,10 @@
 {
   "syncPending": "Szinkronizálásra váró adatok",
-  "syncDelay": "Az adatok ekkortól várnak elküldésre: {date}. Kérjük, csatlakozzon.",
+  "syncDelay": "Az adatok ekkortól várnak elküldésre: {date}.",
+  "syncCountdown": "Következő automatikus szinkronizálás {time} múlva",
+  "syncInProgress": "Szinkronizálás folyamatban…",
+  "syncSignInRequired": "Az adatok szinkronizálásához jelentkezzen be.",
+  "syncNow": "Szinkronizálás most",
   "account": "fiók",
   "accountAlreadyExists": "Már létezik fiók ehhez a címhez. Jelentkezzen be ebbe a fiókba a Google társításához.",
   "accountConnected": "Bejelentkezve",

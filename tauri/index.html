@@ -84,11 +84,13 @@
       </div>
     </div>
     <dialog id="editor" aria-labelledby="dialog-title"></dialog>
-    <dialog id="sync-dialog" aria-labelledby="sync-title" aria-describedby="sync-message">
+    <dialog id="sync-dialog" aria-labelledby="sync-title" aria-describedby="sync-message sync-countdown">
       <h2 id="sync-title" data-i18n="syncPending"></h2>
       <p id="sync-message"></p>
+      <p id="sync-countdown"></p>
       <form method="dialog" class="actions">
         <button class="button" type="submit" data-i18n="close"></button>
+        <button class="button primary" id="sync-now" type="button" data-i18n="syncNow" disabled></button>
       </form>
     </dialog>
     <dialog id="account-dialog" aria-labelledby="account-title">

@@ -1,6 +1,10 @@
 {
   "syncPending": "Tiedot odottavat synkronointia",
-  "syncDelay": "Tietoja on odottanut lähetystä {date} lähtien. Muodosta yhteys.",
+  "syncDelay": "Tietoja on odottanut lähetystä {date} lähtien.",
+  "syncCountdown": "Seuraava automaattinen synkronointi {time} kuluttua",
+  "syncInProgress": "Synkronoidaan…",
+  "syncSignInRequired": "Kirjaudu sisään synkronoidaksesi tiedot.",
+  "syncNow": "Synkronoi nyt",
   "account": "Tili",
   "accountAlreadyExists": "Tälle osoitteelle on jo tili. Kirjaudu sisään tähän tiliin yhdistääksesi Googlen siihen.",
   "accountConnected": "Kirjauduttu sisään",

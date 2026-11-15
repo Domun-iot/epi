@@ -1,6 +1,10 @@
 {
   "syncPending": "Daten warten auf Synchronisierung",
-  "syncDelay": "Seit dem {date} stehen Daten zum Senden bereit. Bitte stellen Sie eine Verbindung her.",
+  "syncDelay": "Seit dem {date} stehen Daten zum Senden bereit.",
+  "syncCountdown": "Nächste automatische Synchronisierung in {time}",
+  "syncInProgress": "Synchronisierung läuft…",
+  "syncSignInRequired": "Melden Sie sich an, um Ihre Daten zu synchronisieren.",
+  "syncNow": "Jetzt synchronisieren",
   "account": "Konto",
   "accountAlreadyExists": "Für diese Adresse existiert bereits ein Konto. Melden Sie sich bei diesem Konto an, um Google damit zu verknüpfen.",
   "accountConnected": "Angemeldet",

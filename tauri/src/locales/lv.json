@@ -1,6 +1,10 @@
 {
   "syncPending": "Dati gaida sinhronizāciju",
-  "syncDelay": "Dati gaida nosūtīšanu kopš {date}. Lūdzu, izveidojiet savienojumu.",
+  "syncDelay": "Dati gaida nosūtīšanu kopš {date}.",
+  "syncCountdown": "Nākamā automātiskā sinhronizācija pēc {time}",
+  "syncInProgress": "Notiek sinhronizācija…",
+  "syncSignInRequired": "Pierakstieties, lai sinhronizētu datus.",
+  "syncNow": "Sinhronizēt tūlīt",
   "account": "Konts",
   "accountAlreadyExists": "Konts šai adresei jau pastāv. Piesakieties šajā kontā, lai saistītu ar to Google.",
   "accountConnected": "Kontam pieslēgts",

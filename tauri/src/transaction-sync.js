@@ -9,6 +9,8 @@ const maxTransactionBytes = 4 * 1024 * 1024 - '{"transactions":[],"next":""}'.le
 const icon = document.querySelector('#sync-status');
 const dialog = document.querySelector('#sync-dialog');
 const message = document.querySelector('#sync-message');
+const countdown = document.querySelector('#sync-countdown');
+const syncNow = document.querySelector('#sync-now');
 
 let files;
 let receivedForToken;
@@ -18,6 +20,27 @@ let requestedAgain = false;
 let oldest;
 let waitingSince;
 let statusTimer;
+let countdownTimer;
+let nextSyncAt;
+
+function renderSyncDialog() {
+  clearTimeout(countdownTimer);
+  if (!dialog.open) return;
+
+  const signedIn = Boolean(syncToken());
+  syncNow.disabled = !signedIn || running;
+  if (!signedIn) {
+    countdown.textContent = t('syncSignInRequired');
+  } else if (running) {
+    countdown.textContent = t('syncInProgress');
+  } else {
+    const remaining = Math.max(0, nextSyncAt - Date.now());
+    const seconds = Math.ceil(remaining / 1000);
+    const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    countdown.textContent = t('syncCountdown', { time });
+    if (remaining) countdownTimer = setTimeout(renderSyncDialog, remaining % 1000 || 1000);
+  }
+}
 
 function renderStatus() {
   clearTimeout(statusTimer);
@@ -48,20 +71,27 @@ function updatePending(pending) {
   renderStatus();
 }
 
-icon.addEventListener('click', () => dialog.showModal());
+icon.addEventListener('click', () => {
+  dialog.showModal();
+  renderSyncDialog();
+});
+dialog.addEventListener('close', renderSyncDialog);
+syncNow.addEventListener('click', requestTransactionSync);
 window.addEventListener('epi:account', () => {
   receivedForToken = undefined;
   requestTransactionSync();
+  renderSyncDialog();
 });
 
 export function startTransactionSync(storage) {
   files = storage;
   function syncAccountAndTransactions() {
+    nextSyncAt = Date.now() + retryDelay;
+    setTimeout(syncAccountAndTransactions, retryDelay);
     void checkAccountConnection();
     requestTransactionSync();
   }
   syncAccountAndTransactions();
-  setInterval(syncAccountAndTransactions, retryDelay);
 }
 
 export function requestTransactionSync() {
@@ -97,6 +127,7 @@ async function receive(token) {
 
 async function sync() {
   running = true;
+  renderSyncDialog();
   try {
     const token = syncToken();
     if (token && receivedForToken !== token) {
@@ -135,6 +166,8 @@ async function sync() {
     if (requestedAgain) {
       requestedAgain = false;
       requestTransactionSync();
+    } else {
+      renderSyncDialog();
     }
   }
 }

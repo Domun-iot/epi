@@ -1,6 +1,10 @@
 {
   "syncPending": "Data čekající na synchronizaci",
-  "syncDelay": "Data čekají na odeslání od {date}. Připojte se prosím.",
+  "syncDelay": "Data čekají na odeslání od {date}.",
+  "syncCountdown": "Další automatická synchronizace za {time}",
+  "syncInProgress": "Probíhá synchronizace…",
+  "syncSignInRequired": "Přihlaste se k účtu a synchronizujte data.",
+  "syncNow": "Synchronizovat nyní",
   "account": "účet",
   "accountAlreadyExists": "Účet pro tuto adresu již existuje. Přihlaste se k tomuto účtu a spojte s ním Google.",
   "accountConnected": "Přihlášeno",

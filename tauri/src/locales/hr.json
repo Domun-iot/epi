@@ -1,6 +1,10 @@
 {
   "syncPending": "Podaci čekaju sinkronizaciju",
-  "syncDelay": "Podaci čekaju slanje od {date}. Povežite se.",
+  "syncDelay": "Podaci čekaju slanje od {date}.",
+  "syncCountdown": "Sljedeća automatska sinkronizacija za {time}",
+  "syncInProgress": "Sinkronizacija je u tijeku…",
+  "syncSignInRequired": "Prijavite se da biste sinkronizirali podatke.",
+  "syncNow": "Sinkroniziraj odmah",
   "account": "Račun",
   "accountAlreadyExists": "Račun već postoji za ovu adresu. Prijavite se na ovaj račun kako biste s njim povezali Google.",
   "accountConnected": "Prijavljen račun",

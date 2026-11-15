@@ -1,6 +1,10 @@
 {
   "syncPending": "Data afventer synkronisering",
-  "syncDelay": "Der har været data klar til afsendelse siden {date}. Opret forbindelse.",
+  "syncDelay": "Der har været data klar til afsendelse siden {date}.",
+  "syncCountdown": "Næste automatiske synkronisering om {time}",
+  "syncInProgress": "Synkroniserer…",
+  "syncSignInRequired": "Log ind på din konto for at synkronisere dine data.",
+  "syncNow": "Synkroniser nu",
   "account": "Konto",
   "accountAlreadyExists": "Der findes allerede en konto for denne adresse. Log ind på denne konto for at knytte Google til den.",
   "accountConnected": "Logget ind",

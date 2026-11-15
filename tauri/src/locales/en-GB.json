@@ -1,6 +1,10 @@
 {
   "syncPending": "Transactions awaiting sync",
-  "syncDelay": "Data has been waiting to be sent since {date}. Please connect.",
+  "syncDelay": "Data has been waiting to be sent since {date}.",
+  "syncCountdown": "Next automatic sync in {time}",
+  "syncInProgress": "Syncing…",
+  "syncSignInRequired": "Sign in to sync your data.",
+  "syncNow": "Sync now",
   "account": "Account",
   "accountAlreadyExists": "An account already exists for this email address. Sign in to that account to link Google.",
   "accountConnected": "Signed in",
