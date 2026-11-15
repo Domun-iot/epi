@@ -9,4 +9,4 @@ cd "$root/tauri"
 if [ ! -f node_modules/vite/bin/vite.js ]; then
     npm ci --include=dev --no-audit --no-fund
 fi
-exec npm run dev -- --mode web "$@"
+exec npm run dev -- --mode web --open "$@"

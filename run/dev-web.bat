@@ -13,7 +13,7 @@ if not exist "node_modules\vite\bin\vite.js" (
         exit /b 1
     )
 )
-call npm.cmd run dev -- --mode web %*
+call npm.cmd run dev -- --mode web --open %*
 set "result=%errorlevel%"
 popd
 exit /b %result%
