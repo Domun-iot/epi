@@ -379,17 +379,19 @@ fn save_records(
     Ok(())
 }
 
+fn profile_measurement_folder(profile: &str) -> Result<String, String> {
+    let folder = safe_name(profile)?.to_lowercase();
+    Ok(if reserved(&folder) {
+        format!("_{folder}")
+    } else {
+        folder
+    })
+}
+
 fn save_measurements(root: &Path, new: &[Value], previous: &[Value]) -> Result<(), String> {
     for row in new.iter().skip(previous.len()) {
         let folder = match row["profile"]["name"].as_str() {
-            Some(name) => {
-                let name = safe_name(name)?.to_lowercase();
-                if reserved(&name) {
-                    format!("_{name}")
-                } else {
-                    name
-                }
-            }
+            Some(name) => profile_measurement_folder(name)?,
             None => "_sans-profil".into(),
         };
         let received = row["receivedAt"].as_str().unwrap_or_default();
@@ -526,6 +528,26 @@ fn save_deletion(root: &Path, session: &Value, previous: &Value) -> Result<(), S
             ));
         }
         return Err(error);
+    }
+    if rows(session, "profiles").len() < rows(previous, "profiles").len() {
+        let measures = root.join("measures");
+        let retained: HashSet<_> = rows(session, "profiles").iter().filter_map(name).collect();
+        let mut folders: HashSet<_> = rows(previous, "profiles")
+            .iter()
+            .filter_map(name)
+            .filter(|profile| !retained.contains(profile))
+            .filter_map(|profile| profile_measurement_folder(profile).ok())
+            .map(|folder| measures.join(folder))
+            .collect();
+        folders.extend(paths.iter().filter_map(|path| {
+            path.parent()
+                .filter(|parent| parent.parent() == Some(measures.as_path()))
+                .map(Path::to_path_buf)
+        }));
+        for folder in folders {
+            // Preserve files left in the folder, including concurrent recordings.
+            let _ = fs::remove_dir(folder);
+        }
     }
     Ok(())
 }
@@ -894,7 +916,7 @@ mod tests {
         save_deletion(path, &after, &before).unwrap();
         assert!(!profile_file.exists());
         assert!(!prefs_file.exists());
-        assert!(!second.exists());
+        assert!(!second.parent().unwrap().exists());
         assert!(other.exists());
     }
 
