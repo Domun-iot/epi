@@ -70,7 +70,7 @@ function textValue(value) {
 function columnSettings(selected, split, sourcesByMetric, open, query, chart) {
   const available = chart ? options.filter(([id]) => chartColumnIds.has(id)) : options;
   return `<details class="settings" data-expand="columns"${open ? ' open' : ''}>
-    <summary>Colonnes</summary>
+    <summary>Données</summary>
     <div class="column-search-field">
       <input class="column-search" type="search" aria-label="Recherche" placeholder="Recherche" value="${e(query)}">
     </div>

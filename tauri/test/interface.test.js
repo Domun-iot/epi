@@ -313,7 +313,7 @@ test('central views use the same spacing above and below the header', async t =>
     profiles: [alice], devices: [device], selectedProfile: 'Alice', measurements: [record],
   });
 
-  await page.getByText('Colonnes', { exact: true }).click();
+  await page.getByText('Données', { exact: true }).click();
   await page.getByLabel('Masse grasse (%)', { exact: true }).check();
 
   const gaps = selector => page.locator('#view').evaluate((view, selector) => {
@@ -364,7 +364,7 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
     await page.locator('.toolbar').getByRole('button', { name: 'Sauvegarder', exact: true }).click();
     await editor.waitFor({ state: 'hidden' });
   };
-  await page.getByText('Colonnes', { exact: true }).click();
+  await page.getByText('Données', { exact: true }).click();
   const fat = page.getByLabel('Masse grasse (%)', { exact: true });
   const rename = page.getByRole('button', { name: 'Renommer la configuration' });
   assert.equal(await picker.count(), 0);
@@ -428,7 +428,7 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   await page.getByText('Mode simulation', { exact: true }).waitFor();
   assert.equal((await title.textContent()).trim(), 'Compact');
 
-  await page.getByText('Colonnes', { exact: true }).click();
+  await page.getByText('Données', { exact: true }).click();
   await fat.uncheck();
   assert.equal((await title.textContent()).trim(), 'Compact *');
   await title.click();
@@ -482,7 +482,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await table.getByRole('columnheader', { name: 'Date', exact: true }).waitFor();
   await table.getByRole('columnheader', { name: 'Poids', exact: true }).waitFor();
   await table.getByText('70 kg', { exact: true }).waitFor();
-  await page.getByText('Colonnes', { exact: true }).click();
+  await page.getByText('Données', { exact: true }).click();
   const search = page.getByRole('searchbox', { name: 'Recherche' });
   await page.locator('.column-search:focus').waitFor();
   const options = page.locator('[data-column-option]:visible');
@@ -647,12 +647,12 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   await page.getByRole('table', { name: 'Pesées' }).waitFor();
 });
 
-test('sur Android, Recherche apparaît à droite de Colonnes sans prendre le focus', async t => {
+test('sur Android, Recherche apparaît à droite de Données sans prendre le focus', async t => {
   const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice' }, {
     userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36',
     viewport: { width: 360, height: 800 },
   });
-  const columns = page.getByText('Colonnes', { exact: true });
+  const columns = page.getByText('Données', { exact: true });
   const search = page.getByRole('searchbox', { name: 'Recherche' });
   await search.waitFor({ state: 'hidden' });
   await columns.click();
@@ -672,7 +672,7 @@ test('la liste des pesées fixe les deux lignes d’en-tête pendant le défilem
   }));
   const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements },
     { viewport: { width: 420, height: 380 } });
-  await page.getByText('Colonnes', { exact: true }).click();
+  await page.getByText('Données', { exact: true }).click();
   await page.getByLabel('Masse grasse (%)', { exact: true }).check();
   const table = page.getByRole('table', { name: 'Pesées' });
   await table.getByRole('button', { name: 'Masse grasse (%)', exact: true }).click();
@@ -1056,7 +1056,7 @@ test('attribution sans profil sur smartphone, création depuis une pesée et his
   await page.locator('#back-to-measurements').click();
   const table = page.getByRole('table', { name: 'Pesées' });
   await table.getByText('70,9 kg', { exact: true }).waitFor();
-  await page.getByText('Colonnes', { exact: true }).click();
+  await page.getByText('Données', { exact: true }).click();
   for (const label of ['Masse grasse (%)', 'Énergie au repos (kcal/j)', 'Horloge de la balance']) {
     await page.getByLabel(label, { exact: true }).check();
   }
@@ -1149,7 +1149,7 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   await page.getByText('97,6 kg', { exact: true }).waitFor();
   await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('');
   await page.getByRole('table').getByText('97,6 kg', { exact: true }).waitFor();
-  assert.equal(await page.getByText('Colonnes', { exact: true }).count(), 0);
+  assert.equal(await page.getByText('Données', { exact: true }).count(), 0);
   await page.getByRole('table').getByRole('columnheader', { name: 'IMC (kg/m²)', exact: true }).waitFor();
 });
 
