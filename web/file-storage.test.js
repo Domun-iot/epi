@@ -38,10 +38,12 @@ test('shares native dataset files across web restarts and reloads', async t => {
   assert.equal((await get('measures/lou/first.json')).profile.uuid, profileId);
   assert.equal((await get('devices/' + initial.devices[0].uuid + '.json')).name, device.name);
   await assert.rejects(get('profiles/profil-lou.json'), { code: 'ENOENT' });
+  await web.setLanguagePreference('fr-CA');
   await web.saveProfile({ ...profile, editUuid: profileId, name: 'Louise' });
   assert.equal((await get('profiles/' + profileId + '.json')).name, 'Louise');
   assert.deepEqual(await get('prefs/profil-Louise.json'), { columns: ['bmi', 'fatPercent'] });
   assert.equal((await get('prefs/global.json')).window.width, 900);
+  assert.equal((await get('prefs/global.json')).languagePreference, 'fr-CA');
   const configured = await web.changeViewPreset('Louise', 'measurements', 'create', { name: 'Weekly' });
   const preset = configured.viewPresets.measurements[0];
   assert.deepEqual(await get('prefs/measurements/' + preset.id + '.json'), preset);
@@ -51,6 +53,7 @@ test('shares native dataset files across web restarts and reloads', async t => {
   const restarted = open();
   const reloaded = await restarted.load();
   assert.equal(reloaded.measurements.length, 0);
+  assert.equal(reloaded.languagePreference, 'fr-CA');
   assert.deepEqual(reloaded.viewPresets.measurements, [preset]);
   const deletion = reloaded.notifications.find(row => row.type === 'measurement' && row.action === 'deleted');
   assert.equal((await get('notifications/' + deletion.id + '.json')).record.uuid, measurementId);

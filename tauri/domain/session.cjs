@@ -771,6 +771,15 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     });
   }
 
+  function setLanguagePreference(language) {
+    return mutate(draft => {
+      if (typeof language !== 'string' || !/^[a-z]{2}(?:-[A-Z]{2})?$/.test(language)) {
+        throw new Error('epi-i18n:diagnostic.invalidGlobalPreferences');
+      }
+      draft.languagePreference = language;
+    });
+  }
+
   function setAddressFilter(address) {
     return mutate(draft => {
       const target = address == null || address === '' ? null : canonicalAddress(String(address).trim());
@@ -818,7 +827,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
     moveDetailSection: (...args) => movePreference('detailSectionOrder', ...args),
-    discardPending, ingest, importLegacy, setAddressFilter, restoreNotification, replayReceipt,
+    discardPending, ingest, importLegacy, setAddressFilter, setLanguagePreference, restoreNotification, replayReceipt,
     recordNotice: entry => mutate(draft => notify(draft, entry)),
     deleteNotification: id => mutate(draft => {
       draft.notifications = draft.notifications.filter(item => item.id !== id);

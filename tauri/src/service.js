@@ -5,6 +5,7 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { readFile, writeFile } from '@tauri-apps/plugin-fs';
 import { domain } from 'virtual:epi-domain';
 import { createWebSession } from './web-session.js';
+import { snapshotKey } from './preferences.js';
 import composition from 'virtual:epi-composition';
 import { datasetFiles, fileRecords, readArchive, writeArchive } from './legacy-import.js';
 
@@ -14,7 +15,6 @@ export const METHOD_COLUMNS = composition.columns.map(([id, name]) =>
 export const METRICS = composition.metrics.map(([id, , precision]) =>
   [id, t('metric.' + id), precision]);
 
-const snapshotKey = 'epi-session-v1';
 const zipFilters = [{ name: t('zipArchive'), extensions: ['zip'] }];
 
 export async function connect(onState, onStatus, onRaw, onWeighing, onTransactions) {

@@ -7,7 +7,7 @@ import { fileRecords, recordPath, snapshotPath } from './file-records.js';
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu;
 const safeName = /^[\p{Alphabetic}\p{Number}][\p{Alphabetic}\p{Number} _-]*$/u;
 const reserved = /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])$/iu;
-const globalKeys = ['selectedProfile', 'pending', 'addressFilter', 'anonymousPreferences'];
+const globalKeys = ['selectedProfile', 'pending', 'addressFilter', 'anonymousPreferences', 'languagePreference'];
 const presetFolders = { measurements: 'prefs/measurements', details: 'prefs/measurement-details' };
 const conflict = () => new Error('Un fichier a changé. Recharge les données avant de réessayer.');
 const parse = contents => contents === undefined ? undefined : JSON.parse(contents.replace(/^\uFEFF/u, ''));
@@ -334,5 +334,5 @@ export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importH
     return applied.length + imported;
   }
 
-  return { load, save, exportFiles, importFiles, pendingTransactions, archiveTransactions, integrateTransactions: rows => integrateTransactions(root, rows) };
+  return { load, readGlobal, save, exportFiles, importFiles, pendingTransactions, archiveTransactions, integrateTransactions: rows => integrateTransactions(root, rows) };
 }

@@ -54,6 +54,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             start_bluetooth,
             system_locale::system_locale,
+            storage::load_language_preference,
             storage::load_session,
             storage::save_session,
             storage::import_files,

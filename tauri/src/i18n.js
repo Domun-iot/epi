@@ -33,11 +33,12 @@ export function chooseLocale({ preference, google, browser = [], system } = {}) 
 }
 
 let systemLocale;
+let interfaceLanguage;
 function detectLocale() {
   const account = accountLanguage();
   const browser = globalThis.navigator;
   return chooseLocale({
-    preference: account?.preference,
+    preference: interfaceLanguage ?? account?.preference,
     google: account?.google,
     browser: [...(browser?.languages ?? []), browser?.language],
     system: systemLocale ?? Intl.DateTimeFormat().resolvedOptions().locale,
@@ -48,8 +49,9 @@ export let locale = detectLocale();
 
 let messages = english;
 
-export async function initialiseLanguage(system) {
+export async function initialiseLanguage(system, preference) {
   systemLocale = system;
+  interfaceLanguage = supportedLocale(preference);
   locale = detectLocale();
   messages = english;
   if (locale !== fallback) {
@@ -72,12 +74,21 @@ export async function initialiseLanguage(system) {
   }
 }
 
-// Reload to reformat existing views, including charts, with the updated locale.
+export function useInterfaceLanguage(preference) {
+  interfaceLanguage = supportedLocale(preference);
+  reloadForLanguageChange();
+}
+
 export function useAccountLanguage(preference, google) {
   localStorage.setItem(storageKey, JSON.stringify({
     preference: supportedLocale(preference),
     google: supportedLocale(google),
   }));
+  reloadForLanguageChange();
+}
+
+// Reload to reformat existing views, including charts, with the updated locale.
+function reloadForLanguageChange() {
   if (detectLocale() !== locale) window.location.reload();
 }
 

@@ -880,6 +880,12 @@ fn with_notifications(
 }
 
 #[tauri::command]
+pub fn load_language_preference(app: AppHandle) -> Result<Option<String>, String> {
+    let global = read_global_preferences(&data_root(&app)?)?;
+    Ok(global["languagePreference"].as_str().map(str::to_owned))
+}
+
+#[tauri::command]
 pub fn load_session(app: AppHandle) -> Result<Value, String> {
     let root = data_root(&app)?;
     let session = read_session(&root)?;
@@ -913,6 +919,7 @@ pub fn save_session(app: AppHandle, session: Value, previous: Value) -> Result<b
             "selectedProfile",
             "addressFilter",
             "anonymousPreferences",
+            "languagePreference",
         ]
         .iter()
         .all(|key| session[*key] == previous[*key])
@@ -1020,7 +1027,13 @@ fn save_preferences(root: &Path, session: &Value, previous: &Value) -> Result<()
         }
     }
     update_global_preferences(root, |global| {
-        global.retain(|key, _| key == "window");
+        global.retain(|key, _| matches!(key.as_str(), "window" | "languagePreference"));
+        if session["languagePreference"] != previous["languagePreference"] {
+            global.insert(
+                "languagePreference".into(),
+                session["languagePreference"].clone(),
+            );
+        }
         for key in [
             "selectedProfile",
             "pending",
@@ -1464,14 +1477,25 @@ mod tests {
             "Alice"
         );
 
-        let session = json!({ "selectedProfile": "Bob" });
+        let session = json!({ "selectedProfile": "Bob", "languagePreference": "fr-CA" });
         save_preferences(root, &session, &legacy).unwrap();
         assert_eq!(read_window_preferences(root).unwrap(), window);
+        assert_eq!(
+            read_global_preferences(root).unwrap()["languagePreference"],
+            "fr-CA"
+        );
+
+        let stale_session = json!({ "selectedProfile": "Bob" });
+        save_preferences(root, &stale_session, &legacy).unwrap();
 
         save_window_preferences(root, json!({ "minimized": true })).unwrap();
         assert_eq!(
             read_global_preferences(root).unwrap()["selectedProfile"],
             "Bob"
+        );
+        assert_eq!(
+            read_global_preferences(root).unwrap()["languagePreference"],
+            "fr-CA"
         );
     }
 

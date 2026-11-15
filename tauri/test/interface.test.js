@@ -2194,6 +2194,56 @@ test('un appareil lié disparu ouvre sa carte de restauration et revient à sa f
   await archived.getByText(/^Restauré le \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/).waitFor();
 });
 
+test('the account dialog keeps the interface language across sign-in and sign-out', async t => {
+  await buildWeb();
+  let languagePreference;
+  const snapshot = { profiles: [], devices: [], measurements: [], pending: [], notifications: [] };
+  const page = await pageWith(t, route => {
+    const { action, args } = route.request().postDataJSON();
+    if (action === 'setLanguagePreference') languagePreference = args[0];
+    if (action === 'loadLanguagePreference') return route.fulfill({ json: { languagePreference } });
+    if (action === 'pendingTransactions') return route.fulfill({ json: [] });
+    return route.fulfill({ json: { ...snapshot, languagePreference } });
+  }, { locale: 'en-US' }, 'web', page => page.route('https://sync.epi.test/v1/**', route => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() === 'DELETE') return route.fulfill({ status: 204 });
+    const responses = {
+      '/v1/device-tokens': { token: 'device-token', locale: 'de', googleLocale: 'it' },
+      '/v1/account': { email: 'user@example.org', locale: 'de' },
+      '/v1/transactions/pending': { transactions: [], next: null },
+    };
+    return route.fulfill({ json: responses[path] });
+  }));
+
+  await page.getByRole('button', { name: 'Account', exact: true }).click();
+  const dialog = page.locator('#account-dialog');
+  assert.equal(await dialog.getByLabel('Language', { exact: true }).inputValue(), 'en-GB');
+  await dialog.getByLabel('Language', { exact: true }).selectOption('fr-CA');
+  await page.locator('html[lang="fr-CA"]').waitFor({ state: 'attached' });
+  assert.equal(languagePreference, 'fr-CA');
+
+  await page.getByRole('button', { name: 'Compte', exact: true }).click();
+  await dialog.locator('[name=email]').fill('user@example.org');
+  await dialog.locator('[name=password]').fill('test-password');
+  await dialog.locator('#account-submit').click();
+  await dialog.getByText('user@example.org', { exact: true }).waitFor();
+  const language = dialog.getByLabel('Langue', { exact: true });
+  assert.equal(await language.inputValue(), 'fr-CA');
+
+  await language.selectOption('fr-FR');
+  await page.locator('html[lang="fr-FR"]').waitFor({ state: 'attached' });
+  assert.equal(languagePreference, 'fr-FR');
+  await page.getByRole('button', { name: 'Compte', exact: true }).click();
+  await dialog.getByText('user@example.org', { exact: true }).waitFor();
+  assert.equal(await language.inputValue(), 'fr-FR');
+  await dialog.locator('#account-submit').click();
+  await dialog.locator('[name=email]').waitFor();
+  await page.reload();
+  await page.locator('html[lang="fr-FR"]').waitFor({ state: 'attached' });
+  await page.getByRole('button', { name: 'Compte', exact: true }).click();
+  assert.equal(await language.inputValue(), 'fr-FR');
+});
+
 test('account registration suggests the detected language and saves Canadian French', async t => {
   const page = await pageWith(t, undefined, { locale: 'en-US' });
   const requests = [];

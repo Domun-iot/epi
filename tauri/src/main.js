@@ -11,6 +11,7 @@ import { notificationBody, notificationDetailHeader, notificationRecordView, not
 import { devicesView, noticesView, profilesView } from './management-view.js';
 
 import { startTransactionSync, requestTransactionSync } from './transaction-sync.js';
+import { enableLanguageSelection } from './account.js';
 
 const navigation = document.querySelector('#navigation');
 const profilePicker = document.querySelector('#profile');
@@ -993,6 +994,7 @@ try {
     }
   }, requestTransactionSync);
   startTransactionSync(session);
+  enableLanguageSelection(session.setLanguagePreference);
   themeToggle.disabled = false;
   reloadButton.hidden = !session.native && !session.web;
   canRetryBluetooth = Boolean(session.retryBluetooth);

@@ -39,7 +39,7 @@ export async function createSessionApi({ root, domain, storage, transactions }) 
     } catch {
       return json(response, 400, { error: 'JSON invalide.' });
     }
-    if (![...actions, 'exportFiles', 'importFiles', 'pendingTransactions', 'archiveTransactions', 'integrateTransactions'].includes(input?.action) || !Array.isArray(input.args)) {
+    if (![...actions, 'loadLanguagePreference', 'exportFiles', 'importFiles', 'pendingTransactions', 'archiveTransactions', 'integrateTransactions'].includes(input?.action) || !Array.isArray(input.args)) {
       return json(response, 400, { error: 'Action invalide.' });
     }
     try {
@@ -53,6 +53,10 @@ export async function createSessionApi({ root, domain, storage, transactions }) 
       return json(response, 200, await task);
 
       async function performAction() {
+        if (input.action === 'loadLanguagePreference') {
+          const { languagePreference } = await files.readGlobal();
+          return { languagePreference };
+        }
         if (input.action === 'pendingTransactions') return files.pendingTransactions();
         if (input.action === 'archiveTransactions') {
           if (!Array.isArray(input.args[0])) throw new Error('Liste de transactions invalide.');

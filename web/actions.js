@@ -3,6 +3,6 @@ export const actions = [
   'renameDevice', 'beginDevice', 'cancelDevice', 'confirmProfile',
   'deleteProfile', 'deleteDevice', 'deleteMeasurement', 'setPanelOpen',
   'changeViewPreset', 'setTheme', 'moveColumn', 'moveMethodColumn',
-  'moveDetailSection', 'discardPending', 'importLegacy', 'setAddressFilter',
+  'moveDetailSection', 'discardPending', 'importLegacy', 'setAddressFilter', 'setLanguagePreference',
   'restoreNotification', 'replayReceipt', 'recordNotice', 'deleteNotification', 'deleteAllNotifications', 'pruneNotifications',
 ];

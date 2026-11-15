@@ -1,4 +1,4 @@
-import { languages, locale, t, useAccountLanguage } from './i18n.js';
+import { languages, locale, localizeMessage, t, useAccountLanguage, useInterfaceLanguage } from './i18n.js';
 import { isTauri } from '@tauri-apps/api/core';
 import { openUrl } from '@tauri-apps/plugin-opener';
 
@@ -16,9 +16,8 @@ const form = document.querySelector('#account-form');
 const fields = document.querySelector('#account-fields');
 const email = form.elements.email;
 const password = form.elements.password;
-const languageField = document.querySelector('#account-language-field');
 const language = form.elements.language;
-language.replaceChildren(...Object.entries(languages).map(([id, name]) => new Option(name, id, id === locale)));
+language.replaceChildren(...Object.entries(languages).map(([id, name]) => new Option(name, id, id === locale, id === locale)));
 const accountEmail = document.querySelector('#account-email');
 const errorNotice = document.querySelector('#account-error');
 const switchButton = document.querySelector('#account-switch');
@@ -41,11 +40,16 @@ let account = null;
 let connectionCheck;
 let connectionError = '';
 let creating = false;
-let languageChanged = false;
-language.addEventListener('change', () => { languageChanged = true; });
-
-const chosenLocale = () => creating && languageChanged ? language.value : undefined;
+let registrationLanguage;
+let saveLanguage;
 let busy = false;
+
+const chosenLocale = () => creating ? registrationLanguage : undefined;
+
+export function enableLanguageSelection(save) {
+  saveLanguage = save;
+  render();
+}
 
 function readAccount() {
   const saved = JSON.parse(localStorage.getItem(sessionKey));
@@ -89,8 +93,7 @@ function render() {
   accountEmail.hidden = !account;
   accountEmail.textContent = account?.email ?? '';
   fields.hidden = Boolean(account);
-  languageField.hidden = !creating || Boolean(account);
-  language.disabled = languageField.hidden || busy;
+  language.disabled = busy || !(saveLanguage || creating);
   email.disabled = password.disabled = busy || Boolean(account);
   password.autocomplete = creating ? 'new-password' : 'current-password';
   switchButton.hidden = Boolean(account) || !configured;
@@ -188,6 +191,10 @@ function showConnectionError(message) {
 }
 
 function setSession(session, info = null) {
+  if (session && creating) {
+    creating = false;
+    language.value = locale;
+  }
   account = session;
   accountInfo = info;
   connectionCheck = undefined;
@@ -268,7 +275,7 @@ render();
 
 openButton.addEventListener('click', () => {
   creating = false;
-  languageChanged = false;
+  registrationLanguage = undefined;
   const savedSessionError = loadSavedSession();
   showError(configured ? savedSessionError || connectionError : t('accountServerNotConfigured'));
   render();
@@ -291,6 +298,29 @@ function closeAccount() {
   if (!busy) dialog.close();
 }
 
+language.addEventListener('change', async () => {
+  if (busy) return;
+  const preference = language.value;
+  if (creating) {
+    registrationLanguage = preference;
+    return;
+  }
+  if (!saveLanguage) return;
+  busy = true;
+  render();
+  try {
+    await saveLanguage(preference);
+    useInterfaceLanguage(preference);
+  } catch (error) {
+    language.value = locale;
+    showError(localizeMessage(error?.message ?? String(error)));
+  } finally {
+    busy = false;
+    render();
+    language.focus();
+  }
+});
+
 closeButton.addEventListener('click', closeAccount);
 dialog.addEventListener('cancel', event => {
   event.preventDefault();
@@ -300,6 +330,7 @@ dialog.addEventListener('close', () => form.reset());
 
 switchButton.addEventListener('click', () => {
   creating = !creating;
+  language.value = chosenLocale() ?? locale;
   password.value = '';
   showError('');
   render();
@@ -418,6 +449,7 @@ form.addEventListener('submit', async event => {
       if (creating) {
         await request('accounts', { body: { ...credentials, locale: preference } });
         creating = false;
+        language.value = locale;
       }
       const result = await request('device-tokens', { body: { ...credentials, deviceId } });
       saveSession(credentials.email, result.token);

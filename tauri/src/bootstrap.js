@@ -1,8 +1,12 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { initialiseLanguage, t } from './i18n.js';
+import { loadLanguagePreference } from './preferences.js';
 
-const systemLocale = isTauri() ? await invoke('system_locale').catch(() => undefined) : undefined;
-await initialiseLanguage(systemLocale);
+const [systemLocale, languagePreference] = await Promise.all([
+  isTauri() ? invoke('system_locale').catch(() => undefined) : undefined,
+  loadLanguagePreference().catch(() => undefined),
+]);
+await initialiseLanguage(systemLocale, languagePreference);
 document.addEventListener('invalid', ({ target }) => {
   if (!target.validity || target.validity.customError) return;
   const validity = target.validity;
