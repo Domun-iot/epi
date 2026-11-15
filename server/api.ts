@@ -286,7 +286,8 @@ function browserResult(res: ServerResponse, succeeded: boolean, locale: Locale) 
     '<script>' + closeGoogleWindow + '</script></html>');
 }
 
-export function createApi(store: Store, now = Date.now, google?: Google) {
+export function createApi(store: Store, now = Date.now, google?: Google,
+  publicPages?: (path: string, res: ServerResponse) => boolean) {
   const attempts = new Map<string, GoogleAttempt>();
   const cleanupAttempts = () => {
     for (const [state, attempt] of attempts) {
@@ -322,6 +323,7 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
     try {
       const route = req.method + ' ' + req.url;
       const [path, query] = (req.url ?? '').split('?', 2);
+      if (req.method === 'GET' && publicPages?.(path, res)) return;
       if (path === '/v1/accounts' || path === '/v1/device-tokens' ||
           path === '/v1/account' || path === '/v1/transactions' || path === '/v1/transactions/pending' ||
           path === '/v1/transactions/acknowledge' || path.startsWith('/v1/google/')) {

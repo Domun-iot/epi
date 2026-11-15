@@ -1,5 +1,6 @@
 {
-  "syncPending": "Laukiama duomenų sinchronizavimo",
+  "privacyPolicy": "Privatumo politika",
+  "requestAccountDeletion": "Prašyti ištrinti paskyrą",  "syncPending": "Laukiama duomenų sinchronizavimo",
   "syncDelay": "Duomenys laukia išsiuntimo nuo {date}.",
   "syncCountdown": "Kitas automatinis sinchronizavimas po {time}",
   "syncInProgress": "Sinchronizuojama…",

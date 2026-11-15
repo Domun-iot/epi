@@ -1,5 +1,6 @@
 {
-  "syncPending": "Gegevens wachten op synchronisatie",
+  "privacyPolicy": "Privacybeleid",
+  "requestAccountDeletion": "Verwijdering van je account aanvragen",  "syncPending": "Gegevens wachten op synchronisatie",
   "syncDelay": "Sinds {date} wachten er gegevens op verzending.",
   "syncCountdown": "Volgende automatische synchronisatie over {time}",
   "syncInProgress": "Bezig met synchroniseren…",

@@ -52,7 +52,7 @@ function openRelease() {
   child.unref();
 }
 
-function buildAndroid() {
+function buildAndroid(play) {
   const tools = windows ? join(process.env.LOCALAPPDATA, 'epi-dev')
     : join(homedir(), '.local', 'share', 'epi-dev');
   const androidHome = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || join(tools, 'android-sdk');
@@ -78,18 +78,20 @@ function buildAndroid() {
     throw new Error('L’initialisation du projet Android a échoué.');
   }
 
-  // Gradle signe automatiquement la variante debug, installable sur un téléphone.
+  const buildArgs = play ? ['--aab', '--target', 'aarch64', 'x86_64'] : ['--apk', '--debug'];
   // Tauri uses the npm invocation to generate Gradle’s callback to the CLI.
-  if (!run(npm, tauriArgs(['android', 'build', '--apk', '--debug', '--ci']), androidEnv)) {
-    throw new Error('La compilation de l’APK a échoué.');
+  if (!run(npm, tauriArgs(['android', 'build', ...buildArgs, '--ci']), androidEnv)) {
+    throw new Error('La compilation Android a échoué.');
   }
-  const apk = join(project, 'app', 'build', 'outputs', 'apk', 'universal', 'debug', 'app-universal-debug.apk');
+  const artifact = join(project, 'app', 'build', 'outputs', ...(play
+    ? ['bundle', 'universalRelease', 'app-universal-release.aab']
+    : ['apk', 'universal', 'debug', 'app-universal-debug.apk']));
   const destination = resolve(app, '..', 'release', 'android');
   mkdirSync(destination, { recursive: true });
-  const output = join(destination, 'epi-debug.apk');
-  copyFileSync(apk, output + '.tmp');
+  const output = join(destination, play ? 'epi-play.aab' : 'epi-debug.apk');
+  copyFileSync(artifact, output + '.tmp');
   renameSync(output + '.tmp', output);
-  console.log(`APK Android ${output}`);
+  console.log(`Android ${output}`);
 }
 
 function buildDesktop(selected) {
@@ -126,7 +128,7 @@ function buildDesktop(selected) {
 try {
   if (!['windows', 'linux'].includes(platform)) throw new Error('Utilise ces scripts sur Windows ou Linux.');
   const [, , mode, ...args] = process.argv;
-  if (mode === 'android' && !args.length) buildAndroid();
+  if (mode === 'android' && (!args.length || args.length === 1 && args[0] === '--play')) buildAndroid(args.length > 0);
   else if (mode === 'build' && windows) buildDesktop(args.length ? args : Object.keys(formats));
   else if (mode === 'linux' && !windows) buildDesktop(args.length ? args : ['appimage']);
   else if (mode === 'ubuntu' && !windows) buildDesktop(args.length ? args : ['deb']);

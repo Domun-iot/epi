@@ -1,5 +1,6 @@
 {
-  "syncPending": "Andmed ootavad sünkroonimist",
+  "privacyPolicy": "Privaatsuspoliitika",
+  "requestAccountDeletion": "Taotle konto kustutamist",  "syncPending": "Andmed ootavad sünkroonimist",
   "syncDelay": "Andmed ootavad saatmist alates {date}.",
   "syncCountdown": "Järgmine automaatne sünkroonimine {time} pärast",
   "syncInProgress": "Sünkroonimine käib…",

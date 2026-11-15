@@ -1,5 +1,6 @@
 {
-  "syncPending": "Daten warten auf Synchronisierung",
+  "privacyPolicy": "Datenschutzerklärung",
+  "requestAccountDeletion": "Kontolöschung beantragen",  "syncPending": "Daten warten auf Synchronisierung",
   "syncDelay": "Seit dem {date} stehen Daten zum Senden bereit.",
   "syncCountdown": "Nächste automatische Synchronisierung in {time}",
   "syncInProgress": "Synchronisierung läuft…",

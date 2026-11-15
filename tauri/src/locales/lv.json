@@ -1,5 +1,6 @@
 {
-  "syncPending": "Dati gaida sinhronizāciju",
+  "privacyPolicy": "Konfidencialitātes politika",
+  "requestAccountDeletion": "Pieprasīt konta dzēšanu",  "syncPending": "Dati gaida sinhronizāciju",
   "syncDelay": "Dati gaida nosūtīšanu kopš {date}.",
   "syncCountdown": "Nākamā automātiskā sinhronizācija pēc {time}",
   "syncInProgress": "Notiek sinhronizācija…",

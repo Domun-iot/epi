@@ -1,5 +1,6 @@
 {
-  "syncPending": "Szinkronizálásra váró adatok",
+  "privacyPolicy": "Adatvédelmi tájékoztató",
+  "requestAccountDeletion": "Fióktörlés kérése",  "syncPending": "Szinkronizálásra váró adatok",
   "syncDelay": "Az adatok ekkortól várnak elküldésre: {date}.",
   "syncCountdown": "Következő automatikus szinkronizálás {time} múlva",
   "syncInProgress": "Szinkronizálás folyamatban…",

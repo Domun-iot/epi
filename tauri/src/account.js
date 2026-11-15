@@ -123,6 +123,16 @@ function render() {
   form.setAttribute('aria-busy', String(busy));
 }
 
+if (isTauri()) {
+  for (const link of dialog.querySelectorAll('[data-account-public-page]')) {
+    link.addEventListener('click', async event => {
+      event.preventDefault();
+      try { await openUrl(link.href); }
+      catch { showError(t('accountServerUnavailable')); }
+    });
+  }
+}
+
 const errors = {
   account_exists: t('accountAlreadyExists'),
   google_disabled: t('googleSignInDisabled'),

@@ -1,5 +1,6 @@
 {
-  "syncPending": "Podatki čakajo na sinhronizacijo",
+  "privacyPolicy": "Pravilnik o zasebnosti",
+  "requestAccountDeletion": "Zahtevaj izbris računa",  "syncPending": "Podatki čakajo na sinhronizacijo",
   "syncDelay": "Podatki čakajo na pošiljanje od {date}.",
   "syncCountdown": "Naslednja samodejna sinhronizacija čez {time}",
   "syncInProgress": "Sinhronizacija poteka…",

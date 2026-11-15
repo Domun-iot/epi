@@ -1,5 +1,6 @@
 {
-  "syncPending": "Date în așteptarea sincronizării",
+  "privacyPolicy": "Politica de confidențialitate",
+  "requestAccountDeletion": "Solicită ștergerea contului",  "syncPending": "Date în așteptarea sincronizării",
   "syncDelay": "Există date care așteaptă să fie trimise din {date}.",
   "syncCountdown": "Următoarea sincronizare automată peste {time}",
   "syncInProgress": "Sincronizare în curs…",

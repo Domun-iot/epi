@@ -1,5 +1,6 @@
 {
-  "syncPending": "Data väntar på synkronisering",
+  "privacyPolicy": "Integritetspolicy",
+  "requestAccountDeletion": "Begär att kontot raderas",  "syncPending": "Data väntar på synkronisering",
   "syncDelay": "Det finns data som väntar på att skickas sedan {date}.",
   "syncCountdown": "Nästa automatiska synkronisering om {time}",
   "syncInProgress": "Synkroniserar…",

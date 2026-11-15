@@ -1,5 +1,6 @@
 {
-  "syncPending": "Dejta pendenti għas-sinkronizzazzjoni",
+  "privacyPolicy": "Politika tal-privatezza",
+  "requestAccountDeletion": "Itlob it-tħassir tal-kont",  "syncPending": "Dejta pendenti għas-sinkronizzazzjoni",
   "syncDelay": "Hemm dejta li ilha tistenna biex tintbagħat minn {date}.",
   "syncCountdown": "Is-sinkronizzazzjoni awtomatika li jmiss fi żmien {time}",
   "syncInProgress": "Is-sinkronizzazzjoni għaddejja…",

@@ -1,5 +1,6 @@
 {
-  "syncPending": "Tiedot odottavat synkronointia",
+  "privacyPolicy": "Tietosuojakäytäntö",
+  "requestAccountDeletion": "Pyydä tilin poistamista",  "syncPending": "Tiedot odottavat synkronointia",
   "syncDelay": "Tietoja on odottanut lähetystä {date} lähtien.",
   "syncCountdown": "Seuraava automaattinen synkronointi {time} kuluttua",
   "syncInProgress": "Synkronoidaan…",

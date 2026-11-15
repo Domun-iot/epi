@@ -1,5 +1,6 @@
 {
-  "syncPending": "Data afventer synkronisering",
+  "privacyPolicy": "Privatlivspolitik",
+  "requestAccountDeletion": "Anmod om sletning af kontoen",  "syncPending": "Data afventer synkronisering",
   "syncDelay": "Der har været data klar til afsendelse siden {date}.",
   "syncCountdown": "Næste automatiske synkronisering om {time}",
   "syncInProgress": "Synkroniserer…",

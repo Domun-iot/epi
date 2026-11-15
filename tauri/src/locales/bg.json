@@ -1,5 +1,6 @@
 {
-  "syncPending": "Данни за синхронизиране",
+  "privacyPolicy": "Политика за поверителност",
+  "requestAccountDeletion": "Заявка за изтриване на акаунта",  "syncPending": "Данни за синхронизиране",
   "syncDelay": "Има данни за изпращане от {date}.",
   "syncCountdown": "Следващо автоматично синхронизиране след {time}",
   "syncInProgress": "Синхронизиране…",

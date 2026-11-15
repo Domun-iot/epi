@@ -131,7 +131,13 @@ export function openStore(path: string) {
     }
   }
 
+  const removeAccount = ['receipts', 'transactions', 'devices', 'accounts'].map(table =>
+    db.prepare(table === 'accounts' ? 'DELETE FROM accounts WHERE id = ?' : `DELETE FROM ${table} WHERE account_id = ?`));
+
   return {
+    deleteAccount(id: number) {
+      writeBatch(removeAccount, statement => statement.run(id));
+    },
     createAccount: (email: string, hash: string, locale: string | null) => createAccount.run(email, hash, locale).changes === 1,
     findAccount: (email: string) => findAccount.get(email) as Account | undefined,
     findById: (id: number) => findById.get(id) as Account | undefined,

@@ -1,5 +1,6 @@
 {
-  "syncPending": "Data čekající na synchronizaci",
+  "privacyPolicy": "Zásady ochrany osobních údajů",
+  "requestAccountDeletion": "Požádat o smazání účtu",  "syncPending": "Data čekající na synchronizaci",
   "syncDelay": "Data čekají na odeslání od {date}.",
   "syncCountdown": "Další automatická synchronizace za {time}",
   "syncInProgress": "Probíhá synchronizace…",
