@@ -723,7 +723,7 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
   const layout = () => chart.evaluate(element => {
     const heading = element.querySelector('.chart-heading');
     const toolbar = heading.querySelector('.chart-controls');
-    const [mode, periods] = [...toolbar.children].map(child => child.getBoundingClientRect());
+    const [mode, periods, fullscreen] = [...toolbar.children].map(child => child.getBoundingClientRect());
     const controls = [...toolbar.querySelectorAll('button')];
     const boxes = controls.map(button => button.getBoundingClientRect());
     const legend = element.querySelector('.chart-legend');
@@ -738,7 +738,9 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
       toolbarTop: toolbar.getBoundingClientRect().top,
       headingGap: parseFloat(getComputedStyle(heading).columnGap),
       modeLeftGap: mode.left - toolbar.getBoundingClientRect().left,
-      modeRightGap: periods.left - mode.right - parseFloat(getComputedStyle(toolbar).columnGap),
+      groupGap: periods.left - mode.right,
+      fullscreenGap: fullscreen.left - periods.right,
+      itemGap: boxes[1].left - boxes[0].right,
       subtitleBottom: heading.querySelector('.chart-change').getBoundingClientRect().bottom,
       controlsTop: Math.min(...boxes.map(({ top }) => top)),
       legendGap: legend.getBoundingClientRect().top - heading.getBoundingClientRect().bottom,
@@ -753,15 +755,20 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
   assert.ok(wide.controlsTop < wide.subtitleBottom);
   assert.equal(wide.toolbarLeft, wide.titleRight + wide.headingGap);
   assert.ok(wide.modeLeftGap > 0);
+  assert.ok(Math.abs(wide.modeLeftGap - (wide.groupGap - wide.fullscreenGap)) < 1);
   await page.setViewportSize({ width: 420, height: 900 });
   const medium = await layout();
   await page.setViewportSize({ width: 320, height: 900 });
   const narrow = await layout();
   assert.ok(wide.buttonPadding > medium.buttonPadding && medium.buttonPadding >= narrow.buttonPadding);
-  for (const { centers, right, headingRight, modeLeftGap, modeRightGap } of [wide, medium, narrow]) {
+  assert.ok(wide.groupGap > medium.groupGap && medium.groupGap >= narrow.groupGap);
+  for (const { groupGap, fullscreenGap, itemGap } of [medium, narrow]) {
+    assert.ok(Math.abs(groupGap - fullscreenGap) < 1);
+    assert.ok(groupGap >= itemGap && groupGap <= 4);
+  }
+  for (const { centers, right, headingRight } of [wide, medium, narrow]) {
     assert.equal(new Set(centers).size, 1);
     assert.ok(Math.abs(right - headingRight) < 1, `Fin des commandes : ${right}, en-tête : ${headingRight}`);
-    assert.ok(Math.abs(modeLeftGap - modeRightGap) < 1);
   }
   for (const { toolbarLeft, headingLeft, subtitleBottom, toolbarTop, legendGap, marginTop, marginBottom }
     of [medium, narrow]) {

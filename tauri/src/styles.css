@@ -189,14 +189,17 @@ p { line-height: 1.55; }
 .chart-change { margin: 4px 0 0; color: var(--muted); font-size: .86rem; }
 .chart-controls {
   --chart-control-width: 100cqw;
-  display: grid;
+  --chart-group-gap: clamp(2px, calc((var(--chart-control-width) - 360px) / 16), 10px);
+  display: flex;
   flex: 1 0 auto;
-  grid-template-columns: 1fr auto auto;
-  place-items: center;
-  gap: clamp(2px, calc((var(--chart-control-width) - 240px) / 12), 10px);
+  align-items: center;
 }
+/* Share spare space on wide views, then close the gap after the mode group. */
+.chart-controls::before, .chart-controls::after { content: ""; flex: 1 1 0; }
+.chart-controls::after { max-width: max(0px, calc((var(--chart-control-width) - 400px) / 3)); }
+.chart-controls > :nth-child(n+2) { order: 1; margin-inline-start: var(--chart-group-gap); }
 .chart-controls:has([data-value="custom"]) { --chart-control-width: calc(100cqw - 110px); }
-.chart-periods { display: flex; gap: clamp(0px, calc((var(--chart-control-width) - 270px) / 40), 2px); padding: 3px; border-radius: 10px; background: var(--hover); }
+.chart-periods { display: flex; gap: clamp(0px, calc((var(--chart-control-width) - 240px) / 70), 2px); padding: 3px; border-radius: 10px; background: var(--hover); }
 .chart-periods button, .chart-legend button {
   min-height: 32px;
   padding: 4px 9px;
