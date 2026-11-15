@@ -371,7 +371,7 @@ fn save_json(root: &Path, path: &Path, value: &Value, replace: bool) -> Result<b
     save_file(root, path, &bytes, value, replace)
 }
 
-fn read_bytes(path: &Path) -> Result<Option<Vec<u8>>, String> {
+pub(crate) fn read_bytes(path: &Path) -> Result<Option<Vec<u8>>, String> {
     match fs::read(path) {
         Ok(bytes) => Ok(Some(bytes)),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
@@ -379,7 +379,7 @@ fn read_bytes(path: &Path) -> Result<Option<Vec<u8>>, String> {
     }
 }
 
-fn restore_file(path: &Path, before: Option<&[u8]>) -> Result<(), String> {
+pub(crate) fn restore_file(path: &Path, before: Option<&[u8]>) -> Result<(), String> {
     match before {
         Some(bytes) => atomic_write(path, bytes, true).map(|_| ()),
         None => fs::remove_file(path).map_err(message),
@@ -1051,6 +1051,12 @@ fn valid_extra_path(path: &str) -> bool {
         }
         _ => false,
     }
+}
+
+pub(crate) fn valid_transaction_path(path: &str) -> bool {
+    (valid_file(path) || valid_extra_path(path))
+        && path != "transactions.index"
+        && !path.starts_with("transactions")
 }
 
 fn snapshot_files(root: &Path) -> Result<Vec<DataFile>, String> {

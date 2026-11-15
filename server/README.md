@@ -27,7 +27,7 @@ Les corps POST sont envoyés en JSON avec `Content-Type: application/json`. Les 
 | `POST /v1/device-tokens` | `{"email":"a@example.org","password":"mot-de-passe","deviceId":"pc-1"}` | `200` et `{"token":"…"}`. |
 | `DELETE /v1/device-tokens` | En-tête `Authorization: Bearer <token>` | `204`. Révoque ce jeton sans supprimer les accusés de l’appareil. |
 | `POST /v1/transactions` | Objet JSON `{"transactions":[…]}` ou une transaction JSON par ligne (`application/x-ndjson`). | `200` et `{"inserted":1,"uuids":["…"]}` avec les UUID confirmés. |
-| `GET /v1/transactions/pending` | | `200` et `{"transactions":[…]}`, dans l'ordre d'insertion serveur. |
+| `GET /v1/transactions/pending` | Paramètre facultatif `after` | `200` et `{"transactions":[…],"next":null}`. Les transactions horodatées sont triées par nom de fichier UTC. Si `next` est renseigné, le client le transmet dans `after` pour lire la page suivante. |
 | `POST /v1/transactions/acknowledge` | `{"uuids":["…"]}` | `200` et `{"inserted":1}` pour un nouvel accusé. |
 
 Les erreurs ont la forme `{"error":"code"}`. L'inscription est ouverte. L'identifiant d'appareil est choisi par le client et doit rester stable pour cette instance. Il accepte 1 à 128 caractères parmi les lettres ASCII, chiffres, points, tirets et underscores. Chaque émission remplace le jeton précédent de l'appareil. Après plus de 30 jours sans utilisation, le jeton est effacé et l'API renvoie `401 token_expired` jusqu'à une nouvelle connexion par mot de passe ou avec Google. Les accusés de l'appareil sont conservés.

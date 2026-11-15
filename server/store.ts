@@ -101,13 +101,16 @@ export function openStore(path: string) {
     ON CONFLICT (account_id, uuid) DO NOTHING
   `);
   const storedTransaction = db.prepare('SELECT payload FROM transactions WHERE account_id = ? AND uuid = ?');
+  const updateTransactionPayload = db.prepare('UPDATE transactions SET payload = ? WHERE account_id = ? AND uuid = ?');
   const pending = db.prepare(`
-    SELECT t.payload FROM transactions t
+    SELECT t.payload, COALESCE(json_extract(t.payload, '$.name'), printf('~%020d', t.sequence)) AS position
+    FROM transactions t
     WHERE t.account_id = ? AND NOT EXISTS (
       SELECT 1 FROM receipts r
       WHERE r.account_id = t.account_id AND r.device_id = ? AND r.uuid = t.uuid
     )
-    ORDER BY t.sequence LIMIT ?
+    AND COALESCE(json_extract(t.payload, '$.name'), printf('~%020d', t.sequence)) > ?
+    ORDER BY position LIMIT ?
   `);
   const acknowledge = db.prepare(`
     INSERT INTO receipts (account_id, device_id, uuid)
@@ -152,14 +155,29 @@ export function openStore(path: string) {
       const inserted = writeBatch(rows, ({ uuid, payload }) => {
         const result = insertTransaction.run(accountId, uuid, payload);
         const stored = result.changes ? undefined : storedTransaction.get(accountId, uuid)?.payload;
-        if (result.changes || (typeof stored === 'string' &&
-          (stored === payload || isDeepStrictEqual(JSON.parse(stored), JSON.parse(payload))))) uuids.add(uuid);
+        if (result.changes || stored === payload) {
+          uuids.add(uuid);
+        } else if (typeof stored === 'string') {
+          const previous = JSON.parse(stored);
+          const current = JSON.parse(payload);
+          if (isDeepStrictEqual(previous, current)) {
+            uuids.add(uuid);
+          } else {
+            const { name: previousName, ...previousTransaction } = previous;
+            const { name: currentName, ...currentTransaction } = current;
+            if ((previousName === undefined || currentName === undefined) &&
+              isDeepStrictEqual(previousTransaction, currentTransaction)) {
+              if (currentName !== undefined) updateTransactionPayload.run(payload, accountId, uuid);
+              uuids.add(uuid);
+            }
+          }
+        }
         return result;
       });
       return { inserted, uuids: [...uuids] };
     },
-    pending: (accountId: number, deviceId: string, limit: number) =>
-      pending.iterate(accountId, deviceId, limit) as IterableIterator<{ payload: string }>,
+    pending: (accountId: number, deviceId: string, after: string, limit: number) =>
+      pending.iterate(accountId, deviceId, after, limit) as IterableIterator<{ payload: string; position: string }>,
     acknowledge: (accountId: number, deviceId: string, uuids: string[]) => writeBatch(uuids, uuid =>
       acknowledge.run(deviceId, accountId, uuid)),
     close: () => db.close(),

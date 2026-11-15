@@ -56,10 +56,16 @@ async function readBody(req: IncomingMessage) {
   return body;
 }
 
+const transactionName = /^\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d\.\d{6}Z-[0-9a-f-]{36}\.json$/u;
+const pendingOverhead = '{"transactions":[],"next":""}'.length + 69;
+
 function transactionRow(value: unknown) {
   if (!isObject(value) || !isUuid(value.uuid)) throw new ApiError(400, 'invalid_transaction');
+  if (value.name !== undefined && (typeof value.name !== 'string' || !transactionName.test(value.name) ||
+    !value.name.endsWith('-' + value.uuid + '.json'))) throw new ApiError(400, 'invalid_transaction');
   const payload = JSON.stringify(value);
-  if (Buffer.byteLength(payload) > maxBodyBytes - '{"transactions":[]}'.length) {
+  const overhead = value.name === undefined ? '{"transactions":[]}'.length : pendingOverhead;
+  if (Buffer.byteLength(payload) > maxBodyBytes - overhead) {
     throw new ApiError(413, 'transaction_too_large');
   }
   return { uuid: value.uuid, payload };
@@ -469,18 +475,28 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
         return res.end();
       }
 
-      if (route === 'GET /v1/transactions/pending') {
+      if (req.method === 'GET' && req.url?.split('?')[0] === '/v1/transactions/pending') {
         const { account_id, device_id } = authenticate(req, store, now());
         const transactions: string[] = [];
         const envelope = '{"transactions":[';
-        let bytes = envelope.length + 2;
-        for (const { payload } of store.pending(account_id, device_id, maxBatchSize)) {
+        const after = new URLSearchParams(req.url.split('?')[1]).get('after') ?? '';
+        if (after && !transactionName.test(after) && !/^~\d{20}$/u.test(after)) {
+          throw new ApiError(400, 'invalid_cursor');
+        }
+        let bytes = pendingOverhead;
+        let position = '';
+        let next: string | null = null;
+        for (const { payload, position: rowPosition } of store.pending(account_id, device_id, after, maxBatchSize + 1)) {
           const size = Buffer.byteLength(payload) + Number(transactions.length > 0);
-          if (bytes + size > maxBodyBytes) break;
+          if (transactions.length === maxBatchSize || (transactions.length && bytes + size > maxBodyBytes)) {
+            next = position;
+            break;
+          }
           bytes += size;
           transactions.push(payload);
+          position = rowPosition;
         }
-        return sendJson(res, 200, envelope + transactions.join(',') + ']}');
+        return sendJson(res, 200, envelope + transactions.join(',') + '],"next":' + JSON.stringify(next) + '}');
       }
 
       if (route === 'POST /v1/transactions') {

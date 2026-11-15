@@ -1,17 +1,17 @@
-import { syncToken, uploadTransactions } from './account.js';
+import { acknowledgeTransactions, downloadTransactions, syncToken, uploadTransactions } from './account.js';
 import { locale, t } from './i18n.js';
 
 const retryDelay = 60_000;
 const showDelay = 5_000;
 const animationDuration = 15_000;
-// Leave room for the server's legacy JSON envelope in the per-transaction limit.
-const maxTransactionBytes = 4 * 1024 * 1024 - '{"transactions":[]}'.length;
+const maxTransactionBytes = 4 * 1024 * 1024 - '{"transactions":[],"next":""}'.length - 69;
 
 const icon = document.querySelector('#sync-status');
 const dialog = document.querySelector('#sync-dialog');
 const message = document.querySelector('#sync-message');
 
 let files;
+let receivedForToken;
 let running = false;
 let uploading = false;
 let requestedAgain = false;
@@ -50,7 +50,10 @@ function updatePending(pending) {
 }
 
 icon.addEventListener('click', () => dialog.showModal());
-window.addEventListener('epi:account', requestTransactionSync);
+window.addEventListener('epi:account', () => {
+  receivedForToken = undefined;
+  requestTransactionSync();
+});
 
 export function startTransactionSync(storage) {
   if (!storage.pendingTransactions) return;
@@ -68,20 +71,49 @@ export function requestTransactionSync() {
   void sync();
 }
 
+async function receive(token) {
+  let after;
+  do {
+    const { transactions, next } = await downloadTransactions(token, after);
+    if (syncToken() !== token || !Array.isArray(transactions)) return false;
+    if (transactions.length) {
+      transactions.sort((left, right) => {
+        const a = typeof left?.name === 'string' ? left.name : '~';
+        const b = typeof right?.name === 'string' ? right.name : '~';
+        return a < b ? -1 : Number(a > b);
+      });
+      const uuids = await files.integrateTransactions(transactions);
+      if (syncToken() !== token) return false;
+      if (uuids.length) await acknowledgeTransactions(token, uuids);
+    }
+    if (typeof next !== 'string') return true;
+    if (next === after) return false;
+    after = next;
+  } while (syncToken() === token);
+  return false;
+}
+
 async function sync() {
   running = true;
   const started = Date.now();
   try {
+    const token = syncToken();
+    if (token && receivedForToken !== token) {
+      try {
+        if (await receive(token)) receivedForToken = token;
+      } catch {
+        // Outgoing transactions can still be sent after a receive failure.
+      }
+    }
     const pending = await files.pendingTransactions();
     updatePending(pending);
-    const token = syncToken();
-    if (!token || !pending.length) return;
+    if (!token || token !== syncToken() || !pending.length) return;
 
     const encoder = new TextEncoder();
     const batch = [];
     for (const { name, transaction } of pending) {
       if (!transaction) continue;
-      const line = JSON.stringify(transaction);
+      const line = JSON.stringify({ ...transaction, name });
       if (encoder.encode(line).length <= maxTransactionBytes) batch.push({ name, uuid: transaction.uuid, line });
     }
     if (!batch.length) return;

@@ -53,7 +53,7 @@ async function writeAtomic(path, contents, replace) {
   }
 }
 
-export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importHistory, prepareHistory }, onTransactions) {
+export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importHistory, prepareHistory, integrateTransactions }, onTransactions) {
   const read = path => optional(() => readFile(join(root, path), 'utf8'));
   const entries = async folder => (await optional(() => readdir(join(root, folder), { withFileTypes: true }))) ?? [];
   const readJson = async path => parse(await read(path));
@@ -334,5 +334,5 @@ export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importH
     return applied.length + imported;
   }
 
-  return { load, save, exportFiles, importFiles, pendingTransactions, archiveTransactions };
+  return { load, save, exportFiles, importFiles, pendingTransactions, archiveTransactions, integrateTransactions: rows => integrateTransactions(root, rows) };
 }

@@ -158,6 +158,15 @@ export function uploadTransactions(body, token) {
   return request('transactions', { body, token, contentType: 'application/x-ndjson' });
 }
 
+export function downloadTransactions(token, after) {
+  const query = after ? '?after=' + encodeURIComponent(after) : '';
+  return request('transactions/pending' + query, { method: 'GET', token });
+}
+
+export function acknowledgeTransactions(token, uuids) {
+  return request('transactions/acknowledge', { body: { uuids }, token });
+}
+
 function clearSession() {
   localStorage.removeItem(sessionKey);
   account = null;

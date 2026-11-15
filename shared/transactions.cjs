@@ -156,6 +156,63 @@ function importHistory(root, { ids, archives }) {
   return added;
 }
 
+function transactionChanges(root, { type, data }, name) {
+  const operations = type === 'batch' ? data : [{ ...data, type }];
+  if (!Array.isArray(operations) || !operations.length) throw new Error('Transaction vide ou invalide · ' + name);
+  const paths = new Set();
+  return operations.map(change => {
+    validateChange(root, change);
+    const key = change.path.toLowerCase();
+    if (paths.has(key)) throw new Error('Chemin répété dans la transaction · ' + name);
+    paths.add(key);
+    return {
+      path: change.path,
+      before: readOptional(join(root, change.path)),
+      after: change.type === 'delete' ? undefined : serialize(change.value),
+    };
+  });
+}
+
+function integrateTransactions(root, rows) {
+  const ids = new Set();
+  for (const folder of ['transactions', 'transactions.sent']) {
+    ensureNoSymlinks(root, folder);
+    const directory = join(root, folder);
+    if (!fs.existsSync(directory)) continue;
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (entry.isFile() && filename.test(entry.name)) ids.add(entry.name.slice(28, -5));
+    }
+  }
+  ensureNoSymlinks(root, 'transactions.index');
+  const index = transactionIndex(root);
+  const acknowledged = new Set();
+  let changed = false;
+  for (const row of rows) {
+    if (typeof row?.uuid !== 'string' || !uuidPattern.test(row.uuid)) continue;
+    const { name, ...transaction } = row;
+    if (ids.has(row.uuid) || index.has(row.uuid)) {
+      acknowledged.add(row.uuid);
+      continue;
+    }
+    try {
+      if (typeof name !== 'string' || !filename.test(name) || !name.endsWith('-' + row.uuid + '.json')) continue;
+      const changes = transactionChanges(root, transaction, name);
+      const destination = join(root, 'transactions.sent', name);
+      applyChanges(root, changes, () => {
+        write(destination, serialize(transaction), false);
+        try { index.add(row.uuid); }
+        catch (error) { fs.unlinkSync(destination); throw error; }
+      });
+      ids.add(row.uuid);
+      acknowledged.add(row.uuid);
+      changed = true;
+    } catch {
+      // Leave this transaction unacknowledged and continue the batch.
+    }
+  }
+  return { uuids: [...acknowledged], changed };
+}
+
 function replayTransactions(root) {
   const incoming = join(root, 'transactions.incoming');
   if (!fs.existsSync(incoming)) return 0;
@@ -177,25 +234,11 @@ function replayIncoming(root, incoming) {
     const source = join(incoming, name);
     const contents = fs.readFileSync(source, 'utf8');
     const uuid = archiveUuid(name, contents);
-    const { type, data } = parse(contents);
     if (!index.has(uuid)) {
       const destination = join(root, 'transactions', name);
       const archived = readOptional(destination) ?? readOptional(join(root, 'transactions.sent', name));
       if (archived === undefined) {
-        const operations = type === 'batch' ? data : [{ ...data, type }];
-        if (!Array.isArray(operations) || !operations.length) throw new Error('Transaction vide ou invalide · ' + name);
-        const paths = new Set();
-        const changes = operations.map(change => {
-          validateChange(root, change);
-          const key = change.path.toLowerCase();
-          if (paths.has(key)) throw new Error('Chemin répété dans la transaction · ' + name);
-          paths.add(key);
-          return {
-            path: change.path,
-            before: readOptional(join(root, change.path)),
-            after: change.type === 'delete' ? undefined : serialize(change.value),
-          };
-        });
+        const changes = transactionChanges(root, parse(contents), name);
         // Keep the incoming file until the archive and the index are both written.
         applyChanges(root, changes, () => write(destination, contents, false));
       } else if (archived !== contents) {
@@ -209,4 +252,4 @@ function replayIncoming(root, incoming) {
   return count;
 }
 
-module.exports = { ensureNoSymlinks, importHistory, prepareHistory, readOptional, recordTransaction, replayTransactions, saveChanges, serialize };
+module.exports = { ensureNoSymlinks, integrateTransactions, importHistory, prepareHistory, readOptional, recordTransaction, replayTransactions, saveChanges, serialize };

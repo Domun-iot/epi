@@ -1,8 +1,18 @@
-use crate::{storage::atomic_write, transaction_index};
+use crate::{
+    storage::{atomic_write, read_bytes, restore_file, valid_transaction_path},
+    transaction_index,
+};
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde::Serialize;
 use serde_json::{json, Value};
-use std::{fs, io::ErrorKind, path::Path, sync::Mutex, time::SystemTime};
+use std::{
+    collections::HashSet,
+    fs,
+    io::ErrorKind,
+    path::{Path, PathBuf},
+    sync::Mutex,
+    time::SystemTime,
+};
 use tauri::AppHandle;
 use uuid::Uuid;
 
@@ -124,6 +134,189 @@ pub async fn archive_transactions(app: AppHandle, names: Vec<String>) -> Result<
     .map_err(message)?
 }
 
+#[derive(Serialize)]
+pub struct IntegratedTransactions {
+    uuids: Vec<Uuid>,
+    changed: bool,
+}
+
+fn local_ids(root: &Path) -> Result<HashSet<Uuid>, String> {
+    let index = root.join("transactions.index");
+    if fs::symlink_metadata(index).is_ok_and(|meta| !meta.is_file() || meta.is_symlink()) {
+        return Err("epi-i18n:diagnostic.invalidDataPath".into());
+    }
+    let mut ids = transaction_index::load(root).map_err(message)?;
+    for folder in ["transactions", "transactions.sent"] {
+        let directory = root.join(folder);
+        check_directory(&directory)?;
+        let entries = match fs::read_dir(directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == ErrorKind::NotFound => continue,
+            Err(error) => return Err(message(error)),
+        };
+        for entry in entries {
+            let entry = entry.map_err(message)?;
+            if entry.file_type().map_err(message)?.is_file() {
+                ids.extend(filename_uuid(&entry.file_name().to_string_lossy()));
+            }
+        }
+    }
+    Ok(ids)
+}
+
+struct FileChange {
+    path: PathBuf,
+    before: Option<Vec<u8>>,
+    after: Option<Vec<u8>>,
+}
+
+fn transaction_changes(root: &Path, transaction: &Value) -> Result<Vec<FileChange>, String> {
+    let invalid = || "epi-i18n:diagnostic.invalidDataPath".to_owned();
+    let kind = transaction["type"].as_str().ok_or_else(invalid)?;
+    let data = &transaction["data"];
+    let operations: &[Value] = if kind == "batch" {
+        data.as_array()
+            .filter(|rows| !rows.is_empty())
+            .ok_or_else(invalid)?
+    } else {
+        std::slice::from_ref(data)
+    };
+    let mut paths = HashSet::new();
+    operations
+        .iter()
+        .map(|operation| {
+            let relative = operation["path"]
+                .as_str()
+                .filter(|path| valid_transaction_path(path) && paths.insert(path.to_lowercase()))
+                .ok_or_else(invalid)?;
+            let mut path = root.to_owned();
+            let mut components = relative.split('/').peekable();
+            while let Some(part) = components.next() {
+                path.push(part);
+                if components.peek().is_some() {
+                    check_directory(&path)?;
+                } else if fs::symlink_metadata(&path)
+                    .is_ok_and(|meta| !meta.is_file() || meta.is_symlink())
+                {
+                    return Err(invalid());
+                }
+            }
+            let op = if kind == "batch" {
+                operation["type"].as_str()
+            } else {
+                Some(kind)
+            };
+            let after = match (op, operation.get("value")) {
+                (Some("create" | "update"), Some(value)) => {
+                    let mut bytes = serde_json::to_vec_pretty(value).map_err(message)?;
+                    bytes.push(b'\n');
+                    Some(bytes)
+                }
+                (Some("delete"), None) => None,
+                _ => return Err(invalid()),
+            };
+            Ok(FileChange {
+                before: read_bytes(&path)?,
+                path,
+                after,
+            })
+        })
+        .collect()
+}
+
+fn apply_received(root: &Path, uuid: Uuid, name: &str, transaction: &Value) -> Result<(), String> {
+    let mut archive = transaction.clone();
+    archive
+        .as_object_mut()
+        .ok_or("epi-i18n:diagnostic.invalidDataPath")?
+        .remove("name");
+    let mut bytes = serde_json::to_vec_pretty(&archive).map_err(message)?;
+    bytes.push(b'\n');
+    let destination = root.join("transactions.sent").join(name);
+    let mut changes = transaction_changes(root, transaction)?;
+    changes.push(FileChange {
+        path: destination,
+        before: None,
+        after: Some(bytes),
+    });
+    let mut applied = Vec::new();
+    let result = (|| {
+        for change in &changes {
+            if change.before == change.after {
+                continue;
+            }
+            let path = &change.path;
+            if read_bytes(path)? != change.before {
+                return Err("epi-i18n:diagnostic.invalidDataPath".into());
+            }
+            if let Some(after) = &change.after {
+                if !atomic_write(path, after, change.before.is_some())? {
+                    return Err("epi-i18n:diagnostic.aTransactionFileAlreadyExists".into());
+                }
+            } else {
+                fs::remove_file(path).map_err(message)?;
+            }
+            applied.push(change);
+        }
+        transaction_index::add(root, uuid).map_err(message)
+    })();
+    if result.is_err() {
+        for change in applied.into_iter().rev() {
+            if read_bytes(&change.path).ok().as_ref() == Some(&change.after) {
+                let _ = restore_file(&change.path, change.before.as_deref());
+            }
+        }
+    }
+    result
+}
+
+fn integrate(root: &Path, rows: Vec<Value>) -> Result<IntegratedTransactions, String> {
+    let mut ids = local_ids(root)?;
+    let mut acknowledged = HashSet::new();
+    let mut result = IntegratedTransactions {
+        uuids: Vec::new(),
+        changed: false,
+    };
+    for transaction in rows {
+        let Some(uuid) = transaction["uuid"].as_str().and_then(|id| {
+            Uuid::parse_str(id)
+                .ok()
+                .filter(|uuid| uuid.to_string() == id)
+        }) else {
+            continue;
+        };
+        if !ids.contains(&uuid) {
+            let Some(name) = transaction["name"]
+                .as_str()
+                .filter(|name| filename_uuid(name) == Some(uuid))
+            else {
+                continue;
+            };
+            if apply_received(root, uuid, name, &transaction).is_err() {
+                continue;
+            }
+            ids.insert(uuid);
+            result.changed = true;
+        }
+        if acknowledged.insert(uuid) {
+            result.uuids.push(uuid);
+        }
+    }
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn integrate_transactions(
+    app: AppHandle,
+    transactions: Vec<Value>,
+) -> Result<IntegratedTransactions, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        integrate(&crate::storage::data_root(&app)?, transactions)
+    })
+    .await
+    .map_err(message)?
+}
+
 pub fn change(
     root: &Path,
     path: &Path,
@@ -177,4 +370,39 @@ pub fn record(root: &Path, operations: Vec<Value>) -> Result<(), String> {
     }
     RECORD_REVISION.set(record_revision().wrapping_add(1));
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn received_transactions_archive_successes_and_acknowledge_duplicates() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let uuid = Uuid::new_v4();
+        let name = format!("2026-01-15T17-23-21.000001Z-{uuid}.json");
+        let row = json!({"uuid":uuid.to_string(), "name": name, "type":"update",
+            "data":{"path":"profiles/profil-alice.json", "value":{"name":"Alice"}}});
+        let invalid_uuid = Uuid::new_v4();
+        let invalid = json!({"uuid":invalid_uuid.to_string(),
+            "name":format!("2026-01-15T17-23-21.000000Z-{invalid_uuid}.json"),
+            "type":"delete", "data":{"path":"../outside.json"}});
+        let first = integrate(root, vec![invalid, row.clone()]).unwrap();
+        assert_eq!(first.uuids, vec![uuid]);
+        assert!(first.changed);
+        assert!(root.join("transactions.sent").join(&name).is_file());
+        assert!(!root.join("transactions").exists());
+
+        let mut duplicate = row;
+        duplicate["data"]["value"] = json!({"name":"Other"});
+        let again = integrate(root, vec![duplicate]).unwrap();
+        assert_eq!(again.uuids, vec![uuid]);
+        assert!(!again.changed);
+        let stored = fs::read(root.join("profiles/profil-alice.json")).unwrap();
+        assert_eq!(
+            serde_json::from_slice::<Value>(&stored).unwrap(),
+            json!({"name":"Alice"})
+        );
+    }
 }

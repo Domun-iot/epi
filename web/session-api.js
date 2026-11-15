@@ -39,7 +39,7 @@ export async function createSessionApi({ root, domain, storage, transactions }) 
     } catch {
       return json(response, 400, { error: 'JSON invalide.' });
     }
-    if (![...actions, 'exportFiles', 'importFiles', 'pendingTransactions', 'archiveTransactions'].includes(input?.action) || !Array.isArray(input.args)) {
+    if (![...actions, 'exportFiles', 'importFiles', 'pendingTransactions', 'archiveTransactions', 'integrateTransactions'].includes(input?.action) || !Array.isArray(input.args)) {
       return json(response, 400, { error: 'Action invalide.' });
     }
     try {
@@ -58,6 +58,11 @@ export async function createSessionApi({ root, domain, storage, transactions }) 
           if (!Array.isArray(input.args[0])) throw new Error('Liste de transactions invalide.');
           await files.archiveTransactions(input.args[0]);
           return {};
+        }
+        if (input.action === 'integrateTransactions') {
+          if (!Array.isArray(input.args[0])) throw new Error('Liste de transactions invalide.');
+          const { uuids, changed } = files.integrateTransactions(input.args[0]);
+          return { uuids, state: changed ? await session.reload() : undefined };
         }
         if (input.action === 'exportFiles') return { files: await files.exportFiles() };
         if (input.action === 'importFiles') {

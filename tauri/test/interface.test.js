@@ -317,6 +317,41 @@ test('le mode web ouvre l’écran expliquant où écouter le Bluetooth', async 
   assert.equal(await page.getByRole('region', { name: 'Trames Bluetooth reçues' }).count(), 0);
 });
 
+test('receives transactions on startup and acknowledges only the IDs returned by storage', { timeout: 15000 }, async t => {
+  await buildWeb();
+  const rows = Array.from({ length: 3 }, (_, index) => {
+    const uuid = '00000000-0000-4000-8000-00000000000' + index;
+    return { uuid, name: '2026-01-15T17-23-21.00000' + index + 'Z-' + uuid + '.json' };
+  });
+  const snapshot = { profiles: [], devices: [], measurements: [], pending: [], notifications: [] };
+  const integrated = [];
+  let acknowledge;
+  const acknowledged = new Promise(resolve => { acknowledge = resolve; });
+  await pageWith(t, route => {
+    const { action, args } = route.request().postDataJSON();
+    if (action === 'pendingTransactions') return route.fulfill({ json: [] });
+    if (action === 'integrateTransactions') {
+      integrated.push(...args[0]);
+      return route.fulfill({ json: { uuids: [rows[0].uuid, rows[2].uuid] } });
+    }
+    return route.fulfill({ json: snapshot });
+  }, {}, 'web', async page => {
+    await page.addInitScript(() => {
+      localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({
+        email: 'alice@example.org', token: 'test-token',
+      }));
+    });
+    await page.route('https://sync.epi.test/v1/transactions/pending', route =>
+      route.fulfill({ json: { transactions: [...rows].reverse(), next: null } }));
+    await page.route('https://sync.epi.test/v1/transactions/acknowledge', async route => {
+      acknowledge(route.request().postDataJSON());
+      await route.fulfill({ json: { inserted: 2 } });
+    });
+  });
+  assert.deepEqual(await acknowledged, { uuids: [rows[0].uuid, rows[2].uuid] });
+  assert.deepEqual(integrated, rows);
+});
+
 test('retries a stalled upload and archives only confirmed transactions', async t => {
   await buildWeb();
   const ids = ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002'];
@@ -353,6 +388,7 @@ test('retries a stalled upload and archives only confirmed transactions', async 
         email: 'alice@example.org', token: 'test-token',
       }));
     });
+    await page.route('https://sync.epi.test/v1/transactions/pending', route => route.fulfill({ json: { transactions: [] } }));
     await page.route('https://sync.epi.test/v1/transactions', async route => {
       uploads.push(route.request().postData().trim().split('\n').map(line => JSON.parse(line).uuid));
       if (uploads.length === 1) {

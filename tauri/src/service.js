@@ -22,6 +22,7 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
   const web = import.meta.env.MODE === 'web' && !native;
   const storage = native ? {
     load: () => invoke('load_session'),
+    integrateTransactions: transactions => invoke('integrate_transactions', { transactions }),
     async save(session, previous) {
       if (await invoke('save_session', { session, previous })) onTransactions();
     },

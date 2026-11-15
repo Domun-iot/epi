@@ -2,7 +2,7 @@ import { actions } from '../../web/actions.js';
 
 export function createWebSession(onState, onTransactions) {
   let pending = Promise.resolve();
-  return Object.fromEntries([...actions, 'exportFiles', 'importFiles', 'pendingTransactions', 'archiveTransactions'].map(action => [action, (...args) => {
+  return Object.fromEntries([...actions, 'exportFiles', 'importFiles', 'pendingTransactions', 'archiveTransactions', 'integrateTransactions'].map(action => [action, (...args) => {
     const task = pending.then(async () => {
       const response = await fetch('/api/session', {
         method: 'POST',
@@ -13,6 +13,10 @@ export function createWebSession(onState, onTransactions) {
       if (!response.ok) throw new Error(state.error);
       if (response.headers.get('X-Epi-Transactions') === 'pending') onTransactions();
       if (action === 'pendingTransactions' || action === 'archiveTransactions') return state;
+      if (action === 'integrateTransactions') {
+        if (state.state) onState(state.state);
+        return state.uuids;
+      }
       if (action === 'exportFiles') return state.files;
       if (action === 'importFiles') {
         onState(state.state);

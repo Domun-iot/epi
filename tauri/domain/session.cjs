@@ -787,6 +787,17 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     });
   }
 
+  function integrateTransactions(transactions) {
+    return enqueue(async () => {
+      const { uuids, changed } = await storage.integrateTransactions(transactions);
+      if (changed) {
+        await loadSaved();
+        publish();
+      }
+      return uuids;
+    });
+  }
+
   function reload() {
     return enqueue(async () => {
       await loadSaved();
@@ -797,6 +808,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
   return {
     load: () => enqueue(async () => { await transact(() => {}); return view(); }),
     reload,
+    ...(storage.integrateTransactions && { integrateTransactions }),
     subscribe(observer) {
       observers.add(observer);
       return () => observers.delete(observer);

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const test = require('node:test');
-const { replayTransactions, saveChanges, serialize } = require('./transactions.cjs');
+const { integrateTransactions, replayTransactions, saveChanges, serialize } = require('./transactions.cjs');
 
 function directory(t) {
   const root = fs.mkdtempSync(join(tmpdir(), 'epi-transactions-'));
@@ -51,6 +51,31 @@ test('replays a batch, an update and a delete, then purges duplicates without ap
   assert.deepEqual(fs.readdirSync(incoming), []);
   assert.equal(fs.readFileSync(index, 'utf8'), currentIndex);
   assert.equal(fs.readdirSync(join(replica, 'transactions')).length, 4);
+});
+
+test('acknowledges both local archives and keeps failed transactions out of received history', t => {
+  const root = directory(t);
+  const path = 'profiles/profil-alice.json';
+  const target = join(root, path);
+  const rows = Array.from({ length: 5 }, (_, position) => {
+    const uuid = '00000000-0000-4000-8000-00000000000' + position;
+    return { uuid, name: '2026-01-15T17-23-21.00000' + position + 'Z-' + uuid + '.json',
+      type: 'update', data: { path, value: { position } } };
+  });
+  for (const [folder, row] of [['transactions', rows[0]], ['transactions.sent', rows[1]]]) {
+    fs.mkdirSync(join(root, folder));
+    fs.writeFileSync(join(root, folder, row.name), serialize(row));
+  }
+  rows[3].data.path = '../outside.json';
+  assert.deepEqual(integrateTransactions(root, rows), {
+    uuids: [rows[0], rows[1], rows[2], rows[4]].map(row => row.uuid), changed: true,
+  });
+  assert.deepEqual(JSON.parse(fs.readFileSync(target, 'utf8')), { position: 4 });
+  assert.deepEqual(fs.readdirSync(join(root, 'transactions.sent')), [rows[1], rows[2], rows[4]].map(row => row.name));
+  assert.deepEqual(integrateTransactions(root, rows.slice(0, 2)), {
+    uuids: rows.slice(0, 2).map(row => row.uuid), changed: false,
+  });
+  assert.deepEqual(JSON.parse(fs.readFileSync(target, 'utf8')), { position: 4 });
 });
 
 test('recovers an archived transaction missing from the index without applying it again', t => {

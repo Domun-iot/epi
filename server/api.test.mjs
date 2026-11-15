@@ -136,6 +136,27 @@ test('synchronizes batches per account and preserves receipts after token expira
       assert.deepEqual(await response.json(), { inserted, uuids: backlog.map(row => row.uuid) });
     }
 
+    const timestamped = Array.from({ length: 101 }, (_, index) => {
+      const uuid = randomUUID();
+      return { ...first, uuid, name: '2026-01-15T17-23-21.' + String(index).padStart(6, '0') + 'Z-' + uuid + '.json' };
+    });
+    const chronologicalReader = await login(bob, 'chronological');
+    const reversed = [...timestamped].reverse();
+    await upload(other, reversed.slice(0, 100));
+    await upload(other, reversed.slice(100));
+    const pageOne = await request('/transactions/pending', { token: chronologicalReader });
+    assert.deepEqual(pageOne.transactions, timestamped.slice(0, 100));
+    const pageTwo = await request('/transactions/pending?after=' + encodeURIComponent(pageOne.next),
+      { token: chronologicalReader });
+    assert.deepEqual(pageTwo.transactions[0], timestamped[100]);
+    assert.deepEqual(pageTwo.transactions[1], first);
+    assert.deepEqual(await acknowledge(chronologicalReader, [timestamped[100].uuid]), { inserted: 1 });
+
+    const stampedFirst = { ...first, name: '2026-01-15T17-00-00.000000Z-' + first.uuid + '.json' };
+    assert.deepEqual(await upload(other, [stampedFirst]), { inserted: 0, uuids: [first.uuid] });
+    assert.deepEqual(await upload(other, [first]), { inserted: 0, uuids: [first.uuid] });
+    assert.deepEqual((await pending(chronologicalReader))[0], stampedFirst);
+
     now += tokenLifetime;
     assert.deepEqual(await pending(pc), []);
     now += 1;
