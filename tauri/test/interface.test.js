@@ -928,6 +928,15 @@ test('attribution sans profil sur smartphone, création depuis une pesée et his
   const createProfile = toolbar.locator('#editor-actions').getByRole('button', { name: 'Créer un profil' });
   assert.match(await createProfile.getAttribute('class'), /\bprimary\b/);
   assert.doesNotMatch(await toolbar.getByRole('button', { name: 'Calculer sans profil' }).getAttribute('class'), /\bprimary\b/);
+  const receipt = page.locator('#pending-actions').getByText('Pesée reçue', { exact: true });
+  await editor.getByRole('heading', { name: 'Attribuer la pesée' }).waitFor();
+  assert.equal(await receipt.isVisible(), false);
+  await createProfile.tap();
+  await editor.getByRole('heading', { name: 'Créer un profil' }).waitFor();
+  assert.equal(await receipt.isVisible(), false);
+  await toolbar.getByRole('button', { name: 'Annuler', exact: true }).click();
+  await receipt.waitFor();
+  await page.getByRole('button', { name: 'Attribuer la pesée' }).click();
   await createProfile.tap();
   await editor.getByRole('textbox', { name: 'Nom', exact: true }).fill('Camille');
   await editor.getByLabel('Sexe utilisé par les formules').selectOption('F');

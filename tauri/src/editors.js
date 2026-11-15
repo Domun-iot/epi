@@ -21,7 +21,7 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
   }
 
   function open(title, content, submit, submitLabel = 'Enregistrer', {
-    modal = false, extraActions = '', deleteAction = '', submitChoices = [], subtitle = '',
+    modal = false, extraActions = '', deleteAction = '', submitChoices = [], subtitle = '', hidePendingWeighIns = false,
   } = {}) {
     const host = modal ? dialog : view;
     const formId = modal ? 'modal-editor-form' : 'view-editor-form';
@@ -30,7 +30,7 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
       `<button class="button${primary ? ' primary' : ''}" type="submit" form="${formId}" name="include" value="${value}">${label}</button>`).join('');
     const actions = `${extraActions}${button('Annuler', 'close-editor')}${deleteAction}${submitButton}${choices}`;
     host.innerHTML = `${modal ? `<h2 id="dialog-title">${title}</h2>` : pageHeader(title, subtitle)}
-      <form id="${formId}" class="editor-form${modal ? '' : ' panel'}">${content}<p class="notice error" role="alert" hidden></p></form>
+      <form id="${formId}" class="editor-form${modal ? '' : ' panel'}"${hidePendingWeighIns ? ' data-hide-pending-weigh-ins' : ''}>${content}<p class="notice error" role="alert" hidden></p></form>
       ${modal ? `<div class="actions">${actions}</div>` : ''}`;
     const controls = modal ? dialog : toolbar;
     if (!modal) controls.innerHTML = actions;
@@ -99,6 +99,7 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
       else data.birthDate = birthDate;
       return submit(data);
     }, restore ? 'Restaurer' : 'Enregistrer', {
+      hidePendingWeighIns: !edit && !restore && !anonymous,
       subtitle: restore ? 'Ce profil a été supprimé.' : '',
       deleteAction: edit && onDelete ? button('Supprimer', 'delete-profile') : '',
     });
@@ -124,6 +125,7 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
       <div data-device-details hidden></div>
     `, ({ name }) => submit({ ...(address ? { address } : {}), name: name.trim() }),
     device || pending ? 'Enregistrer' : 'Démarrer la capture', {
+      hidePendingWeighIns: !device,
       deleteAction: onDelete ? button('Supprimer', 'delete-device') : '',
     });
     if (onDelete) toolbar.querySelector('[data-action="delete-device"]').addEventListener('click', onDelete);
@@ -159,6 +161,7 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
       ${profileItems ? `<ul class="assignment-profiles list" aria-label="Profils">${profileItems}</ul>`
         : '<p class="muted">Aucun profil sur cet appareil.</p>'}`,
     ({ name }) => submit({ id: pending.id, name }), null, {
+      hidePendingWeighIns: true,
       extraActions: button('Créer un profil', 'create-for-reading', { primary: profiles.length === 0 })
         + button('Calculer sans profil', 'calculate-one-off', { primary: profiles.length > 0 }),
     });
