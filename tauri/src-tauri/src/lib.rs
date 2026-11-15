@@ -1,5 +1,7 @@
 mod bluetooth;
 mod storage;
+#[cfg(desktop)]
+mod window_preferences;
 
 use tauri::AppHandle;
 
@@ -23,6 +25,13 @@ pub fn run() {
                 tauri::WindowEvent::Resumed => bluetooth::set_foreground(true),
                 _ => {}
             });
+    #[cfg(desktop)]
+    let builder = builder.setup(|app| {
+        if let Err(error) = window_preferences::setup(app.handle()) {
+            eprintln!("Préférences de la fenêtre : {error}");
+        }
+        Ok(())
+    });
     builder
         .invoke_handler(tauri::generate_handler![
             start_bluetooth,

@@ -4,11 +4,13 @@ use std::{
     fs,
     io::{self, Write},
     path::{Path, PathBuf},
+    sync::Mutex,
 };
 use tauri::{AppHandle, Manager};
 
 const PREFS: &str = "prefs/global.json";
 const LEGACY_PREFS: &str = "interface.json";
+static GLOBAL_PREFS_WRITE: Mutex<()> = Mutex::new(());
 const VIEW_PRESET_FOLDERS: [(&str, &str); 2] = [
     ("measurements", "prefs/measurements"),
     ("details", "prefs/measurement-details"),
@@ -32,7 +34,7 @@ fn shared_data(executable_dir: &Path) -> Option<PathBuf> {
         })
 }
 
-fn data_root(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn data_root(app: &AppHandle) -> Result<PathBuf, String> {
     #[cfg(desktop)]
     {
         if let Some(path) = std::env::var_os("EPI_DATA_DIR").filter(|path| !path.is_empty()) {
@@ -260,11 +262,42 @@ fn read_view_presets(root: &Path) -> Result<Value, String> {
     Ok(presets)
 }
 
-fn read_session(root: &Path) -> Result<Value, String> {
-    let mut session = match read_json(&root.join(PREFS))? {
+fn read_global_preferences(root: &Path) -> Result<Value, String> {
+    Ok(match read_json(&root.join(PREFS))? {
         Some(prefs) => prefs,
         None => read_json(&root.join(LEGACY_PREFS))?.unwrap_or_else(|| json!({})),
-    };
+    })
+}
+
+#[cfg(desktop)]
+pub(crate) fn read_window_preferences(root: &Path) -> Result<Value, String> {
+    Ok(read_global_preferences(root)?["window"].clone())
+}
+
+#[cfg(desktop)]
+pub(crate) fn save_window_preferences(root: &Path, window: Value) -> Result<(), String> {
+    update_global_preferences(root, |global| {
+        global.insert("window".into(), window);
+    })
+}
+
+fn update_global_preferences(
+    root: &Path,
+    update: impl FnOnce(&mut serde_json::Map<String, Value>),
+) -> Result<(), String> {
+    let _guard = GLOBAL_PREFS_WRITE.lock().map_err(message)?;
+    let mut global = read_global_preferences(root)?;
+    update(
+        global
+            .as_object_mut()
+            .ok_or("Préférences globales invalides.")?,
+    );
+    json_write(&root.join(PREFS), &global, true)?;
+    Ok(())
+}
+
+fn read_session(root: &Path) -> Result<Value, String> {
+    let mut session = read_global_preferences(root)?;
     let mut profiles = Vec::new();
     let mut devices = Vec::new();
     let mut measurements = Vec::new();
@@ -885,14 +918,17 @@ fn save_preferences(root: &Path, session: &Value, previous: &Value) -> Result<()
             }
         }
     }
-    let global = json!({
-        "selectedProfile": session["selectedProfile"],
-        "pending": session["pending"],
-        "addressFilter": session["addressFilter"],
-        "anonymousPreferences": session["anonymousPreferences"],
-    });
-    json_write(&root.join(PREFS), &global, true)?;
-    Ok(())
+    update_global_preferences(root, |global| {
+        global.retain(|key, _| key == "window");
+        for key in [
+            "selectedProfile",
+            "pending",
+            "addressFilter",
+            "anonymousPreferences",
+        ] {
+            global.insert(key.into(), session[key].clone());
+        }
+    })
 }
 
 #[tauri::command]
@@ -1161,6 +1197,32 @@ mod tests {
         assert_eq!(
             read_session(root).unwrap()["profilePreferences"]["Alice"],
             prefs
+        );
+    }
+
+    #[cfg(desktop)]
+    #[test]
+    fn window_and_session_updates_preserve_each_others_preferences() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
+        let legacy = json!({ "selectedProfile": "Alice", "pending": true });
+        json_write(&root.join(LEGACY_PREFS), &legacy, true).unwrap();
+
+        let window = json!({ "position": { "x": -300, "y": 100 }, "maximized": true });
+        save_window_preferences(root, window.clone()).unwrap();
+        assert_eq!(
+            read_global_preferences(root).unwrap()["selectedProfile"],
+            "Alice"
+        );
+
+        let session = json!({ "selectedProfile": "Bob" });
+        save_preferences(root, &session, &legacy).unwrap();
+        assert_eq!(read_window_preferences(root).unwrap(), window);
+
+        save_window_preferences(root, json!({ "minimized": true })).unwrap();
+        assert_eq!(
+            read_global_preferences(root).unwrap()["selectedProfile"],
+            "Bob"
         );
     }
 
