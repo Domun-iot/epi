@@ -402,6 +402,13 @@ const actions = {
       noticeQueue = noticeQueue.filter(item => item.id !== id);
       if (activeNotice?.id === id) dismissBanner();
     }),
+  'delete-all-notifications': () => editor.confirmDeletion('Supprimer toutes les notifications',
+    'Supprimer définitivement toutes les notifications et les données qu’elles contiennent ?',
+    async () => {
+      await session.deleteAllNotifications();
+      noticeQueue = [];
+      dismissBanner();
+    }),
   'restore-notification': async id => {
     const entry = state.notifications.find(item => item.id === id);
     await session.restoreNotification(id);

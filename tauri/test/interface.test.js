@@ -1071,6 +1071,36 @@ test('le journal conserve ses entrées et restaure un profil avec ses pesées', 
   await page.getByRole('table', { name: 'Pesées' }).getByText('70 kg').waitFor();
 });
 
+test('la suppression groupée demande confirmation et vide le journal après rechargement', async t => {
+  const date = new Date().toISOString();
+  const page = await pageWith(t, { profiles: [alice, bob], measurements: [record], selectedProfile: 'Alice',
+    notifications: ['Première notification', 'Seconde notification'].map((text, index) => ({
+      id: String(index), date, type: 'info', text,
+    })) });
+  await page.getByRole('button', { name: 'Ouvrir les profils', exact: true }).click();
+  await page.getByRole('heading', { name: 'Profils', exact: true }).waitFor();
+  const icon = page.getByRole('button', { name: 'Notifications', exact: true });
+  const gap = await icon.evaluate(button => {
+    const iconBounds = button.getBoundingClientRect();
+    return iconBounds.left - document.querySelector('#profile').getBoundingClientRect().right - iconBounds.width;
+  });
+  assert.ok(Math.abs(gap) < 1);
+  await icon.click();
+  const removeAll = page.locator('#view-header').getByRole('button', { name: 'Supprimer tout', exact: true });
+  const dialog = page.getByRole('dialog');
+  await removeAll.click();
+  await dialog.getByRole('button', { name: 'Annuler', exact: true }).click();
+  assert.equal(await page.locator('.notification-item').count(), 2);
+  await removeAll.click();
+  await dialog.getByRole('button', { name: 'Supprimer', exact: true }).click();
+  await page.getByText('Aucune notification.', { exact: true }).waitFor();
+  await page.reload();
+  await page.getByText('Aucune notification.', { exact: true }).waitFor();
+  assert.equal(await icon.count(), 0);
+  await choosePage(page, 'Mesures');
+  await page.getByRole('table', { name: 'Pesées' }).getByText('70 kg').waitFor();
+});
+
 test('le bandeau recouvre la barre sur smartphone et sa fermeture conserve le journal', async t => {
   const page = await pageWith(t, { devices: [device] },
     { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });

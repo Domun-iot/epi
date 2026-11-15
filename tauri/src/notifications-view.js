@@ -53,7 +53,8 @@ export function notificationsView(state) {
       ${summary}
       ${deleteButton('Supprimer définitivement la notification', 'delete-notification', entry.id)}</article>`;
   }).join('');
-  return { header: pageHeader('Notifications'), content: content || '<p class="panel empty">Aucune notification.</p>' };
+  const actions = content ? '<button class="button" type="button" data-action="delete-all-notifications">Supprimer tout</button>' : '';
+  return { header: pageHeader('Notifications', '', actions), content: content || '<p class="panel empty">Aucune notification.</p>' };
 }
 
 export function resolveNotification(state, entry) {

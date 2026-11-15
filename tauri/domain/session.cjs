@@ -616,6 +616,9 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     deleteNotification: id => mutate(draft => {
       draft.notifications = draft.notifications.filter(item => item.id !== id);
     }),
+    deleteAllNotifications: () => mutate(draft => {
+      draft.notifications = [];
+    }),
     pruneNotifications: () => mutate(() => {}),
   };
 }
