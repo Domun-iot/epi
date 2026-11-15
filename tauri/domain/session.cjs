@@ -100,6 +100,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     const measurements = layoutFor(saved, prefs, 'measurements');
     const details = layoutFor(saved, prefs, 'details');
     return { ...saved, ...measurements.layout, ...details.layout, viewLayouts: { measurements, details },
+      measurementDisplay: prefs.measurementDisplay === 'chart' ? 'chart' : 'table',
       theme: prefs.theme, rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: prefs.detailSectionsOpen, enrollment, acquisitionError };
   }
 
@@ -336,6 +337,21 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       const name = target?.name ?? null;
       const prefs = preferencesFor(draft, name);
       if (prefs.theme !== theme) savePreferences(draft, name, { ...prefs, theme });
+    });
+  }
+
+  function setMeasurementDisplay(profile, measurementDisplay) {
+    return mutate(draft => {
+      const target = profile == null ? null : findProfile(draft, profile);
+      if (profile != null && !target) throw Error('Profil introuvable.');
+      if (measurementDisplay !== 'chart' && measurementDisplay !== 'table') {
+        throw Error('Visualisation des pesées invalide.');
+      }
+      const name = target?.name ?? null;
+      const prefs = preferencesFor(draft, name);
+      if (prefs.measurementDisplay !== measurementDisplay) {
+        savePreferences(draft, name, { ...prefs, measurementDisplay });
+      }
     });
   }
 
@@ -611,7 +627,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       return () => observers.delete(observer);
     },
     selectProfile, saveProfile, setColumnPreference, renameDevice, beginDevice, cancelDevice, confirmProfile,
-    deleteProfile, deleteDevice, deleteMeasurement, setPanelOpen, changeViewPreset, setTheme,
+    deleteProfile, deleteDevice, deleteMeasurement, setPanelOpen, changeViewPreset, setTheme, setMeasurementDisplay,
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
     moveDetailSection: (...args) => movePreference('detailSectionOrder', ...args),

@@ -1,4 +1,6 @@
 import composition from 'virtual:epi-composition';
+import { kg } from 'virtual:epi-domain';
+import { measurementCharts } from './measurement-charts.js';
 import { METHOD_COLUMNS, METRICS } from './service.js';
 import { deviceFields, escapeHtml as e, formatCalendarDate, formatDate, formatScaleTime, nameKey, number, pairs, pageHeader, weight } from './format.js';
 
@@ -46,6 +48,7 @@ const extras = [
   ['birthDate', 'Naissance du profil', row => formatCalendarDate(row.profile?.birthDate)],
 ];
 const options = [...extras, ...METRICS].sort(([, first], [, second]) => first.localeCompare(second, 'fr'));
+const chartColumnIds = new Set(['impedanceOhms', ...METRICS.map(([id]) => id)]);
 const measurementColumnOrder = ['date', 'weight', ...[...extras, ...METRICS].map(([id]) => id)];
 const methodColumnOrder = methods.map(({ id }) => id);
 const defaultOrder = ids => ` data-default-order="${e(JSON.stringify(ids))}"`;
@@ -64,21 +67,35 @@ function textValue(value) {
   return value ?? '—';
 }
 
-function columnSettings(selected, split, sourcesByMetric, open, query) {
-  return `<details class="panel settings" data-expand="columns"${open ? ' open' : ''}>
+function columnSettings(selected, split, sourcesByMetric, open, query, chart) {
+  const available = chart ? options.filter(([id]) => chartColumnIds.has(id)) : options;
+  return `<details class="settings" data-expand="columns"${open ? ' open' : ''}>
     <summary>Colonnes</summary>
     <div class="column-search-field">
       <input class="column-search" type="search" aria-label="Recherche" placeholder="Recherche" value="${e(query)}">
     </div>
-    <div class="column-options">${options.map(([id, label]) => {
+    <div class="column-options">${available.map(([id, label]) => {
       const toggle = split.has(id) ? 'Rassembler' : 'Éclater';
-      const canSplit = sourcesByMetric.get(id)?.length > 1;
+      const canSplit = !chart && sourcesByMetric.get(id)?.length > 1;
       return `<div class="column-option" data-column-option="${e(label)}">
         <label><input type="checkbox" data-column="${id}"${selected.has(id) ? ' checked' : ''}>${e(label)}</label>
         ${canSplit ? `<button type="button" class="button" data-action="split-column" data-value="${id}" aria-pressed="${split.has(id)}" aria-label="${e(toggle + ' ' + label)}">${toggle}</button>` : ''}
       </div>`;
     }).join('')}</div>
   </details>`;
+}
+
+function displayButtons(chart) {
+  const options = [
+    ['chart', 'Graphique', '<path d="M3 3v18h18M6 16l5-5 4 3 6-8"/>'],
+    ['table', 'Tableau', '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14h18M10 9v11"/>'],
+  ];
+  return `<div class="measurement-display" role="group" aria-label="Visualisation des pesées">
+    ${options.map(([id, label, icon]) => `<button class="button icon-button" type="button"
+      data-action="measurement-display" data-value="${id}" aria-pressed="${chart === (id === 'chart')}"
+      aria-label="${label}" title="${label}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg></button>`).join('')}
+  </div>`;
 }
 
 const columnDrag = id => ` data-drag-column="${id}"`;
@@ -94,12 +111,33 @@ function averageValue(row, id, sources) {
   return composition.average(values);
 }
 
-export function measurementsView(rows, profile, columns, splitColumns, columnOrder, expanded, query, header) {
+export function measurementsView(rows, profile, columns, splitColumns, columnOrder, expanded, query, header, display, chartOptions) {
   const selected = new Set(columns);
   const split = new Set(splitColumns);
   const sourcesByMetric = new Map(METRICS.map(([id]) => [
     id, methods.filter(method => rows.some(row => Number.isFinite(row.calculations?.[method.id]?.[id]))),
   ]));
+  const chart = display === 'chart';
+  const settings = profile || rows.length ? `<div class="panel measurement-settings">
+    ${displayButtons(chart)}${profile ? columnSettings(selected, split, sourcesByMetric, expanded, query, chart)
+      : '<div class="measurement-display-label">Visualisation</div>'}
+  </div>` : '';
+  const last = rows[0];
+  const emptyText = profile ? 'Aucune pesée enregistrée pour ce profil.' : 'Sélectionnez un profil pour afficher ses pesées.';
+  const summary = last ? `<div class="panel measurement-summary">
+    <p>Dernier poids <strong>${weight(last.measures)}</strong></p><p class="muted">${formatDate(last.receivedAt)}</p>
+  </div>` : '';
+  header ??= pageHeader('Pesées');
+  if (!last) return { header, content: `${settings}<p class="panel empty">${emptyText}</p>` };
+  if (chart) {
+    const series = [
+      { id: 'weight', label: 'Poids (kg)', read: kg },
+      { id: 'impedanceOhms', label: 'Impédance (Ω)', read: row => row.measures?.impedanceOhms ?? row.impedanceOhms },
+      ...METRICS.map(([id, label]) => ({ id, label, read: row => averageValue(row, id, sourcesByMetric.get(id)) })),
+    ];
+    return { header, content: `${settings}${measurementCharts(rows, series, { ...chartOptions, selected })}` };
+  }
+
   const extraColumns = [
     { id: 'date', label: 'Date', cells: row => `<td${columnDrag('date')} class="numeric"><button class="reading-date" type="button" aria-label="Voir la pesée du ${formatDate(row.receivedAt)}">${formatDate(row.receivedAt)}</button></td>` },
     { id: 'weight', label: 'Poids', cells: row => `<td${columnDrag('weight')} class="numeric"><strong>${weight(row.measures)}</strong></td>` },
@@ -130,12 +168,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
       : `scope="col"${twoRows ? ' rowspan="2"' : ''}`;
     return `<th${columnDrag(id)} ${scope}><span class="column-title">${title}</span></th>`;
   }).join('');
-  const settings = profile ? columnSettings(selected, split, sourcesByMetric, expanded, query) : '';
-  const last = rows[0];
-  const emptyText = profile ? 'Aucune pesée enregistrée pour ce profil.' : 'Sélectionnez un profil pour afficher ses pesées.';
-  const content = last ? `<div class="panel measurement-summary">
-      <p>Dernier poids <strong>${weight(last.measures)}</strong></p><p class="muted">${formatDate(last.receivedAt)}</p>
-    </div>${settings}
+  const content = `${summary}${settings}
     <div class="panel table-scroll pinned-header" tabindex="0" role="region" aria-label="Pesées">
       <table class="measurements-table" aria-label="Pesées"${defaultOrder(measurementColumnOrder)}>
         <thead><tr>${headers}</tr>
@@ -145,8 +178,8 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
           ${ordered.map(({ cells }) => cells(row)).join('')}
         </tr>`).join('')}</tbody>
       </table>
-    </div>` : `${settings}<p class="panel empty">${emptyText}</p>`;
-  return { header: header ?? pageHeader('Pesées'), content };
+    </div>`;
+  return { header, content };
 }
 
 export function measurementDetails(row, methodOrder = [], sectionOrder = [], sectionsOpen = {}, header) {

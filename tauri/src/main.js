@@ -54,6 +54,8 @@ let rows = [];
 let reading = null;
 let historyScroll;
 let columnQuery = '';
+let chartPeriod = 'all';
+let chartAxis = 'weight';
 let notificationId = null;
 let activeNotice = null;
 let noticeQueue = [];
@@ -142,7 +144,7 @@ function render() {
   const layoutKey = layout ? [layout.presets, layout.preset, layout.modified, ...Object.values(layout.layout)] : [];
   const nextMain = page === 'bluetooth' ? [page, state.addressFilter, state.devices, session?.web]
     : detail ? [page, detail, state.selectedProfile, ...layoutKey] : [page, state.selectedProfile, ...(page === 'measurements'
-    ? [state.measurements, ...layoutKey]
+    ? [state.measurements, state.measurementDisplay, chartPeriod, chartAxis, ...layoutKey]
     : page === 'profiles' ? [state.profiles] : page === 'devices' ? [state.devices, state.addressFilter]
       : [state.notifications, notificationId, state.devices, target?.record])];
   if (changed(lastMain, nextMain)) {
@@ -164,6 +166,8 @@ function render() {
     const active = document.activeElement;
     const focusedColumn = active?.dataset.column;
     const focusedToggle = active?.dataset.action === 'split-column' ? active.dataset.value : undefined;
+    const focusedDisplay = active?.dataset.action === 'measurement-display' ? active.dataset.value : undefined;
+    const focusedChartControl = ['chart-period', 'chart-axis'].includes(active?.dataset.action);
     const toggleScope = active?.classList.contains('column-toggle') ? '.column-toggle' : '.column-option button';
     const searchFocused = active?.matches('.column-search');
     const previousComparison = view.querySelector('.comparison-scroll');
@@ -174,7 +178,8 @@ function render() {
     const header = layout && viewPresetHeader(kind, layout);
     const focusedPresetAction = active?.closest('.view-preset-header') && active.dataset.action;
     const markup = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
-      : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, columnsOpen, columnQuery, header)
+      : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder,
+        columnsOpen, columnQuery, header, state.measurementDisplay, { period: chartPeriod, axis: chartAxis })
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile)
       : page === 'devices' ? devicesView(state.devices, state.addressFilter, state.rawOpen, !session?.web)
       : page === 'bluetooth' ? bluetoothView(state, session?.web)
@@ -208,6 +213,8 @@ function render() {
     }
     if (page === 'measurements') filterColumnOptions(view, columnQuery);
     if (focusedToggle) view.querySelector(`${toggleScope}[data-action="split-column"][data-value="${CSS.escape(focusedToggle)}"]`)?.focus({ preventScroll: true });
+    if (focusedDisplay) view.querySelector(`[data-action="measurement-display"][data-value="${CSS.escape(focusedDisplay)}"]`)?.focus({ preventScroll: true });
+    if (focusedChartControl) view.querySelector(`[data-action="${active.dataset.action}"][data-value="${CSS.escape(active.dataset.value)}"]`)?.focus({ preventScroll: true });
     if (searchFocused) view.querySelector('.column-search')?.focus({ preventScroll: true });
     if (scroll && page === 'measurements') view.querySelector('.table-scroll')?.scrollTo({ left: scroll });
     if (focusedColumn) view.querySelector(`[data-column="${CSS.escape(focusedColumn)}"]`)?.focus({ preventScroll: true });
@@ -340,6 +347,7 @@ function openMeasurement(row) {
     historyScroll = {
       left: onMeasurements ? view.querySelector('.table-scroll')?.scrollLeft ?? 0 : 0,
       top: onMeasurements ? scrollBeforeEditor ?? viewScroll.scrollTop : 0,
+      chartSeries: document.activeElement?.closest('.chart-point')?.dataset.series,
     };
   }
   if (!editorView.hidden) scrollBeforeEditor = 0;
@@ -495,6 +503,9 @@ const actions = {
     const item = state.pending.find(entry => String(entry.id) === id);
     if (item) return session.discardPending(item.id);
   },
+  'chart-period': period => { chartPeriod = period; render(); },
+  'chart-axis': axis => { chartAxis = axis; render(); },
+  'measurement-display': display => session.setMeasurementDisplay(state.selectedProfile, display),
   'split-column': id => session.setColumnPreference(state.selectedProfile, id, 'splitColumns',
     !state.splitColumns.includes(id)),
   reading: index => {
@@ -506,7 +517,9 @@ const actions = {
     reading = null;
     render();
     const index = rows.indexOf(row);
-    view.querySelector(`[data-action="reading"][data-value="${index}"] .reading-date`)?.focus({ preventScroll: true });
+    const point = historyScroll.chartSeries && view.querySelector(
+      `.chart-point[data-series="${CSS.escape(historyScroll.chartSeries)}"][data-value="${index}"]`);
+    (point ?? view.querySelector(`[data-action="reading"][data-value="${index}"] .reading-date`))?.focus({ preventScroll: true });
     view.querySelector('.table-scroll')?.scrollTo({ left: historyScroll.left });
     viewScroll.scrollTop = historyScroll.top;
   },

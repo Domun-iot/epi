@@ -1,5 +1,5 @@
 export const actions = [
-  'load', 'reload', 'selectProfile', 'saveProfile', 'setColumnPreference',
+  'load', 'reload', 'selectProfile', 'saveProfile', 'setColumnPreference', 'setMeasurementDisplay',
   'renameDevice', 'beginDevice', 'cancelDevice', 'confirmProfile',
   'deleteProfile', 'deleteDevice', 'deleteMeasurement', 'setPanelOpen',
   'changeViewPreset', 'setTheme', 'moveColumn', 'moveMethodColumn',

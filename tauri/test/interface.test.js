@@ -602,6 +602,51 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
 });
 
+test('le graphique suit les pesées et mémorise la visualisation par profil', async t => {
+  const earlier = { ...record, receivedAt: '2025-12-01T17:23:21Z',
+    measures: { weight: 150, unit: 'lb' }, calculations: null };
+  const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Alice',
+    measurements: [record, earlier] }, { viewport: { width: 360, height: 800 } });
+  const chart = page.getByRole('button', { name: 'Graphique', exact: true });
+  const table = page.getByRole('button', { name: 'Tableau', exact: true });
+  const weightChart = page.getByRole('region', { name: 'Évolution des pesées', exact: true });
+  assert.equal(await table.getAttribute('aria-pressed'), 'true');
+  assert.ok((await chart.boundingBox()).x < (await table.boundingBox()).x);
+  await chart.click();
+  await weightChart.waitFor();
+  assert.equal(await chart.getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.getByRole('table', { name: 'Pesées' }).count(), 0);
+  const series = weightChart.locator('svg .chart-line');
+  assert.deepEqual((await series.evaluateAll(lines => lines.map(line => line.dataset.series))).sort(), ['bmi', 'impedanceOhms', 'weight']);
+  const bmi = weightChart.getByRole('button', { name: 'IMC (kg/m²)', exact: true });
+  await bmi.click();
+  assert.equal(await bmi.getAttribute('aria-pressed'), 'true');
+  assert.equal(await weightChart.locator('.chart-line-active').getAttribute('data-series'), 'bmi');
+  const points = weightChart.locator('.chart-point[data-series="weight"]');
+  await weightChart.getByRole('button', { name: '30 j', exact: true }).click();
+  assert.equal(await points.count(), 1);
+  await weightChart.getByRole('button', { name: 'Tout', exact: true }).click();
+  assert.equal(await points.count(), 2);
+  assert.match(await points.first().getAttribute('aria-label'), /68,04$/);
+  await points.first().click();
+  await page.getByRole('heading', { name: 'Détails de la pesée' }).waitFor();
+  await page.getByRole('button', { name: 'Retour' }).click();
+  await weightChart.waitFor();
+
+  const picker = page.getByRole('combobox', { name: 'Profil actif' });
+  await picker.selectOption('Bob');
+  await page.getByText('Aucune pesée enregistrée pour ce profil.').waitFor();
+  assert.equal(await table.getAttribute('aria-pressed'), 'true');
+  await picker.selectOption('Alice');
+  await weightChart.waitFor();
+  await page.reload();
+  await weightChart.waitFor();
+  await table.click();
+  await page.getByRole('table', { name: 'Pesées' }).waitFor();
+  await page.reload();
+  await page.getByRole('table', { name: 'Pesées' }).waitFor();
+});
+
 test('sur Android, Recherche apparaît à droite de Colonnes sans prendre le focus', async t => {
   const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice' }, {
     userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36',

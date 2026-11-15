@@ -111,4 +111,4 @@ function matchWeight(event, profiles, latest) {
   return best;
 }
 
-module.exports = { receptionRecord, historyRecord, upgradeMeasurement, bufferHistory, latestWeights, matchWeight };
+module.exports = { receptionRecord, historyRecord, upgradeMeasurement, bufferHistory, kg, latestWeights, matchWeight };
