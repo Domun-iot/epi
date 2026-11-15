@@ -75,7 +75,7 @@ async function accountApi(command, mode, isPreview) {
     }
     return url.origin;
   }
-  if (command !== 'serve' || isPreview) return null;
+  if (command !== 'serve' || isPreview) return 'https://domun.eu';
   const { default: config } = await import(new URL('../server/config.js', appPath).href);
   return 'http://127.0.0.1:' + config.port;
 }

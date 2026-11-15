@@ -12,7 +12,7 @@
   "app": {
     "windows": [{"title": "éPI", "width": 1180, "height": 800, "minWidth": 400, "minHeight": 450}],
     "security": {
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost https://sync.epi.invalid; style-src 'self' 'unsafe-inline'; img-src 'self' data:",
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost https://domun.eu; style-src 'self' 'unsafe-inline'; img-src 'self' data:",
       "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost http://127.0.0.1:* ws:; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
     }
   },
