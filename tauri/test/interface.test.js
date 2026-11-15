@@ -434,7 +434,25 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   assert.equal((await title.textContent()).trim(), 'Compact *');
   await title.click();
   assert.deepEqual(await options.getByRole('button').allTextContents(), ['Pesées', 'Compact']);
+  await options.getByRole('button', { name: 'Pesées', exact: true }).click();
+  await title.click();
+  const modifiedCompact = options.getByRole('button', { name: 'Compact *', exact: true });
+  const reloadCompact = options.getByRole('button', { name: 'Recharger Compact', exact: true });
+  assert.equal(await reloadCompact.isVisible(), true);
+  await modifiedCompact.click();
+  assert.equal(await title.textContent(), 'Compact *');
+  assert.equal(await fat.isChecked(), false);
+  await title.click();
+  assert.equal(await reloadCompact.count(), 0);
   await options.getByRole('button', { name: 'Compact', exact: true }).click();
+  assert.equal(await fat.isChecked(), true);
+
+  await fat.uncheck();
+  await title.click();
+  await options.getByRole('button', { name: 'Pesées', exact: true }).click();
+  await title.click();
+  await reloadCompact.click();
+  assert.equal(await title.textContent(), 'Compact');
   assert.equal(await fat.isChecked(), true);
   await fat.uncheck();
   await save();

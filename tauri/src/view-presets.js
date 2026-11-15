@@ -17,13 +17,20 @@ function iconButton(action, label) {
     title="${label}" aria-label="${label}">${icon(action)}</button>`;
 }
 
-export function viewPresetHeader(kind, { presets, preset, modified }, extraActions = '') {
+export function viewPresetHeader(kind, { presets, preset, modified, modifiedInactiveIds }, extraActions = '') {
   const defaultTitle = viewPresetTitles[kind];
   const current = preset?.name ?? defaultTitle;
   const choices = [{ id: '', name: defaultTitle }, ...sortByName(presets)];
   const activeId = preset?.id ?? '';
   const options = choices.filter(({ id }) => id !== activeId || modified).map(({ id, name }) => {
     const reload = id === activeId;
+    if (modifiedInactiveIds.includes(id || null)) {
+      return `<li class="view-preset-split">
+        <button class="button" type="button" data-action="select-view-preset" data-value="${e(id)}">${e(name)} *</button>
+        <button class="button view-preset-icon" type="button" data-action="reset-view-preset" data-value="${e(id)}"
+          title="Recharger ${e(name)}" aria-label="Recharger ${e(name)}">${icon('reload')}</button>
+      </li>`;
+    }
     return `<li><button class="button" type="button" data-action="${reload ? 'reset' : 'select'}-view-preset" data-value="${e(id)}"${reload ? ' title="Recharger la configuration"' : ''}><span>${e(name)}</span>${reload ? icon('reload') : ''}</button></li>`;
   }).join('');
   const heading = `<h1>${e(current)}${modified ? ' *' : ''}</h1>`;

@@ -110,6 +110,17 @@ function withChartPreferences(prefs, key, chart) {
   return { ...prefs, chartByView: { ...prefs.chartByView, [key]: chart } };
 }
 
+function modifiedInactiveViews(state, prefs, kind, active) {
+  return [null, ...active.presets.map(preset => preset.id)].filter(id => {
+    if (id === (active.preset?.id ?? null)) return false;
+    const view = layoutFor(state, {
+      ...selectLayout(prefs, kind, id),
+      ...prefs.inactiveLayouts?.[kind]?.[id ?? 'default'],
+    }, kind);
+    return view.modified || (kind === 'measurements' && chartPreferences(prefs, view).modified);
+  });
+}
+
 function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing }) {
   let saved;
   let enrollment = null;
@@ -139,6 +150,8 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     const details = layoutFor(saved, prefs, 'details');
     const chart = chartPreferences(prefs, measurements);
     measurements.modified ||= chart.modified;
+    measurements.modifiedInactiveIds = modifiedInactiveViews(saved, prefs, 'measurements', measurements);
+    details.modifiedInactiveIds = modifiedInactiveViews(saved, prefs, 'details', details);
     return { ...saved, ...measurements.layout, ...details.layout, viewLayouts: { measurements, details },
       measurementDisplay: chart.options.display, chartOptions: chart.options, chartSeries: chart.series,
       theme: prefs.theme, rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: prefs.detailSectionsOpen, enrollment, acquisitionError };
@@ -507,8 +520,24 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       const existing = presets.find(entry => entry.id === id);
       if (id && !existing) throw Error('Configuration introuvable.');
       const replace = entries => { draft.viewPresets = { ...draft.viewPresets, [kind]: entries }; };
-      const select = (selected, preferences = prefs) =>
-        savePreferences(draft, target?.name, selectLayout(preferences, kind, selected));
+      const select = (selected, preferences = prefs) => {
+        const activeId = current.preset?.id ?? null;
+        const activeKey = activeId ?? 'default';
+        const selectedKey = selected ?? 'default';
+        const inactive = { ...prefs.inactiveLayouts?.[kind] };
+        const next = selectLayout(preferences, kind, selected);
+        if (selected !== activeId && (action === 'select' || action === 'reset')) {
+          inactive[activeKey] = Object.fromEntries(Object.keys(viewDefaults[kind])
+            .filter(key => Object.hasOwn(prefs, key)).map(key => [key, prefs[key]]));
+        }
+        if (action === 'select' || action === 'delete') {
+          Object.assign(next, inactive[selectedKey]);
+        }
+        delete inactive[selectedKey];
+        if (action === 'delete') delete inactive[activeKey];
+        next.inactiveLayouts = { ...prefs.inactiveLayouts, [kind]: inactive };
+        savePreferences(draft, target?.name, next);
+      };
       if (action === 'select' || action === 'reset') {
         if (action === 'reset' && kind === 'measurements') {
           const columns = existing?.layout.columns ?? viewDefaults.measurements.columns;

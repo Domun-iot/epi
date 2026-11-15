@@ -96,8 +96,11 @@ test('shares the full chart configuration and restores personal preferences by p
   assert.equal(personal.measurementDisplay, 'table');
   assert.deepEqual(personal.columns, ['bmi']);
   assert.equal(modified(personal), true);
-  await reopened.changeViewPreset('Sam', 'measurements', 'select');
-  assert.equal((await reopened.changeViewPreset('Sam', 'measurements', 'select', { id })).measurementDisplay, 'table');
+  const defaultView = await reopened.changeViewPreset('Sam', 'measurements', 'select');
+  assert.ok(defaultView.viewLayouts.measurements.modifiedInactiveIds.includes(id));
+  const switchedBack = await reopened.changeViewPreset('Sam', 'measurements', 'select', { id });
+  assert.equal(switchedBack.measurementDisplay, 'table');
+  assert.equal(modified(switchedBack), true);
   const reset = await reopened.changeViewPreset('Sam', 'measurements', 'reset', { id });
   assert.equal(modified(reset), false);
   assert.deepEqual(reset.chartOptions, { display: 'chart', mode: 'raw', period: '90', range });
