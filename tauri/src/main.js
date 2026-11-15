@@ -157,7 +157,7 @@ function render() {
     const markup = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, columnsOpen, columnQuery, header)
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile)
-      : page === 'devices' ? devicesView(state.devices, state.addressFilter, state.rawOpen)
+      : page === 'devices' ? devicesView(state.devices, state.addressFilter, state.rawOpen, !session?.web)
       : !entry?.action ? notificationsView(state)
       : entry.type === 'measurement'
         ? measurementDetails(entry.record, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen,
@@ -754,7 +754,7 @@ try {
     renderFrames();
   });
   themeToggle.disabled = false;
-  reloadButton.hidden = !session.native;
+  reloadButton.hidden = !session.native && !session.web;
   canRetryBluetooth = Boolean(session.retryBluetooth) && status.textContent !== 'Mode simulation';
   renderBluetooth();
   onState(await session.load());
