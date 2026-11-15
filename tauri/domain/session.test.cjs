@@ -197,11 +197,18 @@ test('keeps seven days plus the newest twenty and persists explicitly removed en
   const { session, disk } = fixture({ notifications });
   const loaded = await session.load();
   assert.deepEqual(loaded.notifications.map(item => item.id), notifications.slice(0, 20).map(item => item.id));
+  assert.equal(loaded.notifications[0].date, new Date(notifications[0].date).toISOString());
+  assert.deepEqual(disk().notifications, loaded.notifications);
   await session.deleteNotification('2');
   assert.equal((await fixture(disk()).session.load()).notifications.length, 19);
 
   const recent = notifications.map((item, index) => ({ ...item, date: now - index }));
   assert.equal((await fixture({ notifications: recent }).session.load()).notifications.length, 25);
+
+  const recorded = await session.recordNotice({ type: 'info', text: 'Test' });
+  const date = recorded.notifications.at(-1).date;
+  assert.equal(date, new Date(date).toISOString());
+  assert.equal(disk().notifications.at(-1).date, date);
 });
 
 test('stores deletion snapshots and restores profiles, measurements and devices independently', async () => {

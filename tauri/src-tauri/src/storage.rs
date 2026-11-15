@@ -557,7 +557,8 @@ fn read_notifications(root: &Path) -> Result<Value, String> {
         if let Some(row) = read_json(&path)? {
             if let Some(id) = row["id"].as_str() {
                 if notification_path(root, id).is_ok_and(|expected| expected == path)
-                    && row["date"].as_u64().is_some()
+                    && (row["date"].is_string()
+                        || row["date"].as_u64().is_some_and(|date| date <= 8_640_000_000_000_000))
                 {
                     notifications.push(row);
                 }
@@ -817,7 +818,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
         let id = "bfa95fcb-0a16-40dc-852e-a940887ae76e";
-        let row = json!({ "id": id, "date": 1, "type": "profile", "action": "deleted",
+        let row = json!({ "id": id, "date": "2026-01-02T00:00:00.000Z", "type": "profile", "action": "deleted",
             "record": { "name": "Alice" }, "measurements": [{ "receivedAt": "2026-01-01" }] });
         let state = json!({ "notifications": [row] });
         let empty = json!({});

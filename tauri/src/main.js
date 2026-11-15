@@ -252,7 +252,7 @@ function scheduleNotificationExpiry() {
     : null;
   if (first && session) notificationDeadline = window.setTimeout(() => {
     void session.pruneNotifications().catch(showError);
-  }, Math.max(100, first.date + 7 * 86400_000 - Date.now()));
+  }, Math.max(100, Date.parse(first.date) + 7 * 86400_000 - Date.now()));
 }
 
 function onState(next) {

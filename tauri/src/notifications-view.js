@@ -43,7 +43,7 @@ export function notificationBody(entry, date = false) {
 }
 
 export function notificationsView(state) {
-  const content = [...state.notifications].sort((a, b) => b.date - a.date).map(entry => {
+  const content = [...state.notifications].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).map(entry => {
     const controls = notificationControls(entry, state);
     const body = notificationBody(entry, true);
     const summary = entry.action

@@ -33,8 +33,8 @@ function preferencesFor(state, profile = state.selectedProfile) {
 
 function retainNotifications(notifications) {
   const cutoff = Date.now() - notificationLifetime;
-  const newest = new Set([...notifications].sort((a, b) => b.date - a.date).slice(0, 20));
-  return notifications.filter(item => item.date > cutoff || newest.has(item));
+  const newest = new Set([...notifications].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, 20));
+  return notifications.filter(item => Date.parse(item.date) > cutoff || newest.has(item));
 }
 
 function restore(snapshot) {
@@ -119,6 +119,10 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
 
   async function transact(change) {
     const draft = { ...saved };
+    if (draft.notifications.some(item => typeof item.date === 'number')) {
+      draft.notifications = draft.notifications.map(item => typeof item.date === 'number'
+        ? { ...item, date: new Date(item.date).toISOString() } : item);
+    }
     const retained = retainNotifications(draft.notifications);
     if (retained.length !== draft.notifications.length) draft.notifications = retained;
     const result = change(draft);
@@ -137,7 +141,8 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   });
 
   function notify(draft, entry) {
-    const date = draft.notifications.reduce((latest, item) => Math.max(latest, item.date + 1), Date.now());
+    const timestamp = draft.notifications.reduce((latest, item) => Math.max(latest, Date.parse(item.date) + 1), Date.now());
+    const date = new Date(timestamp).toISOString();
     draft.notifications = [...draft.notifications, {
       id: globalThis.crypto.randomUUID(), date, actor: draft.selectedProfile ?? null, ...entry,
     }];
