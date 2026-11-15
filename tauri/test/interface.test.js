@@ -709,6 +709,50 @@ test('le graphique s’adapte à la hauteur et conserve la marge sous les en-tê
   await chart.waitFor({ state: 'detached' });
 });
 
+test('les commandes du graphique restent sur une ligne quand la vue rétrécit', async t => {
+  const page = await pageWith(t, {
+    profiles: [alice], selectedProfile: 'Alice',
+    measurements: [record, { ...record, receivedAt: '2026-01-22T17:23:21Z' }],
+  }, { viewport: { width: 1100, height: 900 } });
+  await page.getByRole('button', { name: 'Graphique', exact: true }).click();
+  const chart = page.locator('.measurement-chart');
+  const layout = () => chart.evaluate(element => {
+    const heading = element.querySelector('.chart-heading');
+    const controls = [...heading.querySelectorAll('button')];
+    const boxes = controls.map(button => button.getBoundingClientRect());
+    const legend = element.querySelector('.chart-legend');
+    const { marginTop, marginBottom } = getComputedStyle(legend);
+    return {
+      centers: boxes.map(({ top, height }) => top + height / 2),
+      right: boxes.at(-1).right,
+      headingRight: heading.getBoundingClientRect().right,
+      subtitleBottom: heading.querySelector('.chart-change').getBoundingClientRect().bottom,
+      controlsTop: Math.min(...boxes.map(({ top }) => top)),
+      legendGap: legend.getBoundingClientRect().top - heading.getBoundingClientRect().bottom,
+      marginTop,
+      marginBottom,
+      buttonPadding: parseFloat(getComputedStyle(controls[0]).paddingInlineStart),
+    };
+  });
+
+  const wide = await layout();
+  assert.ok(wide.controlsTop < wide.subtitleBottom);
+  await page.setViewportSize({ width: 420, height: 900 });
+  const medium = await layout();
+  await page.setViewportSize({ width: 320, height: 900 });
+  const narrow = await layout();
+  assert.ok(wide.buttonPadding > medium.buttonPadding && medium.buttonPadding > narrow.buttonPadding);
+  for (const { centers, right, headingRight, subtitleBottom, controlsTop, legendGap, marginTop, marginBottom }
+    of [medium, narrow]) {
+    assert.equal(new Set(centers).size, 1);
+    assert.ok(right <= headingRight);
+    assert.ok(subtitleBottom < controlsTop);
+    assert.equal(legendGap, 6);
+    assert.equal(marginTop, '6px');
+    assert.equal(marginBottom, '6px');
+  }
+});
+
 test('le plein écran du graphique reste temporaire', async t => {
   const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [record] });
   await page.getByRole('button', { name: 'Graphique', exact: true }).click();
