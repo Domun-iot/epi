@@ -1,4 +1,4 @@
-import { button, deleteButton, deviceFields, escapeHtml as e, formatCalendarDate, number, pairs, pageHeader, sortByName, userIcon, weight } from './format.js';
+import { button, deviceFields, escapeHtml as e, formatCalendarDate, number, pairs, pageHeader, sortByName, userIcon, weight } from './format.js';
 
 export function profilesView(profiles, selected) {
   const action = button('Créer un profil', 'new-profile', { primary: true });
@@ -26,9 +26,8 @@ export function deviceCard(device, actions = '') {
 export function devicesView(devices, filter, rawOpen, canScan = true) {
   const action = canScan ? button('Ajouter un appareil', 'new-device', { primary: true }) : '';
   const entries = sortByName(devices).map(device => deviceCard(device,
-    button('Renommer', 'rename-device', { value: device.bluetooth.address })
-    + (!canScan || device.bluetooth.address === filter ? '' : button('Écouter seulement cet appareil', 'filter-address', { value: device.bluetooth.address }))
-    + deleteButton(`Supprimer l’appareil ${device.name}`, 'delete-device', device.bluetooth.address))).join('');
+    button('Modifier', 'edit-device', { value: device.bluetooth.address })
+    + (!canScan || device.bluetooth.address === filter ? '' : button('Écouter seulement cet appareil', 'filter-address', { value: device.bluetooth.address })))).join('');
   const filterInfo = canScan && filter ? `<div class="notice"><p>Écoute limitée à ${e(filter)}.</p>${button('Écouter tous les appareils', 'clear-filter')}</div>` : '';
   const diagnostics = canScan ? `<details class="panel settings" data-expand="raw"${rawOpen ? ' open' : ''}>
     <summary>Flux Bluetooth brut</summary>

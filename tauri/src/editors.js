@@ -20,13 +20,15 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
     previousFocus = null;
   }
 
-  function open(title, content, submit, submitLabel = 'Enregistrer', { modal = false, extraActions = '', submitChoices = [], subtitle = '' } = {}) {
+  function open(title, content, submit, submitLabel = 'Enregistrer', {
+    modal = false, extraActions = '', deleteAction = '', submitChoices = [], subtitle = '',
+  } = {}) {
     const host = modal ? dialog : view;
     const formId = modal ? 'modal-editor-form' : 'view-editor-form';
     const submitButton = submitLabel ? `<button class="button primary" type="submit" form="${formId}">${submitLabel}</button>` : '';
     const choices = submitChoices.map(({ label, value, primary }) =>
       `<button class="button${primary ? ' primary' : ''}" type="submit" form="${formId}" name="include" value="${value}">${label}</button>`).join('');
-    const actions = `${extraActions}${button('Annuler', 'close-editor')}${submitButton}${choices}`;
+    const actions = `${extraActions}${button('Annuler', 'close-editor')}${deleteAction}${submitButton}${choices}`;
     host.innerHTML = `${modal ? `<h2 id="dialog-title">${title}</h2>` : pageHeader(title, subtitle)}
       <form id="${formId}" class="editor-form${modal ? '' : ' panel'}">${content}<p class="notice error" role="alert" hidden></p></form>
       ${modal ? `<div class="actions">${actions}</div>` : ''}`;
@@ -98,7 +100,7 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
       return submit(data);
     }, restore ? 'Restaurer' : 'Enregistrer', {
       subtitle: restore ? 'Ce profil a été supprimé.' : '',
-      extraActions: edit && onDelete ? button('Supprimer', 'delete-profile') : '',
+      deleteAction: edit && onDelete ? button('Supprimer', 'delete-profile') : '',
     });
     if (edit && onDelete) toolbar.querySelector('[data-action="delete-profile"]').addEventListener('click', onDelete);
     const selector = form.querySelector('[name="ageType"]');
@@ -113,15 +115,18 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
     syncAge();
   }
 
-  function deviceEditor({ address, device, pending }, submit) {
-    const title = device ? 'Renommer' : 'Ajouter un appareil';
+  function deviceEditor({ address, device, pending, onDelete }, submit) {
+    const title = device ? 'Modifier l’appareil' : 'Ajouter un appareil';
     const explanation = device ? '' : pending ? 'La trame de cette balance a déjà été reçue.'
       : 'Montez sur la balance pour recevoir ses données Bluetooth.';
     const form = open(title, `${explanation ? `<p class="muted" data-device-instructions>${explanation}</p>` : ''}
       ${field('Nom de l’appareil', 'name', `value="${e(device?.name)}" maxlength="64" required autofocus`)}
       <div data-device-details hidden></div>
     `, ({ name }) => submit({ ...(address ? { address } : {}), name: name.trim() }),
-    device || pending ? 'Enregistrer' : 'Démarrer la capture');
+    device || pending ? 'Enregistrer' : 'Démarrer la capture', {
+      deleteAction: onDelete ? button('Supprimer', 'delete-device') : '',
+    });
+    if (onDelete) toolbar.querySelector('[data-action="delete-device"]').addEventListener('click', onDelete);
 
     const details = form.querySelector('[data-device-details]');
     const instructions = form.querySelector('[data-device-instructions]');

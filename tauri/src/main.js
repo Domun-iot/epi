@@ -429,11 +429,6 @@ const actions = {
   'new-profile': () => addProfile(),
   'edit-profile': name => editProfile(state.profiles.find(profile => profile.name === name)),
   'select-profile': name => session.selectProfile(name),
-  'delete-device': address => {
-    const device = state.devices.find(entry => entry.bluetooth.address === address);
-    if (device) editor.confirmDeletion('Supprimer l’appareil',
-      `Supprimer l’appareil « ${device.name} » ?`, () => session.deleteDevice(address));
-  },
   'delete-measurement': () => {
     const target = notificationId && resolveNotification(state, state.notifications.find(entry => entry.id === notificationId));
     const row = reading ?? (target?.live ? target.record : null);
@@ -454,9 +449,17 @@ const actions = {
       showCapture(candidate ?? null);
     };
   },
-  'rename-device': address => {
+  'edit-device': address => {
     const device = state.devices.find(entry => entry.bluetooth.address === address);
-    if (device) editor.deviceEditor({ address, device }, request => session.renameDevice(request));
+    if (!device) return;
+    editor.deviceEditor({
+      address, device,
+      onDelete: () => editor.confirmDeletion('Supprimer l’appareil',
+        `Supprimer l’appareil « ${device.name} » ?`, async () => {
+          await session.deleteDevice(address);
+          editor.closeView();
+        }),
+    }, request => session.renameDevice(request));
   },
   'cancel-device': () => session.cancelDevice(),
   'clear-filter': () => session.setAddressFilter(null),

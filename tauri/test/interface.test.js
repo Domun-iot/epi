@@ -802,12 +802,19 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   const initial = await stored();
   await choosePage(page, 'Appareils');
   await page.getByRole('button', { name: 'Écouter seulement cet appareil' }).click();
-  const deleteDevice = page.getByRole('button', { name: 'Supprimer l’appareil Salle de bain' });
+  await page.getByText(/Écoute limitée à/).waitFor();
+  const editorActions = page.locator('#editor-actions').getByRole('button');
+  const deviceCard = page.locator('.device-list').getByRole('article');
+  assert.deepEqual(await deviceCard.getByRole('button').allTextContents(), ['Modifier']);
+  await deviceCard.getByRole('button', { name: 'Modifier' }).click();
+  assert.deepEqual(await editorActions.allTextContents(), ['Annuler', 'Supprimer', 'Enregistrer']);
+  const deleteDevice = page.locator('#editor-actions').getByRole('button', { name: 'Supprimer', exact: true });
   await deleteDevice.click();
   await cancel();
   await deleteDevice.click();
   await confirm();
   await deleteDevice.waitFor({ state: 'detached' });
+  await page.getByText('Aucun appareil enregistré.', { exact: true }).waitFor();
   await notices.getByText('Appareil supprimé', { exact: true }).waitFor();
   await dismissNotificationBanner(page);
   assert.equal((await stored()).addressFilter, null);
@@ -827,6 +834,7 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   await choosePage(page, 'Profils');
   const profile = page.getByRole('article').filter({ has: page.getByRole('heading', { name: /^Alice\b/ }) });
   await profile.getByRole('button', { name: 'Modifier', exact: true }).click();
+  assert.deepEqual(await editorActions.allTextContents(), ['Annuler', 'Supprimer', 'Enregistrer']);
   const deleteProfile = page.locator('.toolbar').getByRole('button', { name: 'Supprimer', exact: true });
   await deleteProfile.click();
   await dialog.getByText(/Les pesées de ce profil seront aussi retirées/).waitFor();
@@ -862,8 +870,8 @@ test('capture et renommage, attribution automatique et flux brut horodaté', asy
   assert.equal(await chosenProfile(page), 'Alice');
   await page.getByText('Flux Bluetooth brut').click();
   await page.locator('#raw-frames').filter({ hasText: /\[\d[^\]]*\d{2}:\d{2}:\d{2}\] AABBCCDDEEFF -58/ }).waitFor();
-  await page.getByRole('button', { name: 'Renommer' }).click();
-  await editor.getByRole('heading', { name: 'Renommer' }).waitFor();
+  await page.getByRole('button', { name: 'Modifier', exact: true }).click();
+  await editor.getByRole('heading', { name: 'Modifier l’appareil' }).waitFor();
   assert.equal(await editor.getByRole('textbox').count(), 1);
   await editor.getByText(address, { exact: true }).waitFor();
   const name = editor.getByLabel('Nom de l’appareil');
@@ -1196,7 +1204,7 @@ test('un appareil lié disparu ouvre sa carte de restauration et revient à sa f
   await choosePage(page, 'Appareils');
   const toolbar = page.locator('.toolbar');
   const notices = page.locator('#notices');
-  await page.getByRole('button', { name: 'Renommer', exact: true }).click();
+  await page.getByRole('button', { name: 'Modifier', exact: true }).click();
   await page.getByLabel('Nom de l’appareil').fill('Balance cuisine');
   await toolbar.getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await notices.getByText('Appareil enregistré', { exact: true }).waitFor();
@@ -1204,7 +1212,8 @@ test('un appareil lié disparu ouvre sa carte de restauration et revient à sa f
 
   const live = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Balance cuisine', exact: true }) });
   const id = await live.getAttribute('id');
-  await live.getByRole('button', { name: 'Supprimer l’appareil Balance cuisine' }).click();
+  await live.getByRole('button', { name: 'Modifier', exact: true }).click();
+  await toolbar.getByRole('button', { name: 'Supprimer', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
   await page.getByRole('button', { name: 'Notifications', exact: true }).click();
   await page.locator('.notification-item').getByRole('button', { name: /^Appareil enregistré/ }).click();
