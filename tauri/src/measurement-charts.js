@@ -242,6 +242,17 @@ const statusLabels = { visible: 'Visible', bold: 'En gras', hidden: 'Masquée' }
 export function measurementCharts(rows, series, { period = 'all', range, mode = 'smooth', statuses = {}, profileAge }) {
   const configured = series.map((item, index) => ({ ...item, color: colors[index] }))
     .filter(({ id }) => Object.hasOwn(statuses, id));
+  const timeline = rows.map((row, index) => ({ row, index, time: Date.parse(row.receivedAt) }))
+    .filter(({ time }) => Number.isFinite(time)).sort((a, b) => a.time - b.time);
+  const latestTime = timeline.at(-1)?.time;
+  const cutoff = period === 'all' ? -Infinity : latestTime - Number(period) * dayMs;
+  const [firstTime, lastTime] = range ?? [timeline.find(({ time }) => time >= cutoff)?.time, latestTime];
+  const start = new Date(firstTime).setHours(0, 0, 0, 0);
+  const end = new Date(lastTime).setHours(23, 59, 59, 999);
+  const visible = configured.filter(({ id }) => statuses[id] !== 'hidden');
+  const lines = visible.map(item => plotSeries(item, timeline, start, end, mode)).filter(Boolean);
+  const active = lines.find(({ id }) => statuses[id] === 'bold') ?? lines[0];
+  const subtitle = active?.points.length > 1 ? chartChange(active) : '';
   const legend = `<div class="chart-legend" role="group" aria-labelledby="chart-series-label">
     <span id="chart-series-label">Courbes</span>
     ${configured.map(({ id, label, color }) => `<button type="button" data-action="chart-axis" data-value="${id}"
@@ -250,7 +261,10 @@ export function measurementCharts(rows, series, { period = 'all', range, mode = 
   </div>`;
   return `<section class="panel measurement-chart" aria-labelledby="measurement-chart-title">
     <div class="chart-heading">
-      <h2 id="measurement-chart-title">Évolution des pesées</h2>
+      <div>
+        <h2 id="measurement-chart-title">Évolution des pesées</h2>
+        ${subtitle}
+      </div>
       <div class="chart-periods" role="group" aria-label="Tracé de la courbe">
         <button type="button" data-action="chart-mode" data-value="raw" aria-pressed="${mode === 'raw'}">Brut</button>
         <button type="button" data-action="chart-mode" data-value="smooth" aria-pressed="${mode === 'smooth'}"
@@ -262,26 +276,20 @@ export function measurementCharts(rows, series, { period = 'all', range, mode = 
       </div>
     </div>
     ${range ? `<p class="chart-range">${e(rangeLabel(range))}</p>` : ''}
-    ${chartPlot(rows, configured, { period, range, mode, statuses, profileAge }, legend)}
+    ${legend}
+    ${active ? chartPlot(lines, active, { start, end, statuses, profileAge })
+      : `<p class="empty">${visible.length ? 'Aucune donnée à afficher sur le graphique.' : 'Toutes les courbes sont masquées.'}</p>`}
   </section>`;
 }
 
-function chartPlot(rows, series, { period, range, mode, statuses, profileAge }, legend) {
-  const timeline = rows.map((row, index) => ({ row, index, time: Date.parse(row.receivedAt) }))
-    .filter(({ time }) => Number.isFinite(time)).sort((a, b) => a.time - b.time);
-  const latestTime = timeline.at(-1)?.time;
-  const cutoff = period === 'all' ? -Infinity : latestTime - Number(period) * dayMs;
-  const [firstTime, lastTime] = range ?? [timeline.find(({ time }) => time >= cutoff)?.time, latestTime];
-  const start = new Date(firstTime).setHours(0, 0, 0, 0);
-  const end = new Date(lastTime).setHours(23, 59, 59, 999);
-  const visible = series.filter(({ id }) => statuses[id] !== 'hidden');
-  const lines = visible.map(item => plotSeries(item, timeline, start, end, mode)).filter(Boolean);
-  if (!lines.length) {
-    const message = visible.length ? 'Aucune donnée à afficher sur le graphique.' : 'Toutes les courbes sont masquées.';
-    return `${legend}<p class="empty">${message}</p>`;
-  }
+function chartChange({ id, label, points }) {
+  const subject = id === 'weight' ? 'du poids' : `de « ${label} »`;
+  const change = signedValue.format(points.at(-1).value - points[0].value);
+  const unit = id === 'weight' ? ' kg' : '';
+  return `<p class="chart-change">Évolution ${e(subject)} sur la période : ${change}${unit}</p>`;
+}
 
-  const active = lines.find(({ id }) => statuses[id] === 'bold') ?? lines[0];
+function chartPlot(lines, active, { start, end, statuses, profileAge }) {
   const bmiReference = active.id === 'bmi' && active.points.every(({ row }) => {
     const age = row.profile?.age ?? profileAge;
     return age == null || age >= 18;
@@ -290,15 +298,7 @@ function chartPlot(rows, series, { period, range, mode, statuses, profileAge }, 
   const layered = [...lines.filter(line => line !== active), active];
   const x = time => end === start ? 50 : 100 * (time - start) / (end - start);
   const latest = active.points.at(-1);
-  const change = latest.value - active.points[0].value;
-  const changeLabel = active.points.length > 1
-    ? `<span class="chart-change">${signedValue.format(change)} sur la période</span>` : '';
-  return `<div class="chart-summary">
-      <span>${e(active.label)}</span>
-      <div><strong>${axisValue.format(latest.value)}</strong>${changeLabel}</div>
-    </div>
-    ${legend}
-    <div class="chart-frame">
+  return `<div class="chart-frame">
       <div class="chart-values" aria-hidden="true">${active.ticks.map(value =>
         `<span style="--y:${active.y(value)}%">${axisValue.format(value)}</span>`).join('')}</div>
       <div class="chart-plot"${start < end ? ` data-start="${start}" data-end="${end}"

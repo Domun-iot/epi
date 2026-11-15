@@ -135,7 +135,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
       { id: 'impedanceOhms', label: 'Impédance (Ω)', read: row => row.measures?.impedanceOhms ?? row.impedanceOhms },
       ...METRICS.map(([id, label]) => ({ id, label, read: row => averageValue(row, id, sourcesByMetric.get(id)) })),
     ];
-    return { header, content: `${settings}${measurementCharts(rows, series, { ...chartOptions, profileAge: profile?.age })}` };
+    return { header, content: `${summary}${settings}${measurementCharts(rows, series, { ...chartOptions, profileAge: profile?.age })}` };
   }
 
   const extraColumns = [

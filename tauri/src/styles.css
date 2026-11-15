@@ -164,6 +164,7 @@ p { line-height: 1.55; }
 }
 .chart-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 .chart-heading h2 { margin: 0; }
+.chart-change { margin: 4px 0 0; color: var(--muted); font-size: .86rem; }
 .chart-periods { display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--hover); }
 .chart-periods button, .chart-legend button {
   min-height: 32px;
@@ -181,10 +182,6 @@ p { line-height: 1.55; }
   background: var(--surface);
   font-weight: 650;
 }
-.chart-summary { margin: 14px 0 12px; color: var(--muted); font-size: .86rem; }
-.chart-summary > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 12px; }
-.chart-summary strong { color: var(--ink); font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.1; letter-spacing: -.05em; }
-.chart-change { border-radius: 99px; padding: 4px 9px; background: var(--hover); font-variant-numeric: tabular-nums; }
 .chart-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; margin-bottom: 12px; }
 .chart-legend > span { padding-right: 4px; color: var(--muted); font-size: .82rem; }
 .chart-legend button { display: inline-flex; align-items: center; gap: 6px; text-align: left; }
