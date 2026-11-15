@@ -1,6 +1,6 @@
 scanner.exe
 *.jsonl
-/data/
+/data*
 /cli/node_modules/
 /tauri/node_modules/
 /tauri/dist/
