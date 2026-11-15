@@ -72,20 +72,60 @@ impl Source {
         }
     }
 
+    fn manufacturer_data(&self, app: &AppHandle, company: u16, payload: &[u8]) {
+        self.payload(app, "Manufacturer", &format!("{company:04X}"), payload);
+    }
+
+    fn service_data(&self, app: &AppHandle, kind: &str, service: Uuid, payload: &[u8]) {
+        let uuid = service.to_string();
+        let id = uuid
+            .strip_prefix("0000")
+            .and_then(|suffix| suffix.strip_suffix("-0000-1000-8000-00805f9b34fb"))
+            .unwrap_or(&uuid);
+        self.payload(app, kind, id, payload);
+    }
+
+    fn payload(&self, app: &AppHandle, kind: &str, id: &str, payload: &[u8]) {
+        let hex = if payload.len() <= 32 {
+            hex(payload)
+        } else {
+            String::new()
+        };
+        let _ = app.emit(
+            "ble-frame",
+            format!(
+                "PAYLOAD {} {} {kind} {id} {} {hex} {}",
+                self.id,
+                self.signal(),
+                payload.len(),
+                self.name
+            ),
+        );
+    }
+
+    fn signal(&self) -> String {
+        self.rssi
+            .map_or_else(|| "-".to_owned(), |rssi| rssi.to_string())
+    }
+
     fn frame(&self, app: &AppHandle, service: &str, payload: &[u8], kind: &str) {
         if !(3..=15).contains(&payload.len()) {
+            self.payload(app, "Service", service, payload);
             return;
         }
-        let mut hex = String::with_capacity(payload.len() * 2);
-        for byte in payload {
-            let _ = write!(hex, "{byte:02X}");
-        }
-        let rssi = self
-            .rssi
-            .map_or_else(|| "-".to_owned(), |rssi| rssi.to_string());
+        let hex = hex(payload);
+        let rssi = self.signal();
         let _ = app.emit(
             "ble-frame",
             format!("{} {rssi} {service} {hex} {kind} {}", self.id, self.name),
         );
     }
+}
+
+fn hex(payload: &[u8]) -> String {
+    let mut hex = String::with_capacity(payload.len() * 2);
+    for byte in payload {
+        let _ = write!(hex, "{byte:02X}");
+    }
+    hex
 }

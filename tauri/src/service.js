@@ -13,7 +13,7 @@ export const METRICS = composition.metrics;
 const snapshotKey = 'epi-session-v1';
 const zipFilters = [{ name: 'Archive ZIP', extensions: ['zip'] }];
 
-export async function connect(onState, onStatus, onRaw) {
+export async function connect(onState, onStatus, onRaw, onWeighing) {
   const native = isTauri();
   const web = import.meta.env.MODE === 'web' && !native;
   const storage = native ? {
@@ -23,16 +23,15 @@ export async function connect(onState, onStatus, onRaw) {
     load: () => JSON.parse(localStorage.getItem(snapshotKey) ?? 'null'),
     save: session => localStorage.setItem(snapshotKey, JSON.stringify(session)),
   };
-  const session = web ? createWebSession(onState) : domain.createSession({ storage });
-  if (web) {
-    await session.load();
-  } else {
+  const session = web ? createWebSession(onState) : domain.createSession({ storage, onWeighing });
+  if (!web) {
     session.subscribe(onState);
     onState(await session.load());
   }
 
   function receive(line) {
     onRaw?.(line);
+    if (line.startsWith('PAYLOAD ')) return;
     session.ingest(line).catch(error => onStatus?.('Erreur de traitement Bluetooth · ' + String(error)));
   }
 
@@ -51,7 +50,7 @@ export async function connect(onState, onStatus, onRaw) {
       onStatus?.('Bluetooth indisponible · ' + String(error));
     }
   } else if (web) {
-    onStatus?.('Mode web · import ZIP');
+    onStatus?.('Mode web');
   } else {
     onStatus?.('Mode simulation');
     window.addEventListener('epi:frame', event => receive(event.detail));

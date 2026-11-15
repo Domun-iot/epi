@@ -10,6 +10,7 @@ const appPath = import.meta.url;
 const modules = {
   'virtual:epi-session': './domain/session.cjs',
   'virtual:epi-composition': '../shared/composition.cjs',
+  'virtual:epi-bluetooth': './domain/bluetooth-watch.cjs',
 };
 
 function sharedModules() {

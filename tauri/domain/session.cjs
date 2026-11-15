@@ -72,7 +72,7 @@ function selectLayout(prefs, kind, id) {
   return next;
 }
 
-function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
+function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing }) {
   let saved;
   let enrollment = null;
   let acquisitionError = null;
@@ -80,7 +80,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   const observers = new Set();
 
   const acquisition = createAcquisition({
-    waitMs, dedupMs,
+    waitMs, dedupMs, onWeighing,
     settle: reading => enqueue(async () => {
       if (reading.committed) return;
       reading.expired = true;
@@ -154,7 +154,8 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
   function notify(draft, entry) {
     const timestamp = draft.notifications.reduce((latest, item) => Math.max(latest, Date.parse(item.date) + 1), Date.now());
     const date = new Date(timestamp).toISOString();
-    const timed = ['profile', 'device'].includes(entry.type) && ['saved', 'restored'].includes(entry.action);
+    const timed = ['profile', 'device', 'measurement'].includes(entry.type)
+      && ['saved', 'restored', 'deleted'].includes(entry.action);
     draft.notifications = [...draft.notifications, {
       id: globalThis.crypto.randomUUID(), date, actor: draft.selectedProfile ?? null,
       ...(timed && { banner: true, durationMs: 3000 }), ...entry,
@@ -192,6 +193,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
           throw Error('Restaure d’abord le profil de cette pesée.');
         }
         draft.measurements = [...draft.measurements, record];
+        notify(draft, { type, action: 'restored', record });
       }
       const restoredAt = new Date().toISOString();
       draft.notifications = draft.notifications.map(item => item.id === id ? { ...item, restored: true, restoredAt } : item);

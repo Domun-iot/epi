@@ -6,7 +6,7 @@ const { parseDeviceMetadata } = require('../../shared/device-fields.cjs');
 const readingKey = ({ address, serviceUuid, scaleTime, weight, unit }) =>
   JSON.stringify([address, serviceUuid, scaleTime, weight, unit]);
 
-function createAcquisition({ waitMs, dedupMs, settle, fail }) {
+function createAcquisition({ waitMs, dedupMs, settle, fail, onWeighing }) {
   const receive = createReceiver({ raw: true });
   const readings = new Map();
   const metadataByAddress = new Map();
@@ -40,6 +40,7 @@ function createAcquisition({ waitMs, dedupMs, settle, fail }) {
     }
     reading.lastSeen = now;
     if (reading.committed) return null;
+    onWeighing?.();
     if (event.impedanceOhms > 0) reading.event = event;
     return event.serviceUuid === '0x181D' || event.impedanceOhms > 0 || reading.expired ? reading : null;
   }

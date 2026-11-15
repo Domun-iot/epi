@@ -38,7 +38,7 @@ nav { display: grid; gap: 6px; }
 nav button { display: flex; gap: 12px; align-items: center; text-align: left; border: 0; border-radius: 8px; background: transparent; color: #b6c7de; padding: 11px 12px; min-height: 43px; }
 nav button span { width: 16px; text-align: center; font-size: 1.1rem; }
 nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
-.bluetooth { display: flex; align-items: baseline; gap: 9px; margin-top: auto; font-size: .82rem; color: #c9d7ea; line-height: 1.45; overflow-wrap: anywhere; }
+.bluetooth { text-decoration: none; display: flex; align-items: baseline; gap: 9px; margin-top: auto; font-size: .82rem; color: #c9d7ea; line-height: 1.45; overflow-wrap: anywhere; }
 .status-dot { flex: 0 0 7px; height: 7px; border-radius: 50%; background: #61d4a4; }
 .workspace { --view-inline-padding: clamp(9px, 2vw, 27px); min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .toolbar { position: relative; min-height: 66px; border-bottom: 1px solid var(--line); background: var(--surface); display: flex; justify-content: flex-end; align-items: center; padding: 10px var(--view-inline-padding); }
@@ -269,6 +269,17 @@ dd { margin: 0; overflow-wrap: anywhere; }
 }
 .editor-form label[hidden] { display: none; }
 .device-list { margin-bottom: 16px; }
+.bluetooth:hover, .bluetooth[aria-current] { text-decoration: underline; }
+#bluetooth-log {
+  height: clamp(12rem, 55vh, 36rem);
+  overflow: auto;
+  overflow-anchor: none;
+  padding: 10px 14px;
+  font: .8rem/1.5 ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+#bluetooth-log:empty::before { content: "Aucune trame reçue."; }
+#bluetooth-log > div { padding: 4px 0; }
 #raw-frames { max-height: 260px; overflow: auto; margin: 10px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
 .toolbar { min-width: 0; gap: 10px; justify-content: space-between; }
 .data-actions { flex: 1 1 0; min-width: 92px; flex-wrap: nowrap; }

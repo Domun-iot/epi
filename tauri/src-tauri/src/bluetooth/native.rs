@@ -57,15 +57,38 @@ async fn scan(app: &AppHandle) -> Result<(), ScanError> {
         };
         match event {
             CentralEvent::ServiceDataAdvertisement { id, service_data } => {
-                if let Some(payload) = service_data.get(&COMPOSITION) {
-                    if let Some((source, properties)) = source(&adapter, &id).await {
+                if let Some((source, properties)) = source(&adapter, &id).await {
+                    if service_data.contains_key(&COMPOSITION) {
                         source.metadata(app, properties.manufacturer_data.keys().copied());
-                        source.frame(app, "181B", payload, "Advertisement");
+                    }
+                    for (service, payload) in service_data {
+                        if service == COMPOSITION {
+                            source.frame(app, "181B", &payload, "Advertisement");
+                        } else {
+                            source.service_data(app, "Service", service, &payload);
+                        }
                     }
                 }
             }
-            CentralEvent::ServicesAdvertisement { id, services } if services.contains(&WEIGHT) => {
-                connections.launch(app, &adapter, id).await;
+            CentralEvent::ManufacturerDataAdvertisement {
+                id,
+                manufacturer_data,
+            } => {
+                if let Some((source, _)) = source(&adapter, &id).await {
+                    for (company, payload) in manufacturer_data {
+                        source.manufacturer_data(app, company, &payload);
+                    }
+                }
+            }
+            CentralEvent::ServicesAdvertisement { id, services } => {
+                if let Some((source, _)) = source(&adapter, &id).await {
+                    for &service in &services {
+                        source.service_data(app, "Announcement", service, &[]);
+                    }
+                }
+                if services.contains(&WEIGHT) {
+                    connections.launch(app, &adapter, id).await;
+                }
             }
             CentralEvent::DeviceDiscovered(id) | CentralEvent::DeviceUpdated(id) => {
                 // Windows and Apple can report the advertised service before or with device discovery.

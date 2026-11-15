@@ -1,5 +1,6 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { connect } from './service.js';
+import { bluetoothView, createBluetoothWatch } from './bluetooth-watch.js';
 import { deleteButton, escapeHtml as e, formatDate, nameKey, sortByName, userIcon } from './format.js';
 import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
@@ -29,7 +30,9 @@ const notices = document.querySelector('#notices');
 const pendingActions = document.querySelector('#pending-actions');
 const notificationIcon = document.querySelector('#notifications-icon');
 const dialog = document.querySelector('#editor');
-const status = document.querySelector('#status span:last-child');
+const statusLink = document.querySelector('#status');
+const status = statusLink.querySelector('span:last-child');
+const bluetoothWatch = createBluetoothWatch();
 const reloadButton = document.querySelector('#reload-data');
 const importInput = document.querySelector('#import-files');
 const importButton = document.querySelector('#import-data');
@@ -43,7 +46,7 @@ const desktopSearchFocus = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent
 const panelStates = new WeakMap();
 const editorView = document.querySelector('#editor-view');
 const editor = createEditor(dialog, editorView, document.querySelector('#editor-actions'), renderEditorView);
-const pages = { measurements: 'Mesures', profiles: 'Profils', devices: 'Appareils', notifications: 'Notifications' };
+const pages = { measurements: 'Mesures', profiles: 'Profils', devices: 'Appareils', notifications: 'Notifications', bluetooth: 'Écoute Bluetooth' };
 
 let session;
 let state = { profiles: [], devices: [], measurements: [], pending: [], notifications: [] };
@@ -104,6 +107,8 @@ function render() {
   const page = currentPage();
   renderProfilePicker();
   renderTheme();
+  if (page === 'bluetooth') statusLink.setAttribute('aria-current', 'page');
+  else statusLink.removeAttribute('aria-current');
   notificationIcon.hidden = state.notifications.length === 0;
   notificationIcon.setAttribute('aria-pressed', String(page === 'notifications'));
   renderBanner();
@@ -133,7 +138,8 @@ function render() {
   const kind = detail ? 'details' : 'measurements';
   const layout = page === 'measurements' ? state.viewLayouts?.[kind] : undefined;
   const layoutKey = layout ? [layout.presets, layout.preset, layout.modified, ...Object.values(layout.layout)] : [];
-  const nextMain = detail ? [page, detail, state.selectedProfile, ...layoutKey] : [page, state.selectedProfile, ...(page === 'measurements'
+  const nextMain = page === 'bluetooth' ? [page, state.addressFilter, state.devices, session?.web]
+    : detail ? [page, detail, state.selectedProfile, ...layoutKey] : [page, state.selectedProfile, ...(page === 'measurements'
     ? [state.measurements, ...layoutKey]
     : page === 'profiles' ? [state.profiles] : page === 'devices' ? [state.devices, state.addressFilter]
       : [state.notifications, notificationId, state.pending, state.enrollment, target?.record])];
@@ -169,6 +175,7 @@ function render() {
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, columnsOpen, columnQuery, header)
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile)
       : page === 'devices' ? devicesView(state.devices, state.addressFilter, state.rawOpen, !session?.web)
+      : page === 'bluetooth' ? bluetoothView(state, session?.web)
       : !entry ? notificationsView(state)
       : receipt || target.type === 'measurement'
         ? measurementDetails(receipt?.record ?? target.record, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen,
@@ -176,6 +183,7 @@ function render() {
         : notificationRecordView(target);
     viewHeader.innerHTML = markup.header;
     viewContent.innerHTML = markup.content;
+    bluetoothWatch.attach(viewContent.querySelector('#bluetooth-log'), state.addressFilter);
     if (pageChanged) {
       viewScroll.scrollTop = 0;
       focusRecord();
@@ -232,17 +240,17 @@ function bannerDuration(entry) {
 }
 
 function enqueueBanners(entries) {
-  const timed = entries.filter(bannerDuration);
-  if (timed.length && activeNotice && !closingNotice && activeNotice.type !== 'error' && !bannerDuration(activeNotice)) {
-    noticeQueue.unshift(...timed, activeNotice);
-    noticeQueue.push(...entries.filter(entry => !bannerDuration(entry)));
-    dismissBanner();
-    return;
-  }
   noticeQueue.push(...entries);
+  if (activeNotice && !closingNotice && activeNotice.type !== 'error'
+      && !bannerDuration(activeNotice) && entries.some(bannerDuration)) {
+    noticeQueue.unshift(activeNotice);
+    dismissBanner();
+  }
   if (activeNotice || closingNotice) return;
   while (noticeQueue.length) {
-    const entry = noticeQueue.shift();
+    // A pending action must not block later confirmations.
+    const next = noticeQueue.findIndex(entry => entry.type === 'error' || bannerDuration(entry));
+    const [entry] = noticeQueue.splice(Math.max(next, 0), 1);
     if ((entry.type === 'pending' || entry.type === 'enrollment') && !notificationControls(entry, state)) continue;
     activeNotice = entry;
     break;
@@ -832,8 +840,13 @@ try {
     bluetoothUnavailable = /indisponible|erreur|désactiv|aucun|déconnect|échec|simulation|permission/i.test(message);
     renderBluetooth();
   }, line => {
-    frames = [`[${formatDate(Date.now())}] ${line}`, ...frames].slice(0, 50);
-    renderFrames();
+    if (!line.startsWith('PAYLOAD ')) {
+      frames = [`[${formatDate(Date.now())}] ${line}`, ...frames].slice(0, 50);
+      renderFrames();
+    }
+    bluetoothWatch.receive(line);
+  }, () => {
+    if (currentPage() === 'bluetooth') go('measurements');
   });
   themeToggle.disabled = false;
   reloadButton.hidden = !session.native && !session.web;

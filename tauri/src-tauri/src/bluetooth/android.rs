@@ -116,6 +116,7 @@ async fn scan(
         .await?;
     status(app, "Écoute Bluetooth active");
     let mut links: HashMap<String, (JoinHandle<()>, Instant)> = HashMap::new();
+    let mut diagnostic_devices: HashMap<String, BleDevice> = HashMap::new();
     let mut check_adapter_at = Instant::now() + RETRY;
 
     loop {
@@ -145,6 +146,12 @@ async fn scan(
         }
         links.retain(|_, (task, retry_at)| !task.is_finished() || Instant::now() < *retry_at);
         for device in devices {
+            report_payloads(app, &device, diagnostic_devices.get(&device.address));
+            if diagnostic_devices.len() >= 512 && !diagnostic_devices.contains_key(&device.address)
+            {
+                diagnostic_devices.clear();
+            }
+            diagnostic_devices.insert(device.address.clone(), device.clone());
             if let Some(payload) = device.service_data.get(&COMPOSITION) {
                 // The plugin periodically returns cached peripheral snapshots. An unchanged
                 // payload is not a new advertisement or a reason to replay a completed weighing.
@@ -175,6 +182,28 @@ async fn scan(
     }
     let _ = handler.disconnect_all().await;
     stopped
+}
+
+// Discovery returns cached snapshots on Android, so only changed payloads are new here.
+fn report_payloads(app: &AppHandle, device: &BleDevice, previous: Option<&BleDevice>) {
+    let source = device_source(device);
+    for &service in &device.services {
+        if !previous.is_some_and(|old| old.services.contains(&service)) {
+            source.service_data(app, "Announcement", service, &[]);
+        }
+    }
+    for (&service, payload) in &device.service_data {
+        if service != COMPOSITION
+            && previous.and_then(|old| old.service_data.get(&service)) != Some(payload)
+        {
+            source.service_data(app, "Service", service, payload);
+        }
+    }
+    for (&company, payload) in &device.manufacturer_data {
+        if previous.and_then(|old| old.manufacturer_data.get(&company)) != Some(payload) {
+            source.manufacturer_data(app, company, payload);
+        }
+    }
 }
 
 fn device_source(device: &BleDevice) -> Source {

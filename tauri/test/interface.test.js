@@ -39,21 +39,22 @@ async function dismissNotificationBanner(page) {
   await close.waitFor({ state: 'hidden' });
 }
 
-async function pageWith(t, snapshot, options = {}) {
+async function pageWith(t, snapshot, options = {}, mode) {
   const page = await browser.newPage(options);
   page.setDefaultTimeout(10000);
   await page.route(url + '**', async route => {
     const path = new URL(route.request().url()).pathname;
+    if (mode === 'web' && path === '/api/session') return route.fulfill({ json: snapshot });
     const file = path === '/' ? 'index.html' : path.slice(1);
     if (!/^(?:index\.html|assets\/[\w.-]+)$/.test(file)) return route.fulfill({ status: 404 });
-    return route.fulfill({ body: await readFile(join(outDir, file)), contentType: types.get(file.split('.').at(-1)) });
+    return route.fulfill({ body: await readFile(join(outDir, mode ?? '.', file)), contentType: types.get(file.split('.').at(-1)) });
   });
   page.on('pageerror', error => t.diagnostic(error.stack));
   page.on('response', response => {
     if (response.status() >= 400) t.diagnostic(`${response.status()} ${response.url()}`);
   });
   t.after(() => page.context().close());
-  if (snapshot) {
+  if (snapshot && mode !== 'web') {
     await page.addInitScript(state => {
       sessionStorage.seeded ??= '';
       if (!sessionStorage.seeded) {
@@ -63,7 +64,7 @@ async function pageWith(t, snapshot, options = {}) {
     }, snapshot);
   }
   await page.goto(url);
-  await page.getByText('Mode simulation', { exact: true }).waitFor();
+  await page.getByText(mode === 'web' ? 'Mode web' : 'Mode simulation', { exact: true }).waitFor();
   return page;
 }
 
@@ -158,6 +159,74 @@ test('theme follows the browser until a profile saves a selection', async t => {
 const choosePage = (page, label) => page.getByRole('navigation').getByRole('button', { name: label, exact: true }).click();
 const chosenProfile = page => page.getByRole('combobox', { name: 'Profil actif' }).inputValue();
 const feed = (page, line) => page.evaluate(value => window.dispatchEvent(new CustomEvent('epi:frame', { detail: value })), line);
+
+test('le mode web ouvre l’écran expliquant où écouter le Bluetooth', async t => {
+  await build({ mode: 'web', build: { outDir: join(outDir, 'web') }, logLevel: 'error' });
+  const page = await pageWith(t, { profiles: [], devices: [], measurements: [], pending: [], notifications: [] }, {}, 'web');
+  await page.getByRole('link', { name: 'Mode web', exact: true }).click();
+  await page.getByRole('heading', { name: 'Écoute Bluetooth' }).waitFor();
+  await page.getByText('L’écoute Bluetooth est disponible uniquement avec l’application ou la version standalone.').waitFor();
+  assert.equal(await page.getByRole('region', { name: 'Trames Bluetooth reçues' }).count(), 0);
+});
+
+test('l’écoute Bluetooth conserve les trames récentes et purge celles de plus de 24 heures', async t => {
+  const page = await pageWith(t);
+  const logKey = 'epi-bluetooth-log-v1';
+  await page.evaluate(key => {
+    localStorage.setItem(key, JSON.stringify([
+      { at: Date.now() - 25 * 60 * 60 * 1000, address: 'AA:BB:CC:DD:EE:FF', text: 'Trame expirée' },
+      { at: Date.now() - 23 * 60 * 60 * 1000, address: 'AA:BB:CC:DD:EE:FF', text: 'Trame récente' },
+    ]));
+  }, logKey);
+  await page.getByRole('link', { name: 'Mode simulation' }).click();
+  const log = page.getByRole('region', { name: 'Trames Bluetooth reçues' });
+  await log.getByText('Trame récente').waitFor();
+  assert.equal(await log.getByText('Trame expirée').count(), 0);
+  const stored = () => page.evaluate(key => JSON.parse(localStorage.getItem(key)), logKey);
+  assert.deepEqual((await stored()).map(row => row.text), ['Trame récente']);
+  await feed(page, 'PAYLOAD AABBCCDDEEFF -58 Service 180F 1 7F ');
+  await log.getByText(/1 octet reçu/).waitFor();
+  await page.reload();
+  await log.getByText(/1 octet reçu/).waitFor();
+  assert.equal((await stored()).length, 2);
+});
+
+test('l’écoute Bluetooth filtre, décode et suit les trames jusqu’à une pesée stable', async t => {
+  const page = await pageWith(t, { devices: [device], addressFilter: address }, { locale: 'fr-FR' });
+  await page.getByRole('link', { name: 'Mode simulation' }).click();
+  await page.getByRole('heading', { name: 'Écoute Bluetooth' }).waitFor();
+  await page.getByText(`Écoute limitée à Salle de bain (${address}).`, { exact: true }).waitFor();
+  const log = page.getByRole('region', { name: 'Trames Bluetooth reçues' });
+  const payload = (id, data = 'DEAD', length = data.length / 2) => `PAYLOAD AABBCCDDEEFF -58 Manufacturer ${id} ${length} ${data} `;
+  await feed(page, payload('0157'));
+  await log.getByText(/^\[\d{2}\/\d{2}\/\d{4}.*\d{2}:\d{2}:\d{2}\].*Anhui Huami.*2 octets reçus.*DE AD/i).waitFor();
+  await feed(page, payload('FFFF', '', 120));
+  await log.getByText(/Fabricant 0xFFFF · -58 dBm · 120 octets reçus$/).waitFor();
+  await feed(page, frame.replace('0226', '0206'));
+  await feed(page, metadata);
+  await feed(page, frame.replace('0226', '0206'));
+  await log.getByText(/XMTZC05HM.*13 octets reçus.*70,9 kg.*Poids instable/).waitFor();
+  await feed(page, frame.replace('AABBCCDDEEFF', '000000000001'));
+
+  const atBottom = () => log.evaluate(el => el.scrollHeight - el.clientHeight - el.scrollTop <= 1);
+  for (let index = 0; index < 30; index++) await feed(page, payload('FFFE'));
+  await log.locator('div').nth(33).waitFor();
+  assert.equal(await atBottom(), true);
+  assert.equal(await log.getByText('00:00:00:00:00:01', { exact: false }).count(), 0);
+
+  await log.evaluate(el => { el.scrollTop = 0; });
+  await feed(page, payload('FFFD'));
+  await log.getByText(/0xFFFD/).waitFor();
+  assert.equal(await log.evaluate(el => el.scrollTop), 0);
+  await log.evaluate(el => { el.scrollTop = el.scrollHeight; });
+  await feed(page, payload('FFFC'));
+  await log.getByText(/0xFFFC/).waitFor();
+  assert.equal(await atBottom(), true);
+
+  await feed(page, frame);
+  await page.waitForURL('**/#measurements');
+  await page.getByRole('button', { name: 'Attribuer la pesée' }).waitFor();
+});
 
 test('central views use the same spacing above and below the header', async t => {
   const page = await pageWith(t, {
@@ -685,6 +754,7 @@ test('la création de profil utilise la vue centrale et les boutons de la barre'
   await toolbar.getByRole('button', { name: 'Enregistrer' }).click();
   await editor.waitFor({ state: 'hidden' });
   await page.getByRole('heading', { name: /^Camille/ }).waitFor();
+  await page.locator('#notices').getByText('Profil enregistré', { exact: true }).waitFor();
   assert.equal(await chosenProfile(page), 'Camille');
   await archive.waitFor();
 });
@@ -727,6 +797,7 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   const confirm = () => dialog.getByRole('button', { name: 'Supprimer', exact: true }).click();
   const cancel = () => dialog.getByRole('button', { name: 'Annuler' }).click();
   const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1')));
+  const notices = page.locator('#notices');
 
   const initial = await stored();
   await choosePage(page, 'Appareils');
@@ -737,6 +808,8 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   await deleteDevice.click();
   await confirm();
   await deleteDevice.waitFor({ state: 'detached' });
+  await notices.getByText('Appareil supprimé', { exact: true }).waitFor();
+  await dismissNotificationBanner(page);
   assert.equal((await stored()).addressFilter, null);
   assert.equal((await stored()).measurements.length, 3);
 
@@ -761,6 +834,7 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   await deleteProfile.click();
   await confirm();
   await deleteProfile.waitFor({ state: 'detached' });
+  await notices.getByText('Profil supprimé', { exact: true }).waitFor();
   await page.reload();
   await page.getByText('Mode simulation', { exact: true }).waitFor();
   const snapshot = await stored();
@@ -769,6 +843,9 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   assert.deepEqual(snapshot.devices, []);
   assert.deepEqual(snapshot.profilePreferences, {});
   assert.equal(snapshot.selectedProfile, null);
+  assert.deepEqual(snapshot.notifications.map(({ type, action }) => [type, action]), [
+    ['device', 'deleted'], ['measurement', 'deleted'], ['profile', 'deleted'],
+  ]);
 });
 
 test('capture et renommage, attribution automatique et flux brut horodaté', async t => {
@@ -1047,7 +1124,10 @@ test('les informations expirent après trois secondes et les erreurs attendent u
 
 test('les notifications de pesée ouvrent le détail et la suppression permet de restaurer', async t => {
   const page = await pageWith(t, { profiles: [alice], devices: [device], selectedProfile: 'Alice', measurements: [record] });
+  const notices = page.locator('#notices');
   await feed(page, frame);
+  await notices.getByText('Pesée enregistrée', { exact: true }).waitFor();
+  await dismissNotificationBanner(page);
   const icon = page.getByRole('button', { name: 'Notifications', exact: true });
   await icon.click();
   const saved = page.locator('.notification-item').getByRole('button', { name: /^Pesée enregistrée/ });
@@ -1057,6 +1137,8 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   await page.getByRole('button', { name: /Voir la pesée du/ }).first().click();
   await page.getByRole('button', { name: 'Supprimer la pesée' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Supprimer', exact: true }).click();
+  await notices.getByText('Pesée supprimée', { exact: true }).waitFor();
+  await dismissNotificationBanner(page);
   await icon.click();
   const deleted = page.locator('.notification-item').getByRole('button', { name: /Pesée supprimée/ });
   assert.match(await deleted.innerText(), /avec impédance/);
@@ -1064,6 +1146,10 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   await page.getByText('Cet élément a été supprimé.', { exact: true }).waitFor();
   await page.locator('.toolbar').getByRole('button', { name: 'Restaurer', exact: true }).click();
   await page.getByText('Cet élément a été restauré.', { exact: true }).waitFor();
+  await notices.getByText('Pesée restaurée', { exact: true }).waitFor();
+  await dismissNotificationBanner(page);
+  await icon.click();
+  await page.locator('.notification-item').getByText('Pesée restaurée', { exact: true }).waitFor();
   await choosePage(page, 'Mesures');
   await page.getByRole('table', { name: 'Pesées' }).waitFor();
   assert.equal(await page.getByRole('button', { name: /Voir la pesée du/ }).count(), 2);
