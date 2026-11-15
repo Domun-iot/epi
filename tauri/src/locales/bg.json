@@ -3,6 +3,8 @@
   "syncDelay": "Има данни за изпращане от {date}. Моля, свържете се.",
   "account": "акаунт",
   "accountAlreadyExists": "Вече съществува акаунт за този адрес. Влезте в този акаунт, за да свържете Google с него.",
+  "accountConnected": "Свързан акаунт",
+  "accountDisconnected": "Акаунтът не е свързан",
   "accountServerBusy": "Сървърът е зает. Опитайте отново след няколко минути.",
   "accountServerError": "Сървърът върна грешка.",
   "accountServerNotConfigured": "Адресът на сървъра на акаунта остава да бъде конфигуриран.",

@@ -3,6 +3,8 @@
   "syncDelay": "Podaci čekaju slanje od {date}. Povežite se.",
   "account": "Račun",
   "accountAlreadyExists": "Račun već postoji za ovu adresu. Prijavite se na ovaj račun kako biste s njim povezali Google.",
+  "accountConnected": "Prijavljen račun",
+  "accountDisconnected": "Račun nije prijavljen",
   "accountServerBusy": "Poslužitelj je zauzet. Pokušajte ponovno za nekoliko minuta.",
   "accountServerError": "Poslužitelj je vratio pogrešku.",
   "accountServerNotConfigured": "Adresa poslužitelja računa ostaje za konfiguraciju.",

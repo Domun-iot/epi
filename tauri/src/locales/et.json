@@ -3,6 +3,8 @@
   "syncDelay": "Andmed ootavad saatmist alates {date}. Palun loo ühendus.",
   "account": "konto",
   "accountAlreadyExists": "Selle aadressi jaoks on konto juba olemas. Google'i seostamiseks logige sellele kontole sisse.",
+  "accountConnected": "Sisse logitud",
+  "accountDisconnected": "Pole sisse logitud",
   "accountServerBusy": "Server on hõivatud. Proovige mõne minuti pärast uuesti.",
   "accountServerError": "Server tagastas veateate.",
   "accountServerNotConfigured": "Konto serveri aadress jääb konfigureerima.",

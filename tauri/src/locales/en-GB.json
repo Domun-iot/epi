@@ -3,6 +3,8 @@
   "syncDelay": "Data has been waiting to be sent since {date}. Please connect.",
   "account": "Account",
   "accountAlreadyExists": "An account already exists for this email address. Sign in to that account to link Google.",
+  "accountConnected": "Signed in",
+  "accountDisconnected": "Not connected",
   "accountServerBusy": "The server is busy. Try again in a few minutes.",
   "accountServerError": "The server returned an error.",
   "accountServerNotConfigured": "The account server address needs to be configured.",

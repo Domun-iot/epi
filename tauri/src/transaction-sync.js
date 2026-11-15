@@ -1,4 +1,4 @@
-import { acknowledgeTransactions, downloadTransactions, syncToken, uploadTransactions } from './account.js';
+import { acknowledgeTransactions, checkAccountConnection, downloadTransactions, syncToken, uploadTransactions } from './account.js';
 import { locale, t } from './i18n.js';
 
 const retryDelay = 60_000;
@@ -17,7 +17,6 @@ let uploading = false;
 let requestedAgain = false;
 let oldest;
 let waitingSince;
-let retryTimer;
 let statusTimer;
 
 function renderStatus() {
@@ -56,18 +55,21 @@ window.addEventListener('epi:account', () => {
 });
 
 export function startTransactionSync(storage) {
-  if (!storage.pendingTransactions) return;
   files = storage;
-  requestTransactionSync();
+  function syncAccountAndTransactions() {
+    void checkAccountConnection();
+    requestTransactionSync();
+  }
+  syncAccountAndTransactions();
+  setInterval(syncAccountAndTransactions, retryDelay);
 }
 
 export function requestTransactionSync() {
-  if (!files) return;
+  if (!files?.pendingTransactions) return;
   if (running) {
     requestedAgain = true;
     return;
   }
-  clearTimeout(retryTimer);
   void sync();
 }
 
@@ -95,7 +97,6 @@ async function receive(token) {
 
 async function sync() {
   running = true;
-  const started = Date.now();
   try {
     const token = syncToken();
     if (token && receivedForToken !== token) {
@@ -134,8 +135,6 @@ async function sync() {
     if (requestedAgain) {
       requestedAgain = false;
       requestTransactionSync();
-    } else {
-      retryTimer = setTimeout(requestTransactionSync, Math.max(0, retryDelay - (Date.now() - started)));
     }
   }
 }

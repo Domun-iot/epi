@@ -3,6 +3,8 @@
   "syncDelay": "Hemm dejta li ilha tistenna biex tintbagħat minn {date}. Jekk jogħġbok, ikkonnettja.",
   "account": "Kont",
   "accountAlreadyExists": "Kont diġà jeżisti għal dan l-indirizz. Idħol f'dan il-kont biex tassoċja lil Google miegħu.",
+  "accountConnected": "Illoggjat",
+  "accountDisconnected": "Mhux illoggjat",
   "accountServerBusy": "Is-server huwa okkupat. Erġa' pprova fi ftit minuti.",
   "accountServerError": "Is-server irritorna żball.",
   "accountServerNotConfigured": "L-indirizz tas-server tal-kont għad irid jiġi kkonfigurat.",

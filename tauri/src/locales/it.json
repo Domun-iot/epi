@@ -3,6 +3,8 @@
   "syncDelay": "Ci sono dati da inviare dal {date}. Connettiti.",
   "account": "Conto",
   "accountAlreadyExists": "Esiste già un account per questo indirizzo. Accedi a questo account per associarlo a Google.",
+  "accountConnected": "Account connesso",
+  "accountDisconnected": "Account disconnesso",
   "accountServerBusy": "Il server è occupato. Riprova tra qualche minuto.",
   "accountServerError": "Il server ha restituito un errore.",
   "accountServerNotConfigured": "L'indirizzo del server dell'account resta da configurare.",

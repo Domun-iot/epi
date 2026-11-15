@@ -41,6 +41,12 @@ nav button span[aria-hidden] { flex: none; width: 16px; text-align: center; font
 nav button:hover, nav button[aria-current] { background: #243953; color: #fff; }
 .account-nav { display: flex; align-items: center; }
 #account-button { flex: 1; }
+.account-icon { flex: none; width: 22px; height: 22px; }
+.account-badge { fill: #ff929d; stroke: none; }
+.account-connected, .account-disconnected { stroke: #121f33; }
+.account-connected, #account-button[data-connected="true"] .account-disconnected { display: none; }
+#account-button[data-connected="true"] .account-connected { display: inline; }
+#account-button[data-connected="true"] .account-badge { fill: #61d4a4; }
 #sync-status { color: #f5cd83; padding-inline: 8px; }
 #sync-status[hidden] { display: none; }
 #sync-status svg { width: 18px; height: 18px; }
@@ -436,6 +442,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
   nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
   nav button { gap: 3px; padding: 6px; min-height: 36px; font-size: .83rem; }
   nav button span[aria-hidden] { width: auto; }
+  .account-icon { width: 19px; height: 19px; }
   .bluetooth { grid-column: 1 / -1; font-size: .74rem; margin-left: 3px; }
   .toolbar { min-height: unset; }
   th, td { padding: 9px; }

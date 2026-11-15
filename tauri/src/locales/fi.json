@@ -3,6 +3,8 @@
   "syncDelay": "Tietoja on odottanut lähetystä {date} lähtien. Muodosta yhteys.",
   "account": "Tili",
   "accountAlreadyExists": "Tälle osoitteelle on jo tili. Kirjaudu sisään tähän tiliin yhdistääksesi Googlen siihen.",
+  "accountConnected": "Kirjauduttu sisään",
+  "accountDisconnected": "Ei kirjautunut sisään",
   "accountServerBusy": "Palvelin on varattu. Yritä uudelleen muutaman minuutin kuluttua.",
   "accountServerError": "Palvelin palautti virheen.",
   "accountServerNotConfigured": "Tilipalvelimen osoite on vielä määrittämättä.",

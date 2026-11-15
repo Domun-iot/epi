@@ -3,6 +3,8 @@
   "syncDelay": "Údaje čakajú na odoslanie od {date}. Pripojte sa, prosím.",
   "account": "účtu",
   "accountAlreadyExists": "Pre túto adresu už existuje účet. Prihláste sa do tohto účtu a priraďte k nemu Google.",
+  "accountConnected": "Prihlásené",
+  "accountDisconnected": "Neprihlásené",
   "accountServerBusy": "Server je zaneprázdnený. Skúste to znova o niekoľko minút.",
   "accountServerError": "Server vrátil chybu.",
   "accountServerNotConfigured": "The account server address remains to be configured.",

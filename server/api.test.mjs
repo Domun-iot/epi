@@ -115,16 +115,33 @@ test('synchronizes batches per account and preserves receipts after token expira
     assert.deepEqual(await acknowledge(phone, [first.uuid, first.uuid]), { inserted: 1 });
     assert.deepEqual(await pending(phone), [second]);
 
-    const uploadPreflight = await fetch(baseUrl + '/transactions', {
-      method: 'OPTIONS',
-      headers: {
-        Origin: 'http://localhost:1421',
-        'Access-Control-Request-Method': 'POST',
-        'Access-Control-Request-Headers': 'authorization,content-type',
-      },
-    });
-    assert.equal(uploadPreflight.status, 204);
-    assert.equal(uploadPreflight.headers.get('Access-Control-Allow-Origin'), '*');
+    for (const [path, method] of [
+      ['/account', 'GET'],
+      ['/transactions', 'POST'],
+      ['/transactions/pending?after=~00000000000000000001', 'GET'],
+      ['/transactions/acknowledge', 'POST'],
+    ]) {
+      const origin = 'http://localhost:1421';
+      const requestedHeaders = method === 'POST' ? 'authorization,content-type' : 'authorization';
+      const preflight = await fetch(baseUrl + path, {
+        method: 'OPTIONS',
+        headers: {
+          Origin: origin,
+          'Access-Control-Request-Method': method,
+          'Access-Control-Request-Headers': requestedHeaders,
+        },
+      });
+      assert.equal(preflight.status, 204, path);
+      assert.equal(preflight.headers.get('Access-Control-Allow-Origin'), '*', path);
+      const response = await fetch(baseUrl + path, {
+        method,
+        headers: { Origin: origin, Authorization: 'Bearer ' + pc, ...(method === 'POST' && { 'Content-Type': 'application/json' }) },
+        body: method === 'POST' ? JSON.stringify(path.endsWith('/acknowledge') ? { uuids: [] } : { transactions: [] }) : undefined,
+      });
+      assert.equal(response.status, 200, path);
+      assert.equal(response.headers.get('Access-Control-Allow-Origin'), '*', path);
+      await response.text();
+    }
     const backlog = Array.from({ length: 130 }, () => ({ ...first, uuid: randomUUID() }));
     const body = backlog.map(row => JSON.stringify(row)).join('\n') + '\n';
     for (const inserted of [backlog.length, 0]) {

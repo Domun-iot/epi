@@ -3,6 +3,8 @@
   "syncDelay": "Der har været data klar til afsendelse siden {date}. Opret forbindelse.",
   "account": "Konto",
   "accountAlreadyExists": "Der findes allerede en konto for denne adresse. Log ind på denne konto for at knytte Google til den.",
+  "accountConnected": "Logget ind",
+  "accountDisconnected": "Ikke logget ind",
   "accountServerBusy": "Serveren er optaget. Prøv igen om et par minutter.",
   "accountServerError": "Serveren returnerede en fejl.",
   "accountServerNotConfigured": "Kontoserveradressen mangler at blive konfigureret.",

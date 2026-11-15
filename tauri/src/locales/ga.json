@@ -3,6 +3,8 @@
   "syncDelay": "Tá sonraí le seoladh ó {date}. Ceangail le do thoil.",
   "account": "Cuntas",
   "accountAlreadyExists": "Tá cuntas ann cheana don seoladh seo. Logáil isteach sa chuntas seo chun Google a cheangal leis.",
+  "accountConnected": "Sínithe isteach",
+  "accountDisconnected": "Gan síniú isteach",
   "accountServerBusy": "Tá an freastalaí gnóthach. Bain triail eile as i gceann cúpla bomaite.",
   "accountServerError": "Chuir an freastalaí earráid ar ais.",
   "accountServerNotConfigured": "Tá seoladh freastalaí an chuntais fós le cumrú.",

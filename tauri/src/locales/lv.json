@@ -3,6 +3,8 @@
   "syncDelay": "Dati gaida nosūtīšanu kopš {date}. Lūdzu, izveidojiet savienojumu.",
   "account": "Konts",
   "accountAlreadyExists": "Konts šai adresei jau pastāv. Piesakieties šajā kontā, lai saistītu ar to Google.",
+  "accountConnected": "Kontam pieslēgts",
+  "accountDisconnected": "Kontam nav pieslēgts",
   "accountServerBusy": "Serveris ir aizņemts. Mēģiniet vēlreiz pēc dažām minūtēm.",
   "accountServerError": "Serveris atgrieza kļūdu.",
   "accountServerNotConfigured": "Konta servera adrese vēl ir jākonfigurē.",

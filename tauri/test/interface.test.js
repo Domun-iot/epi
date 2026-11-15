@@ -326,8 +326,13 @@ test('receives transactions on startup and acknowledges only the IDs returned by
   const snapshot = { profiles: [], devices: [], measurements: [], pending: [], notifications: [] };
   const integrated = [];
   let acknowledge;
+  let startedAccountCheck;
+  let releaseAccount;
   const acknowledged = new Promise(resolve => { acknowledge = resolve; });
-  await pageWith(t, route => {
+  const accountCheckStarted = new Promise(resolve => { startedAccountCheck = resolve; });
+  const accountResponse = new Promise(resolve => { releaseAccount = resolve; });
+  t.after(releaseAccount);
+  const page = await pageWith(t, route => {
     const { action, args } = route.request().postDataJSON();
     if (action === 'pendingTransactions') return route.fulfill({ json: [] });
     if (action === 'integrateTransactions') {
@@ -335,14 +340,22 @@ test('receives transactions on startup and acknowledges only the IDs returned by
       return route.fulfill({ json: { uuids: [rows[0].uuid, rows[2].uuid] } });
     }
     return route.fulfill({ json: snapshot });
-  }, {}, 'web', async page => {
+  }, { viewport: { width: 375, height: 700 } }, 'web', async page => {
     await page.addInitScript(() => {
       localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({
         email: 'alice@example.org', token: 'test-token',
       }));
     });
-    await page.route('https://sync.epi.test/v1/transactions/pending', route =>
-      route.fulfill({ json: { transactions: [...rows].reverse(), next: null } }));
+    await page.route('https://sync.epi.test/v1/account', async route => {
+      assert.equal(route.request().headers().authorization, 'Bearer test-token');
+      startedAccountCheck();
+      await accountResponse;
+      await route.fulfill({ json: { email: 'alice@example.org' } }).catch(() => {});
+    });
+    await page.route('https://sync.epi.test/v1/transactions/pending', async route => {
+      await accountCheckStarted;
+      await route.fulfill({ json: { transactions: [...rows].reverse(), next: null } });
+    });
     await page.route('https://sync.epi.test/v1/transactions/acknowledge', async route => {
       acknowledge(route.request().postDataJSON());
       await route.fulfill({ json: { inserted: 2 } });
@@ -350,6 +363,80 @@ test('receives transactions on startup and acknowledges only the IDs returned by
   });
   assert.deepEqual(await acknowledged, { uuids: [rows[0].uuid, rows[2].uuid] });
   assert.deepEqual(integrated, rows);
+  const button = page.getByRole('button', { name: 'Compte', exact: true });
+  assert.ok(await button.locator('.account-disconnected').isVisible());
+  releaseAccount();
+  await button.locator('.account-connected').waitFor();
+  assert.equal(await button.getAttribute('title'), 'Connecté au compte');
+});
+
+test('rechecks the saved account from its button and every minute', async t => {
+  let offline = true;
+  let checks = 0;
+  const page = await pageWith(t, undefined, {}, undefined, async page => {
+    await page.clock.install();
+    await page.addInitScript(() => {
+      localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({
+        email: 'alice@example.org', token: 'test-token',
+      }));
+    });
+    await page.route('https://sync.epi.test/v1/account', route => {
+      checks++;
+      return offline
+        ? route.abort('connectionrefused')
+        : route.fulfill({ json: { email: 'alice@example.org' } });
+    });
+  });
+  await page.waitForFunction(() => document.querySelector('#account-button').title === 'Compte déconnecté');
+  const button = page.getByRole('button', { name: 'Compte', exact: true });
+  await button.click();
+  const error = page.getByRole('alert').getByText('Le serveur de comptes est inaccessible.');
+  await error.waitFor();
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('epi-account:https://sync.epi.test')).token), 'test-token');
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+
+  offline = false;
+  const beforeClick = checks;
+  await button.click();
+  await button.locator('.account-connected').waitFor();
+  assert.equal(checks, beforeClick + 1);
+  await error.waitFor({ state: 'hidden' });
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+
+  offline = true;
+  const beforeTimer = checks;
+  await page.clock.runFor(61_000);
+  await button.locator('.account-disconnected').waitFor();
+  assert.equal(checks, beforeTimer + 1);
+  offline = false;
+  await page.clock.runFor(60_000);
+  await button.locator('.account-connected').waitFor();
+  assert.equal(checks, beforeTimer + 2);
+});
+
+test('opens the sign-in form when the saved token has expired', async t => {
+  let checks = 0;
+  const page = await pageWith(t, undefined, {}, undefined, async page => {
+    await page.clock.install();
+    await page.addInitScript(() => {
+      localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({
+        email: 'alice@example.org', token: 'expired-token',
+      }));
+    });
+    await page.route('https://sync.epi.test/v1/account', route => {
+      checks++;
+      return route.fulfill({ status: 401, json: { error: 'token_expired' } });
+    });
+  });
+  await page.waitForFunction(() => localStorage.getItem('epi-account:https://sync.epi.test') === null);
+  const button = page.getByRole('button', { name: 'Compte', exact: true });
+  assert.ok(await button.locator('.account-disconnected').isVisible());
+  await button.click();
+  const dialog = page.getByRole('dialog', { name: 'Connexion' });
+  await dialog.getByText('Ta session a expiré. Reconnecte-toi.').waitFor();
+  assert.ok(await dialog.getByRole('button', { name: 'Se connecter', exact: true }).isVisible());
+  await page.clock.runFor(60_000);
+  assert.equal(checks, 1);
 });
 
 test('retries a stalled upload and archives only confirmed transactions', async t => {
@@ -388,6 +475,7 @@ test('retries a stalled upload and archives only confirmed transactions', async 
         email: 'alice@example.org', token: 'test-token',
       }));
     });
+    await page.route('https://sync.epi.test/v1/account', route => route.fulfill({ json: { email: 'alice@example.org' } }));
     await page.route('https://sync.epi.test/v1/transactions/pending', route => route.fulfill({ json: { transactions: [] } }));
     await page.route('https://sync.epi.test/v1/transactions', async route => {
       uploads.push(route.request().postData().trim().split('\n').map(line => JSON.parse(line).uuid));

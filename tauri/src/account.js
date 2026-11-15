@@ -9,6 +9,7 @@ const sessionKey = 'epi-account:' + api;
 const deviceKey = 'epi-account-device';
 
 const openButton = document.querySelector('#account-button');
+const connectionStatus = document.querySelector('#account-connection-status');
 const dialog = document.querySelector('#account-dialog');
 const title = document.querySelector('#account-title');
 const form = document.querySelector('#account-form');
@@ -37,6 +38,8 @@ let managingGoogle = false;
 let waitingForGoogle = false;
 let cancelGoogle = false;
 let account = null;
+let connectionCheck;
+let connectionError = '';
 let creating = false;
 let languageChanged = false;
 language.addEventListener('change', () => { languageChanged = true; });
@@ -46,7 +49,7 @@ let busy = false;
 
 function readAccount() {
   const saved = JSON.parse(localStorage.getItem(sessionKey));
-  return typeof saved?.email === 'string' && typeof saved.token === 'string' ? saved : null;
+  return typeof saved?.email === 'string' && typeof saved.token === 'string' && saved.token ? saved : null;
 }
 
 export function syncToken() {
@@ -55,7 +58,13 @@ export function syncToken() {
 }
 
 window.addEventListener('storage', event => {
-  if (event.key === sessionKey || event.key === null) window.dispatchEvent(new Event('epi:account'));
+  if (event.key !== sessionKey && event.key !== null) return;
+  const token = account?.token;
+  loadSavedSession();
+  if (account?.token !== token) {
+    void checkAccountConnection();
+    window.dispatchEvent(new Event('epi:account'));
+  }
 });
 
 function getDeviceId() {
@@ -73,6 +82,9 @@ function showError(message) {
 }
 
 function render() {
+  openButton.dataset.connected = String(Boolean(accountInfo));
+  connectionStatus.textContent = t(accountInfo ? 'accountConnected' : 'accountDisconnected');
+  openButton.title = connectionStatus.textContent;
   title.textContent = account ? t('account') : creating ? t('createAccount') : t('signInHeading');
   accountEmail.hidden = !account;
   accountEmail.textContent = account?.email ?? '';
@@ -167,54 +179,98 @@ export function acknowledgeTransactions(token, uuids) {
   return request('transactions/acknowledge', { body: { uuids }, token });
 }
 
+function showConnectionError(message) {
+  if (dialog.open && (errorNotice.hidden || errorNotice.textContent === connectionError)) showError(message);
+  connectionError = message;
+}
+
+function setSession(session, info = null) {
+  account = session;
+  accountInfo = info;
+  connectionCheck = undefined;
+  managingGoogle = false;
+  showConnectionError('');
+  render();
+}
+
+function loadSavedSession() {
+  let saved = null;
+  let error = '';
+  try {
+    if (configured) saved = readAccount();
+  } catch {
+    error = t('savedSessionUnavailable');
+  }
+  if (saved?.token !== account?.token) setSession(saved);
+  return error;
+}
+
 function clearSession() {
   localStorage.removeItem(sessionKey);
-  account = null;
+  setSession(null);
   window.dispatchEvent(new Event('epi:account'));
 }
 
-function saveSession(email, token) {
+function saveSession(email, token, info) {
   if (typeof email !== 'string' || typeof token !== 'string' || !token) {
     throw new Error(t('invalidServerSession'));
   }
   const session = { email, token };
   localStorage.setItem(sessionKey, JSON.stringify(session));
-  account = session;
+  setSession(session, info);
   window.dispatchEvent(new Event('epi:account'));
   form.reset();
 }
 
-async function refreshAccountInfo() {
-  accountInfo = null;
-  const session = account;
-  if (!configured || !session) return;
+export function checkAccountConnection() {
+  if (!account) return;
+  if (connectionCheck?.pending) return connectionCheck.pending;
+  const check = {};
+  connectionCheck = check;
+  check.pending = refreshAccountInfo(account.token, check).finally(() => {
+    if (connectionCheck === check) connectionCheck = undefined;
+  });
+  return check.pending;
+}
+
+async function refreshAccountInfo(token, check) {
   try {
-    const info = await request('account', { method: 'GET', token: session.token });
-    if (session === account) accountInfo = info;
+    const info = await request('account', { method: 'GET', token });
+    if (connectionCheck !== check || syncToken() !== token) return;
+    if (typeof info?.email !== 'string') throw new Error(t('accountServerError'));
+    accountInfo = info;
+    showConnectionError('');
   } catch (error) {
-    if (session === account && ['invalid_token', 'token_expired'].includes(error.code)) {
-      clearSession();
-      showError(error.message);
+    if (connectionCheck !== check || syncToken() !== token) return;
+    accountInfo = null;
+    managingGoogle = false;
+    let message = error.message;
+    if (['invalid_token', 'token_expired'].includes(error.code)) {
+      const previousEmail = account.email;
+      try {
+        clearSession();
+        if (dialog.open) email.value = previousEmail;
+      } catch {
+        message = t('accountStorageUnavailable');
+      }
     }
+    showConnectionError(message);
   } finally {
     render();
   }
 }
 
+loadSavedSession();
+render();
+
 openButton.addEventListener('click', () => {
   creating = false;
-  accountInfo = null;
   languageChanged = false;
-  showError(configured ? '' : t('accountServerNotConfigured'));
-  try {
-    account = readAccount();
-  } catch {
-    account = null;
-    showError(t('savedSessionUnavailable'));
-  }
+  const savedSessionError = loadSavedSession();
+  showError(configured ? savedSessionError || connectionError : t('accountServerNotConfigured'));
   render();
   dialog.showModal();
-  void refreshAccountInfo();
+  void checkAccountConnection();
 });
 
 function closeAccount() {
@@ -318,9 +374,9 @@ googleButton.addEventListener('click', async () => {
       ? await request('google/unlink', { body, token })
       : await finishGoogle(action, body, popup, token);
     if (result) {
-      if (!account) saveSession(result.email, result.token);
+      if (!token) saveSession(result.email, result.token, result);
+      else if (token === syncToken()) setSession(account, result);
       useAccountLanguage(result.locale ?? body.locale, result.googleLocale);
-      accountInfo = result;
       managingGoogle = false;
     }
   } catch (error) {
@@ -364,7 +420,7 @@ form.addEventListener('submit', async event => {
       saveSession(credentials.email, result.token);
       useAccountLanguage(result.locale ?? preference, result.googleLocale);
     }
-    await refreshAccountInfo();
+    await checkAccountConnection();
   } catch (error) {
     showError(error instanceof DOMException ? t('accountStorageUnavailable') : error.message);
   } finally {

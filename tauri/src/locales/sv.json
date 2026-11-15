@@ -3,6 +3,8 @@
   "syncDelay": "Det finns data som väntar på att skickas sedan {date}. Anslut.",
   "account": "konto",
   "accountAlreadyExists": "Det finns redan ett konto för den här adressen. Logga in på det här kontot för att koppla Google till det.",
+  "accountConnected": "Inloggad",
+  "accountDisconnected": "Inte inloggad",
   "accountServerBusy": "Servern är upptagen. Försök igen om några minuter.",
   "accountServerError": "Servern returnerade ett fel.",
   "accountServerNotConfigured": "Kontoserveradressen återstår att konfigurera.",

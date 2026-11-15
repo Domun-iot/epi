@@ -3,6 +3,8 @@
   "syncDelay": "Duomenys laukia išsiuntimo nuo {date}. Prisijunkite.",
   "account": "sąskaita",
   "accountAlreadyExists": "Šiam adresui skirta paskyra jau yra. Prisijunkite prie šios paskyros, kad su ja susietumėte „Google“.",
+  "accountConnected": "Prisijungta prie paskyros",
+  "accountDisconnected": "Prie paskyros neprisijungta",
   "accountServerBusy": "Serveris užimtas. Bandykite dar kartą po kelių minučių.",
   "accountServerError": "Serveris grąžino klaidą.",
   "accountServerNotConfigured": "Paskyros serverio adresas turi būti sukonfigūruotas.",

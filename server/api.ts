@@ -321,8 +321,10 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
   const server = createServer({ requestTimeout: 30_000 }, async (req, res) => {
     try {
       const route = req.method + ' ' + req.url;
-      if (req.url === '/v1/accounts' || req.url === '/v1/device-tokens' ||
-          req.url === '/v1/account' || req.url === '/v1/transactions' || req.url?.startsWith('/v1/google/')) {
+      const [path, query] = (req.url ?? '').split('?', 2);
+      if (path === '/v1/accounts' || path === '/v1/device-tokens' ||
+          path === '/v1/account' || path === '/v1/transactions' || path === '/v1/transactions/pending' ||
+          path === '/v1/transactions/acknowledge' || path.startsWith('/v1/google/')) {
         res.setHeader('Access-Control-Allow-Origin', '*');
         if (req.method === 'OPTIONS') {
           res.writeHead(204, {
@@ -475,11 +477,11 @@ export function createApi(store: Store, now = Date.now, google?: Google) {
         return res.end();
       }
 
-      if (req.method === 'GET' && req.url?.split('?')[0] === '/v1/transactions/pending') {
+      if (req.method === 'GET' && path === '/v1/transactions/pending') {
         const { account_id, device_id } = authenticate(req, store, now());
         const transactions: string[] = [];
         const envelope = '{"transactions":[';
-        const after = new URLSearchParams(req.url.split('?')[1]).get('after') ?? '';
+        const after = new URLSearchParams(query).get('after') ?? '';
         if (after && !transactionName.test(after) && !/^~\d{20}$/u.test(after)) {
           throw new ApiError(400, 'invalid_cursor');
         }

@@ -3,6 +3,8 @@
   "syncDelay": "Sinds {date} wachten er gegevens op verzending. Maak verbinding.",
   "account": "Rekening",
   "accountAlreadyExists": "Er bestaat al een account voor dit adres. Log in op dit account om Google eraan te koppelen.",
+  "accountConnected": "Aangemeld",
+  "accountDisconnected": "Niet aangemeld",
   "accountServerBusy": "De server is bezet. Probeer het over een paar minuten opnieuw.",
   "accountServerError": "De server heeft een fout geretourneerd.",
   "accountServerNotConfigured": "Het accountserveradres moet nog worden geconfigureerd.",
