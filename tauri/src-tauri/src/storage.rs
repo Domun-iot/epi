@@ -1,3 +1,4 @@
+use crate::{transaction_index, transactions};
 use serde_json::{json, Value};
 use std::{
     collections::{HashMap, HashSet},
@@ -110,9 +111,8 @@ fn dataset_files(root: &Path) -> Result<Vec<DataFile>, String> {
     Ok(files)
 }
 
-fn valid_file(file: &str) -> bool {
-    let parts: Vec<_> = file.split('/').collect();
-    if parts.iter().any(|name| {
+fn safe_path(file: &str) -> bool {
+    !file.split('/').any(|name| {
         name.is_empty()
             || name.starts_with('.')
             || name.ends_with('.')
@@ -120,10 +120,14 @@ fn valid_file(file: &str) -> bool {
             || name.contains(['\\', ':', '*', '?', '"', '<', '>', '|'])
             || name.chars().any(char::is_control)
             || reserved(name.split('.').next().unwrap_or_default())
-    }) {
+    })
+}
+
+fn valid_file(file: &str) -> bool {
+    if !safe_path(file) {
         return false;
     }
-    match parts.as_slice() {
+    match file.split('/').collect::<Vec<_>>().as_slice() {
         ["profiles", name] => name.strip_suffix(".json").is_some_and(|stem| {
             valid_uuid(stem)
                 || stem
@@ -294,7 +298,7 @@ fn update_global_preferences(
             .as_object_mut()
             .ok_or("Préférences globales invalides.")?,
     );
-    json_write(&root.join(PREFS), &global, true)?;
+    save_json(root, &root.join(PREFS), &global, true)?;
     Ok(())
 }
 
@@ -332,7 +336,7 @@ fn read_session(root: &Path) -> Result<Value, String> {
     Ok(session)
 }
 
-fn atomic_write(path: &Path, data: &[u8], replace: bool) -> Result<bool, String> {
+pub(crate) fn atomic_write(path: &Path, data: &[u8], replace: bool) -> Result<bool, String> {
     let root = path.parent().ok_or("Dossier de données introuvable.")?;
     fs::create_dir_all(root).map_err(message)?;
     let mut temp = tempfile::NamedTempFile::new_in(root).map_err(message)?;
@@ -354,6 +358,65 @@ fn json_write(path: &Path, value: &Value, replace: bool) -> Result<bool, String>
     let mut bytes = serde_json::to_vec_pretty(value).map_err(message)?;
     bytes.push(b'\n');
     atomic_write(path, &bytes, replace)
+}
+
+fn save_json(root: &Path, path: &Path, value: &Value, replace: bool) -> Result<bool, String> {
+    let mut bytes = serde_json::to_vec_pretty(value).map_err(message)?;
+    bytes.push(b'\n');
+    save_file(root, path, &bytes, value, replace)
+}
+
+fn read_bytes(path: &Path) -> Result<Option<Vec<u8>>, String> {
+    match fs::read(path) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(message(error)),
+    }
+}
+
+fn restore_file(path: &Path, before: Option<&[u8]>) -> Result<(), String> {
+    match before {
+        Some(bytes) => atomic_write(path, bytes, true).map(|_| ()),
+        None => fs::remove_file(path).map_err(message),
+    }
+}
+
+fn save_file(
+    root: &Path,
+    path: &Path,
+    bytes: &[u8],
+    value: &Value,
+    replace: bool,
+) -> Result<bool, String> {
+    let before = read_bytes(path)?;
+    if let Some(old) = &before {
+        if !replace {
+            return Ok(false);
+        }
+        if old == bytes {
+            return Ok(true);
+        }
+    }
+    let change = transactions::change(root, path, before.is_some(), Some(value))?;
+    if !atomic_write(path, bytes, replace)? {
+        return Ok(false);
+    }
+    if let Err(error) = transactions::record(root, vec![change]) {
+        restore_file(path, before.as_deref()).map_err(|restore| format!("{error} · {restore}"))?;
+        return Err(error);
+    }
+    Ok(true)
+}
+
+fn delete_file(root: &Path, path: &Path) -> Result<(), String> {
+    let before = fs::read(path).map_err(message)?;
+    let change = transactions::change(root, path, true, None)?;
+    fs::remove_file(path).map_err(message)?;
+    if let Err(error) = transactions::record(root, vec![change]) {
+        restore_file(path, Some(&before)).map_err(|restore| format!("{error} · {restore}"))?;
+        return Err(error);
+    }
+    Ok(())
 }
 
 fn rows<'a>(state: &'a Value, key: &str) -> &'a [Value] {
@@ -416,14 +479,32 @@ fn save_records(
         } else {
             &path
         });
-        if !json_write(&target, row, replace)? {
-            return Err("Une fiche existe déjà. Recharge les données avant de réessayer.".into());
-        }
-        if let Some(existing) = existing_path.filter(|_| !replace) {
-            if let Err(error) = fs::remove_file(root.join(existing)) {
-                let _ = fs::remove_file(&target);
-                return Err(message(error));
+        let saved = if let Some(existing) = existing_path.filter(|_| !replace) {
+            let source = root.join(existing);
+            let before = fs::read(&source).map_err(message)?;
+            let operations = vec![
+                transactions::change(root, &target, false, Some(row))?,
+                transactions::change(root, &source, true, None)?,
+            ];
+            if !json_write(&target, row, false)? {
+                false
+            } else {
+                if let Err(error) = fs::remove_file(&source) {
+                    restore_file(&target, None)?;
+                    return Err(message(error));
+                }
+                if let Err(error) = transactions::record(root, operations) {
+                    restore_file(&source, Some(&before))?;
+                    restore_file(&target, None)?;
+                    return Err(error);
+                }
+                true
             }
+        } else {
+            save_json(root, &target, row, replace)?
+        };
+        if !saved {
+            return Err("Une fiche existe déjà. Recharge les données avant de réessayer.".into());
         }
     }
     Ok(())
@@ -463,7 +544,7 @@ fn update_measurement_identities(
         }
     }
     for (path, row) in writes {
-        json_write(&path, row, true)?;
+        save_json(root, &path, row, true)?;
     }
     Ok(())
 }
@@ -549,7 +630,7 @@ fn save_measurements(
             return Err("Chemin de pesée invalide.".into());
         }
         if occupied.insert(path.clone()) {
-            json_write(&root.join(path), row, false)?;
+            save_json(root, &root.join(path), row, false)?;
         }
     }
     Ok(())
@@ -637,7 +718,12 @@ fn save_deletion(root: &Path, session: &Value, previous: &Value) -> Result<(), S
             fs::rename(path, &target).map_err(message)?;
             moved.push((path, target));
         }
-        save_preferences(root, session, previous)
+        save_preferences(root, session, previous)?;
+        let operations = paths
+            .iter()
+            .map(|path| transactions::change(root, path, true, None))
+            .collect::<Result<Vec<_>, _>>()?;
+        transactions::record(root, operations)
     })();
     if let Err(error) = result {
         let mut rollback_error = None;
@@ -738,6 +824,7 @@ fn with_notifications(
     let after = by_id(session);
     let ids: HashSet<_> = before.keys().chain(after.keys()).collect();
     let mut undo = Vec::new();
+    let mut operations = Vec::new();
     let result = (|| {
         for id in ids {
             if before.get(id) == after.get(id) {
@@ -754,13 +841,20 @@ fn with_notifications(
                         "La notification a changé. Recharge les données avant de réessayer.".into(),
                     );
                 }
+                let change = transactions::change(root, &path, old.is_some(), Some(row))?;
                 json_write(&path, row, true)?;
+                operations.push(change);
             } else if old.is_some() {
+                let change = transactions::change(root, &path, true, None)?;
                 fs::remove_file(&path).map_err(message)?;
+                operations.push(change);
+            } else {
+                continue;
             }
             undo.push((path, old));
         }
-        save()
+        save()?;
+        transactions::record(root, operations)
     })();
     if let Err(error) = result {
         let mut rollback = Vec::new();
@@ -862,7 +956,7 @@ fn save_dataset(root: &Path, session: &Value, previous: &Value) -> Result<(), St
                         .eq_ignore_ascii_case(&path.to_string_lossy())
                 });
             if !reused && path.try_exists().map_err(message)? {
-                fs::remove_file(path).map_err(message)?;
+                delete_file(root, &path)?;
             }
         }
     }
@@ -898,11 +992,11 @@ fn save_view_presets(root: &Path, current: &Value, previous: &Value) -> Result<(
                 return Err(conflict.into());
             }
             if let Some(new) = new {
-                if !json_write(&path, new, old.is_some())? {
+                if !save_json(root, &path, new, old.is_some())? {
                     return Err(conflict.into());
                 }
             } else {
-                fs::remove_file(path).map_err(message)?;
+                delete_file(root, &path)?;
             }
         }
     }
@@ -916,7 +1010,7 @@ fn save_preferences(root: &Path, session: &Value, previous: &Value) -> Result<()
             if prefs != &previous["profilePreferences"][profile]
                 || !path.try_exists().map_err(message)?
             {
-                json_write(&path, prefs, true)?;
+                save_json(root, &path, prefs, true)?;
             }
         }
     }
@@ -933,25 +1027,135 @@ fn save_preferences(root: &Path, session: &Value, previous: &Value) -> Result<()
     })
 }
 
-#[tauri::command]
-pub fn export_files(app: AppHandle) -> Result<Vec<DataFile>, String> {
-    let root = data_root(&app)?;
-    let mut files = dataset_files(&root)?;
-    let profiles = files
-        .iter()
-        .filter(|file| file.path.starts_with("profiles/"))
-        .map(record)
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut paths = HashSet::new();
-    files.retain_mut(|file| {
-        if file.path.starts_with("measures/") {
-            if let Ok(path) = record(file).and_then(|row| measurement_path(&row, &profiles)) {
-                file.path = path;
+fn valid_extra_path(path: &str) -> bool {
+    if !safe_path(path) {
+        return false;
+    }
+    match path.split('/').collect::<Vec<_>>().as_slice() {
+        ["interface.json" | "session.json" | "transactions.index"] | ["prefs", "global.json"] => {
+            true
+        }
+        ["prefs", name] => {
+            (name.starts_with("profil-") || name.starts_with("profil~")) && name.ends_with(".json")
+        }
+        ["prefs", "measurements" | "measurement-details", name] | ["notifications", name] => {
+            name.ends_with(".json")
+        }
+        ["transactions" | "transactions.incoming", name] => {
+            transactions::filename_uuid(name).is_some()
+        }
+        _ => false,
+    }
+}
+
+fn snapshot_files(root: &Path) -> Result<Vec<DataFile>, String> {
+    let mut files = dataset_files(root)?;
+    for folder in [
+        "",
+        "prefs",
+        "prefs/measurements",
+        "prefs/measurement-details",
+        "notifications",
+        "transactions",
+        "transactions.incoming",
+    ] {
+        let directory = root.join(folder);
+        if !folder.is_empty()
+            && fs::symlink_metadata(&directory).is_ok_and(|meta| meta.is_symlink())
+        {
+            continue;
+        }
+        for entry in entries(&directory)? {
+            if !entry.file_type().map_err(message)?.is_file() {
+                continue;
+            }
+            let path = format!("{folder}/{}", entry.file_name().to_string_lossy());
+            let path = path.trim_start_matches('/');
+            if valid_extra_path(path) {
+                files.push(DataFile {
+                    path: path.into(),
+                    contents: fs::read_to_string(entry.path()).map_err(message)?,
+                });
             }
         }
-        paths.insert(file.path.clone())
-    });
+    }
     Ok(files)
+}
+
+#[tauri::command]
+pub fn export_files(app: AppHandle) -> Result<Vec<DataFile>, String> {
+    snapshot_files(&data_root(&app)?)
+}
+
+fn merge_snapshot(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
+    let mut dataset = Vec::new();
+    let mut extras = Vec::new();
+    let mut history = Vec::new();
+    let mut ids = HashSet::new();
+    for file in files {
+        if !valid_file(&file.path) && !valid_extra_path(&file.path) {
+            return Err(format!("Chemin de données invalide · {}", file.path));
+        }
+        let mut target = root.to_path_buf();
+        for part in file.path.split('/') {
+            target.push(part);
+            if fs::symlink_metadata(&target).is_ok_and(|meta| meta.is_symlink()) {
+                return Err(format!("Lien symbolique inattendu · {}", file.path));
+            }
+        }
+        if valid_file(&file.path) {
+            dataset.push(file);
+        } else if file.path == "transactions.index" {
+            ids.extend(transaction_index::parse(&file.contents).map_err(message)?);
+        } else {
+            let value: Value = serde_json::from_str(file.contents.trim_start_matches('\u{feff}'))
+                .map_err(message)?;
+            if file.path.starts_with("transactions") {
+                let (_, name) = file.path.split_once('/').unwrap();
+                let uuid = transactions::filename_uuid(name).unwrap();
+                if value["uuid"].as_str() != Some(uuid.to_string().as_str()) {
+                    return Err(format!("UUID de transaction invalide · {}", file.path));
+                }
+                let complete = file.path.starts_with("transactions/");
+                if complete {
+                    ids.insert(uuid);
+                }
+                history.push((file, uuid, complete));
+            } else {
+                if !value.is_object() {
+                    return Err(format!("Objet JSON attendu · {}", file.path));
+                }
+                extras.push((file, value));
+            }
+        }
+    }
+    let mut count = merge_files(root, dataset)?;
+    for (file, value) in extras {
+        if save_file(
+            root,
+            &root.join(&file.path),
+            file.contents.as_bytes(),
+            &value,
+            false,
+        )? {
+            count += 1;
+        }
+    }
+    let mut index = transaction_index::load(root).map_err(message)?;
+    for (file, uuid, complete) in history {
+        if !complete && (ids.contains(&uuid) || index.contains(&uuid)) {
+            continue;
+        }
+        if atomic_write(&root.join(&file.path), file.contents.as_bytes(), false)? {
+            count += 1;
+        }
+    }
+    for uuid in ids {
+        if index.insert(uuid) {
+            transaction_index::add(root, uuid).map_err(message)?;
+        }
+    }
+    Ok(count)
 }
 
 fn import_identity(file: &DataFile, row: &Value) -> (&'static str, Option<String>) {
@@ -1021,7 +1225,15 @@ fn merge_files(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
         {
             continue;
         }
-        if atomic_write(&root.join(&entry.path), entry.contents.as_bytes(), false)? {
+        let value =
+            serde_json::from_str(entry.contents.trim_start_matches('\u{feff}')).map_err(message)?;
+        if save_file(
+            root,
+            &root.join(&entry.path),
+            entry.contents.as_bytes(),
+            &value,
+            false,
+        )? {
             count += 1;
             paths.insert(path);
             contents.insert(&entry.contents);
@@ -1046,7 +1258,15 @@ fn merge_files(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
         if paths.contains(&path) || occupied.contains(&slot) || !valid_file(&slot) {
             continue;
         }
-        if atomic_write(&root.join(&slot), entry.contents.as_bytes(), false)? {
+        let value =
+            serde_json::from_str(entry.contents.trim_start_matches('\u{feff}')).map_err(message)?;
+        if save_file(
+            root,
+            &root.join(&entry.path),
+            entry.contents.as_bytes(),
+            &value,
+            false,
+        )? {
             count += 1;
             paths.insert(path);
             occupied.insert(slot);
@@ -1057,7 +1277,7 @@ fn merge_files(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
 
 #[tauri::command]
 pub fn import_files(app: AppHandle, files: Vec<DataFile>) -> Result<usize, String> {
-    merge_files(&data_root(&app)?, files)
+    merge_snapshot(&data_root(&app)?, files)
 }
 
 #[cfg(test)]
@@ -1310,6 +1530,44 @@ mod tests {
             json!([{"name":"Anna"},{"name":"Luc"}])
         );
         assert!(merge_files(path, vec![file("profiles/../outside.json", "Invalid")]).is_err());
+    }
+
+    #[test]
+    fn snapshot_roundtrip_restores_preferences_notifications_and_transaction_history() {
+        let origin = tempfile::tempdir().unwrap();
+        let replica = tempfile::tempdir().unwrap();
+        let root = origin.path();
+        let prefs = json!({"theme": "dark"});
+        let notification = "notifications/a2788c87-ab0a-44f7-aeea-6e3d37442ae7.json";
+        save_json(root, &root.join(PREFS), &prefs, false).unwrap();
+        save_json(
+            root,
+            &root.join(notification),
+            &json!({"date": "2026-11-15"}),
+            false,
+        )
+        .unwrap();
+        let pending_uuid = "bfa95fcb-0a16-40dc-852e-a940887ae76e";
+        let pending_path =
+            format!("transactions.incoming/2026-11-15T06-47-43.567000Z-{pending_uuid}.json");
+        let pending = json!({"uuid": pending_uuid, "type":"delete","data":{"path": notification}});
+        json_write(&root.join(&pending_path), &pending, false).unwrap();
+        let snapshot = snapshot_files(root).unwrap();
+        assert_eq!(snapshot.len(), 6);
+        assert_eq!(merge_snapshot(replica.path(), snapshot).unwrap(), 5);
+        assert_eq!(
+            merge_snapshot(replica.path(), snapshot_files(root).unwrap()).unwrap(),
+            0
+        );
+        assert_eq!(read_json(&replica.path().join(PREFS)).unwrap(), Some(prefs));
+        assert!(replica.path().join(notification).is_file());
+        assert_eq!(
+            read_json(&replica.path().join(pending_path)).unwrap(),
+            Some(pending)
+        );
+        assert!(transaction_index::load(root)
+            .unwrap()
+            .is_subset(&transaction_index::load(replica.path()).unwrap()));
     }
 
     #[test]

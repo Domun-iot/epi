@@ -4,7 +4,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import domain from '../tauri/domain/session.cjs';
+import transactions from '../shared/transactions.cjs';
 import { fileStorage } from './file-storage.js';
+import { readArchive, writeArchive } from '../tauri/src/legacy-import.js';
 
 test('shares native dataset files across web restarts and reloads', async t => {
   const root = await mkdtemp(join(tmpdir(), 'epi-web-'));
@@ -15,7 +17,7 @@ test('shares native dataset files across web restarts and reloads', async t => {
     await writeFile(target, JSON.stringify(value));
   }
   const get = async path => JSON.parse(await readFile(join(root, path), 'utf8'));
-  const open = () => domain.createSession({ storage: fileStorage(root) });
+  const open = () => domain.createSession({ storage: fileStorage(root, transactions) });
   const profile = { name: 'Lou', sex: 'F', birthDate: '1990-02-12', heightCm: 170 };
   const device = { name: 'Cuisine', bluetooth: { address: 'AA:BB:CC:DD:EE:FF', serviceUuid: '0x181B' } };
   const measure = { receivedAt: '2026-09-28T09:00:00.000Z', profile: { name: 'Lou' },
@@ -52,6 +54,26 @@ test('shares native dataset files across web restarts and reloads', async t => {
   assert.deepEqual(reloaded.viewPresets.measurements, [preset]);
   const deletion = reloaded.notifications.find(row => row.type === 'measurement' && row.action === 'deleted');
   assert.equal((await get('notifications/' + deletion.id + '.json')).record.uuid, measurementId);
+  const archive = readArchive(writeArchive(await fileStorage(root, transactions).exportFiles()));
+  const paths = archive.map(file => file.path);
+  assert.ok(paths.includes('prefs/global.json'));
+  assert.ok(paths.includes('prefs/profil-Louise.json'));
+  assert.ok(paths.includes('notifications/' + deletion.id + '.json'));
+  assert.ok(paths.includes('transactions.index'));
+  assert.ok(paths.some(path => path.startsWith('transactions/')));
+  const restoredRoot = await mkdtemp(join(tmpdir(), 'epi-web-restore-'));
+  t.after(() => rm(restoredRoot, { recursive: true, force: true }));
+  const restored = fileStorage(restoredRoot, transactions);
+  assert.ok(await restored.importFiles(archive) > 0);
+  assert.equal(await restored.importFiles(archive), 0);
+  assert.ok((await restored.load()).notifications.some(row => row.id === deletion.id));
+  for (const file of archive.filter(file => file.path !== 'transactions.index')) {
+    assert.equal(await readFile(join(restoredRoot, file.path), 'utf8'), file.contents);
+  }
+  const ids = await readFile(join(restoredRoot, 'transactions.index'), 'utf8');
+  const originalIndex = archive.find(file => file.path === 'transactions.index').contents;
+  for (const uuid of originalIndex.trim().split('\n')) assert.ok(ids.split('\n').includes(uuid));
+
   await restarted.restoreNotification(deletion.id);
   assert.equal((await get('measures/' + profileId + '/2026-09-28T09-00-00.000Z.json')).uuid, measurementId);
 

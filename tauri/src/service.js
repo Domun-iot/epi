@@ -57,22 +57,14 @@ export async function connect(onState, onStatus, onRaw, onWeighing) {
   }
 
   async function importBytes(bytes) {
-    const current = native ? await invoke('export_files') : datasetFiles(await session.load());
-    const paths = new Set(current.map(file => file.path.toLowerCase()));
-    const contents = new Set(current.map(file => file.contents));
-    const files = readArchive(bytes).filter(file => {
-      const path = file.path.toLowerCase();
-      if (paths.has(path) || contents.has(file.contents)) return false;
-      paths.add(path);
-      contents.add(file.contents);
-      return true;
-    });
+    const files = readArchive(bytes);
     if (!files.length) return 0;
     const records = fileRecords(files);
-    if (!native) return session.importLegacy(records);
+    if (!native && !web) return session.importLegacy(records);
 
-    // Validate records before merging the original bytes with the shared CLI files.
+    // Validate the core records before merging the original bytes.
     await domain.createSession({ storage: { load: () => null, save: () => {} } }).importLegacy(records);
+    if (web) return session.importFiles(files);
     const added = await invoke('import_files', { files });
     await session.reload();
     return added;
@@ -100,7 +92,8 @@ export async function connect(onState, onStatus, onRaw, onWeighing) {
         if (!path) return false;
         await writeFile(path, writeArchive(await invoke('export_files')));
       } else {
-        const url = URL.createObjectURL(new Blob([writeArchive(datasetFiles(await session.load()))],
+        const files = web ? await session.exportFiles() : datasetFiles(await session.load());
+        const url = URL.createObjectURL(new Blob([writeArchive(files)],
           { type: 'application/zip' }));
         const link = Object.assign(document.createElement('a'), { href: url, download: filename });
         link.click();

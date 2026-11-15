@@ -57,7 +57,8 @@ function webSessionApi() {
       const require = createRequire(appPath);
       const domain = require('./domain/session.cjs');
       const storage = require('../shared/data-directory.cjs');
-      const { handleAction } = await createSessionApi({ root, domain, storage });
+      const transactions = require('../shared/transactions.cjs');
+      const { handleAction } = await createSessionApi({ root, domain, storage, transactions });
       server.middlewares.use('/api/session', (request, response, next) => {
         handleAction(request, response).catch(next);
       });

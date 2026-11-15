@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { link, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { isDeepStrictEqual as equal } from 'node:util';
-import { fileRecords, recordPath } from './file-records.js';
+import { fileRecords, recordPath, snapshotPath } from './file-records.js';
 
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu;
 const safeName = /^[\p{Alphabetic}\p{Number}][\p{Alphabetic}\p{Number} _-]*$/u;
@@ -53,7 +53,7 @@ async function writeAtomic(path, contents, replace) {
   }
 }
 
-export function fileStorage(root) {
+export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importHistory, prepareHistory }) {
   const read = path => optional(() => readFile(join(root, path), 'utf8'));
   const entries = async folder => (await optional(() => readdir(join(root, folder), { withFileTypes: true }))) ?? [];
   const readJson = async path => parse(await read(path));
@@ -194,6 +194,9 @@ export function fileStorage(root) {
         await writeAtomic(join(root, path), next, contents !== undefined);
         applied.push(path);
       }
+      recordTransaction(root, [...changes].map(([path, { contents, next }]) => ({
+        path, before: contents, after: next,
+      })));
     } catch (error) {
       const failures = [];
       for (const path of applied.reverse()) {
@@ -210,5 +213,86 @@ export function fileStorage(root) {
     }
   }
 
-  return { load, save };
+  async function exportFiles() {
+    const files = [];
+    async function collect(folder) {
+      for (const entry of await entries(folder)) {
+        const path = folder ? folder + '/' + entry.name : entry.name;
+        if (entry.isDirectory() && (['profiles', 'devices', 'measures', 'notifications', 'prefs',
+          'prefs/measurements', 'prefs/measurement-details', 'transactions', 'transactions.incoming'].includes(path) ||
+          folder === 'measures')) {
+          await collect(path);
+        } else if (entry.isFile() && snapshotPath(path)) {
+          const contents = await read(path);
+          if (contents !== undefined) files.push({ path, contents });
+        }
+      }
+    }
+    await collect('');
+    return files;
+  }
+
+  async function importFiles(files) {
+    const seen = new Set();
+    const current = await exportFiles();
+    const existing = new Set(current.map(file => file.path.toLowerCase()));
+    const logicalKeys = new Set();
+    const corePaths = [
+      ['profiles', file => file.uuid?.toLowerCase() ?? file.name?.toLowerCase()],
+      ['devices', file => file.bluetooth?.address?.toUpperCase() ?? file.uuid?.toLowerCase()],
+      ['measurements', file => measurementPath(file, profiles)],
+    ];
+    const profiles = fileRecords([...current, ...files].filter(file => file?.path?.startsWith('profiles/'))).profiles;
+    function remember(file) {
+      if (!recordPath.test(file.path)) return true;
+      const records = fileRecords([file]);
+      for (const [kind, identify] of corePaths) {
+        const row = records[kind][0];
+        if (!row) continue;
+        let identity;
+        try { identity = identify(row); }
+        catch (error) { if (!(error instanceof RangeError)) throw error; }
+        if (identity === undefined) break;
+        const key = kind + '/' + identity.toLowerCase();
+        if (logicalKeys.has(key)) return false;
+        logicalKeys.add(key);
+        break;
+      }
+      return true;
+    }
+    for (const file of current) remember(file);
+    const changes = [];
+    const history = [];
+    for (const file of files) {
+      if (!snapshotPath(file?.path) || typeof file.contents !== 'string') throw new Error('Fichier ZIP invalide.');
+      ensureNoSymlinks(root, file.path);
+      const key = file.path.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (file.path.startsWith('transactions')) {
+        history.push(file);
+      } else if (!existing.has(key) && remember(file)) {
+        const value = parse(file.contents);
+        if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Objet JSON attendu · ' + file.path);
+        changes.push(file);
+      }
+    }
+    const historyPlan = prepareHistory(history);
+    const applied = [];
+    try {
+      for (const { path, contents } of changes) {
+        await writeAtomic(join(root, path), contents, false);
+        applied.push({ path, after: contents });
+      }
+      recordTransaction(root, applied);
+    } catch (error) {
+      for (const { path, after } of applied.reverse()) {
+        if (await read(path) === after) await writeAtomic(join(root, path), undefined, true);
+      }
+      throw error;
+    }
+    return applied.length + importHistory(root, historyPlan);
+  }
+
+  return { load, save, exportFiles, importFiles };
 }

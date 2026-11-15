@@ -1,5 +1,7 @@
 mod bluetooth;
 mod storage;
+mod transaction_index;
+mod transactions;
 #[cfg(desktop)]
 mod window_preferences;
 

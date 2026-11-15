@@ -28,5 +28,7 @@ await copyFile(join(source, 'config.js'), join(output, 'config.js'), constants.C
 await cp(join(tauri, 'domain'), join(output, 'tauri', 'domain'), {
   recursive: true, filter: path => !path.endsWith('.test.cjs'),
 });
-await cp(join(source, '..', 'shared'), join(output, 'shared'), { recursive: true });
+await cp(join(source, '..', 'shared'), join(output, 'shared'), {
+  recursive: true, filter: path => !path.endsWith('.test.cjs'),
+});
 await writeFile(marker, 'ok\n');

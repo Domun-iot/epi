@@ -2,7 +2,7 @@ import { actions } from '../../web/actions.js';
 
 export function createWebSession(onState) {
   let pending = Promise.resolve();
-  return Object.fromEntries(actions.map(action => [action, (...args) => {
+  return Object.fromEntries([...actions, 'exportFiles', 'importFiles'].map(action => [action, (...args) => {
     const task = pending.then(async () => {
       const response = await fetch('/api/session', {
         method: 'POST',
@@ -11,6 +11,11 @@ export function createWebSession(onState) {
       });
       const state = await response.json();
       if (!response.ok) throw new Error(state.error);
+      if (action === 'exportFiles') return state.files;
+      if (action === 'importFiles') {
+        onState(state.state);
+        return state.added;
+      }
       onState(state);
       return state;
     });

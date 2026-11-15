@@ -1,8 +1,8 @@
 'use strict';
 
-const { mkdir, rename, unlink, writeFile } = require('node:fs/promises');
+const { readOptional, saveChanges, serialize } = require('../shared/transactions.cjs');
 const { randomUUID } = require('node:crypto');
-const { join } = require('node:path');
+const { basename, dirname, join } = require('node:path');
 const { listProfileFiles } = require('./record-files.cjs');
 const { profileDirectory } = require('./storage.cjs');
 const { createInterface } = require('node:readline/promises');
@@ -69,8 +69,6 @@ async function prepareProfile(values, {
   }
 
   if (file && (!stored?.uuid || hasFields || missing.length)) {
-    await mkdir(directory, { recursive: true });
-    const temp = file + '.' + randomUUID() + '.tmp';
     const record = { ...profile, name: user, uuid };
     if (stored) {
       if (stored.createdAt) record.createdAt = stored.createdAt;
@@ -79,12 +77,9 @@ async function prepareProfile(values, {
     } else {
       record.createdAt = new Date().toISOString();
     }
-    try {
-      await writeFile(temp, JSON.stringify(record, null, 2) + '\n', { flag: 'wx' });
-      await rename(temp, file);
-    } finally {
-      await unlink(temp).catch(error => { if (error.code !== 'ENOENT') throw error; });
-    }
+    saveChanges(dirname(directory), [{
+      path: basename(directory) + '/' + basename(file), before: readOptional(file), after: serialize(record),
+    }]);
     output.write(`Profil « ${user} » enregistré.\n`);
   }
   return profileAt({ ...profile, user, uuid });

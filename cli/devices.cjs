@@ -1,8 +1,8 @@
 'use strict';
 
-const { mkdirSync, writeFileSync, renameSync, unlinkSync } = require('node:fs');
+const { readOptional, saveChanges, serialize } = require('../shared/transactions.cjs');
 const { randomUUID } = require('node:crypto');
-const { join } = require('node:path');
+const { basename, dirname, join } = require('node:path');
 const { listRecordFiles } = require('./record-files.cjs');
 const { nameKey } = require('./profile-choice.cjs');
 const { createInterface } = require('node:readline/promises');
@@ -72,22 +72,19 @@ function updateDeviceMetadata(record, metadata) {
   if (changed) updated.updatedAt = new Date().toISOString();
   const file = devicePaths.get(record);
   if (file) {
-    const temp = file + '.' + randomUUID() + '.tmp';
-    try {
-      writeFileSync(temp, JSON.stringify(updated, null, 2) + '\n', { flag: 'wx' });
-      renameSync(temp, file);
-    } finally {
-      try { unlinkSync(temp); } catch (error) { if (error.code !== 'ENOENT') throw error; }
-    }
+    const root = dirname(file);
+    saveChanges(dirname(root), [{
+      path: basename(root) + '/' + basename(file), before: readOptional(file), after: serialize(updated),
+    }]);
   }
   Object.assign(record, updated);
 }
 
 function registerDevice(name, event, root = directory, metadata = {}) {
   const record = { ...buildDevice(name, event, metadata), uuid: randomUUID() };
-  mkdirSync(root, { recursive: true });
-  const file = join(root, record.uuid + '.json');
-  writeFileSync(file, JSON.stringify(record, null, 2) + '\n', { flag: 'wx' });
+  const nameOnDisk = record.uuid + '.json';
+  const file = join(root, nameOnDisk);
+  saveChanges(dirname(root), [{ path: basename(root) + '/' + nameOnDisk, after: serialize(record) }]);
   devicePaths.set(record, file);
   return record;
 }

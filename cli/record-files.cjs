@@ -1,8 +1,9 @@
 'use strict';
 
-const { readdirSync, readFileSync, writeFileSync, unlinkSync } = require('node:fs');
+const { readdirSync, readFileSync } = require('node:fs');
+const { saveChanges, serialize } = require('../shared/transactions.cjs');
 const { randomUUID } = require('node:crypto');
-const { join } = require('node:path');
+const { basename, dirname, join } = require('node:path');
 
 const uuidFile = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.json$/i;
 
@@ -12,18 +13,17 @@ function listRecordFiles(root, legacyFile, normalize) {
   catch (error) { if (error.code === 'ENOENT') return []; throw error; }
   return files.filter(file => file.isFile() && (uuidFile.test(file.name) || legacyFile.test(file.name))).map(({ name }) => {
     const source = join(root, name);
-    const record = normalize(JSON.parse(readFileSync(source, 'utf8').replace(/^\uFEFF/u, '')), name);
+    const before = readFileSync(source, 'utf8');
+    const record = normalize(JSON.parse(before.replace(/^\uFEFF/u, '')), name);
     const uuid = record.uuid ?? (uuidFile.test(name) ? name.slice(0, -5) : randomUUID());
     const file = uuid + '.json';
     if (!uuidFile.test(file)) throw Error('UUID invalide dans ' + name);
     if (file.toLowerCase() !== name.toLowerCase()) {
-      const target = join(root, file);
-      writeFileSync(target, JSON.stringify({ ...record, uuid }, null, 2) + '\n', { flag: 'wx' });
-      try { unlinkSync(source); }
-      catch (error) {
-        unlinkSync(target);
-        throw error;
-      }
+      const folder = basename(root) + '/';
+      saveChanges(dirname(root), [
+        { path: folder + file, after: serialize({ ...record, uuid }) },
+        { path: folder + name, before },
+      ]);
     }
     return { file, record: { ...record, uuid } };
   });

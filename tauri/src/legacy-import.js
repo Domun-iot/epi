@@ -1,5 +1,5 @@
 import { unzipSync, zipSync, strFromU8, strToU8 } from 'fflate';
-import { recordPath } from '../../web/file-records.js';
+import { snapshotPath } from '../../web/file-records.js';
 export { fileRecords } from '../../web/file-records.js';
 
 function dataPath(name) {
@@ -7,11 +7,11 @@ function dataPath(name) {
   if (path.split('/').some(part => part === '..' || part.includes('\\') || part.includes(':'))) {
     return null;
   }
-  if (recordPath.test(path)) return path;
+  if (snapshotPath(path)) return path;
   const marker = path.indexOf('data/');
   if (marker < 0 || (marker !== 0 && path[marker - 1] !== '/')) return null;
   const relative = path.slice(marker + 'data/'.length);
-  return recordPath.test(relative) ? relative : null;
+  return snapshotPath(relative) ? relative : null;
 }
 
 export function readArchive(bytes) {

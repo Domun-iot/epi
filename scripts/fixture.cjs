@@ -1,8 +1,9 @@
 'use strict';
 
 const { randomInt, randomUUID } = require('node:crypto');
-const { mkdirSync, unlinkSync, writeFileSync } = require('node:fs');
-const { join } = require('node:path');
+const { mkdirSync } = require('node:fs');
+const { relative } = require('node:path');
+const { readOptional, saveChanges, serialize } = require('../shared/transactions.cjs');
 const { listProfileFiles } = require('../cli/record-files.cjs');
 const { listDevices, registerDevice } = require('../cli/devices.cjs');
 const { dataDirectory, initializeDataDirectory, profileDirectory, readMeasurements, writeMeasurement } = require('../cli/storage.cjs');
@@ -22,7 +23,7 @@ function findOrCreateProfile(now) {
     heightCm: randomInt(160, 191),
     birthDate: birth.toISOString().slice(0, 10),
   };
-  writeFileSync(join(profileDirectory, profile.uuid + '.json'), JSON.stringify(profile, null, 2) + '\n', { flag: 'wx' });
+  saveChanges(dataDirectory, [{ path: 'profiles/' + profile.uuid + '.json', after: serialize(profile) }]);
   return profile;
 }
 
@@ -104,7 +105,10 @@ function main() {
       if (path) written.push(path);
     }
   } catch (error) {
-    for (const file of written) unlinkSync(file);
+    saveChanges(dataDirectory, written.flatMap(file => {
+      const before = readOptional(file);
+      return before === undefined ? [] : [{ path: relative(dataDirectory, file).replaceAll('\\', '/'), before }];
+    }));
     throw error;
   }
   console.log(written.length + ' pesées créées pour « ' + profile.name + ' » avec « ' + device.name + ' » dans ' + dataDirectory + '.');

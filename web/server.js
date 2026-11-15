@@ -6,9 +6,10 @@ import config from './config.js';
 import { createSessionApi, json } from './session-api.js';
 import domain from './tauri/domain/session.cjs';
 import storage from './shared/data-directory.cjs';
+import transactions from './shared/transactions.cjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
-const { dataDir, handleAction } = await createSessionApi({ root, domain, storage });
+const { dataDir, handleAction } = await createSessionApi({ root, domain, storage, transactions });
 const types = new Map([
   ['.html', 'text/html; charset=utf-8'],
   ['.js', 'text/javascript; charset=utf-8'],
