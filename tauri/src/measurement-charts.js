@@ -4,9 +4,9 @@ const axisDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'short' });
 const axisTime = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' });
 const axisValue = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
 
-function valueScale(points) {
+function valueScale(points, referenceTop = 0) {
   let low = 0;
-  let high = 0;
+  let high = referenceTop;
   for (const { value, plottedValue } of points) {
     low = Math.min(low, value, plottedValue);
     high = Math.max(high, value, plottedValue);
@@ -17,7 +17,41 @@ function valueScale(points) {
   const min = Math.floor(low / step) * step;
   const max = Math.ceil((low + range) / step) * step;
   const ticks = Array.from({ length: Math.round((max - min) / step) + 1 }, (_, index) => min + index * step);
-  return { min, max, ticks };
+  const y = value => 100 * (max - value) / (max - min);
+  return { min, max, ticks, y };
+}
+
+const bmiBands = [
+  { upper: 16, label: 'Maigreur sévère', color: '#d54848' },
+  { upper: 17, label: 'Maigreur modérée', color: '#e67e32' },
+  { upper: 18.5, label: 'Maigreur légère', color: '#e5b72c' },
+  { upper: 25, label: 'Corpulence normale', color: '#44a66b' },
+  { upper: 30, label: 'Surpoids', color: '#e5b72c' },
+  { upper: 35, label: 'Obésité I', color: '#e67e32' },
+  { upper: 40, label: 'Obésité II', color: '#d54848' },
+  { upper: Infinity, label: 'Obésité III', color: '#9b61cb' },
+];
+
+function renderBmiBands({ y, min, max }) {
+  return bmiBands.map(({ upper, color }, index) => {
+    const top = y(Math.min(max, upper));
+    const bottom = y(Math.max(min, bmiBands[index - 1]?.upper ?? min));
+    return `<rect class="chart-bmi-band" x="0" y="${top}" width="100" height="${bottom - top}" fill="${color}"/>`;
+  }).join('');
+}
+
+function renderBmiReference(value) {
+  const category = bmiBands.find(({ upper }) => value < upper);
+  return `<details class="chart-bmi-reference">
+    <summary>Repères IMC adulte · ${category.label}</summary>
+    <ul>${bmiBands.map(({ upper, label, color }, index) => {
+      const lower = bmiBands[index - 1]?.upper;
+      const interval = lower === undefined ? `&lt; ${axisValue.format(upper)}`
+        : upper === Infinity ? `≥ ${axisValue.format(lower)}`
+          : `${axisValue.format(lower)} à &lt; ${axisValue.format(upper)}`;
+      return `<li><span aria-hidden="true" style="--band-color:${color}"></span>${label} (${interval})</li>`;
+    }).join('')}</ul>
+  </details>`;
 }
 
 function smoothSamples(samples) {
@@ -42,9 +76,7 @@ function plotSeries(series, timeline, start, end, mode) {
   const samples = history.filter(({ time }) => time >= start && time <= end);
   const points = samples.filter(({ value }) => Number.isFinite(value));
   if (!points.length) return null;
-  const { min, max, ticks } = valueScale(points);
-  const y = value => 100 * (max - value) / (max - min);
-  return { ...series, samples, points, ticks, y };
+  return { ...series, samples, points, ...valueScale(points) };
 }
 
 function renderLine({ id, color, samples, y }, x, active) {
@@ -85,7 +117,7 @@ const signedValue = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2, s
 
 const statusLabels = { visible: 'Visible', bold: 'En gras', hidden: 'Masquée' };
 
-export function measurementCharts(rows, series, { period = 'all', range, mode = 'smooth', statuses = {} }) {
+export function measurementCharts(rows, series, { period = 'all', range, mode = 'smooth', statuses = {}, profileAge }) {
   const configured = series.map((item, index) => ({ ...item, color: colors[index] }))
     .filter(({ id }) => Object.hasOwn(statuses, id));
   const legend = `<div class="chart-legend" role="group" aria-labelledby="chart-series-label">
@@ -108,11 +140,11 @@ export function measurementCharts(rows, series, { period = 'all', range, mode = 
       </div>
     </div>
     ${range ? `<p class="chart-range">Du ${e(formatDate(range[0]))} au ${e(formatDate(range[1]))}</p>` : ''}
-    ${chartPlot(rows, configured, { period, range, mode, statuses }, legend)}
+    ${chartPlot(rows, configured, { period, range, mode, statuses, profileAge }, legend)}
   </section>`;
 }
 
-function chartPlot(rows, series, { period, range, mode, statuses }, legend) {
+function chartPlot(rows, series, { period, range, mode, statuses, profileAge }, legend) {
   const timeline = rows.map((row, index) => ({ row, index, time: Date.parse(row.receivedAt) }))
     .filter(({ time }) => Number.isFinite(time)).sort((a, b) => a.time - b.time);
   const latestTime = timeline.at(-1)?.time;
@@ -126,6 +158,11 @@ function chartPlot(rows, series, { period, range, mode, statuses }, legend) {
   }
 
   const active = lines.find(({ id }) => statuses[id] === 'bold') ?? lines[0];
+  const bmiReference = active.id === 'bmi' && active.points.every(({ row }) => {
+    const age = row.profile?.age ?? profileAge;
+    return age == null || age >= 18;
+  });
+  if (bmiReference) Object.assign(active, valueScale(active.points, 45));
   const layered = [...lines.filter(line => line !== active), active];
   const x = time => end === start ? 50 : 100 * (time - start) / (end - start);
   const dateLabel = axisDate.format(start) === axisDate.format(end) && start !== end ? axisTime : axisDate;
@@ -145,6 +182,7 @@ function chartPlot(rows, series, { period, range, mode, statuses }, legend) {
         title="Glissez horizontalement pour sélectionner une plage de dates"` : ''}>
         <div class="chart-selection" hidden></div>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          ${bmiReference ? renderBmiBands(active) : ''}
           ${active.ticks.map(value => `<path class="chart-gridline" d="M0,${active.y(value)} H100" vector-effect="non-scaling-stroke"/>`).join('')}
           ${layered.map(line => renderLine(line, x, statuses[line.id] === 'bold')).join('')}
         </svg>
@@ -153,5 +191,6 @@ function chartPlot(rows, series, { period, range, mode, statuses }, legend) {
       <div class="chart-dates" aria-hidden="true">${start === end
         ? `<span class="chart-date-single">${e(dateLabel.format(start))}</span>`
         : `<span>${e(dateLabel.format(start))}</span><span class="chart-date-middle">${e(dateLabel.format((start + end) / 2))}</span><span>${e(dateLabel.format(end))}</span>`}</div>
-    </div>`;
+    </div>
+    ${bmiReference ? renderBmiReference(latest.value) : ''}`;
 }

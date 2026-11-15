@@ -620,12 +620,20 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   const series = weightChart.locator('svg .chart-line');
   assert.deepEqual((await series.evaluateAll(lines => lines.map(line => line.dataset.series))).sort(), ['bmi', 'impedanceOhms', 'weight']);
   const bmi = weightChart.getByRole('button', { name: 'IMC (kg/m²)', exact: true });
+  const bands = weightChart.locator('svg .chart-bmi-band');
+  assert.equal(await bands.count(), 0);
   await bmi.click();
   await weightChart.locator('.chart-line-active[data-series="bmi"]').waitFor({ state: 'attached' });
   assert.equal(await bmi.getAttribute('aria-pressed'), 'true');
+  assert.deepEqual(await bands.evaluateAll(rects => rects.map(rect => rect.getAttribute('fill'))),
+    ['#d54848', '#e67e32', '#e5b72c', '#44a66b', '#e5b72c', '#e67e32', '#d54848', '#9b61cb']);
+  const reference = weightChart.getByText('Repères IMC adulte · Surpoids', { exact: true });
+  await reference.click();
+  assert.match(await weightChart.locator('.chart-bmi-reference ul').innerText(), /Corpulence normale \(18,5 à < 25\)/);
   await bmi.click();
   await weightChart.locator('.chart-line[data-series="bmi"]').waitFor({ state: 'detached' });
   assert.equal(await bmi.getAttribute('data-status'), 'hidden');
+  assert.equal(await bands.count(), 0);
   const points = weightChart.locator('.chart-point[data-series="weight"]');
   const adouci = weightChart.getByRole('button', { name: 'Adouci', exact: true });
   const brut = weightChart.getByRole('button', { name: 'Brut', exact: true });
