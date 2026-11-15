@@ -4,6 +4,7 @@ import { bluetoothView, createBluetoothWatch } from './bluetooth-watch.js';
 import { escapeHtml as e, formatDate, nameKey, sortByName, userIcon } from './format.js';
 import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
+import { renderChartDates, snapChartRange } from './measurement-charts.js';
 import { viewPresetHeader, viewPresetTitles } from './view-presets.js';
 import { notificationBody, notificationDetailHeader, notificationRecordView, notificationsView, resolveNotification } from './notifications-view.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
@@ -188,7 +189,10 @@ function render() {
           notificationDetailHeader(target, 'Détails de la pesée'))
         : notificationRecordView(target);
     viewHeader.innerHTML = markup.header;
+    chartDatesResize.disconnect();
     viewContent.innerHTML = markup.content;
+    const chartDates = viewContent.querySelector('.chart-dates');
+    if (chartDates) chartDatesResize.observe(chartDates);
     bluetoothWatch.attach(viewContent.querySelector('#bluetooth-log'), state.addressFilter);
     if (pageChanged) {
       viewScroll.scrollTop = 0;
@@ -607,6 +611,7 @@ function positionPinnedHeader() {
   panel.style.setProperty('--header-offset', `${offset}px`);
 }
 
+const chartDatesResize = new ResizeObserver(([{ target, contentRect }]) => renderChartDates(target, contentRect.width));
 const pinnedHeaderResize = new ResizeObserver(positionPinnedHeader);
 pinnedHeaderResize.observe(viewScroll);
 pinnedHeaderResize.observe(viewHeader);
@@ -728,10 +733,7 @@ function updateChartSelection(x) {
   }
   const start = Number(plot.dataset.start);
   const duration = Number(plot.dataset.end) - start;
-  const leftDate = new Date(start + first * duration);
-  leftDate.setDate(leftDate.getDate() - 1);
-  const rangeStart = leftDate.setHours(0, 0, 0, 0);
-  const rangeEnd = new Date(start + last * duration).setHours(23, 59, 59, 999);
+  const [rangeStart, rangeEnd] = snapChartRange(start + first * duration, start + last * duration);
   const leftPercent = Math.max(0, (rangeStart - start) / duration * 100);
   const rightPercent = Math.min(100, (rangeEnd - start) / duration * 100);
   preview.style.left = `${leftPercent}%`;

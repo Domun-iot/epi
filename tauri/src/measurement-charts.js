@@ -1,12 +1,71 @@
 import { escapeHtml as e, formatDate } from './format.js';
 
 const axisDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'short' });
-const axisTime = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' });
+const axisDay = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
+const axisMonth = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' });
 const axisValue = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
 const dayMs = 86400_000;
 
+function localDay(time) {
+  return Math.floor((time - new Date(time).getTimezoneOffset() * 60_000) / dayMs);
+}
+
+function timeUnit(start, end) {
+  const days = localDay(end) - localDay(start);
+  if (days > 30) return 'month';
+  if (days > 7) return 'week';
+  return 'day';
+}
+
+function periodStart(time, unit) {
+  const date = new Date(time);
+  if (unit === 'month') date.setDate(1);
+  if (unit === 'week') date.setDate(date.getDate() - (date.getDay() + 6) % 7);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function advancePeriod(date, unit, count = 1) {
+  if (unit === 'month') date.setMonth(date.getMonth() + count);
+  else date.setDate(date.getDate() + count * (unit === 'week' ? 7 : 1));
+  date.setHours(0, 0, 0, 0);
+}
+
+export function snapChartRange(start, end) {
+  const unit = timeUnit(start, end);
+  const left = periodStart(start, unit);
+  if (unit === 'day') advancePeriod(left, unit, -1);
+  const right = periodStart(end, unit);
+  advancePeriod(right, unit);
+  return [left.getTime(), right.getTime() - 1];
+}
+
+export function renderChartDates(axis, width) {
+  if (width <= 0) return;
+  const start = Number(axis.dataset.start);
+  const end = Number(axis.dataset.end);
+  const unit = timeUnit(start, end);
+  const date = periodStart(start, unit);
+  if (date < start) advancePeriod(date, unit);
+  const format = unit === 'month' ? axisMonth : axisDay;
+  const labelGap = 80;
+  const labelInset = Math.min(35, width / 2);
+  const labels = [];
+  let previous = -Infinity;
+  // Clip the label centers at the edges, and omit labels whose text would overlap.
+  for (; date <= end; advancePeriod(date, unit)) {
+    const position = end === start ? width / 2 : width * (date - start) / (end - start);
+    const center = Math.max(labelInset, Math.min(width - labelInset, position));
+    if (center - previous < labelGap) continue;
+    labels.push(`<div class="chart-date-tick" data-time="${date.getTime()}" style="--x:${position}px;--label-offset:${center - position}px">
+      <span>${e(format.format(date))}</span>
+    </div>`);
+    previous = center;
+  }
+  axis.innerHTML = labels.join('') || `<div class="chart-date-tick" style="--x:50%"><span>${e(axisDate.format(start))}</span></div>`;
+}
+
 function rangeLabel([start, end]) {
-  const localDay = time => Math.floor((time - new Date(time).getTimezoneOffset() * 60_000) / dayMs);
   const days = localDay(end) - localDay(start) + 1;
   const [unit, divisor] = days > 365 ? ['year', 365] : days > 30 ? ['month', 30] : ['day', 1];
   const duration = new Intl.NumberFormat('fr-FR', {
@@ -178,7 +237,6 @@ function chartPlot(rows, series, { period, range, mode, statuses, profileAge }, 
   if (bmiReference) Object.assign(active, valueScale(active.points, 45));
   const layered = [...lines.filter(line => line !== active), active];
   const x = time => end === start ? 50 : 100 * (time - start) / (end - start);
-  const dateLabel = axisDate.format(start) === axisDate.format(end) && start !== end ? axisTime : axisDate;
   const latest = active.points.at(-1);
   const change = latest.value - active.points[0].value;
   const changeLabel = active.points.length > 1
@@ -201,9 +259,7 @@ function chartPlot(rows, series, { period, range, mode, statuses, profileAge }, 
         </svg>
         ${layered.map(line => renderPoints(line, x, statuses[line.id] === 'bold')).join('')}
       </div>
-      <div class="chart-dates" aria-hidden="true">${start === end
-        ? `<span class="chart-date-single">${e(dateLabel.format(start))}</span>`
-        : `<span>${e(dateLabel.format(start))}</span><span class="chart-date-middle">${e(dateLabel.format((start + end) / 2))}</span><span>${e(dateLabel.format(end))}</span>`}</div>
+      <div class="chart-dates" data-start="${start}" data-end="${end}" aria-hidden="true"></div>
     </div>
     ${bmiReference ? renderBmiReference(latest.value) : ''}`;
 }

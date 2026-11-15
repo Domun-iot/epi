@@ -660,10 +660,20 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   await page.mouse.up();
   const selectedRange = weightChart.locator('.chart-range');
   await selectedRange.waitFor();
-  assert.match(await selectedRange.textContent(), /^Du 23\/12\/2025 au 15\/01\/2026 \(24\sjours\)$/);
-  assert.equal(Number(await plot.getAttribute('data-start')), Date.parse('2025-12-23T00:00:00+01:00'));
-  assert.equal(Number(await plot.getAttribute('data-end')), Date.parse('2026-01-15T23:59:59.999+01:00'));
+  assert.match(await selectedRange.textContent(), /^Du 22\/12\/2025 au 18\/01\/2026 \(28\sjours\)$/);
+  assert.equal(Number(await plot.getAttribute('data-start')), Date.parse('2025-12-22T00:00:00+01:00'));
+  assert.equal(Number(await plot.getAttribute('data-end')), Date.parse('2026-01-18T23:59:59.999+01:00'));
   assert.equal(await points.count(), 2);
+  const ticks = weightChart.locator('.chart-dates [data-time]');
+  await ticks.first().waitFor();
+  assert.ok(await ticks.count() < 4);
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await ticks.nth(3).waitFor();
+  assert.deepEqual(await ticks.evaluateAll(labels => labels.map(label => {
+    const date = new Date(Number(label.dataset.time));
+    return [date.getDay(), date.getHours()];
+  })), Array.from({ length: 4 }, () => [1, 0]));
+  await page.setViewportSize({ width: 360, height: 800 });
   await page.reload();
   await selectedRange.waitFor();
   assert.equal(await brut.getAttribute('aria-pressed'), 'true');
