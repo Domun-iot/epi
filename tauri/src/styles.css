@@ -80,8 +80,8 @@ p { line-height: 1.55; }
 .view-preset-picker ul { position: absolute; z-index: 5; inset: calc(100% + 4px) auto auto 0; width: max-content; max-width: min(300px, 80vw); max-height: 50vh; overflow: auto; margin: 0; padding: 6px; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 14px rgb(15 29 49 / 20%); }
 .view-preset-picker li .button { width: 100%; justify-content: space-between; gap: 12px; text-align: left; overflow-wrap: anywhere; border: 0; background: transparent; }
 .view-preset-picker li .button:hover { background: var(--hover, #edf3fd); }
-.button.view-preset-icon { flex: none; width: var(--action-button-height); height: var(--action-button-height); padding: 0; }
-.view-preset-header svg { flex: none; width: 18px; height: 18px; }
+.button.view-preset-icon, .button.icon-button { flex: none; width: var(--action-button-height); height: var(--action-button-height); padding: 0; }
+.view-preset-header svg, .icon-button svg { flex: none; width: 18px; height: 18px; }
 .button {
   --action-button-height: 42px;
   display: inline-flex;

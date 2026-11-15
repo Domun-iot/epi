@@ -707,6 +707,58 @@ test('une trame reçue pendant la saisie prépare l’enregistrement de la balan
   assert.equal(await page.getByText(/En attente d’une pesée/).count(), 0);
 });
 
+test('les suppressions demandent confirmation et persistent après rechargement', async t => {
+  const remaining = { ...record, receivedAt: '2026-01-16T17:23:21Z' };
+  const other = { ...record, profile: { name: 'Bob' } };
+  const page = await pageWith(t, {
+    profiles: [alice, bob], selectedProfile: 'Alice', devices: [device],
+    measurements: [record, remaining, other], profilePreferences: { Alice: { theme: 'dark' } },
+  });
+  const dialog = page.getByRole('dialog');
+  const confirm = () => dialog.getByRole('button', { name: 'Supprimer', exact: true }).click();
+  const cancel = () => dialog.getByRole('button', { name: 'Annuler' }).click();
+  const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1')));
+
+  await choosePage(page, 'Appareils');
+  await page.getByRole('button', { name: 'Écouter seulement cet appareil' }).click();
+  const deleteDevice = page.getByRole('button', { name: 'Supprimer l’appareil Salle de bain' });
+  await deleteDevice.click();
+  await cancel();
+  await deleteDevice.click();
+  await confirm();
+  await deleteDevice.waitFor({ state: 'detached' });
+  assert.equal((await stored()).addressFilter, null);
+  assert.equal((await stored()).measurements.length, 3);
+
+  await choosePage(page, 'Mesures');
+  await page.getByRole('button', { name: /Voir la pesée du/ }).last().click();
+  const deleteMeasurement = page.getByRole('button', { name: 'Supprimer la pesée' });
+  await deleteMeasurement.click();
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden' });
+  await deleteMeasurement.click();
+  await confirm();
+  await page.getByRole('table', { name: 'Pesées' }).waitFor();
+  assert.deepEqual((await stored()).measurements, [remaining, other]);
+
+  await choosePage(page, 'Profils');
+  const deleteProfile = page.getByRole('button', { name: 'Supprimer le profil Alice' });
+  await deleteProfile.click();
+  await dialog.getByText(/Toutes les mesures enregistrées pour ce profil/).waitFor();
+  await cancel();
+  await deleteProfile.click();
+  await confirm();
+  await deleteProfile.waitFor({ state: 'detached' });
+  await page.reload();
+  await page.getByText('Mode simulation', { exact: true }).waitFor();
+  const snapshot = await stored();
+  assert.deepEqual(snapshot.profiles, [bob]);
+  assert.deepEqual(snapshot.measurements, [other]);
+  assert.deepEqual(snapshot.devices, []);
+  assert.deepEqual(snapshot.profilePreferences, {});
+  assert.equal(snapshot.selectedProfile, null);
+});
+
 test('capture et renommage, attribution automatique et flux brut horodaté', async t => {
   const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Bob', measurements: [record] }, { locale: 'fr-FR' });
   await choosePage(page, 'Appareils');

@@ -3,6 +3,7 @@
 const { buildDevice, deviceFileKey } = require('../../shared/device-fields.cjs');
 const { canonicalAddress } = require('../../shared/scale.cjs');
 const { historyRecord, latestWeights, matchWeight } = require('../../shared/history.cjs');
+const { nameKey } = require('../../shared/profile-fields.cjs');
 const { createAcquisition } = require('./acquisition.cjs');
 const { applyObservation, enrollmentRequest, findDevice } = require('./devices.cjs');
 const { ADDRESS, findProfile, profileFields, mergeLegacy } = require('./records.cjs');
@@ -174,6 +175,28 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     });
   }
 
+  function deleteProfile(name) {
+    return mutate(draft => {
+      const profile = findProfile(draft, name);
+      if (!profile) throw Error('Profil introuvable.');
+      const key = nameKey(profile.name);
+      draft.profiles = draft.profiles.filter(candidate => candidate !== profile);
+      draft.measurements = draft.measurements.filter(row =>
+        typeof row.profile?.name !== 'string' || nameKey(row.profile.name) !== key);
+      draft.profilePreferences = { ...draft.profilePreferences };
+      delete draft.profilePreferences[profile.name];
+      if (draft.selectedProfile === profile.name) draft.selectedProfile = null;
+    });
+  }
+
+  function deleteMeasurement(row) {
+    return mutate(draft => {
+      const index = draft.measurements.indexOf(row);
+      if (index < 0) throw Error('Pesée introuvable.');
+      draft.measurements = draft.measurements.toSpliced(index, 1);
+    });
+  }
+
   function setTheme(profile, theme) {
     return mutate(draft => {
       const target = profile == null ? null : findProfile(draft, profile);
@@ -310,6 +333,22 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
     });
   }
 
+  function deleteDevice(address) {
+    return enqueue(async () => {
+      await transact(draft => {
+        const device = findDevice(draft, address);
+        if (!device) throw Error('Appareil introuvable.');
+        draft.devices = draft.devices.filter(candidate => candidate !== device);
+        if (draft.addressFilter === address) draft.addressFilter = null;
+        draft.pending = draft.pending.map(item => item.event.address === address
+          ? { ...item, device: null, reason: 'device', bluetoothMetadata: acquisition.metadataFor(address) ?? null }
+          : item);
+      });
+      if (enrollment?.address === address) enrollment = null;
+      return publish();
+    });
+  }
+
   function beginDevice(input) {
     return enqueue(async () => {
       const request = enrollmentRequest(saved, input);
@@ -423,7 +462,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000 }) {
       return () => observers.delete(observer);
     },
     selectProfile, saveProfile, setColumnPreference, renameDevice, beginDevice, cancelDevice, confirmProfile,
-    setPanelOpen, changeViewPreset, setTheme,
+    deleteProfile, deleteDevice, deleteMeasurement, setPanelOpen, changeViewPreset, setTheme,
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
     moveDetailSection: (...args) => movePreference('detailSectionOrder', ...args),

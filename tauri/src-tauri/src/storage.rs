@@ -426,6 +426,109 @@ fn save_measurements(root: &Path, new: &[Value], previous: &[Value]) -> Result<(
     Ok(())
 }
 
+fn row_key(row: &Value) -> String {
+    fn normalize_numbers(value: &mut Value) {
+        match value {
+            Value::Number(number) => {
+                // JavaScript sends integral floats as integers.
+                if let Some(float) = number.as_f64() {
+                    *value = json!(if float == 0.0 { 0.0 } else { float });
+                }
+            }
+            Value::Array(items) => items.iter_mut().for_each(normalize_numbers),
+            Value::Object(fields) => fields.values_mut().for_each(normalize_numbers),
+            _ => {}
+        }
+    }
+    let mut canonical = row.clone();
+    normalize_numbers(&mut canonical);
+    canonical.sort_all_objects();
+    canonical.to_string()
+}
+
+fn row_counts(rows: &[Value]) -> HashMap<String, usize> {
+    let mut counts = HashMap::new();
+    for row in rows {
+        *counts.entry(row_key(row)).or_insert(0) += 1;
+    }
+    counts
+}
+
+fn deletion_paths(root: &Path, session: &Value, previous: &Value) -> Result<Vec<PathBuf>, String> {
+    let files = dataset_files(root)?;
+    let mut paths = Vec::new();
+    let deleting_profile = rows(session, "profiles").len() < rows(previous, "profiles").len();
+    for (key, folder) in [
+        ("profiles", "profiles/"),
+        ("devices", "devices/"),
+        ("measurements", "measures/"),
+    ] {
+        let before = rows(previous, key);
+        let after = rows(session, key);
+        // A profile deletion also checks for measurements added by the CLI since loading.
+        if after.len() >= before.len() && !(key == "measurements" && deleting_profile) {
+            continue;
+        }
+        let mut actual = Vec::new();
+        let mut retained = row_counts(after);
+        for file in files.iter().filter(|file| file.path.starts_with(folder)) {
+            let row = record(file)?;
+            let count = retained.entry(row_key(&row)).or_default();
+            if *count > 0 {
+                *count -= 1;
+            } else {
+                paths.push(root.join(&file.path));
+            }
+            actual.push(row);
+        }
+        if row_counts(&actual) != row_counts(before) || retained.values().any(|count| *count > 0) {
+            return Err("Les données ont changé. Recharge les données avant de réessayer.".into());
+        }
+    }
+    if let Some(prefs) = previous["profilePreferences"].as_object() {
+        for profile in prefs.keys() {
+            if session["profilePreferences"].get(profile).is_none() {
+                let path = profile_prefs_path(root, profile);
+                if path.try_exists().map_err(message)? {
+                    paths.push(path);
+                }
+            }
+        }
+    }
+    Ok(paths)
+}
+
+fn save_deletion(root: &Path, session: &Value, previous: &Value) -> Result<(), String> {
+    let paths = deletion_paths(root, session, previous)?;
+    let staging = tempfile::tempdir_in(root).map_err(message)?;
+    let mut moved = Vec::new();
+    let result = (|| {
+        for (index, path) in paths.iter().enumerate() {
+            let target = staging.path().join(index.to_string());
+            fs::rename(path, &target).map_err(message)?;
+            moved.push((path, target));
+        }
+        save_preferences(root, session, previous)
+    })();
+    if let Err(error) = result {
+        let mut rollback_error = None;
+        for (path, target) in moved.into_iter().rev() {
+            if let Err(restore) = fs::rename(target, path) {
+                rollback_error = Some(restore);
+            }
+        }
+        if let Some(restore) = rollback_error {
+            let backup = staging.keep();
+            return Err(format!(
+                "{error} · Restauration incomplète : {restore} · {}",
+                backup.display()
+            ));
+        }
+        return Err(error);
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn load_session(app: AppHandle) -> Result<Value, String> {
     read_session(&data_root(&app)?)
@@ -439,6 +542,12 @@ pub fn save_session(
     device_paths: Value,
 ) -> Result<(), String> {
     let root = data_root(&app)?;
+    if ["profiles", "devices", "measurements"]
+        .iter()
+        .any(|key| rows(&session, key).len() < rows(&previous, key).len())
+    {
+        return save_deletion(&root, &session, &previous);
+    }
     if session["profiles"] != previous["profiles"] {
         save_records(&root, &session, &previous, "profiles", name, |row| {
             Ok(format!(
@@ -584,6 +693,59 @@ mod tests {
         }
         assert_eq!(shared_data(&release), Some(project.join("data")));
         assert_eq!(shared_data(root.path()), None);
+    }
+
+    #[test]
+    fn deletions_persist_and_reject_stale_measurements() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path();
+        let profile = json!({ "name": "Alice" });
+        let profile_file = path.join("profiles/profil-alice.json");
+        let prefs_file = profile_prefs_path(path, "Alice");
+        json_write(&profile_file, &profile, false).unwrap();
+        json_write(&prefs_file, &json!({ "theme": "dark" }), false).unwrap();
+        let device_file = path.join("devices/scale.json");
+        json_write(&device_file, &json!({ "name": "Scale" }), false).unwrap();
+        let first = path.join("measures/alice/first.json");
+        let second = path.join("measures/alice/second.json");
+        let other = path.join("measures/bob/first.json");
+        let reading = |name, weight| {
+            json!({ "profile": { "name": name }, "measures": { "weight": weight } })
+        };
+        json_write(&first, &reading("Alice", 60.0), false).unwrap();
+        json_write(&second, &reading("Alice", 61.0), false).unwrap();
+        json_write(&other, &reading("Bob", 62.0), false).unwrap();
+
+        let mut before = read_session(path).unwrap();
+        before["measurements"][0]["measures"]["weight"] = json!(60);
+        let mut after = before.clone();
+        after["measurements"].as_array_mut().unwrap().remove(0);
+        save_deletion(path, &after, &before).unwrap();
+        assert!(!first.exists());
+        assert!(second.exists());
+
+        let before = read_session(path).unwrap();
+        let mut after = before.clone();
+        after["devices"] = json!([]);
+        save_deletion(path, &after, &before).unwrap();
+        assert!(!device_file.exists());
+        assert!(second.exists());
+
+        let before = read_session(path).unwrap();
+        let mut after = before.clone();
+        after["profiles"] = json!([]);
+        after["profilePreferences"] = json!({});
+        after["measurements"].as_array_mut().unwrap().remove(0);
+        json_write(&first, &reading("Alice", 63.0), false).unwrap();
+        assert!(save_deletion(path, &after, &before).is_err());
+        assert!(profile_file.exists());
+        assert!(second.exists());
+        fs::remove_file(first).unwrap();
+        save_deletion(path, &after, &before).unwrap();
+        assert!(!profile_file.exists());
+        assert!(!prefs_file.exists());
+        assert!(!second.exists());
+        assert!(other.exists());
     }
 
     #[test]

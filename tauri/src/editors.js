@@ -54,6 +54,9 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
       }
     });
     controls.querySelector('[data-action="close-editor"]').addEventListener('click', close);
+    if (modal) dialog.oncancel = event => {
+      if (submitting) event.preventDefault();
+    };
     if (modal) {
       dialog.showModal();
     } else {
@@ -166,9 +169,14 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
     form.querySelector('[name="name"]').select();
   }
 
-  function deleteViewEditor(name, submit) {
-    open('Supprimer la configuration', `<p>Supprimer « ${e(name)} » pour tous les profils ?</p>`, submit, 'Supprimer', { modal: true });
+  function confirmDeletion(title, message, submit) {
+    open(title, `<p>${e(message)}</p>`, submit, 'Supprimer', { modal: true });
+    dialog.querySelector('[data-action="close-editor"]').focus();
   }
 
-  return { closeView, profileEditor, deviceEditor, assignmentEditor, filterEditor, viewNameEditor, deleteViewEditor };
+  function deleteViewEditor(name, submit) {
+    confirmDeletion('Supprimer la configuration', `Supprimer « ${name} » pour tous les profils ?`, submit);
+  }
+
+  return { closeView, profileEditor, deviceEditor, assignmentEditor, filterEditor, viewNameEditor, deleteViewEditor, confirmDeletion };
 }

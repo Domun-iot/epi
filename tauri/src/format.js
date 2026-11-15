@@ -45,6 +45,16 @@ export function button(label, action, { value, primary = false } = {}) {
   return `<button class="button${primary ? ' primary' : ''}" type="button" data-action="${action}"${key}>${escapeHtml(label)}</button>`;
 }
 
+export const trashIcon = '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7"/>';
+
+export function deleteButton(label, action, value) {
+  const key = value == null ? '' : ` data-value="${escapeHtml(value)}"`;
+  return `<button class="button icon-button" type="button" data-action="${action}"${key}
+    title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${trashIcon}</svg></button>`;
+}
+
 export function pageHeader(title, subtitle = '', actions = '') {
   return `<header class="page-header"><div><h1>${title}</h1>${subtitle ? `<p class="muted">${subtitle}</p>` : ''}</div>${actions}</header>`;
 }

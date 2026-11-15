@@ -1,6 +1,6 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { connect } from './service.js';
-import { escapeHtml as e, formatDate, nameKey, sortByName, userIcon } from './format.js';
+import { deleteButton, escapeHtml as e, formatDate, nameKey, sortByName, userIcon } from './format.js';
 import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
 import { viewPresetHeader, viewPresetTitles } from './view-presets.js';
@@ -130,7 +130,8 @@ function render() {
     const previousPinnedTable = view.querySelector('.pinned-header');
     if (previousPinnedTable) pinnedHeaderResize.unobserve(previousPinnedTable);
     stopReorder();
-    const header = layout && viewPresetHeader(kind, layout);
+    const header = layout && viewPresetHeader(kind, layout,
+      detail ? deleteButton('Supprimer la pesée', 'delete-measurement') : '');
     const focusedPresetAction = active?.closest('.view-preset-header') && active.dataset.action;
     const markup = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, columnsOpen, columnQuery, header)
@@ -232,6 +233,22 @@ const actions = {
   'new-profile': () => addProfile(),
   'edit-profile': name => editor.profileEditor(state.profiles.find(profile => profile.name === name), profile => session.saveProfile(profile)),
   'select-profile': name => session.selectProfile(name),
+  'delete-profile': name => editor.confirmDeletion('Supprimer le profil',
+    `Supprimer le profil « ${name} » ? Toutes les mesures enregistrées pour ce profil seront définitivement supprimées.`,
+    () => session.deleteProfile(name)),
+  'delete-device': address => {
+    const device = state.devices.find(entry => entry.bluetooth.address === address);
+    if (device) editor.confirmDeletion('Supprimer l’appareil',
+      `Supprimer l’appareil « ${device.name} » ?`, () => session.deleteDevice(address));
+  },
+  'delete-measurement': () => {
+    const row = reading;
+    if (!row) return;
+    editor.confirmDeletion('Supprimer la pesée', `Supprimer définitivement la pesée du ${formatDate(row.receivedAt)} ?`, async () => {
+      await session.deleteMeasurement(row);
+      if (reading === row) actions['back-to-measurements']();
+    });
+  },
   'new-device': () => {
     const previous = new Set(state.pending.map(item => item.id));
     const showCapture = editor.deviceEditor({}, request => session.beginDevice(request));

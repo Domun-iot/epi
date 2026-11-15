@@ -1,4 +1,4 @@
-import { button, deviceFields, escapeHtml as e, formatCalendarDate, number, pairs, pageHeader, sortByName, userIcon, weight } from './format.js';
+import { button, deleteButton, deviceFields, escapeHtml as e, formatCalendarDate, number, pairs, pageHeader, sortByName, userIcon, weight } from './format.js';
 
 export function profilesView(profiles, selected) {
   const action = button('Créer un profil', 'new-profile', { primary: true });
@@ -8,7 +8,8 @@ export function profilesView(profiles, selected) {
     const age = profile.birthDate ? `Naissance : ${formatCalendarDate(profile.birthDate)}` : `${number(profile.age)} ans`;
     return `<article class="panel list-item"><header><h2>${e(profile.name)}${active ? ` <span role="img" aria-label="Profil actif" title="Profil actif">${userIcon}</span>` : ''}</h2>
       <div class="actions">${active ? '' : button('Sélectionner', 'select-profile', { value: profile.name })}
-      ${button('Modifier', 'edit-profile', { value: profile.name })}</div></header>
+      ${button('Modifier', 'edit-profile', { value: profile.name })}
+      ${deleteButton(`Supprimer le profil ${profile.name}`, 'delete-profile', profile.name)}</div></header>
       <p class="muted">${e(sex)} · ${e(age)} · ${e(number(profile.heightCm))} cm</p></article>`;
   }).join('');
   const content = entries
@@ -21,7 +22,8 @@ export function devicesView(devices, filter, rawOpen) {
   const action = button('Ajouter un appareil', 'new-device', { primary: true });
   const entries = sortByName(devices).map(device => `<article class="panel list-item"><header>
     <h2>${e(device.name)}</h2><div class="actions">${button('Renommer', 'rename-device', { value: device.bluetooth.address })}
-    ${device.bluetooth.address === filter ? '' : button('Écouter seulement cet appareil', 'filter-address', { value: device.bluetooth.address })}</div></header>
+    ${device.bluetooth.address === filter ? '' : button('Écouter seulement cet appareil', 'filter-address', { value: device.bluetooth.address })}
+    ${deleteButton(`Supprimer l’appareil ${device.name}`, 'delete-device', device.bluetooth.address)}</div></header>
     ${pairs(deviceFields(device))}</article>`).join('');
   const filterInfo = filter ? `<div class="notice"><p>Écoute limitée à ${e(filter)}.</p>${button('Écouter tous les appareils', 'clear-filter')}</div>` : '';
   const diagnostics = `<details class="panel settings" data-expand="raw"${rawOpen ? ' open' : ''}>
