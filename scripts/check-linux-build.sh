@@ -6,7 +6,7 @@ case "$1" in
     desktop)
         exe=release/linux/epi
         set -- shared tauri/index.html tauri/package.json tauri/package-lock.json \
-            tauri/vite.config.js tauri/desktop.mjs tauri/src tauri/domain \
+            tauri/vite.config.js tauri/desktop.mjs tauri/src tauri/domain tauri/public \
             tauri/src-tauri/Cargo.toml tauri/src-tauri/Cargo.lock tauri/src-tauri/build.rs \
             tauri/src-tauri/tauri.conf.json tauri/src-tauri/tauri.linux.conf.json \
             tauri/src-tauri/capabilities tauri/src-tauri/icons tauri/src-tauri/src \
@@ -22,7 +22,7 @@ case "$1" in
             [ -f "release/web/$file" ] || exit 1
         done
         set -- shared tauri/index.html tauri/package.json tauri/package-lock.json \
-            tauri/vite.config.js tauri/src tauri/domain web run/build-web.sh
+            tauri/vite.config.js tauri/src tauri/domain tauri/public web run/build-web.sh
         ;;
     *) exit 1 ;;
 esac

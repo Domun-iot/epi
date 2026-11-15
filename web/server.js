@@ -13,7 +13,11 @@ const types = new Map([
   ['.html', 'text/html; charset=utf-8'],
   ['.js', 'text/javascript; charset=utf-8'],
   ['.css', 'text/css; charset=utf-8'],
+  ['.ico', 'image/x-icon'],
+  ['.png', 'image/png'],
+  ['.webmanifest', 'application/manifest+json'],
 ]);
+const rootFiles = new Set(['/index.html', '/favicon.ico', '/manifest.webmanifest']);
 const local = ['localhost', '127.0.0.1', '::1'].includes(config.host);
 
 async function handle(request, response) {
@@ -25,7 +29,8 @@ async function handle(request, response) {
   const file = pathname === '/' ? '/index.html' : pathname;
   const type = types.get(extname(file));
   if (!['GET', 'HEAD'].includes(request.method) || !type
-      || (file !== '/index.html' && !/^\/assets\/[\w.-]+$/.test(file))) {
+      || (!rootFiles.has(file) && !/^\/assets\/[\w.-]+$/.test(file)
+          && !/^\/app-icons\/[\w-]+\.png$/.test(file))) {
     return json(response, 404, { error: 'Page introuvable.' });
   }
   let bytes;

@@ -9,7 +9,7 @@ if ($Target -eq 'web') {
     }
     $exe = Get-Item -LiteralPath (Join-Path $root 'release/web/build.ok')
     $inputs += @('tauri/index.html', 'tauri/package.json', 'tauri/package-lock.json',
-        'tauri/vite.config.js', 'tauri/src', 'tauri/domain', 'web', 'run/build-web.bat')
+        'tauri/vite.config.js', 'tauri/src', 'tauri/domain', 'tauri/public', 'web', 'run/build-web.bat')
 } elseif ($Target -eq 'cli') {
     $exe = Get-Item -LiteralPath (Join-Path $root 'release/cli/windows/epi-cli.exe')
     $inputs += @(
@@ -30,6 +30,7 @@ if ($Target -eq 'web') {
         'tauri/desktop.mjs'
         'tauri/src'
         'tauri/domain'
+        'tauri/public'
         'tauri/src-tauri/Cargo.toml'
         'tauri/src-tauri/Cargo.lock'
         'tauri/src-tauri/build.rs'

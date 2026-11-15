@@ -22,6 +22,14 @@ Lance `run\web.bat` ou `sh run/web.sh` depuis le dépôt. Le lanceur construit l
 
 Copie le dossier `release/web/` sur le serveur Linux ou Windows, puis lance `npm start` depuis ce dossier. Node.js 20.19 ou supérieur et npm doivent être disponibles sur le serveur. La release contient le serveur et les fichiers statiques, sans installation npm à effectuer.
 
+Pour installer éPI depuis le navigateur, ouvre la version web en HTTPS ou en local sur `localhost`, puis utilise le menu du navigateur.
+
+- Dans Chrome ou Edge sur ordinateur et Chrome sur Android, choisis **Installer** ou **Ajouter à l’écran d’accueil** selon la version.
+- Dans Safari sur iPhone ou iPad, utilise **Partager → Sur l’écran d’accueil**, puis active **Ouvrir comme app web** si l’option est proposée.
+- Dans Safari sur Mac (macOS Sonoma ou ultérieur), utilise **Fichier → Ajouter au Dock**.
+
+L’application web installée se lance dans sa propre fenêtre et utilise toujours le serveur éPI pour accéder aux données.
+
 Édite `config.js` à la racine de la release et redémarre le serveur après modification.
 
 ```js
