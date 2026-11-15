@@ -1,4 +1,4 @@
-import { button, deviceFields, escapeHtml as e, formatCalendarDate, formatDate, number, pairs, pageHeader, sortByName, userIcon, weight } from './format.js';
+import { button, deviceFields, escapeHtml as e, formatCalendarDate, formatDate, formatDateMinutes, number, pairs, pageHeader, sortByName, userIcon, weight } from './format.js';
 
 export function profilesView(profiles, selected) {
   const action = button('Créer un profil', 'new-profile', { primary: true });
@@ -9,7 +9,11 @@ export function profilesView(profiles, selected) {
     return `<article id="profiles/${e(profile.uuid)}" tabindex="-1" class="panel list-item"><header><h2>${e(profile.name)}${active ? ` <span role="img" aria-label="Profil actif" title="Profil actif">${userIcon}</span>` : ''}</h2>
       <div class="actions">${active ? '' : button('Sélectionner', 'select-profile', { value: profile.name })}
       ${button('Modifier', 'edit-profile', { value: profile.name })}</div></header>
-      <p class="muted">${e(sex)} · ${e(age)} · ${e(number(profile.heightCm))} cm</p></article>`;
+      <p class="muted">${e(sex)} · ${e(age)} · ${e(number(profile.heightCm))} cm</p>
+      ${pairs([
+        ['Créé le', formatDateMinutes(profile.createdAt)],
+        ['Dernière modification', formatDateMinutes(profile.updatedAt)],
+      ])}</article>`;
   }).join('');
   const content = entries
     ? `<div class="list">${entries}</div>`

@@ -229,7 +229,11 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
         throw Error('Cet élément a déjà été restauré.');
       }
       if (type === 'profile') {
-        const profile = profileFieldsOverride ? { ...profileFields(profileFieldsOverride), uuid: record.uuid } : record;
+        const profile = profileFieldsOverride ? {
+          ...profileFields(profileFieldsOverride), uuid: record.uuid,
+          ...(record.createdAt && { createdAt: record.createdAt }),
+          updatedAt: new Date().toISOString(),
+        } : record;
         if (findProfile(draft, profile.name)) throw Error('Un profil porte déjà ce nom.');
         draft.profiles = [...draft.profiles, profile];
         if (entry.preferences) draft.profilePreferences = { ...draft.profilePreferences, [profile.name]: entry.preferences };
@@ -344,10 +348,12 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
           const { [existing.name]: preferences, ...others } = draft.profilePreferences;
           draft.profilePreferences = { ...others, [profile.name]: preferences };
         }
-        draft.profiles = draft.profiles.map(candidate => candidate === existing ? { ...profile, uuid: existing.uuid } : candidate);
+        const updated = { ...profile, uuid: existing.uuid, updatedAt: new Date().toISOString() };
+        if (existing.createdAt) updated.createdAt = existing.createdAt;
+        draft.profiles = draft.profiles.map(candidate => candidate === existing ? updated : candidate);
       } else {
         if (existing) throw Error('Ce nom de profil est déjà utilisé.');
-        draft.profiles = [...draft.profiles, identify(profile)];
+        draft.profiles = [...draft.profiles, identify({ ...profile, createdAt: new Date().toISOString() })];
         draft.selectedProfile ??= profile.name;
       }
       notify(draft, { type: 'profile', action: 'saved', record: findProfile(draft, profile.name), actor: saved.selectedProfile });
@@ -589,7 +595,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
         const existing = findDevice(draft, request.address);
         if (!existing) throw Error('Appareil introuvable.');
         if (request.name !== existing.name) {
-          const renamed = { ...existing, name: request.name };
+          const renamed = { ...existing, name: request.name, updatedAt: new Date().toISOString() };
           draft.devices = draft.devices.map(device => device === existing ? renamed : device);
           notify(draft, { type: 'device', action: 'saved', record: renamed });
           if (draft.pending.some(item => item.device?.bluetooth.address === request.address)) {

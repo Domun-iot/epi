@@ -66,20 +66,21 @@ function findDevice(event, devices) {
 
 function updateDeviceMetadata(record, metadata) {
   const bluetooth = mergeDeviceMetadata(record, metadata);
-  if (record.uuid && JSON.stringify(bluetooth) === JSON.stringify(record.bluetooth)) return;
-  const uuid = record.uuid ?? randomUUID();
+  const changed = JSON.stringify(bluetooth) !== JSON.stringify(record.bluetooth);
+  if (record.uuid && !changed) return;
+  const updated = { ...record, bluetooth, uuid: record.uuid ?? randomUUID() };
+  if (changed) updated.updatedAt = new Date().toISOString();
   const file = devicePaths.get(record);
   if (file) {
     const temp = file + '.' + randomUUID() + '.tmp';
     try {
-      writeFileSync(temp, JSON.stringify({ ...record, bluetooth, uuid }, null, 2) + '\n', { flag: 'wx' });
+      writeFileSync(temp, JSON.stringify(updated, null, 2) + '\n', { flag: 'wx' });
       renameSync(temp, file);
     } finally {
       try { unlinkSync(temp); } catch (error) { if (error.code !== 'ENOENT') throw error; }
     }
   }
-  record.bluetooth = bluetooth;
-  record.uuid = uuid;
+  Object.assign(record, updated);
 }
 
 function registerDevice(name, event, root = directory, metadata = {}) {

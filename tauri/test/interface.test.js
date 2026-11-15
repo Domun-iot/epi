@@ -968,16 +968,24 @@ test('les volets du flux brut et des détails sont mémorisés par profil', asyn
 test('dates selon la locale active et conservation de la date de naissance et de l’horloge de la balance', async t => {
   const birthDate = '1980-01-05';
   const scaleTime = '2026-03-08T02:15:00';
-  const profile = { ...alice, birthDate };
-  const measurement = { ...record, profile, reception: { scale: { scaleTime } } };
-  const page = await pageWith(t, { profiles: [profile], selectedProfile: 'Alice', measurements: [measurement] },
+  const profile = { ...alice, birthDate, createdAt: record.receivedAt, updatedAt: '2026-01-15T17:25:42Z' };
+  const scale = { ...device, registeredAt: profile.createdAt, updatedAt: profile.updatedAt };
+  const measurement = { ...record, profile, device: scale, reception: { scale: { scaleTime } } };
+  const page = await pageWith(t, { profiles: [profile], devices: [scale], selectedProfile: 'Alice', measurements: [measurement] },
     { locale: 'en-US', timezoneId: 'America/Los_Angeles' });
 
+  assert.match(await page.locator('.measurement-summary .muted').innerText(), /9:23 AM$/);
   await page.getByRole('button', { name: /Voir la pesée du 1\/15\/26, 9:23:21/ }).click();
+  assert.match(await page.locator('.measurement-details > p').innerText(), /9:23 AM$/);
   await page.getByText(/^3\/8\/26, 2:15:00/).waitFor();
   await page.getByText('1/5/80', { exact: true }).waitFor();
   await choosePage(page, 'Profils');
   await page.getByText(/Naissance : 1\/5\/80/).waitFor();
+  await page.getByText(/9:23 AM$/, { exact: true }).waitFor();
+  await page.getByText(/9:25 AM$/, { exact: true }).waitFor();
+  await choosePage(page, 'Appareils');
+  await page.getByText(/9:23 AM$/, { exact: true }).waitFor();
+  await page.getByText(/9:25 AM$/, { exact: true }).waitFor();
 });
 
 test('la création de profil utilise la vue centrale et les boutons de la barre', async t => {
@@ -1467,8 +1475,10 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   await icon.click();
   const saved = page.locator('.notification-item').getByRole('button', { name: /^Pesée enregistrée/ });
   assert.match(await saved.innerText(), /Impédance reçue/);
+  assert.match(await saved.innerText(), /\d{1,2}:\d{2}:\d{2}/);
   await saved.click();
   await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
+  assert.match(await page.locator('.measurement-details > p').innerText(), /\d{1,2}:\d{2}:\d{2}/);
   await choosePage(page, 'Mesures');
   await page.getByRole('button', { name: /Voir la pesée du/ }).first().click();
   await page.locator('#detail-actions').getByRole('button', { name: 'Supprimer', exact: true }).click();

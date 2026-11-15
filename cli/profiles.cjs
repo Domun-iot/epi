@@ -71,8 +71,16 @@ async function prepareProfile(values, {
   if (file && (!stored?.uuid || hasFields || missing.length)) {
     await mkdir(directory, { recursive: true });
     const temp = file + '.' + randomUUID() + '.tmp';
+    const record = { ...profile, name: user, uuid };
+    if (stored) {
+      if (stored.createdAt) record.createdAt = stored.createdAt;
+      if (hasFields || missing.length) record.updatedAt = new Date().toISOString();
+      else if (stored.updatedAt) record.updatedAt = stored.updatedAt;
+    } else {
+      record.createdAt = new Date().toISOString();
+    }
     try {
-      await writeFile(temp, JSON.stringify({ ...profile, name: user, uuid }, null, 2) + '\n', { flag: 'wx' });
+      await writeFile(temp, JSON.stringify(record, null, 2) + '\n', { flag: 'wx' });
       await rename(temp, file);
     } finally {
       await unlink(temp).catch(error => { if (error.code !== 'ENOENT') throw error; });

@@ -5,6 +5,7 @@ export function escapeHtml(value) {
 }
 
 const dateTime = new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'medium' });
+const dateTimeMinutes = new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' });
 const calendarDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeZone: 'UTC' });
 const wallTime = new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'medium', timeZone: 'UTC' });
 
@@ -14,6 +15,7 @@ function format(value, formatter) {
 }
 
 export const formatDate = value => format(value, dateTime);
+export const formatDateMinutes = value => format(value, dateTimeMinutes);
 export const formatCalendarDate = value => format(value, calendarDate);
 
 // The scale sends a wall-clock time with no time zone.
@@ -72,6 +74,7 @@ export function deviceFields(device = {}) {
     ['Marque', bluetooth.brand],
     ['Modèle', bluetooth.model],
     ['Origine du modèle', bluetooth.modelSource],
-    ['Enregistré le', formatDate(device.registeredAt)],
+    ['Enregistré le', formatDateMinutes(device.registeredAt)],
+    ['Dernière modification', formatDateMinutes(device.updatedAt)],
   ];
 }

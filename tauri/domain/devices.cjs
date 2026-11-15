@@ -37,6 +37,7 @@ function applyObservation(state, request, { event, metadata }, metadataFor) {
   bluetooth = mergeDeviceMetadata({ bluetooth }, metadataFor(address) ?? {});
   const device = { ...existing, name: matched ? request.name : existing.name, bluetooth };
   if (JSON.stringify(device) !== JSON.stringify(existing)) {
+    device.updatedAt = new Date().toISOString();
     state.devices = state.devices.map(candidate => candidate === existing ? device : candidate);
   }
   return matched ? device : null;

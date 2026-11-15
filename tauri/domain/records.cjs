@@ -50,7 +50,12 @@ function appendUnique(existing, imported, key) {
 }
 
 function mergeLegacy(state, snapshot) {
-  const profiles = (snapshot.profiles ?? []).map(row => ({ ...profileFields(row), ...(row.uuid && { uuid: row.uuid }) }));
+  const profiles = (snapshot.profiles ?? []).map(row => ({
+    ...profileFields(row),
+    ...(row.uuid && { uuid: row.uuid }),
+    ...(row.createdAt && { createdAt: row.createdAt }),
+    ...(row.updatedAt && { updatedAt: row.updatedAt }),
+  }));
   const devices = (snapshot.devices ?? []).map(record => {
     const address = record?.bluetooth?.address;
     if (typeof record?.name !== 'string' || !ADDRESS.test(address)) {

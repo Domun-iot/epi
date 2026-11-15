@@ -40,7 +40,9 @@ test('keeps the manual selection on reopen and edits profile details without cha
   assert.equal(selected.selectedProfile, 'Lou');
   assert.deepEqual(selected.measurements, initial.measurements);
   assert.equal(selected.measurements[0].profile.uuid, initial.profiles[0].uuid);
-  assert.deepEqual(selected.profiles[0], { name: 'Lou', sex: 'F', heightCm: 171.5, age: 42, uuid: initial.profiles[0].uuid });
+  const { updatedAt, ...edited } = selected.profiles[0];
+  assert.equal(new Date(updatedAt).toISOString(), updatedAt);
+  assert.deepEqual(edited, { name: 'Lou', sex: 'F', heightCm: 171.5, age: 42, uuid: initial.profiles[0].uuid });
   await session.setColumnPreference('Lou', 'fatPercent', 'columns', true);
   await session.setColumnPreference('Lou', 'fatPercent', 'splitColumns', true);
   const other = await session.selectProfile('Sam');
@@ -174,12 +176,15 @@ test('registers captured device information, refreshes it only through Bluetooth
   await session.ingest('META AABBCCDDEEFF TUlCRlM= 0157', start + 1);
   const [{ id, reason }] = waiting.pending;
   assert.equal(reason, 'device');
-  await session.saveProfile(sam);
+  const { profiles: [created] } = await session.saveProfile(sam);
+  assert.equal(new Date(created.createdAt).toISOString(), created.createdAt);
+  assert.equal(created.updatedAt, undefined);
   await assert.rejects(session.confirmProfile({ id, name: 'Sam' }), /balance/);
 
   const reopened = fixture(disk()).session;
   const enrolled = await reopened.beginDevice({ name: 'Cuisine', address });
   assert.equal(enrolled.devices[0].bluetooth.model, 'XMTZC05HM');
+  assert.equal(enrolled.devices[0].updatedAt, undefined);
   assert.equal(enrolled.pending[0].reason, 'profile');
   await reopened.beginDevice({ address, name: 'Salon', bluetooth: { model: 'Saisi' } });
   const ignored = await reopened.ingest(indicating, start + 2);
@@ -187,6 +192,9 @@ test('registers captured device information, refreshes it only through Bluetooth
   const refreshed = await reopened.ingest(xiaomi(full) + ' Advertisement TUlCRlM=', start + 3);
   assert.equal(refreshed.enrollment, null);
   assert.equal(refreshed.devices[0].name, 'Salon');
+  assert.equal(refreshed.devices[0].registeredAt, enrolled.devices[0].registeredAt);
+  const { updatedAt } = refreshed.devices[0];
+  assert.equal(new Date(updatedAt).toISOString(), updatedAt);
   assert.equal(refreshed.devices[0].bluetooth.model, 'XMTZC05HM');
   const confirmed = await reopened.confirmProfile({ id, name: 'Sam' });
   assert.equal(confirmed.selectedProfile, 'Sam');

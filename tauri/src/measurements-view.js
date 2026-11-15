@@ -2,7 +2,7 @@ import composition from 'virtual:epi-composition';
 import { kg } from 'virtual:epi-domain';
 import { measurementCharts } from './measurement-charts.js';
 import { METHOD_COLUMNS, METRICS } from './service.js';
-import { deviceFields, escapeHtml as e, formatCalendarDate, formatDate, formatScaleTime, nameKey, number, pairs, pageHeader, weight } from './format.js';
+import { deviceFields, escapeHtml as e, formatCalendarDate, formatDate, formatDateMinutes, formatScaleTime, nameKey, number, pairs, pageHeader, weight } from './format.js';
 
 const colors = [
   ['▰','#153873','#dce9ff'], ['●','#882d16','#ffe4d7'], ['◆','#724909','#fef0c5'],
@@ -125,7 +125,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
   const last = rows[0];
   const emptyText = profile ? 'Aucune pesée enregistrée pour ce profil.' : 'Sélectionnez un profil pour afficher ses pesées.';
   const summary = last ? `<div class="panel measurement-summary">
-    <p>Dernier poids <strong>${weight(last.measures)}</strong></p><p class="muted">${formatDate(last.receivedAt)}</p>
+    <p>Dernier poids <strong>${weight(last.measures)}</strong></p><p class="muted">${formatDateMinutes(last.receivedAt)}</p>
   </div>` : '';
   header ??= pageHeader('Pesées');
   if (!last) return { header, content: `${settings}<p class="panel empty">${emptyText}</p>` };
@@ -182,7 +182,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
   return { header, content };
 }
 
-export function measurementDetails(row, methodOrder = [], sectionOrder = [], sectionsOpen = {}, header) {
+export function measurementDetails(row, methodOrder = [], sectionOrder = [], sectionsOpen = {}, header, formatReadingDate = formatDateMinutes) {
   const byId = new Map(methods.map(method => [method.id, method]));
   const activeMethods = [...new Set([...methodOrder, ...byId.keys()])].map(id => byId.get(id))
     .filter(Boolean).filter(({ id }) => METRICS.some(([metric]) => Number.isFinite(row.calculations?.[id]?.[metric])))
@@ -192,7 +192,7 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
         ? 'https://doi.org/10.1093/ajcn/46.6.875' : methodSources[method.id],
     }));
   const measures = row.measures ?? row;
-  const readings = `<p><strong>${weight(measures)}</strong> · ${formatDate(row.receivedAt)}</p>`;
+  const readings = `<p><strong>${weight(measures)}</strong> · ${formatReadingDate(row.receivedAt)}</p>`;
   const comparison = activeMethods.length ? `<div class="panel table-scroll pinned-header comparison-scroll" role="region" aria-label="Comparaison des méthodes" tabindex="0">
     <table aria-label="Comparaison des méthodes"${defaultOrder(methodColumnOrder)}><thead><tr><th scope="col">Donnée</th><th scope="col">Moyenne</th>${activeMethods.map(method => methodHeader(method, columnDrag(method.id))).join('')}</tr></thead>
     <tbody>${METRICS.filter(([id]) => activeMethods.some(method => Number.isFinite(row.calculations?.[method.id]?.[id])))

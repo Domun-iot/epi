@@ -187,7 +187,7 @@ function render() {
       : !entry ? notificationsView(state)
       : target.type === 'measurement'
         ? measurementDetails(target.record, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen,
-          notificationDetailHeader(target, 'Détails de la pesée'))
+          notificationDetailHeader(target, 'Détails de la pesée'), formatDate)
         : notificationRecordView(target);
     viewHeader.innerHTML = markup.header;
     chartDatesResize.disconnect();

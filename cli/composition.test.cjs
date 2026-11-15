@@ -56,11 +56,16 @@ test('creates a named profile, reloads it and applies only supplied overrides', 
   const initial = await prepareProfile({ utilisateur: 'Camille', sexe: 'H', age: '40', taille: '180' }, options);
   assert.match(initial.uuid, /^[\da-f-]{36}$/);
   assert.deepEqual(initial, { ...profile, user: 'Camille', uuid: initial.uuid });
+  const file = join(directory, initial.uuid + '.json');
+  const created = JSON.parse(await readFile(file, 'utf8'));
+  assert.equal(new Date(created.createdAt).toISOString(), created.createdAt);
+  assert.equal(created.updatedAt, undefined);
   assert.deepEqual(await prepareProfile({ utilisateur: 'Camille' }, options), initial);
   await assert.rejects(prepareProfile({ utilisateur: 'Camille', age: '-1' }, options), /--age/);
   await prepareProfile({ utilisateur: 'Camille', taille: '181,5' }, options);
-  const stored = JSON.parse(await readFile(join(directory, initial.uuid + '.json'), 'utf8'));
-  assert.deepEqual(stored, { ...profile, heightCm: 181.5, name: 'Camille', uuid: initial.uuid });
+  const { updatedAt, ...stored } = JSON.parse(await readFile(file, 'utf8'));
+  assert.equal(new Date(updatedAt).toISOString(), updatedAt);
+  assert.deepEqual(stored, { ...profile, heightCm: 181.5, name: 'Camille', uuid: initial.uuid, createdAt: created.createdAt });
   assert.equal(await prepareProfile({}, options), null);
 });
 
