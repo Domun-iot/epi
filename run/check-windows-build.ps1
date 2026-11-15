@@ -1,9 +1,16 @@
-param([ValidateSet('desktop', 'cli')][string]$Target = 'desktop')
+param([ValidateSet('desktop', 'cli', 'web')][string]$Target = 'desktop')
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $inputs = @('shared')
-if ($Target -eq 'cli') {
+if ($Target -eq 'web') {
+    foreach ($file in @('build.ok', 'package.json', 'config.js', 'server.js', 'actions.js', 'public/index.html')) {
+        if (!(Test-Path -LiteralPath (Join-Path $root "release/web/$file") -PathType Leaf)) { exit 1 }
+    }
+    $exe = Get-Item -LiteralPath (Join-Path $root 'release/web/build.ok')
+    $inputs += @('tauri/index.html', 'tauri/package.json', 'tauri/package-lock.json',
+        'tauri/vite.config.js', 'tauri/src', 'tauri/domain', 'web', 'run/build-web.bat')
+} elseif ($Target -eq 'cli') {
     $exe = Get-Item -LiteralPath (Join-Path $root 'release/cli/windows/epi-cli.exe')
     $inputs += @(
         'cli/package.json'

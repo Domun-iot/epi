@@ -1,35 +1,14 @@
 'use strict';
 
-const { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } = require('node:fs');
-const { homedir } = require('node:os');
-const { dirname, isAbsolute, join } = require('node:path');
+const { mkdirSync, readdirSync, readFileSync, writeFileSync } = require('node:fs');
+const { dirname, join } = require('node:path');
 const { isSea } = require('node:sea');
 
-const dataFolders = ['devices', 'measures', 'profiles'];
+const { dataFolders, resolveDataDirectory } = require('../shared/data-directory.cjs');
 
-function findSharedData(directory) {
-  while (true) {
-    const data = join(directory, 'data');
-    if (dataFolders.every(name => {
-      try { return statSync(join(data, name)).isDirectory(); }
-      catch { return false; }
-    })) return data;
-
-    const parent = dirname(directory);
-    if (parent === directory) return undefined;
-    directory = parent;
-  }
-}
-
-function userDataDirectory() {
-  const base = process.platform === 'win32'
-    ? process.env.APPDATA || join(homedir(), 'AppData', 'Roaming')
-    : (isAbsolute(process.env.XDG_DATA_HOME || '') ? process.env.XDG_DATA_HOME : join(homedir(), '.local', 'share'));
-  return join(base, 'fr.epi.balance', 'data');
-}
-
-const sharedData = process.env.EPI_DATA_DIR || findSharedData(isSea() ? dirname(process.execPath) : __dirname);
-const dataDirectory = sharedData || userDataDirectory();
+const { directory: dataDirectory, shared: sharedData } = resolveDataDirectory(
+  isSea() ? dirname(process.execPath) : __dirname,
+);
 
 function initializeDataDirectory() {
   if (sharedData) return;

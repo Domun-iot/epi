@@ -3,6 +3,7 @@ import { listen } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { readFile, writeFile } from '@tauri-apps/plugin-fs';
 import domain from 'virtual:epi-session';
+import { createWebSession } from './web-session.js';
 import composition from 'virtual:epi-composition';
 import { datasetFiles, fileRecords, readArchive, writeArchive } from './legacy-import.js';
 
@@ -16,6 +17,7 @@ const zipFilters = [{ name: 'Archive ZIP', extensions: ['zip'] }];
 
 export async function connect(onState, onStatus, onRaw) {
   const native = isTauri();
+  const web = import.meta.env.MODE === 'web' && !native;
   const storage = native ? {
     load: () => invoke('load_session'),
     save: (session, previous) => invoke('save_session', {
@@ -29,9 +31,13 @@ export async function connect(onState, onStatus, onRaw) {
     load: () => JSON.parse(localStorage.getItem(snapshotKey) ?? 'null'),
     save: session => localStorage.setItem(snapshotKey, JSON.stringify(session)),
   };
-  const session = domain.createSession({ storage });
-  session.subscribe(onState);
-  onState(await session.load());
+  const session = web ? createWebSession(onState) : domain.createSession({ storage });
+  if (web) {
+    await session.load();
+  } else {
+    session.subscribe(onState);
+    onState(await session.load());
+  }
 
   function receive(line) {
     onRaw?.(line);
@@ -52,6 +58,8 @@ export async function connect(onState, onStatus, onRaw) {
     } catch (error) {
       onStatus?.('Bluetooth indisponible · ' + String(error));
     }
+  } else if (web) {
+    onStatus?.('Mode web · import ZIP');
   } else {
     onStatus?.('Mode simulation');
     window.addEventListener('epi:frame', event => receive(event.detail));
@@ -81,8 +89,9 @@ export async function connect(onState, onStatus, onRaw) {
 
   return {
     ...session,
-    retryBluetooth,
+    retryBluetooth: web ? undefined : retryBluetooth,
     native,
+    web,
     async importLegacy(file) {
       return importBytes(new Uint8Array(await file.arrayBuffer()));
     },

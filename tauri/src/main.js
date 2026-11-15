@@ -135,7 +135,7 @@ function render() {
     const focusedPresetAction = active?.closest('.view-preset-header') && active.dataset.action;
     const markup = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder, columnsOpen, columnQuery, header)
-      : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile) : devicesView(state.devices, state.addressFilter, state.rawOpen);
+      : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile) : devicesView(state.devices, state.addressFilter, state.rawOpen, !session?.web);
     viewHeader.innerHTML = markup.header;
     viewContent.innerHTML = markup.content;
     if (pageChanged) viewScroll.scrollTop = 0;
@@ -621,7 +621,7 @@ try {
     renderFrames();
   });
   themeToggle.disabled = false;
-  reloadButton.hidden = !session.native;
+  reloadButton.hidden = !session.native && !session.web;
   canRetryBluetooth = Boolean(session.retryBluetooth) && status.textContent !== 'Mode simulation';
   renderBluetooth();
   onState(await session.load());

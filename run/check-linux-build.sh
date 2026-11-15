@@ -16,10 +16,18 @@ case "$1" in
         exe=release/cli/linux/epi-cli
         set -- shared cli/*.cjs cli/package.json cli/package-lock.json run/build-cli.sh
         ;;
+    web)
+        exe=release/web/build.ok
+        for file in build.ok package.json config.js server.js actions.js public/index.html; do
+            [ -f "release/web/$file" ] || exit 1
+        done
+        set -- shared tauri/index.html tauri/package.json tauri/package-lock.json \
+            tauri/vite.config.js tauri/src tauri/domain web run/build-web.sh
+        ;;
     *) exit 1 ;;
 esac
 
-[ -x "$exe" ] || exit 1
+case "$exe" in *.ok) ;; *) [ -x "$exe" ] || exit 1 ;; esac
 for input do
     case "$input" in cli/*.test.cjs) continue ;; esac
     [ -e "$input" ] || continue

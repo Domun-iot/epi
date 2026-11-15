@@ -8,11 +8,32 @@
 | Interface en développement | `run\dev-éPI.bat` sous Windows ou `sh run/dev-éPI.sh` sous Linux |
 | CLI de release | `run\cli.bat` sous Windows ou `sh run/cli.sh` sous Linux. Le lanceur reconstruit la release si elle manque ou si ses sources ou sa configuration de build sont plus récentes. |
 | CLI en développement | `run\dev-cli.bat` sous Windows ou `sh run/dev-cli.sh` sous Linux |
+| Web | `run\web.bat` sous Windows ou `sh run/web.sh` sous Linux. Depuis la release, lance `npm start`. |
 | Tests CLI | `npm --prefix cli test` |
 | Tests du domaine Tauri | `npm --prefix tauri test` |
 | Tests interactifs | `npm --prefix tauri run test:ui` |
 
 Les [tests de démarrage](docs/TEST-DEMARRAGE.md) couvrent les lanceurs et décrivent les essais sur les paquets installés.
+
+## Version web
+
+Lance `run\web.bat` ou `sh run/web.sh` depuis le dépôt. Le lanceur construit la version web si elle manque ou si ses sources sont plus récentes. Pour préparer ou construire manuellement, utilise `run\prep-web.bat` et `run\build-web.bat` sous Windows, ou `sh run/prep-web.sh` et `sh run/build-web.sh` sous Linux. Le build lance la préparation si son marqueur manque.
+
+Copie le dossier `release/web/` sur le serveur Linux ou Windows, puis lance `npm start` depuis ce dossier. Node.js 20.19 ou supérieur et npm doivent être disponibles sur le serveur. La release contient le serveur et les fichiers statiques, sans installation npm à effectuer.
+
+Édite `config.js` à la racine de la release et redémarre le serveur après modification.
+
+```js
+export default {
+  host: '127.0.0.1',
+  port: 3000,
+  // dataDir: './data',
+};
+```
+
+Un `dataDir` explicite et relatif est résolu depuis le dossier de `config.js`. Si `dataDir` est absent ou vide, le serveur utilise `EPI_DATA_DIR`, puis cherche un `data/` avec `devices/`, `measures/` et `profiles/` en remontant depuis la release. En dernier recours, il utilise le dossier utilisateur commun décrit ci-dessous. Le serveur crée le dossier de stockage et écrit `session.json` lors de la première modification. Un nouveau build conserve la configuration et les données. Utilise une seule instance du serveur par dossier de stockage et sauvegarde le dossier pour conserver les données.
+
+Le serveur web lit et écrit `session.json` dans le dossier choisi. L’import et l’export ZIP permettent d’échanger profils, appareils et pesées avec les autres versions PC, qui utilisent des fichiers séparés. La capture Bluetooth reste disponible dans les applications installées. Les navigateurs connectés partagent le même espace de données. Le bouton « Recharger » récupère les changements effectués depuis un autre navigateur. Pour ouvrir l’accès sur le réseau, choisis l’interface d’écoute voulue. Pour un accès Internet, place le serveur derrière un proxy HTTPS avec authentification. Conserve l’écoute locale et configure le proxy pour transmettre l’en-tête `Host` de l’adresse locale.
 
 ## Données
 

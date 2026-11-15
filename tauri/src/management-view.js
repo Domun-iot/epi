@@ -18,18 +18,18 @@ export function profilesView(profiles, selected) {
   return { header: pageHeader('Profils', '', action), content };
 }
 
-export function devicesView(devices, filter, rawOpen) {
-  const action = button('Ajouter un appareil', 'new-device', { primary: true });
+export function devicesView(devices, filter, rawOpen, canScan = true) {
+  const action = canScan ? button('Ajouter un appareil', 'new-device', { primary: true }) : '';
   const entries = sortByName(devices).map(device => `<article class="panel list-item"><header>
     <h2>${e(device.name)}</h2><div class="actions">${button('Renommer', 'rename-device', { value: device.bluetooth.address })}
-    ${device.bluetooth.address === filter ? '' : button('Écouter seulement cet appareil', 'filter-address', { value: device.bluetooth.address })}
+    ${!canScan || device.bluetooth.address === filter ? '' : button('Écouter seulement cet appareil', 'filter-address', { value: device.bluetooth.address })}
     ${deleteButton(`Supprimer l’appareil ${device.name}`, 'delete-device', device.bluetooth.address)}</div></header>
     ${pairs(deviceFields(device))}</article>`).join('');
-  const filterInfo = filter ? `<div class="notice"><p>Écoute limitée à ${e(filter)}.</p>${button('Écouter tous les appareils', 'clear-filter')}</div>` : '';
-  const diagnostics = `<details class="panel settings" data-expand="raw"${rawOpen ? ' open' : ''}>
+  const filterInfo = canScan && filter ? `<div class="notice"><p>Écoute limitée à ${e(filter)}.</p>${button('Écouter tous les appareils', 'clear-filter')}</div>` : '';
+  const diagnostics = canScan ? `<details class="panel settings" data-expand="raw"${rawOpen ? ' open' : ''}>
     <summary>Flux Bluetooth brut</summary>
     <pre id="raw-frames">Aucune trame reçue.</pre>
-    ${button('Filtrer par adresse Bluetooth', 'filter-custom')}</details>`;
+    ${button('Filtrer par adresse Bluetooth', 'filter-custom')}</details>` : '';
   const content = filterInfo + (entries
     ? `<div class="list device-list">${entries}</div>`
     : '<p class="panel empty device-list">Aucun appareil enregistré.</p>') + diagnostics;
