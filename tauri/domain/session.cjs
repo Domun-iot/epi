@@ -98,16 +98,18 @@ function chartPreferences(prefs, { preset, layout }) {
     ...(prefs.measurementDisplay === 'chart' && !preset?.chart ? { display: 'chart' } : {}),
     ...prefs.chartOptionsByView?.[key],
   };
+  const lastRange = stored?.lastRange ?? options.range;
   const series = chartSeries(layout.columns, stored?.series ?? prefs.chartSeriesByView?.[key] ?? preset?.chart?.series);
   const original = chartSeries(layout.columns, preset?.chart?.series);
   const modified = Object.keys(chartDefaults).some(id => options[id] !== baseline[id])
-    || options.range?.[0] !== baseline.range?.[0] || options.range?.[1] !== baseline.range?.[1]
     || Object.keys(series).some(id => series[id] !== original[id]);
-  return { key, stored, options, series, modified };
+  return { key, stored, options, series, lastRange, modified };
 }
 
 function withChartPreferences(prefs, key, chart) {
-  return { ...prefs, chartByView: { ...prefs.chartByView, [key]: chart } };
+  const previous = prefs.chartByView?.[key];
+  const lastRange = chart.options.range ?? chart.lastRange ?? previous?.lastRange ?? previous?.options?.range;
+  return { ...prefs, chartByView: { ...prefs.chartByView, [key]: { ...chart, ...(lastRange && { lastRange }) } } };
 }
 
 function modifiedInactiveViews(state, prefs, kind, active) {
@@ -154,6 +156,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     details.modifiedInactiveIds = modifiedInactiveViews(saved, prefs, 'details', details);
     return { ...saved, ...measurements.layout, ...details.layout, viewLayouts: { measurements, details },
       measurementDisplay: chart.options.display, chartOptions: chart.options, chartSeries: chart.series,
+      chartLastRange: chart.lastRange,
       theme: prefs.theme, rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: prefs.detailSectionsOpen, enrollment, acquisitionError };
   }
 
@@ -166,7 +169,18 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
   async function loadSaved() {
     saved = restore(await storage.load());
     try {
-      await transact(upgradeIdentities);
+      await transact(draft => {
+        upgradeIdentities(draft);
+        const presets = draft.viewPresets.measurements;
+        const measurements = presets.map(preset => {
+          if (!Object.hasOwn(preset.chart?.options ?? {}, 'range')) return preset;
+          const { range, ...options } = preset.chart.options;
+          return { ...preset, chart: { ...preset.chart, options } };
+        });
+        if (measurements.some((preset, index) => preset !== presets[index])) {
+          draft.viewPresets = { ...draft.viewPresets, measurements };
+        }
+      });
     } catch (error) {
       saved = undefined;
       throw error;
@@ -443,7 +457,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       const prefs = preferencesFor(draft, name);
       const current = layoutFor(draft, prefs, 'measurements');
       if (viewId !== undefined && (current.preset?.id ?? null) !== viewId) return;
-      const { key, options: original, series } = chartPreferences(prefs, current);
+      const { key, options: original, series, lastRange } = chartPreferences(prefs, current);
       const next = { ...original };
       if (Object.hasOwn(options, 'display')) {
         if (!['chart', 'table'].includes(options.display)) throw Error('Visualisation des pesées invalide.');
@@ -468,7 +482,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
         next.range = range;
       }
       savePreferences(draft, name, withChartPreferences(prefs, key,
-        { options: next, series, columns: current.layout.columns }));
+        { options: next, series, columns: current.layout.columns, lastRange }));
     });
   }
 
@@ -572,9 +586,12 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       const preset = { id: matching?.id ?? globalThis.crypto.randomUUID(), name: label, layout };
       let next = prefs;
       if (kind === 'measurements') {
-        const { options, series } = chartPreferences(prefs, current);
-        preset.chart = { options, series };
-        next = withChartPreferences(prefs, preset.id, { ...preset.chart, columns: layout.columns });
+        const { key, options, series } = chartPreferences(prefs, current);
+        const { range, ...sharedOptions } = options;
+        preset.chart = { options: sharedOptions, series };
+        next = withChartPreferences(prefs, preset.id, {
+          options: preset.id === key ? options : sharedOptions, series, columns: layout.columns,
+        });
       }
       replace(matching ? presets.map(entry => entry === matching ? preset : entry) : [...presets, preset]);
       select(preset.id, next);

@@ -75,6 +75,14 @@ export function renderChartDates(axis, width) {
   }).join('');
 }
 
+function rangeDuration([start, end]) {
+  const days = localDay(end) - localDay(start) + 1;
+  const [unit, divisor] = days > 365 ? ['year', 365] : days > 30 ? ['month', 30] : ['day', 1];
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'unit', unit, unitDisplay: 'long', maximumFractionDigits: 1,
+  }).format(days / divisor);
+}
+
 function valueScale(points) {
   let low = 0;
   let high = 0;
@@ -229,7 +237,7 @@ const signedValue = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2, s
 
 const statusLabels = { visible: 'Visible', bold: 'En gras', hidden: 'Masquée' };
 
-export function measurementCharts(rows, series, { period = 'all', range, mode = 'smooth', statuses = {}, profileAge }) {
+export function measurementCharts(rows, series, { period = 'all', range, lastRange, mode = 'smooth', statuses = {}, profileAge }) {
   const configured = series.map((item, index) => ({ ...item, color: colors[index] }))
     .filter(({ id }) => Object.hasOwn(statuses, id));
   const timeline = rows.map((row, index) => ({ row, index, time: Date.parse(row.receivedAt) }))
@@ -262,6 +270,8 @@ export function measurementCharts(rows, series, { period = 'all', range, mode = 
             title="Moyenne centrée sur sept jours">Tendance</button>
         </div>
         <div class="chart-periods" role="group" aria-label="Période">
+          ${lastRange ? `<button type="button" data-action="chart-period" data-value="custom"
+            aria-pressed="${Boolean(range)}" title="Dernière sélection libre">${e(rangeDuration(lastRange))}</button>` : ''}
           ${periods.map(([id, label]) => `<button type="button" data-action="chart-period" data-value="${id}"
             aria-pressed="${!range && period === id}">${label}</button>`).join('')}
         </div>

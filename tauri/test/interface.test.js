@@ -712,6 +712,10 @@ test('le graphique s’adapte à la hauteur et conserve la marge sous les en-tê
 test('les commandes du graphique restent sur une ligne quand la vue rétrécit', async t => {
   const page = await pageWith(t, {
     profiles: [alice], selectedProfile: 'Alice',
+    profilePreferences: { Alice: { chartByView: { default: {
+      options: { display: 'table', mode: 'smooth', period: 'all' },
+      lastRange: [Date.parse('2025-12-18T00:00:00+01:00'), Date.parse('2026-01-22T23:59:59+01:00')],
+    } } } },
     measurements: [record, { ...record, receivedAt: '2026-01-22T17:23:21Z' }],
   }, { viewport: { width: 1100, height: 900 } });
   await page.getByRole('button', { name: 'Graphique', exact: true }).click();
@@ -743,6 +747,7 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
     };
   });
 
+  assert.match(await chart.locator('[data-value="custom"]').textContent(), /^1,2\smois$/);
   const wide = await layout();
   assert.ok(wide.controlsTop < wide.subtitleBottom);
   assert.equal(wide.toolbarLeft, wide.titleRight + wide.headingGap);
@@ -751,10 +756,10 @@ test('les commandes du graphique restent sur une ligne quand la vue rétrécit',
   const medium = await layout();
   await page.setViewportSize({ width: 320, height: 900 });
   const narrow = await layout();
-  assert.ok(wide.buttonPadding > medium.buttonPadding && medium.buttonPadding > narrow.buttonPadding);
+  assert.ok(wide.buttonPadding > medium.buttonPadding && medium.buttonPadding >= narrow.buttonPadding);
   for (const { centers, right, headingRight, modeLeftGap, modeRightGap } of [wide, medium, narrow]) {
     assert.equal(new Set(centers).size, 1);
-    assert.ok(Math.abs(right - headingRight) < 1);
+    assert.ok(Math.abs(right - headingRight) < 1, `Fin des commandes : ${right}, en-tête : ${headingRight}`);
     assert.ok(Math.abs(modeLeftGap - modeRightGap) < 1);
   }
   for (const { toolbarLeft, headingLeft, subtitleBottom, controlsTop, legendGap, marginTop, marginBottom }
@@ -870,6 +875,10 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   const selectedPlot = weightChart.locator(`.chart-plot[data-start="${selectedStart}"]`);
   await selectedPlot.waitFor();
   assert.equal(await weightChart.locator('.chart-range').count(), 0);
+  const customPeriod = weightChart.locator('[data-value="custom"]');
+  assert.match(await customPeriod.textContent(), /^28\sjours$/);
+  assert.equal(await customPeriod.getAttribute('aria-pressed'), 'true');
+  assert.equal(await customPeriod.evaluate(button => button.nextElementSibling.textContent), '30 j');
   assert.equal(Number(await plot.getAttribute('data-end')), Date.parse('2026-01-18T23:59:59.999+01:00'));
   assert.equal(await points.count(), 2);
   const dates = weightChart.locator('.chart-dates');
@@ -910,7 +919,15 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   await selectedPlot.waitFor();
   assert.equal(await brut.getAttribute('aria-pressed'), 'true');
   assert.equal(await points.count(), 2);
-  await weightChart.getByRole('button', { name: 'Tout', exact: true }).click();
+  const allPeriod = weightChart.getByRole('button', { name: 'Tout', exact: true });
+  await allPeriod.click();
+  assert.equal(await customPeriod.getAttribute('aria-pressed'), 'false');
+  await page.reload();
+  await customPeriod.click();
+  await selectedPlot.waitFor();
+  assert.equal(await customPeriod.getAttribute('aria-pressed'), 'true');
+  assert.equal(await points.count(), 2);
+  await allPeriod.click();
   assert.equal(await points.count(), 3);
   assert.match(await points.first().getAttribute('aria-label'), /68,04$/);
   await points.first().click();

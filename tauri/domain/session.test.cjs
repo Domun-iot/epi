@@ -88,10 +88,21 @@ test('shares the full chart configuration and restores personal preferences by p
   assert.equal(modified(renamed), true);
   const shared = await session.changeViewPreset('Lou', 'measurements', 'save', { id, name: 'Corps' });
   assert.equal(modified(shared), false);
+  assert.deepEqual(shared.chartLastRange, range);
+  assert.deepEqual(shared.chartOptions.range, range);
+  assert.equal(Object.hasOwn(shared.viewLayouts.measurements.preset.chart.options, 'range'), false);
   assert.deepEqual(shared.chartSeries, { weight: 'visible', impedanceOhms: 'visible', bmi: 'hidden' });
 
   const reopened = fixture(disk()).session;
   assert.equal(modified(await reopened.load()), false);
+  const replacement = [range[0], range[1] + 86400000];
+  await reopened.setChartOptions('Lou', id, { range: replacement });
+  await reopened.setChartOptions('Lou', id, { period: '90' });
+  const otherView = await reopened.changeViewPreset('Lou', 'measurements', 'select');
+  assert.equal(otherView.chartLastRange, undefined);
+  const restoredView = await reopened.changeViewPreset('Lou', 'measurements', 'select', { id });
+  assert.deepEqual(restoredView.chartLastRange, replacement);
+  assert.equal(restoredView.chartOptions.range, undefined);
   const personal = await reopened.selectProfile('Sam');
   assert.equal(personal.measurementDisplay, 'table');
   assert.deepEqual(personal.columns, ['bmi']);
@@ -103,7 +114,8 @@ test('shares the full chart configuration and restores personal preferences by p
   assert.equal(modified(switchedBack), true);
   const reset = await reopened.changeViewPreset('Sam', 'measurements', 'reset', { id });
   assert.equal(modified(reset), false);
-  assert.deepEqual(reset.chartOptions, { display: 'chart', mode: 'raw', period: '90', range });
+  assert.deepEqual(reset.chartOptions, { display: 'chart', mode: 'raw', period: '90' });
+  assert.equal(reset.chartLastRange, undefined);
   assert.deepEqual(reset.chartSeries, shared.chartSeries);
   assert.deepEqual(reset.columns, ['bmi', 'impedanceOhms']);
 
@@ -117,7 +129,9 @@ test('shares the full chart configuration and restores personal preferences by p
 
 test('restores existing chart preferences from older versions', async () => {
   const range = [Date.parse('2026-01-01'), Date.parse('2026-01-07')];
-  const { session, disk } = fixture({ profiles: [lou], selectedProfile: 'Lou', profilePreferences: { Lou: {
+  const viewPresets = { measurements: [{ id: 'old', name: 'Ancienne vue', layout: {},
+    chart: { options: { display: 'chart', period: '90', range } } }], details: [] };
+  const { session, disk } = fixture({ profiles: [lou], selectedProfile: 'Lou', viewPresets, profilePreferences: { Lou: {
     measurementDisplay: 'chart',
     chartOptionsByView: { default: { mode: 'raw', range } },
     chartSeriesByView: { default: { weight: 'visible', bmi: 'hidden' } },
@@ -129,7 +143,9 @@ test('restores existing chart preferences from older versions', async () => {
   await session.setChartOptions('Lou', null, { period: '30' });
   const reopened = await fixture(disk()).session.load();
   assert.deepEqual(reopened.chartOptions, { display: 'chart', mode: 'raw', period: '30' });
+  assert.deepEqual(reopened.chartLastRange, range);
   assert.deepEqual(reopened.chartSeries, loaded.chartSeries);
+  assert.deepEqual(disk().viewPresets.measurements[0].chart.options, { display: 'chart', period: '90' });
 });
 
 test('settles parallel readings, replaces weight-only with impedance, and switches profile', async t => {

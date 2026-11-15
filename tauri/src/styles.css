@@ -188,13 +188,15 @@ p { line-height: 1.55; }
 .chart-heading h2 { margin: 0; }
 .chart-change { margin: 4px 0 0; color: var(--muted); font-size: .86rem; }
 .chart-controls {
+  --chart-control-width: 100cqw;
   display: grid;
   flex: 1 0 auto;
   grid-template-columns: 1fr auto auto;
   place-items: center;
-  gap: clamp(2px, calc((100cqw - 240px) / 12), 10px);
+  gap: clamp(2px, calc((var(--chart-control-width) - 240px) / 12), 10px);
 }
-.chart-periods { display: flex; gap: clamp(0px, calc((100cqw - 270px) / 40), 2px); padding: 3px; border-radius: 10px; background: var(--hover); }
+.chart-controls:has([data-value="custom"]) { --chart-control-width: calc(100cqw - 110px); }
+.chart-periods { display: flex; gap: clamp(0px, calc((var(--chart-control-width) - 270px) / 40), 2px); padding: 3px; border-radius: 10px; background: var(--hover); }
 .chart-periods button, .chart-legend button {
   min-height: 32px;
   padding: 4px 9px;
@@ -204,7 +206,12 @@ p { line-height: 1.55; }
   background: transparent;
   font-size: .82rem;
 }
-.chart-periods button { padding-inline: clamp(2px, calc((100cqw - 240px) / 16), 9px); white-space: nowrap; }
+.chart-periods button { padding-inline: clamp(2px, calc((var(--chart-control-width) - 240px) / 16), 9px); white-space: nowrap; }
+@container (max-width: 340px) {
+  .chart-controls:has([data-value="custom"]) .chart-periods { padding-inline: 1px; }
+  .chart-controls:has([data-value="custom"]) .chart-periods button { padding-inline: 1px; font-size: .72rem; }
+  .chart-controls:has([data-value="custom"]) .icon-button { --action-button-height: 34px; }
+}
 .chart-periods button:hover, .chart-legend button:hover { color: var(--ink); background: var(--surface); }
 .chart-periods [aria-pressed="true"], .chart-legend [aria-pressed="true"] {
   color: var(--ink);

@@ -145,7 +145,7 @@ function render() {
   const nextMain = page === 'bluetooth' ? [page, state.addressFilter, state.devices, session?.web]
     : detail ? [page, detail, state.selectedProfile, ...layoutKey] : [page, state.selectedProfile, ...(page === 'measurements'
     ? [state.measurements, state.measurementDisplay, state.chartOptions?.mode, state.chartOptions?.period,
-      ...(state.chartOptions?.range ?? []), ...Object.values(state.chartSeries ?? {}), ...layoutKey]
+      ...(state.chartOptions?.range ?? []), ...(state.chartLastRange ?? []), ...Object.values(state.chartSeries ?? {}), ...layoutKey]
     : page === 'profiles' ? [state.profiles] : page === 'devices' ? [state.devices, state.addressFilter]
       : [state.notifications, notificationId, state.devices, target?.record])];
   if (changed(lastMain, nextMain)) {
@@ -180,7 +180,7 @@ function render() {
     const focusedPresetAction = active?.closest('.view-preset-header') && active.dataset.action;
     const markup = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder,
-        columnsOpen, columnQuery, header, state.measurementDisplay, { ...state.chartOptions, statuses: state.chartSeries })
+        columnsOpen, columnQuery, header, state.measurementDisplay, { ...state.chartOptions, lastRange: state.chartLastRange, statuses: state.chartSeries })
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile)
       : page === 'devices' ? devicesView(state.devices, state.addressFilter, state.rawOpen, !session?.web)
       : page === 'bluetooth' ? bluetoothView(state, session?.web)
@@ -527,7 +527,7 @@ const actions = {
   'chart-fullscreen': () => document.fullscreenElement === viewContent
     ? document.exitFullscreen() : viewContent.requestFullscreen(),
   'chart-period': period => session.setChartOptions(state.selectedProfile,
-    state.viewLayouts.measurements.preset?.id ?? null, { period }),
+    state.viewLayouts.measurements.preset?.id ?? null, period === 'custom' ? { range: state.chartLastRange } : { period }),
   'chart-mode': mode => session.setChartOptions(state.selectedProfile,
     state.viewLayouts.measurements.preset?.id ?? null, { mode }),
   'chart-axis': id => session.cycleChartSeries(state.selectedProfile, state.viewLayouts.measurements.preset?.id ?? null, id),
