@@ -51,7 +51,15 @@ let messages = english;
 export async function initialiseLanguage(system) {
   systemLocale = system;
   locale = detectLocale();
-  messages = locale === fallback ? english : await loadCatalog(locale);
+  messages = english;
+  if (locale !== fallback) {
+    try {
+      messages = await loadCatalog(locale);
+    } catch (error) {
+      console.error('Could not load translations for ' + locale, error);
+      locale = fallback;
+    }
+  }
   document.documentElement.lang = locale;
   document.title = t('appTitle');
   for (const element of document.querySelectorAll('[data-i18n]')) {

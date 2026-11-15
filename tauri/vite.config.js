@@ -3,7 +3,7 @@ import { build } from 'esbuild';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { createSessionApi } from '../web/session-api.js';
+import { createSessionApi, json } from '../web/session-api.js';
 
 const appPath = import.meta.url;
 const modules = {
@@ -52,15 +52,27 @@ function sharedModules() {
 function webSessionApi() {
   return {
     name: 'epi-web-session-api',
-    async configureServer(server) {
+    configureServer(server) {
       const root = fileURLToPath(new URL('../web/', appPath));
       const require = createRequire(appPath);
       const domain = require('./domain/session.cjs');
       const storage = require('../shared/data-directory.cjs');
       const transactions = require('../shared/transactions.cjs');
-      const { handleAction } = await createSessionApi({ root, domain, storage, transactions });
-      server.middlewares.use('/api/session', (request, response, next) => {
-        handleAction(request, response).catch(next);
+      let sessionApi;
+      // Let Vite listen and open the browser before reading the data directory.
+      server.middlewares.use('/api/session', async (request, response, next) => {
+        sessionApi ??= createSessionApi({ root, domain, storage, transactions }).catch(error => {
+          sessionApi = undefined;
+          throw error;
+        });
+        try {
+          const { handleAction } = await sessionApi;
+          await handleAction(request, response);
+        } catch (error) {
+          if (response.headersSent) return next(error);
+          server.config.logger.error(error.stack ?? String(error));
+          json(response, 500, { error: error.message });
+        }
       });
     },
   };
@@ -83,11 +95,12 @@ async function accountApi(command, mode, isPreview) {
 export default defineConfig(async ({ command, mode, isPreview }) => ({
   define: { __DEV_ACCOUNT_API__: JSON.stringify(await accountApi(command, mode, isPreview)) },
   clearScreen: false,
+  optimizeDeps: { entries: ['index.html'] },
   plugins: [sharedModules(), ...(command === 'serve' && mode === 'web' ? [webSessionApi()] : [])],
   server: {
     host: process.env.TAURI_DEV_HOST || '127.0.0.1',
     port: mode === 'web' ? 1421 : 1420,
-    strictPort: true,
+    strictPort: mode !== 'web',
     fs: { allow: [searchForWorkspaceRoot(process.cwd()), fileURLToPath(new URL('..', appPath))] },
   },
   build: { target: ['chrome105', 'safari15'] },

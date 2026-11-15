@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
-import { build } from 'vite';
+import { build, createServer } from 'vite';
 import { unzipSync } from 'fflate';
 import { measurementCharts } from '../src/measurement-charts.js';
 
@@ -72,6 +72,38 @@ async function pageWith(t, snapshot, options = {}, mode) {
   await page.locator('#theme-toggle:enabled').waitFor();
   return page;
 }
+
+test('loads the French catalogue in Vite dev and falls back to English on failure', async t => {
+  const server = await createServer({
+    server: { middlewareMode: true, ws: false, watch: null },
+    optimizeDeps: { noDiscovery: true },
+  });
+  t.after(() => server.close());
+  const html = `<button data-i18n="measurements"></button>
+    <script type="module">
+      import { initialiseLanguage } from '/src/i18n.js';
+      await initialiseLanguage();
+    </script>`;
+
+  for (const [language, label] of [['fr-FR', 'Mesures'], ['en-GB', 'Measurements']]) {
+    const page = await browser.newPage({ locale: 'fr-FR' });
+    try {
+      page.on('pageerror', error => t.diagnostic(error.stack));
+      await page.route(url + '**', async route => {
+        const { pathname, search } = new URL(route.request().url());
+        if (pathname === '/') return route.fulfill({ body: html, contentType: 'text/html' });
+        if (language === 'en-GB' && pathname === '/src/locales/fr-FR.json') return route.abort();
+        const module = await server.transformRequest(pathname + search);
+        return route.fulfill({ body: module.code, contentType: 'application/javascript' });
+      });
+      await page.goto(url);
+      await page.getByRole('button', { name: label, exact: true }).waitFor({ timeout: 10000 });
+      assert.equal(await page.locator('html').getAttribute('lang'), language);
+    } finally {
+      await page.context().close();
+    }
+  }
+});
 
 test('affiche une erreur lorsque la connexion Google ne peut pas démarrer', async t => {
   const page = await pageWith(t);
