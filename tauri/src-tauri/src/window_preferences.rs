@@ -38,9 +38,6 @@ impl Preferences {
         if self.maximized {
             window.maximize()?;
         }
-        if self.minimized {
-            window.minimize()?;
-        }
         Ok(())
     }
 
@@ -64,11 +61,19 @@ pub(crate) fn setup(app: &AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window("main")
         .ok_or("Fenêtre introuvable.")?;
-    let root = storage::data_root(app)?;
-    let saved = storage::read_window_preferences(&root)?;
-    let preferences: Preferences = serde_json::from_value(saved).unwrap_or_default();
-    if let Err(error) = preferences.restore(&window) {
-        eprintln!("Restauration de la fenêtre : {error}");
+    let saved = storage::data_root(app).and_then(|root| {
+        let saved = storage::read_window_preferences(&root)?;
+        let preferences: Preferences = serde_json::from_value(saved).unwrap_or_default();
+        if let Err(error) = preferences.restore(&window) {
+            eprintln!("Restauration de la fenêtre : {error}");
+        }
+        Ok((root, preferences))
+    });
+    // Show the window even if the preferences could not be read.
+    window.show().map_err(|error| error.to_string())?;
+    let (root, preferences) = saved?;
+    if preferences.minimized {
+        window.minimize().map_err(|error| error.to_string())?;
     }
 
     let mut current = preferences;

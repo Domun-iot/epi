@@ -32,6 +32,21 @@ pub fn run() {
         }
         Ok(())
     });
+    let context = tauri::generate_context!();
+    #[cfg(desktop)]
+    let context = {
+        let mut context = context;
+        if let Some(window) = context
+            .config_mut()
+            .app
+            .windows
+            .iter_mut()
+            .find(|window| window.label == "main")
+        {
+            window.visible = false;
+        }
+        context
+    };
     builder
         .invoke_handler(tauri::generate_handler![
             start_bluetooth,
@@ -40,6 +55,6 @@ pub fn run() {
             storage::import_files,
             storage::export_files
         ])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("impossible de démarrer éPI");
 }
