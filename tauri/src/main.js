@@ -54,7 +54,7 @@ let rows = [];
 let reading = null;
 let historyScroll;
 let columnQuery = '';
-let chartPeriod = 'all';
+let chartSelection;
 let notificationId = null;
 let activeNotice = null;
 let noticeQueue = [];
@@ -143,7 +143,7 @@ function render() {
   const layoutKey = layout ? [layout.presets, layout.preset, layout.modified, ...Object.values(layout.layout)] : [];
   const nextMain = page === 'bluetooth' ? [page, state.addressFilter, state.devices, session?.web]
     : detail ? [page, detail, state.selectedProfile, ...layoutKey] : [page, state.selectedProfile, ...(page === 'measurements'
-    ? [state.measurements, state.measurementDisplay, chartPeriod, state.chartSeries, ...layoutKey]
+    ? [state.measurements, state.measurementDisplay, state.chartOptions, state.chartSeries, ...layoutKey]
     : page === 'profiles' ? [state.profiles] : page === 'devices' ? [state.devices, state.addressFilter]
       : [state.notifications, notificationId, state.devices, target?.record])];
   if (changed(lastMain, nextMain)) {
@@ -166,7 +166,7 @@ function render() {
     const focusedColumn = active?.dataset.column;
     const focusedToggle = active?.dataset.action === 'split-column' ? active.dataset.value : undefined;
     const focusedDisplay = active?.dataset.action === 'measurement-display' ? active.dataset.value : undefined;
-    const focusedChartControl = ['chart-period', 'chart-axis'].includes(active?.dataset.action);
+    const focusedChartControl = ['chart-period', 'chart-mode', 'chart-axis'].includes(active?.dataset.action);
     const toggleScope = active?.classList.contains('column-toggle') ? '.column-toggle' : '.column-option button';
     const searchFocused = active?.matches('.column-search');
     const previousComparison = view.querySelector('.comparison-scroll');
@@ -178,7 +178,7 @@ function render() {
     const focusedPresetAction = active?.closest('.view-preset-header') && active.dataset.action;
     const markup = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder,
-        columnsOpen, columnQuery, header, state.measurementDisplay, { period: chartPeriod, statuses: state.chartSeries })
+        columnsOpen, columnQuery, header, state.measurementDisplay, { ...state.chartOptions, statuses: state.chartSeries })
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile)
       : page === 'devices' ? devicesView(state.devices, state.addressFilter, state.rawOpen, !session?.web)
       : page === 'bluetooth' ? bluetoothView(state, session?.web)
@@ -502,7 +502,10 @@ const actions = {
     const item = state.pending.find(entry => String(entry.id) === id);
     if (item) return session.discardPending(item.id);
   },
-  'chart-period': period => { chartPeriod = period; render(); },
+  'chart-period': period => session.setChartOptions(state.selectedProfile,
+    state.viewLayouts.measurements.preset?.id ?? null, { period }),
+  'chart-mode': mode => session.setChartOptions(state.selectedProfile,
+    state.viewLayouts.measurements.preset?.id ?? null, { mode }),
   'chart-axis': id => session.cycleChartSeries(state.selectedProfile, state.viewLayouts.measurements.preset?.id ?? null, id),
   'measurement-display': display => session.setMeasurementDisplay(state.selectedProfile, display),
   'split-column': id => session.setColumnPreference(state.selectedProfile, id, 'splitColumns',
@@ -636,6 +639,13 @@ function reorderTargetAt(event) {
 view.addEventListener('pointerdown', event => {
   if (!event.isPrimary || event.button !== 0) return;
   suppressReorderClick = false;
+  const plot = event.target.closest('.chart-plot[data-start]');
+  if (plot && event.pointerType === 'mouse') {
+    chartSelection = {
+      plot, preview: plot.querySelector('.chart-selection'), pointerId: event.pointerId, x: event.clientX,
+    };
+    return;
+  }
   const element = event.target.closest(`${columnHeader}, ${sectionHeader}`);
   if (!element) {
     const panel = event.target.closest('tbody')?.closest('.table-scroll');
@@ -659,10 +669,14 @@ view.addEventListener('pointerdown', event => {
 });
 
 view.addEventListener('dragstart', event => {
-  if (reorder || tablePan) event.preventDefault();
+  if (reorder || tablePan || chartSelection) event.preventDefault();
 });
 
 window.addEventListener('pointermove', event => {
+  if (event.pointerId === chartSelection?.pointerId) {
+    updateChartSelection(event.clientX);
+    return;
+  }
   if (event.pointerId === tablePan?.pointerId) {
     const { panel, vertical, x, y, left, top } = tablePan;
     const dx = event.clientX - x;
@@ -697,7 +711,40 @@ window.addEventListener('pointermove', event => {
   for (const element of reorder.highlighted) element.classList.add('column-drop');
 });
 
+function updateChartSelection(x) {
+  const { plot, preview, x: origin } = chartSelection;
+  if (!plot.isConnected || Math.abs(x - origin) < 6) {
+    preview.hidden = true;
+    return;
+  }
+  suppressReorderClick = true;
+  const { left, width } = plot.getBoundingClientRect();
+  const fraction = clientX => Math.max(0, Math.min(1, (clientX - left) / width));
+  const first = fraction(Math.min(origin, x));
+  const last = fraction(Math.max(origin, x));
+  preview.style.left = `${first * 100}%`;
+  preview.style.width = `${(last - first) * 100}%`;
+  preview.hidden = false;
+  const start = Number(plot.dataset.start);
+  const duration = Number(plot.dataset.end) - start;
+  return [Math.round(start + first * duration), Math.round(start + last * duration)];
+}
+
+function stopChartSelection() {
+  if (chartSelection) chartSelection.preview.hidden = true;
+  chartSelection = undefined;
+}
+
 window.addEventListener('pointerup', event => {
+  if (event.pointerId === chartSelection?.pointerId) {
+    const range = updateChartSelection(event.clientX);
+    stopChartSelection();
+    if (range && range[0] < range[1]) {
+      void perform(() => session.setChartOptions(state.selectedProfile,
+        state.viewLayouts.measurements.preset?.id ?? null, { range }));
+    }
+    return;
+  }
   if (event.pointerId === tablePan?.pointerId) tablePan = undefined;
   if (event.pointerId !== reorder?.pointerId) return;
   const { active, table, source } = reorder;
@@ -717,10 +764,12 @@ window.addEventListener('pointerup', event => {
 });
 
 window.addEventListener('pointercancel', event => {
+  if (event.pointerId === chartSelection?.pointerId) stopChartSelection();
   if (event.pointerId === tablePan?.pointerId) tablePan = undefined;
   if (event.pointerId === reorder?.pointerId) stopReorder();
 });
 window.addEventListener('blur', () => {
+  stopChartSelection();
   tablePan = undefined;
   stopReorder();
 });

@@ -66,6 +66,11 @@ test('persists chart series by profile and view UUID and reconciles changed colu
     session.cycleChartSeries('Lou', id, 'bmi'),
     session.cycleChartSeries('Lou', id, 'bmi'),
   ]);
+  const range = [Date.parse('2026-01-01'), Date.parse('2026-01-07')];
+  await Promise.all([
+    session.setChartOptions('Lou', id, { mode: 'raw' }),
+    session.setChartOptions('Lou', id, { range }),
+  ]);
   const renamed = await session.changeViewPreset('Lou', 'measurements', 'rename', { id, name: 'Corps' });
   assert.equal(renamed.viewLayouts.measurements.preset.id, id);
   assert.deepEqual(renamed.chartSeries, { weight: 'visible', impedanceOhms: 'visible', bmi: 'hidden' });
@@ -76,6 +81,7 @@ test('persists chart series by profile and view UUID and reconciles changed colu
   await session.changeViewPreset('Sam', 'measurements', 'select', { id });
   const other = await session.setMeasurementDisplay('Sam', 'chart');
   assert.equal(other.chartSeries.bmi, 'visible');
+  assert.equal(other.chartOptions, undefined);
   await session.setColumnPreference('Sam', 'impedanceOhms', 'columns', false);
   await session.setColumnPreference('Sam', 'fatPercent', 'columns', true);
   await session.changeViewPreset('Sam', 'measurements', 'save', { id, name: 'Corps' });
@@ -84,7 +90,12 @@ test('persists chart series by profile and view UUID and reconciles changed colu
   edited.selectedProfile = 'Lou';
   const reopened = fixture(edited);
   const expected = { weight: 'visible', bmi: 'hidden', fatPercent: 'visible' };
-  assert.deepEqual((await reopened.session.load()).chartSeries, expected);
+  const loaded = await reopened.session.load();
+  assert.deepEqual(loaded.chartSeries, expected);
+  assert.deepEqual(loaded.chartOptions, { mode: 'raw', range });
+  assert.equal(reopened.disk().profilePreferences.Lou.chartOptionsByView.default, undefined);
+  assert.deepEqual((await reopened.session.setChartOptions('Lou', id, { period: 'all' })).chartOptions,
+    { mode: 'raw', period: 'all' });
   assert.deepEqual(reopened.disk().profilePreferences.Lou.chartSeriesByView[id], expected);
   assert.equal((await reopened.session.cycleChartSeries('Lou', id, 'bmi')).chartSeries.bmi, 'visible');
 });

@@ -204,6 +204,16 @@ p { line-height: 1.55; }
 .chart-values, .chart-plot { position: relative; }
 .chart-values { text-align: right; font-weight: 650; }
 .chart-values span { display: block; position: relative; top: var(--y); height: 0; transform: translateY(-.65em); }
+.chart-range { margin: 8px 0 0; color: var(--muted); font-size: .82rem; }
+.chart-plot[data-start] { cursor: crosshair; user-select: none; }
+.chart-selection {
+  position: absolute;
+  z-index: 2;
+  inset-block: 0;
+  pointer-events: none;
+  background: color-mix(in srgb, #5279ee 19%, transparent);
+  border-inline: 1px solid #5279ee;
+}
 .chart-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .chart-gridline { stroke: var(--line); stroke-dasharray: 3 4; }
 .chart-line { fill: none; stroke: var(--series-color); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; opacity: .68; }

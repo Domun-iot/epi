@@ -5,54 +5,71 @@ const axisTime = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' });
 const axisValue = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
 
 function valueScale(points) {
-  let low = Infinity;
-  let high = -Infinity;
-  for (const { value } of points) {
-    low = Math.min(low, value);
-    high = Math.max(high, value);
+  let low = 0;
+  let high = 0;
+  for (const { value, plottedValue } of points) {
+    low = Math.min(low, value, plottedValue);
+    high = Math.max(high, value, plottedValue);
   }
-  const range = Math.max(high - low, Math.abs(high) * .02, .4);
-  const middle = (high + low) / 2;
+  const range = Math.max((high - low) * 1.05, .4);
   const magnitude = 10 ** Math.floor(Math.log10(range / 4));
   const step = [1, 2, 2.5, 5, 10].map(factor => factor * magnitude).find(value => value >= range / 4);
-  const min = Math.floor((middle - range / 2) / step) * step;
-  const max = Math.ceil((middle + range / 2) / step) * step;
+  const min = Math.floor(low / step) * step;
+  const max = Math.ceil((low + range) / step) * step;
   const ticks = Array.from({ length: Math.round((max - min) / step) + 1 }, (_, index) => min + index * step);
   return { min, max, ticks };
 }
 
-function plotSeries(series, readings, color) {
-  const samples = readings.map(reading => ({ ...reading, value: series.read(reading.row) }));
+function smoothSamples(samples) {
+  const halfWindow = 3.5 * 86400_000;
+  const points = samples.filter(({ value }) => Number.isFinite(value));
+  let first = 0;
+  let last = 0;
+  let sum = 0;
+  for (const point of points) {
+    while (last < points.length && points[last].time <= point.time + halfWindow) sum += points[last++].value;
+    while (points[first].time < point.time - halfWindow) sum -= points[first++].value;
+    point.plottedValue = sum / (last - first);
+  }
+}
+
+function plotSeries(series, timeline, start, end, mode) {
+  const history = timeline.map(reading => {
+    const value = series.read(reading.row);
+    return { ...reading, value, plottedValue: value };
+  });
+  if (mode === 'smooth') smoothSamples(history);
+  const samples = history.filter(({ time }) => time >= start && time <= end);
   const points = samples.filter(({ value }) => Number.isFinite(value));
   if (!points.length) return null;
   const { min, max, ticks } = valueScale(points);
   const y = value => 100 * (max - value) / (max - min);
-  return { ...series, color, samples, points, ticks, y };
+  return { ...series, samples, points, ticks, y };
 }
 
 function renderLine({ id, color, samples, y }, x, active) {
   let connected = false;
-  const path = samples.map(({ time, value }) => {
-    if (!Number.isFinite(value)) {
+  const path = samples.map(({ time, plottedValue }) => {
+    if (!Number.isFinite(plottedValue)) {
       connected = false;
       return '';
     }
     const command = connected ? 'L' : 'M';
     connected = true;
-    return `${command}${x(time).toFixed(3)},${y(value).toFixed(3)}`;
+    return `${command}${x(time).toFixed(3)},${y(plottedValue).toFixed(3)}`;
   }).join(' ');
   return `<path class="chart-line${active ? ' chart-line-active' : ''}" data-series="${id}"
     style="--series-color:${color}" d="${path}" vector-effect="non-scaling-stroke"/>`;
 }
 
 function renderPoints({ id, label, color, points, y }, x, active) {
-  return points.map(({ index, time, value }) => {
+  return points.map(({ index, time, value, plottedValue }) => {
     const text = formatDate(time);
     const formatted = axisValue.format(value);
     const position = x(time);
     return `<button type="button" class="chart-point${active ? ' chart-point-active' : ''}" data-action="reading"
       data-series="${id}" data-value="${index}"
-      style="--series-color:${color};--x:${position}%;--y:${y(value)}%;--tooltip-offset:${-position}%"
+      style="--series-color:${color};--x:${position}%;--y:${y(plottedValue)}%;--tooltip-offset:${-position}%"
       aria-label="${e(label + ' · ' + text + ' · ' + formatted)}">
       <span class="chart-tooltip" aria-hidden="true"><strong>${e(label)} · ${formatted}</strong><span>${e(text)}</span></span>
     </button>`;
@@ -68,7 +85,7 @@ const signedValue = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2, s
 
 const statusLabels = { visible: 'Visible', bold: 'En gras', hidden: 'Masquée' };
 
-export function measurementCharts(rows, series, { period, statuses = {} }) {
+export function measurementCharts(rows, series, { period = 'all', range, mode = 'smooth', statuses = {} }) {
   const configured = series.map((item, index) => ({ ...item, color: colors[index] }))
     .filter(({ id }) => Object.hasOwn(statuses, id));
   const legend = `<div class="chart-legend" role="group" aria-labelledby="chart-series-label">
@@ -80,29 +97,34 @@ export function measurementCharts(rows, series, { period, statuses = {} }) {
   return `<section class="panel measurement-chart" aria-labelledby="measurement-chart-title">
     <div class="chart-heading">
       <h2 id="measurement-chart-title">Évolution des pesées</h2>
+      <div class="chart-periods" role="group" aria-label="Lissage">
+        <button type="button" data-action="chart-mode" data-value="raw" aria-pressed="${mode === 'raw'}">Brut</button>
+        <button type="button" data-action="chart-mode" data-value="smooth" aria-pressed="${mode === 'smooth'}"
+          title="Moyenne centrée sur sept jours">Adouci</button>
+      </div>
       <div class="chart-periods" role="group" aria-label="Période">
         ${periods.map(([id, label]) => `<button type="button" data-action="chart-period" data-value="${id}"
-          aria-pressed="${period === id}">${label}</button>`).join('')}
+          aria-pressed="${!range && period === id}">${label}</button>`).join('')}
       </div>
     </div>
-    ${chartPlot(rows, configured, period, statuses, legend)}
+    ${range ? `<p class="chart-range">Du ${e(formatDate(range[0]))} au ${e(formatDate(range[1]))}</p>` : ''}
+    ${chartPlot(rows, configured, { period, range, mode, statuses }, legend)}
   </section>`;
 }
 
-function chartPlot(rows, series, period, statuses, legend) {
+function chartPlot(rows, series, { period, range, mode, statuses }, legend) {
   const timeline = rows.map((row, index) => ({ row, index, time: Date.parse(row.receivedAt) }))
     .filter(({ time }) => Number.isFinite(time)).sort((a, b) => a.time - b.time);
-  const end = timeline.at(-1)?.time;
-  const cutoff = period === 'all' ? -Infinity : end - Number(period) * 86400_000;
-  const readings = timeline.filter(({ time }) => time >= cutoff);
+  const latestTime = timeline.at(-1)?.time;
+  const cutoff = period === 'all' ? -Infinity : latestTime - Number(period) * 86400_000;
+  const [start, end] = range ?? [timeline.find(({ time }) => time >= cutoff)?.time, latestTime];
   const visible = series.filter(({ id }) => statuses[id] !== 'hidden');
-  const lines = visible.map(item => plotSeries(item, readings, item.color)).filter(Boolean);
+  const lines = visible.map(item => plotSeries(item, timeline, start, end, mode)).filter(Boolean);
   if (!lines.length) {
     const message = visible.length ? 'Aucune donnée à afficher sur le graphique.' : 'Toutes les courbes sont masquées.';
     return `${legend}<p class="empty">${message}</p>`;
   }
 
-  const start = readings[0].time;
   const active = lines.find(({ id }) => statuses[id] === 'bold') ?? lines[0];
   const layered = [...lines.filter(line => line !== active), active];
   const x = time => end === start ? 50 : 100 * (time - start) / (end - start);
@@ -119,7 +141,9 @@ function chartPlot(rows, series, period, statuses, legend) {
     <div class="chart-frame">
       <div class="chart-values" aria-hidden="true">${active.ticks.map(value =>
         `<span style="--y:${active.y(value)}%">${axisValue.format(value)}</span>`).join('')}</div>
-      <div class="chart-plot">
+      <div class="chart-plot"${start < end ? ` data-start="${start}" data-end="${end}"
+        title="Glissez horizontalement pour sélectionner une plage de dates"` : ''}>
+        <div class="chart-selection" hidden></div>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           ${active.ticks.map(value => `<path class="chart-gridline" d="M0,${active.y(value)} H100" vector-effect="non-scaling-stroke"/>`).join('')}
           ${layered.map(line => renderLine(line, x, statuses[line.id] === 'bold')).join('')}

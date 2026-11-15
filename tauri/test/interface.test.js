@@ -606,7 +606,8 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   const earlier = { ...record, receivedAt: '2025-12-01T17:23:21Z',
     measures: { weight: 150, unit: 'lb' }, calculations: null };
   const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Alice',
-    measurements: [record, earlier] }, { viewport: { width: 360, height: 800 } });
+    measurements: [record, earlier, { ...record, receivedAt: '2026-01-14T17:23:21Z',
+      measures: { ...record.measures, weight: 72 } }] }, { viewport: { width: 360, height: 800 } });
   const chart = page.getByRole('button', { name: 'Graphique', exact: true });
   const table = page.getByRole('button', { name: 'Tableau', exact: true });
   const weightChart = page.getByRole('region', { name: 'Évolution des pesées', exact: true });
@@ -626,10 +627,35 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   await weightChart.locator('.chart-line[data-series="bmi"]').waitFor({ state: 'detached' });
   assert.equal(await bmi.getAttribute('data-status'), 'hidden');
   const points = weightChart.locator('.chart-point[data-series="weight"]');
+  const adouci = weightChart.getByRole('button', { name: 'Adouci', exact: true });
+  const brut = weightChart.getByRole('button', { name: 'Brut', exact: true });
+  assert.equal(await adouci.getAttribute('aria-pressed'), 'true');
+  assert.ok((await weightChart.locator('.chart-values span').allTextContents()).includes('0'));
+  const path = weightChart.locator('path.chart-line[data-series="weight"]');
+  const smoothed = await path.getAttribute('d');
+  await brut.click();
+  assert.notEqual(await path.getAttribute('d'), smoothed);
   await weightChart.getByRole('button', { name: '30 j', exact: true }).click();
-  assert.equal(await points.count(), 1);
-  await weightChart.getByRole('button', { name: 'Tout', exact: true }).click();
   assert.equal(await points.count(), 2);
+  await weightChart.getByRole('button', { name: 'Tout', exact: true }).click();
+  assert.equal(await points.count(), 3);
+
+  const plot = weightChart.locator('.chart-plot');
+  await plot.scrollIntoViewIfNeeded();
+  const { x, y, width, height } = await plot.boundingBox();
+  await page.mouse.move(x + width * .5, y + height / 2);
+  await page.mouse.down();
+  await page.mouse.move(x + width + 2, y + height / 2, { steps: 5 });
+  await weightChart.locator('.chart-selection').waitFor();
+  await page.mouse.up();
+  await weightChart.locator('.chart-range').waitFor();
+  assert.equal(await points.count(), 2);
+  await page.reload();
+  await weightChart.locator('.chart-range').waitFor();
+  assert.equal(await brut.getAttribute('aria-pressed'), 'true');
+  assert.equal(await points.count(), 2);
+  await weightChart.getByRole('button', { name: 'Tout', exact: true }).click();
+  assert.equal(await points.count(), 3);
   assert.match(await points.first().getAttribute('aria-label'), /68,04$/);
   await points.first().click();
   await page.getByRole('heading', { name: 'Détails de la pesée' }).waitFor();

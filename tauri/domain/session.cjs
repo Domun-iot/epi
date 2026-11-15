@@ -119,6 +119,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     return { ...saved, ...measurements.layout, ...details.layout, viewLayouts: { measurements, details },
       measurementDisplay: prefs.measurementDisplay === 'chart' ? 'chart' : 'table',
       chartSeries: prefs.chartSeriesByView?.[chartViewKey(measurements.preset)],
+      chartOptions: prefs.chartOptionsByView?.[chartViewKey(measurements.preset)],
       theme: prefs.theme, rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: prefs.detailSectionsOpen, enrollment, acquisitionError };
   }
 
@@ -406,6 +407,38 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     });
   }
 
+  function setChartOptions(profile, viewId, options) {
+    return mutate(draft => {
+      const target = profile == null ? null : findProfile(draft, profile);
+      if (profile != null && !target) throw Error('Profil introuvable.');
+      const name = target?.name ?? null;
+      const prefs = preferencesFor(draft, name);
+      const { preset } = layoutFor(draft, prefs, 'measurements');
+      if ((preset?.id ?? null) !== viewId) return;
+      const key = chartViewKey(preset);
+      const next = { ...prefs.chartOptionsByView?.[key] };
+      if (Object.hasOwn(options, 'mode')) {
+        if (!['raw', 'smooth'].includes(options.mode)) throw Error('Mode de graphique invalide.');
+        next.mode = options.mode;
+      }
+      if (Object.hasOwn(options, 'period')) {
+        const { period } = options;
+        if (!['30', '90', '365', 'all'].includes(period)) throw Error('Période invalide.');
+        next.period = period;
+        delete next.range;
+      }
+      if (Object.hasOwn(options, 'range')) {
+        const { range } = options;
+        if (!Array.isArray(range) || range.length !== 2 || !range.every(time =>
+          Number.isSafeInteger(time) && Math.abs(time) <= 8.64e15) || range[0] >= range[1]) {
+          throw Error('Plage de dates invalide.');
+        }
+        next.range = range;
+      }
+      savePreferences(draft, name, { ...prefs, chartOptionsByView: { ...prefs.chartOptionsByView, [key]: next } });
+    });
+  }
+
   function setColumnPreference(profile, id, setting, enabled) {
     return mutate(draft => {
       const target = profile == null ? null : findProfile(draft, profile);
@@ -678,7 +711,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       return () => observers.delete(observer);
     },
     selectProfile, saveProfile, setColumnPreference, renameDevice, beginDevice, cancelDevice, confirmProfile,
-    deleteProfile, deleteDevice, deleteMeasurement, setPanelOpen, changeViewPreset, setTheme, setMeasurementDisplay, cycleChartSeries,
+    deleteProfile, deleteDevice, deleteMeasurement, setPanelOpen, changeViewPreset, setTheme, setMeasurementDisplay, cycleChartSeries, setChartOptions,
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),
     moveDetailSection: (...args) => movePreference('detailSectionOrder', ...args),
