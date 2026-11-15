@@ -53,8 +53,7 @@ export function bluetoothView({ addressFilter, devices }, web) {
 
 function formatFrame(frame) {
   const source = [frame.localName, frame.model].filter(Boolean).join(' ');
-  const manufacturer = frame.macManufacturer ? `${frame.macManufacturer} (préfixe MAC)` : '';
-  const fields = [frame.address, source, manufacturer, frame.label].filter(Boolean);
+  const fields = [frame.address, source, frame.macManufacturer, frame.label].filter(Boolean);
   const highlights = [];
   if (frame.prefixStatus) highlights.push([0, 8, frame.prefixStatus]);
   if (frame.codeStatus) {

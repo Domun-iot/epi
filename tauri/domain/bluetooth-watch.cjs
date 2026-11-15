@@ -53,7 +53,7 @@ function createWatchDecoder() {
     const inferred = manufacturer ? source.macManufacturer : undefined;
     const macStatus = knownCompany ? undefined : prefixStatus(source, manufacturer);
     const label = nameForCode ? `${nameForCode} (${code})`
-      : inferred ? `${inferred} (préfixe MAC, ${code})` : (manufacturer ? 'Fabricant ' : 'Service ') + code;
+      : inferred ? `${inferred} (${code})` : (manufacturer ? 'Fabricant ' : 'Service ') + code;
     if (manufacturer) delete source.macManufacturer;
     return { ...source, address, rssi: signal === '-' ? null : Number(signal), hex,
       code, codeStatus: nameForCode ? 'known' : inferred ? undefined : 'unknown',

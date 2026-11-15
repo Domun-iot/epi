@@ -261,7 +261,7 @@ test('l’écoute Bluetooth identifie le fabricant par préfixe MAC lorsque le c
   const log = page.getByRole('region', { name: 'Trames Bluetooth reçues' });
   await log.waitFor();
   await feed(page, 'PAYLOAD D4278722D707 -91 Manufacturer 3030 1 30 QVBfMzQxODczMTY0NA==');
-  await log.getByText(/AP_3418731644 · Shanghai High-Flying Electronics Technology Co\., Ltd \(préfixe MAC, 0x3030\) · -91 dBm · 1 octet reçu · 30$/).waitFor();
+  await log.getByText(/AP_3418731644 · Shanghai High-Flying Electronics Technology Co\., Ltd \(0x3030\) · -91 dBm · 1 octet reçu · 30$/).waitFor();
   await feed(page, 'PAYLOAD D4278722D707 -91 Manufacturer 0157 1 30 ');
   await log.getByText(/Anhui Huami.* \(0x0157\)/).waitFor();
   const known = log.locator('.bluetooth-id-known');
