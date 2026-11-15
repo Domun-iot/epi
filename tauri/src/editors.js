@@ -23,29 +23,33 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
   function open(title, content, submit, submitLabel = 'Enregistrer', { modal = false, extraActions = '' } = {}) {
     const host = modal ? dialog : view;
     const formId = modal ? 'modal-editor-form' : 'view-editor-form';
-    const actions = `${extraActions}${button('Annuler', 'close-editor')}<button class="button primary" type="submit" form="${formId}">${submitLabel}</button>`;
+    const submitButton = submitLabel ? `<button class="button primary" type="submit" form="${formId}">${submitLabel}</button>` : '';
+    const actions = `${extraActions}${button('Annuler', 'close-editor')}${submitButton}`;
     host.innerHTML = `${modal ? `<h2 id="dialog-title">${title}</h2>` : pageHeader(title)}
       <form id="${formId}" class="editor-form${modal ? '' : ' panel'}">${content}<p class="notice error" role="alert" hidden></p></form>
       ${modal ? `<div class="actions">${actions}</div>` : ''}`;
     const controls = modal ? dialog : toolbar;
     if (!modal) controls.innerHTML = actions;
     const form = host.querySelector('form');
-    const buttons = controls.querySelectorAll('button');
-    const save = controls.querySelector('[type="submit"]');
+    const buttons = new Set([...controls.querySelectorAll('button'), ...form.querySelectorAll('button')]);
     const close = () => modal ? dialog.close() : closeView();
+    let submitting = false;
     form.addEventListener('submit', async event => {
       event.preventDefault();
-      if (save.disabled) return;
+      if (submitting) return;
+      const values = new FormData(form, event.submitter);
+      submitting = true;
       const error = form.querySelector('[role="alert"]');
       for (const control of buttons) control.disabled = true;
       error.hidden = true;
       try {
-        await submit(Object.fromEntries(new FormData(form)));
+        await submit(Object.fromEntries(values));
         if (form.isConnected) close();
       } catch (exception) {
         error.textContent = exception?.message || String(exception);
         error.hidden = false;
       } finally {
+        submitting = false;
         for (const control of buttons) control.disabled = false;
       }
     });
@@ -129,10 +133,18 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
   }
 
   function assignmentEditor(pending, profiles, submit, create, anonymous) {
+    const profileItems = sortByName(profiles).map(({ name }) => {
+      const firstName = name.trim().split(/\s+/, 1)[0];
+      return `<li><button class="button assignment-profile" type="submit" name="name" value="${e(name)}">
+        <span class="assignment-name">${e(firstName)}</span><span class="button">Sélectionner</span>
+      </button></li>`;
+    }).join('');
     open('Attribuer la pesée', `<p>Pesée de <strong>${weight(pending.event)}</strong>.</p>
-      <label for="assignment-profile">Profil</label><select id="assignment-profile" name="name" required>${option('', 'Choisir un profil', true)}${option('@anonymous', 'Sans profil enregistré')}${sortByName(profiles).map(profile => option(profile.name, profile.name)).join('')}</select>`,
-    ({ name }) => submit({ id: pending.id, name: name === '@anonymous' ? null : name }), 'Confirmer', {
-      extraActions: button('Créer un profil', 'create-for-reading') + button('Calculer sans profil', 'calculate-one-off'),
+      ${profileItems ? `<ul class="assignment-profiles list" aria-label="Profils">${profileItems}</ul>`
+        : '<p class="muted">Aucun profil sur cet appareil.</p>'}`,
+    ({ name }) => submit({ id: pending.id, name }), null, {
+      extraActions: button('Créer un profil', 'create-for-reading', { primary: profiles.length === 0 })
+        + button('Calculer sans profil', 'calculate-one-off', { primary: profiles.length > 0 }),
     });
     toolbar.querySelector('[data-action="calculate-one-off"]').addEventListener('click', anonymous);
     toolbar.querySelector('[data-action="create-for-reading"]').addEventListener('click', create);

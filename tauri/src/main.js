@@ -68,7 +68,10 @@ function renderProfilePicker() {
   if (changed(lastProfiles, nextProfiles)) {
     lastProfiles = nextProfiles;
     profilePicker.innerHTML = `<option value="">${anonymous ? 'Sans profil' : 'Choisir un profil'}</option>${sortByName(state.profiles).map(({ name }) => `<option value="${e(name)}">${e(name)}</option>`).join('')}`;
-    profilePicker.disabled = !state.profiles.length && !anonymous;
+    const hasProfiles = state.profiles.length > 0;
+    profilePicker.hidden = !hasProfiles;
+    profileIcon.title = hasProfiles ? 'Ouvrir les profils' : 'Créer un profil';
+    profileIcon.setAttribute('aria-label', profileIcon.title);
   }
   profilePicker.value = state.selectedProfile ?? '';
 }
@@ -285,7 +288,10 @@ const actions = {
   },
 };
 
-profileIcon.addEventListener('click', () => navigation.querySelector('[data-page="profiles"]').click());
+profileIcon.addEventListener('click', () => {
+  if (state.profiles.length) navigation.querySelector('[data-page="profiles"]').click();
+  else if (editorView.hidden) void perform(() => addProfile());
+});
 navigation.addEventListener('click', event => {
   const page = event.target.closest('[data-page]')?.dataset.page;
   if (page && !editorView.hidden) editor.closeView();

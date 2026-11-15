@@ -60,8 +60,24 @@ async function pageWith(t, snapshot, options = {}) {
   return page;
 }
 
-test('the toolbar profile icon opens the profiles screen', async t => {
-  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice' });
+test('the toolbar profile icon creates the first profile, then opens the profiles screen', async t => {
+  const page = await pageWith(t);
+  const picker = page.getByRole('combobox', { name: 'Profil actif' });
+  assert.equal(await picker.count(), 0);
+  const profileIcon = await page.locator('#profile-icon').boundingBox();
+  const themeToggle = await page.locator('#theme-toggle').boundingBox();
+  assert.equal(themeToggle.x - (profileIcon.x + profileIcon.width), profileIcon.width);
+  await page.locator('.toolbar').getByRole('button', { name: 'Créer un profil' }).click();
+  const editor = page.locator('#editor-view');
+  await editor.getByRole('heading', { name: 'Créer un profil', exact: true }).waitFor();
+  assert.equal(new URL(page.url()).hash, '');
+  await editor.getByLabel('Nom', { exact: true }).fill('Alice');
+  await editor.getByLabel('Sexe utilisé par les formules').selectOption('F');
+  await editor.getByLabel('Date de naissance', { exact: true }).fill('1994-01-15');
+  await editor.getByLabel('Taille (cm)').fill('165');
+  await page.locator('.toolbar').getByRole('button', { name: 'Enregistrer' }).click();
+  await editor.waitFor({ state: 'hidden' });
+  assert.equal(await picker.inputValue(), 'Alice');
   await page.getByRole('button', { name: 'Ouvrir les profils' }).click();
   await page.waitForURL('**/#profiles');
   await page.getByRole('heading', { name: 'Profils', exact: true }).waitFor();
@@ -727,14 +743,19 @@ test('capture et renommage, attribution automatique et flux brut horodaté', asy
   assert.equal(await page.getByRole('table').getByText('70,9 kg', { exact: true }).count(), 1);
 });
 
-test('confirmation sur smartphone, création de profil depuis une pesée et historique redimensionnable', async t => {
-  const page = await pageWith(t, { profiles: [bob], selectedProfile: 'Bob', devices: [device] },
+test('attribution sans profil sur smartphone, création depuis une pesée et historique redimensionnable', async t => {
+  const page = await pageWith(t, { devices: [device] },
     { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await feed(page, frame);
   await page.getByRole('button', { name: 'Attribuer la pesée' }).click();
   const editor = page.locator('#editor-view');
   const toolbar = page.locator('.toolbar');
-  await toolbar.getByRole('button', { name: 'Créer un profil' }).click();
+  await editor.getByText('Aucun profil sur cet appareil.', { exact: true }).waitFor();
+  assert.equal(await editor.getByRole('list', { name: 'Profils' }).count(), 0);
+  const createProfile = toolbar.locator('#editor-actions').getByRole('button', { name: 'Créer un profil' });
+  assert.match(await createProfile.getAttribute('class'), /\bprimary\b/);
+  assert.doesNotMatch(await toolbar.getByRole('button', { name: 'Calculer sans profil' }).getAttribute('class'), /\bprimary\b/);
+  await createProfile.tap();
   await editor.getByRole('textbox', { name: 'Nom', exact: true }).fill('Camille');
   await editor.getByLabel('Sexe utilisé par les formules').selectOption('F');
   await editor.getByLabel('Âge utilisé par les formules').selectOption('age');
@@ -785,8 +806,9 @@ test('archive ZIP exportée, réimportée et idempotente dans le navigateur', as
 test('appareil détecté sans capture, attribution confirmée et calcul temporaire', async t => {
   const elise = { ...alice, name: 'Élise' };
   const zoe = { ...alice, name: 'zoé' };
-  const page = await pageWith(t, { profiles: [zoe, elise, bob, alice], selectedProfile: 'Alice' });
-  const profileNames = ['Alice', 'Bob', 'Élise', 'zoé'];
+  const bobWithSurname = { ...bob, name: 'Bob Martin' };
+  const page = await pageWith(t, { profiles: [zoe, elise, bobWithSurname, alice], selectedProfile: 'Alice' }, { hasTouch: true });
+  const profileNames = ['Alice', 'Bob Martin', 'Élise', 'zoé'];
   assert.deepEqual((await page.locator('#profile option').allTextContents()).slice(1), profileNames);
   await feed(page, frame);
   await page.getByRole('button', { name: 'Enregistrer l’appareil' }).click();
@@ -796,22 +818,25 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   await toolbar.getByRole('button', { name: 'Enregistrer' }).click();
   await editor.waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'Attribuer la pesée' }).click();
-  assert.deepEqual((await editor.locator('#assignment-profile option').allTextContents()).slice(2), profileNames);
-  await editor.getByLabel('Profil', { exact: true }).selectOption('Bob');
-  await toolbar.getByRole('button', { name: 'Confirmer' }).click();
+  const profiles = editor.getByRole('list', { name: 'Profils' });
+  assert.deepEqual(await profiles.locator('.assignment-name').allTextContents(), ['Alice', 'Bob', 'Élise', 'zoé']);
+  await profiles.getByRole('button', { name: 'Bob Sélectionner', exact: true }).getByText('Bob', { exact: true }).tap();
   await editor.waitFor({ state: 'hidden' });
-  assert.equal(await chosenProfile(page), 'Bob');
+  assert.equal(await chosenProfile(page), 'Bob Martin');
   await page.getByRole('table').getByText('70,9 kg').waitFor();
 
   await feed(page, 'AABBCCDDEEFF -62 181D 00404C');
   await page.getByRole('button', { name: 'Attribuer la pesée' }).click();
-  await toolbar.getByRole('button', { name: 'Calculer sans profil' }).click();
+  const calculate = toolbar.getByRole('button', { name: 'Calculer sans profil' });
+  assert.match(await calculate.getAttribute('class'), /\bprimary\b/);
+  assert.doesNotMatch(await toolbar.getByRole('button', { name: 'Créer un profil' }).getAttribute('class'), /\bprimary\b/);
+  await calculate.click();
   await editor.getByLabel('Sexe utilisé par les formules').selectOption('F');
   await editor.getByLabel('Date de naissance', { exact: true }).fill('1994-01-15');
   await editor.getByLabel('Taille (cm)').fill('170');
   await toolbar.getByRole('button', { name: 'Enregistrer' }).click();
   await editor.waitFor({ state: 'hidden' });
-  assert.equal(await chosenProfile(page), 'Bob');
+  assert.equal(await chosenProfile(page), 'Bob Martin');
   await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('');
   await page.getByRole('table').getByText('97,6 kg', { exact: true }).waitFor();
   assert.equal(await page.getByText('Colonnes', { exact: true }).count(), 0);
