@@ -26,10 +26,17 @@ function render(source, output, sizes = []) {
 }
 
 const darkBackground = '#1e1e1e';
+const darkPalette = ['#ffbd57', '#74e8d0'];
+const whitePalette = ['#eebf6a', '#9de5d1'];
+
+function recolor(svg, [gold, mint]) {
+  return svg.replaceAll('#f7be61', gold).replaceAll('#89e7d1', mint);
+}
 
 export function updateAndroidIcons(project) {
   withIcons(temp => {
-    copyFileSync(join(brand, 'logo.svg'), join(temp, 'foreground.svg'));
+    const master = readFileSync(join(brand, 'logo.svg'), 'utf8');
+    writeFileSync(join(temp, 'foreground.svg'), recolor(master, darkPalette));
     const manifest = join(temp, 'android.json');
     writeFileSync(manifest, JSON.stringify({
       default: join(brand, 'logo-app.svg'),
@@ -45,15 +52,15 @@ export function updateAndroidIcons(project) {
 function updateAssets() {
   withIcons(temp => {
     const master = readFileSync(join(brand, 'logo.svg'), 'utf8');
-    const white = '#ffffff';
+    const darkMark = recolor(master, darkPalette);
     const background = (svg, fill, radius = 0) => svg.replace('  <g', `  <rect width="64" height="64" rx="${radius}" fill="${fill}"/>\n  <g`);
-    const badge = background(master, darkBackground, 14);
-    const maskable = background(master.replace('  <g', '  <g transform="translate(5.12 5.12) scale(.84)">\n  <g').replace('</svg>', '  </g>\n</svg>'), darkBackground);
+    const badge = background(darkMark, darkBackground, 14);
+    const maskable = background(darkMark.replace('  <g', '  <g transform="translate(5.12 5.12) scale(.84)">\n  <g').replace('</svg>', '  </g>\n</svg>'), darkBackground);
     const variants = {
       logo: master,
-      'logo-blanc': background(master, white),
-      'logo-noir': background(master, '#000000'),
-      'logo-fonce': background(master, darkBackground),
+      'logo-blanc': background(recolor(master, whitePalette), '#ffffff'),
+      'logo-noir': background(darkMark, '#000000'),
+      'logo-fonce': background(darkMark, darkBackground),
       'logo-app': badge,
     };
 

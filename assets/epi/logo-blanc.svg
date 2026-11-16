@@ -2,11 +2,11 @@
   <title>éPI</title>
   <desc>Un épi dont la pointe se prolonge en ondes radio.</desc>
   <rect width="64" height="64" rx="0" fill="#ffffff"/>
-  <g fill="#ffbd57">
+  <g fill="#eebf6a">
     <path d="M29 50c-10 0-16-6-16-14 9 0 16 5 16 14Zm0-13c-9 0-14-5-14-12 8 0 14 5 14 12Zm1 10c0-9 7-15 17-15 0 9-7 15-17 15Z"/>
-    <path d="M30 54V26" fill="none" stroke="#ffbd57" stroke-width="4" stroke-linecap="round"/>
+    <path d="M30 54V26" fill="none" stroke="#eebf6a" stroke-width="4" stroke-linecap="round"/>
   </g>
-  <g fill="none" stroke="#74e8d0" stroke-width="3.8" stroke-linecap="round">
+  <g fill="none" stroke="#9de5d1" stroke-width="3.8" stroke-linecap="round">
     <path d="M30 18a8 8 0 0 1 8 8M30 10a16 16 0 0 1 16 16"/>
   </g>
 </svg>
