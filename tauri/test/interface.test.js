@@ -194,13 +194,15 @@ test('crée un compte avec Google et exige un mot de passe pour le délier', asy
   assert.equal(calls.find(call => call.path.endsWith('/start')).body.action, 'register');
   assert.equal(await page.locator('#account-google-fields').isVisible(), false);
   const unlink = page.getByRole('button', { name: 'Délier Google' });
+  await unlink.waitFor();
+  await unlink.locator('img').waitFor({ state: 'hidden' });
   await unlink.click();
   await page.getByLabel('Nouveau mot de passe', { exact: true }).fill('secret-password');
   await unlink.click();
   await page.getByRole('alert').getByText('Les deux mots de passe doivent être identiques.').waitFor();
   await page.getByLabel('Nouveau mot de passe (confirmation)').fill('secret-password');
   await unlink.click();
-  await page.getByRole('button', { name: 'Associer Google' }).waitFor();
+  await page.getByRole('button', { name: 'Associer Google' }).locator('img').waitFor();
   const request = calls.find(call => call.body?.action === 'unlink');
   assert.equal(request.token, 'Bearer device-token');
   assert.equal(request.body.password, 'secret-password');
