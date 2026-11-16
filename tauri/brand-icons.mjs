@@ -25,7 +25,7 @@ function render(source, output, sizes = []) {
   if (result.status !== 0) throw new Error(result.stderr || result.error?.message || 'Échec de génération des icônes.');
 }
 
-const midnight = '#102b29';
+const darkBackground = '#1e1e1e';
 
 export function updateAndroidIcons(project) {
   withIcons(temp => {
@@ -33,7 +33,7 @@ export function updateAndroidIcons(project) {
     const manifest = join(temp, 'android.json');
     writeFileSync(manifest, JSON.stringify({
       default: join(brand, 'logo-app.svg'),
-      bg_color: midnight,
+      bg_color: darkBackground,
       android_fg: 'foreground.svg',
       android_fg_scale: 76,
     }));
@@ -47,13 +47,13 @@ function updateAssets() {
     const master = readFileSync(join(brand, 'logo.svg'), 'utf8');
     const white = '#ffffff';
     const background = (svg, fill, radius = 0) => svg.replace('  <g', `  <rect width="64" height="64" rx="${radius}" fill="${fill}"/>\n  <g`);
-    const badge = background(master, midnight, 14);
-    const maskable = background(master.replace('  <g', '  <g transform="translate(5.12 5.12) scale(.84)">\n  <g').replace('</svg>', '  </g>\n</svg>'), midnight);
+    const badge = background(master, darkBackground, 14);
+    const maskable = background(master.replace('  <g', '  <g transform="translate(5.12 5.12) scale(.84)">\n  <g').replace('</svg>', '  </g>\n</svg>'), darkBackground);
     const variants = {
       logo: master,
       'logo-blanc': background(master, white),
       'logo-noir': background(master, '#000000'),
-      'logo-fonce': background(master, midnight),
+      'logo-fonce': background(master, darkBackground),
       'logo-app': badge,
     };
 
