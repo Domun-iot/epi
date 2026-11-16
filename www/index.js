@@ -3,11 +3,14 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { catalog, locales, selectLocale } from './locales.js';
+import { referenceTitle, renderHome, renderReference } from './features.js';
 import { isMailbox, readAccountEmail, saveDeletionMail } from './deletion-mail.js';
 
 const base = '/epi';
 const routes = new Map([
   [base, 'home'],
+  [base + '/compatible-scales', 'scales'],
+  [base + '/calculation-methods', 'methods'],
   [base + '/privacy-policy', 'privacy'],
   [base + '/delete-account', 'deletion'],
   [base + '/legal-notice', 'legal'],
@@ -24,6 +27,9 @@ const assets = new Map(Object.entries({
 }).map(([name, type]) => [base + '/assets/' + name, {
   type, body: readFileSync(new URL('./public/' + name, import.meta.url)),
 }]));
+assets.set(base + '/assets/weigh-ins.jpg', {
+  type: 'image/jpeg', body: readFileSync(new URL('../docs/google-play/pesees.jpg', import.meta.url)),
+});
 const stylePath = base + '/assets/style.css';
 const styleVersion = createHash('sha256').update(assets.get(stylePath).body).digest('hex').slice(0, 12);
 const escape = value => value.replace(/[&<>"']/g, character => ({
@@ -55,10 +61,14 @@ function render(path, page, locale, retention, status) {
   const deletion = base + '/delete-account';
   const contactLink = '<a href="https://logisan.fr/contact/">Logisan</a>';
   const retentionText = retention[locale] ? '<p>' + escape(retention[locale]) + '</p>' : '';
-  const titles = { home: t.headline, privacy: t.privacy, deletion: t.deletion, legal: t.legal, missing: '404' };
+  const titles = {
+    home: t.headline, privacy: t.privacy, deletion: t.deletion, legal: t.legal, missing: '404',
+    scales: referenceTitle('scales', locale), methods: referenceTitle('methods', locale),
+  };
   const content = {
-    home: () => '<div class="hero"><div><h1>' + t.headline + '</h1><p>' + t.intro +
-      '</p></div><img class="chart" src="' + base + '/assets/chart.jpg" alt="" width="824" height="1784"></div>',
+    home: () => renderHome(base, t, locale, escape),
+    scales: () => renderReference(base, page, locale, escape),
+    methods: () => renderReference(base, page, locale, escape),
     privacy: () => '<h1>' + t.privacy + '</h1><p>éPI · Domun by Logisan' +
       '</p><p>' + t.local + '</p><p>' + t.sync + '</p><p>' + t.rights + ' ' + contactLink +
       '</p>' + retentionText + '<p><a href="' + deletion + '">' + t.deletion + '</a></p>',

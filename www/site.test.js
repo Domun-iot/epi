@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { createSite } from './index.js';
 import { catalog, locales } from './locales.js';
+import { scaleFamilies } from './feature-catalog.js';
 
 test('public pages, language selection and deletion requests', async t => {
   const mailDirectory = await mkdtemp(join(tmpdir(), 'epi-www-test-'));
@@ -89,6 +90,28 @@ test('public pages, language selection and deletion requests', async t => {
   assert.equal(weighted.headers.get('content-language'), 'es');
   const fallback = await get('/epi', { headers: { 'Accept-Language': 'ja' } });
   assert.equal(fallback.headers.get('content-language'), 'en-GB');
+
+  const french = { headers: { 'Accept-Language': 'fr-FR' } };
+  const home = await (await get('/epi', french)).text();
+  assert.match(home, /Simple au quotidien\. Complet pour les fous de données\./);
+  assert.match(home, new RegExp('Pour ' + scaleFamilies.length + ' familles'));
+  for (const id of ['bluetooth', 'profiles', 'composition', 'views', 'sync', 'local', 'source']) {
+    assert.ok(home.includes('id="' + id + '" aria-labelledby="' + id + '-title"'));
+  }
+  for (const [path, expected] of [
+    ['compatible-scales', 'XMTZC05HM'],
+    ['calculation-methods', 'https://pubmed.ncbi.nlm.nih.gov/12540391/'],
+  ]) {
+    assert.ok(home.includes('href="/epi/' + path + '"'));
+    const page = await get('/epi/' + path, french);
+    assert.equal(page.status, 200);
+    assert.ok((await page.text()).includes(expected));
+  }
+  const german = await get('/epi/calculation-methods', { headers: { 'Accept-Language': 'de' } });
+  assert.match(await german.text(), /<html lang="de".*<div lang="en-GB">/);
+  const weighIns = await get('/epi/assets/weigh-ins.jpg', { method: 'HEAD' });
+  assert.equal(weighIns.status, 200);
+  assert.equal(weighIns.headers.get('content-type'), 'image/jpeg');
 
   const image = await get('/epi/assets/chart.jpg', { method: 'HEAD' });
   assert.equal(image.headers.get('content-type'), 'image/jpeg');
