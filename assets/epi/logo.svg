@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
   <title>éPI</title>
   <desc>Un épi dont la pointe se prolonge en ondes radio.</desc>
-  <g fill="#a95a00">
+  <g fill="#ffbd57">
     <path d="M29 50c-10 0-16-6-16-14 9 0 16 5 16 14Zm0-13c-9 0-14-5-14-12 8 0 14 5 14 12Zm1 10c0-9 7-15 17-15 0 9-7 15-17 15Z"/>
-    <path d="M30 54V26" fill="none" stroke="#a95a00" stroke-width="4" stroke-linecap="round"/>
+    <path d="M30 54V26" fill="none" stroke="#ffbd57" stroke-width="4" stroke-linecap="round"/>
   </g>
-  <g fill="none" stroke="#087d73" stroke-width="3.8" stroke-linecap="round">
+  <g fill="none" stroke="#74e8d0" stroke-width="3.8" stroke-linecap="round">
     <path d="M30 18a8 8 0 0 1 8 8M30 10a16 16 0 0 1 16 16"/>
   </g>
 </svg>
