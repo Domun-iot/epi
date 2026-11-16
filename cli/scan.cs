@@ -27,6 +27,15 @@ internal static class Scanner
             Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(packet.Advertisement.LocalName ?? "")));
     }
 
+    private static void EmitPayload(BluetoothLEAdvertisementReceivedEventArgs packet, string kind, string code,
+        byte[] bytes, int offset)
+    {
+        Console.WriteLine("PAYLOAD {0:X12} {1} {2} {3} {4} {5} {6}", packet.BluetoothAddress,
+            packet.RawSignalStrengthInDBm, kind, code, bytes.Length - offset,
+            BitConverter.ToString(bytes, offset).Replace("-", ""),
+            Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(packet.Advertisement.LocalName ?? "")));
+    }
+
     private static Task<T> AsTask<T>(Windows.Foundation.IAsyncOperation<T> operation)
     {
         var result = new TaskCompletionSource<T>();
@@ -112,13 +121,35 @@ internal static class Scanner
             }
             foreach (var section in packet.Advertisement.GetSectionsByType(0x16))
             {
-                if (section.Data.Length < 2) continue;
+                if (section.Data.Length <= 2) continue;
                 using (var reader = DataReader.FromBuffer(section.Data))
                 {
                     var bytes = new byte[section.Data.Length];
                     reader.ReadBytes(bytes);
-                    if (bytes[0] != 0x1b || bytes[1] != 0x18) continue;
-                    Emit(packet, "181B", bytes, 2);
+                    var service = (bytes[0] | (bytes[1] << 8)).ToString("X4");
+                    if (service == "181B") Emit(packet, service, bytes, 2);
+                    else EmitPayload(packet, "Service", service, bytes, 2);
+                }
+            }
+            foreach (var section in packet.Advertisement.GetSectionsByType(0x21))
+            {
+                if (section.Data.Length <= 16) continue;
+                using (var reader = DataReader.FromBuffer(section.Data))
+                {
+                    var bytes = new byte[section.Data.Length];
+                    reader.ReadBytes(bytes);
+                    var uuid = BitConverter.ToString(bytes.Take(16).Reverse().ToArray()).Replace("-", "");
+                    EmitPayload(packet, "Service", Guid.ParseExact(uuid, "N").ToString(), bytes, 16);
+                }
+            }
+            foreach (var manufacturer in packet.Advertisement.ManufacturerData)
+            {
+                if (manufacturer.Data.Length == 0) continue;
+                using (var reader = DataReader.FromBuffer(manufacturer.Data))
+                {
+                    var bytes = new byte[manufacturer.Data.Length];
+                    reader.ReadBytes(bytes);
+                    EmitPayload(packet, "Manufacturer", manufacturer.CompanyId.ToString("X4"), bytes, 0);
                 }
             }
             if (diagnostics || !packet.Advertisement.ServiceUuids.Contains(WeightService)) return;

@@ -51,6 +51,25 @@ test('receives identified and unknown scales on the same receiver without mixing
   assert.equal(receive(xiaomi.replace('181B', '1234'), 4), null);
 });
 
+test('distinguishes a Mi Smart Scale advertisement from the standard WSS indication', () => {
+  const prefix = 'PAYLOAD 70879E112233 -75 Service 181D 10 ';
+  const raw = createReceiver({ raw: true });
+  const receive = createReceiver();
+  // Public Mi Smart Scale 2 capture with separate loading, stable and idle advertisements.
+  const name = ' TUkgU0NBTEUy';
+  const ready = prefix + '220c49e6070b06012026' + name;
+  const unloaded = prefix + 'a20c49e6070b0601202a' + name;
+  assert.equal(receive(prefix + '020c49e6070b06012026' + name, 0), null);
+  assert.equal(receive(unloaded, 1), null);
+  assert.equal(raw(unloaded, 2).removed, true);
+  const decoded = receive(ready, 3);
+  assert.equal(decoded.weight, 93.5);
+  assert.equal(decoded.model, 'XMTZC04HM');
+  assert.equal(decoded.scaleTime, '2022-11-06T01:32:38');
+  assert.equal(receive('70879E112233 -75 181D 00803e Gatt ', 4).weight, 80);
+  assert.equal(receive(ready.replace('181D 10', '181D 9'), 5), null);
+});
+
 test('raw mode exposes repeat and unloaded packets', () => {
   const receive = createReceiver({ raw: true });
   assert.equal(receive(packet(removed), 0).hex, removed);

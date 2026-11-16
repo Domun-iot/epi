@@ -65,7 +65,7 @@ pub(super) async fn run(app: &AppHandle) {
     }
 
     // Keep cached advertisements from replaying when the scan restarts.
-    let mut previous_payloads = HashMap::new();
+    let mut previous_devices = HashMap::new();
     loop {
         let _ = foreground.wait_for(|active| *active).await;
         if matches!(handler.get_adapter_state().await, AdapterState::Off) {
@@ -74,7 +74,7 @@ pub(super) async fn run(app: &AppHandle) {
                 "epi-i18n:diagnostic.bluetoothDisabledEnableItInAndroid",
             );
         } else if let Err(error) =
-            scan(app, handler, foreground.clone(), &mut previous_payloads).await
+            scan(app, handler, foreground.clone(), &mut previous_devices).await
         {
             status(app, &format!("epi-i18n:bluetoothUnavailable · {error}"));
         }
@@ -105,7 +105,7 @@ async fn scan(
     app: &AppHandle,
     handler: &'static Handler,
     mut foreground: watch::Receiver<bool>,
-    previous_payloads: &mut HashMap<String, Vec<u8>>,
+    previous_devices: &mut HashMap<String, BleDevice>,
 ) -> tauri_plugin_blec::Result<()> {
     if foreground.has_changed().unwrap_or(false) {
         return Ok(());
@@ -116,7 +116,6 @@ async fn scan(
         .await?;
     status(app, "epi-i18n:diagnostic.activeBluetoothListening");
     let mut links: HashMap<String, (JoinHandle<()>, Instant)> = HashMap::new();
-    let mut diagnostic_devices: HashMap<String, BleDevice> = HashMap::new();
     let mut check_adapter_at = Instant::now() + RETRY;
 
     loop {
@@ -146,17 +145,12 @@ async fn scan(
         }
         links.retain(|_, (task, retry_at)| !task.is_finished() || Instant::now() < *retry_at);
         for device in devices {
-            report_payloads(app, &device, diagnostic_devices.get(&device.address));
-            if diagnostic_devices.len() >= 512 && !diagnostic_devices.contains_key(&device.address)
-            {
-                diagnostic_devices.clear();
-            }
-            diagnostic_devices.insert(device.address.clone(), device.clone());
+            let previous = previous_devices.insert(device.address.clone(), device.clone());
+            report_payloads(app, &device, previous.as_ref());
             if let Some(payload) = device.service_data.get(&COMPOSITION) {
                 // The plugin periodically returns cached peripheral snapshots. An unchanged
                 // payload is not a new advertisement or a reason to replay a completed weighing.
-                if previous_payloads.get(&device.address) != Some(payload) {
-                    previous_payloads.insert(device.address.clone(), payload.clone());
+                if previous.as_ref().and_then(|old| old.service_data.get(&COMPOSITION)) != Some(payload) {
                     let source = device_source(&device);
                     source.metadata(app, device.manufacturer_data.keys().copied());
                     source.frame(app, "181B", payload, "Advertisement");
@@ -187,6 +181,7 @@ async fn scan(
 // Discovery returns cached snapshots on Android, so only changed payloads are new here.
 fn report_payloads(app: &AppHandle, device: &BleDevice, previous: Option<&BleDevice>) {
     let source = device_source(device);
+    let previous = previous.filter(|old| old.name == device.name);
     for &service in &device.services {
         if !previous.is_some_and(|old| old.services.contains(&service)) {
             source.service_data(app, "Announcement", service, &[]);

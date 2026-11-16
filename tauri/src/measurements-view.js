@@ -27,6 +27,10 @@ const methodSources = {
   Owe: 'https://doi.org/10.1093/ajcn/44.1.1',
   'Cun*': 'https://doi.org/10.1093/ajcn/33.11.2372',
 };
+const deviceMetricLabels = new Map([
+  ['bmi', 'bmiShort'], ['heightCm', 'heightCm'], ['heartRateBpm', 'heartRateBpm'], ['electrodeContact', 'electrodeContact'],
+]);
+
 const methodName = id => id === 'IMC' ? t('bmiShort') : id;
 const methods = METHOD_COLUMNS.map(([id, label], index) => {
   const [icon, ink, bg] = colors[index % colors.length];
@@ -209,6 +213,8 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
       [t('weight'), number(measures.weight)],
       [t('unit'), measures.unit],
       [t('impedanceOhms'), number(measures.impedanceOhms)],
+      ...Object.entries(measures.deviceMetrics ?? {}).filter(([, value]) => Number.isFinite(value))
+        .map(([key, value]) => [deviceMetricLabels.has(key) ? t(deviceMetricLabels.get(key)) : key, number(value)]),
     ]), false],
     ['profile', t('profileAtWeighIn'), row.profile && pairs([
       [t('name'), row.profile.name ?? t('temporaryProfile')],
@@ -217,7 +223,11 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
       [t('heightUsedCm'), number(row.profile.heightCm)],
       [t('profileDateOfBirth'), formatCalendarDate(row.profile.birthDate)],
     ]), true],
-    ['reception', t('receptionDetails'), row.reception && pairs(extras.slice(3, 11).map(([, label, read]) => [label, textValue(read(row))])), true],
+    ['reception', t('receptionDetails'), row.reception && pairs([
+      ...extras.slice(3, 11).map(([, label, read]) => [label, textValue(read(row))]),
+      ...(row.reception.bluetooth?.manufacturerId ? [[t('manufacturerIdentifiers'), row.reception.bluetooth.manufacturerId]] : []),
+      ...(row.reception.scale?.userId !== undefined ? [[t('scaleUserId'), number(row.reception.scale.userId, 0)]] : []),
+    ]), true],
     ['device', t('scaleAtWeighIn'), row.device && pairs([[t('name'), row.device.name], ...deviceFields(row.device)]), false],
   ];
   const known = new Set(['uuid', 'profileUuid', 'deviceUuid', 'receivedAt', 'profile', 'device', 'measures', 'calculations', 'reception']);

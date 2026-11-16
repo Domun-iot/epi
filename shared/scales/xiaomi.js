@@ -4,9 +4,9 @@ const { fromHex, uint16le } = require('../bytes.cjs');
 
 function identify({ localName, companyIds }) {
   // The name alone does not uniquely identify the model.
-  if (localName === 'MIBFS' && companyIds?.includes('0x0157')) {
-    return { brand: 'Xiaomi', model: 'XMTZC05HM' };
-  }
+  if (!companyIds?.includes('0x0157')) return;
+  if (localName === 'MIBFS') return { brand: 'Xiaomi', model: 'XMTZC05HM' };
+  if (localName === 'MIBCS') return { brand: 'Xiaomi', model: 'XMTZC02HM' };
 }
 
 function decode(hex) {

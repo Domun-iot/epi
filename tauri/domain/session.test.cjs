@@ -236,6 +236,37 @@ test('can filter acquisition, enroll a separate balance, and compute an anonymou
   assert.equal(next.profiles.length, 1);
 });
 
+test('enrolls a manufacturer-advertisement scale and keeps its reception without a service id', async () => {
+  const { session } = fixture();
+  const initial = await session.beginDevice({ name: 'PICOOC' });
+  assert.ok(initial.enrollment);
+  const frame = 'PAYLOAD D049004B4F1E -50 Manufacturer 49D0 14 004B4F1E391F0676136087200040 UElDT09DLUw=';
+  const observed = await session.ingest(frame, start);
+  assert.equal(observed.devices[0].bluetooth.model, 'Mini Lite');
+  assert.equal(observed.devices[0].bluetooth.serviceUuid, null);
+  const assigned = await session.confirmProfile({ id: observed.pending[0].id, name: null });
+  const [row] = assigned.measurements;
+  assert.deepEqual(row.measures, { weight: 82.7, unit: 'kg', impedanceOhms: 496 });
+  assert.equal(row.reception.bluetooth.manufacturerId, '0x49D0');
+  assert.equal(row.reception.bluetooth.protocol, 'picooc-mini-lite');
+  assert.equal(row.reception.raw.hex, '004b4f1e391f0676136087200040');
+  const repeated = await session.ingest(frame, start + 400);
+  assert.equal(repeated.measurements.length, 1);
+});
+
+test('persists the scale-reported WSS measurements separately from estimates', async () => {
+  const { session } = fixture();
+  await session.beginDevice({ name: 'Standard' });
+  const observed = await session.ingest('112233445566 -68 181D 0e803eea070b100b0c0d02e600d606 Gatt ', start);
+  const assigned = await session.confirmProfile({ id: observed.pending[0].id, name: null });
+  const [row] = assigned.measurements;
+  assert.equal(row.measures.weight, 80);
+  assert.deepEqual(row.measures.deviceMetrics, { bmi: 23, heightCm: 175 });
+  assert.equal(row.reception.scale.scaleTime, '2026-11-16T11:12:13');
+  assert.equal(row.reception.scale.userId, 2);
+  assert.equal(row.calculations, null);
+});
+
 test('merges a legacy archive idempotently and preserves historical calculated values', async () => {
   const { session } = fixture();
   const imported = { profiles: [lou], devices: [device], measurements: [prior] };

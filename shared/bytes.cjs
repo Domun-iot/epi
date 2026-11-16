@@ -13,4 +13,6 @@ function fromBase64(value) {
 const fromHex = hex => Uint8Array.from(hex.match(/../g), byte => Number.parseInt(byte, 16));
 const uint16le = (data, offset) => data[offset] | (data[offset + 1] << 8);
 
-module.exports = { fromBase64, fromHex, uint16le };
+const uint16be = (data, offset) => (data[offset] << 8) | data[offset + 1];
+
+module.exports = { fromBase64, fromHex, uint16le, uint16be };

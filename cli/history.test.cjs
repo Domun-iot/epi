@@ -69,6 +69,20 @@ test('decodes and immediately saves a standard Weight Measurement indication', (
   assert.equal(saved[0].reception.bluetooth.service, 'Weight Scale Service');
 });
 
+test('keeps a timed-out measurement enriched by a later manufacturer frame', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const saved = [];
+  const record = bufferHistory(event => saved.push(event), 100);
+  const locked = { address: 'A', protocol: 'eufy', weight: 82.8, unit: 'kg', impedanceOhms: null, waitsForImpedance: true };
+  record(locked);
+  record({ ...locked, impedanceOhms: 513.1 });
+  record({ ...locked, deviceMetrics: { heartRateBpm: 95 } });
+  record({ ...locked, address: 'B', deviceMetrics: { heartRateBpm: 52 }, waitsForImpedance: false });
+  assert.deepEqual(saved, []);
+  t.mock.timers.tick(100);
+  assert.deepEqual(saved, [{ ...locked, impedanceOhms: 513.1, deviceMetrics: { heartRateBpm: 95 } }]);
+});
+
 test('uses the latest weight by date and compares percentage distance across units', () => {
   // Entirely fictional profiles and measurements, fixed for reproducible tests.
   const profiles = [{ name: 'Élodie' }, { name: 'Malik' }];

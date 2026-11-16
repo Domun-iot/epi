@@ -1920,6 +1920,21 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   await page.getByRole('table').getByRole('columnheader', { name: 'IMC (kg/m²)', exact: true }).waitFor();
 });
 
+test('affiche les mesures reçues de la balance et leur provenance', async t => {
+  const scale = { name: 'Standard', bluetooth: { address, serviceUuid: '0x181D' } };
+  const page = await pageWith(t, { profiles: [alice], devices: [scale], selectedProfile: 'Alice' });
+  await feed(page, 'AABBCCDDEEFF -58 181D 0e803eea070b100b0c0d02e600d606 Gatt ');
+  await page.locator('#pending-actions').getByRole('button', { name: 'Attribuer la pesée' }).click();
+  await page.getByRole('list', { name: 'Profils' }).getByRole('button', { name: 'Alice Sélectionner' }).click();
+  const measures = page.locator('details[data-detail-section="measures"]');
+  await measures.locator('summary').click();
+  assert.equal(await measures.locator('dt').filter({ hasText: /^IMC$/ }).locator('+ dd').textContent(), '23');
+  assert.equal(await measures.locator('dt').filter({ hasText: 'Taille (cm)' }).locator('+ dd').textContent(), '175');
+  const user = page.locator('details[data-detail-section="reception"] dt')
+    .filter({ hasText: 'Identifiant utilisateur sur la balance' }).locator('+ dd');
+  assert.equal(await user.textContent(), '2');
+});
+
 test('le journal conserve ses entrées et restaure un profil avec ses pesées', async t => {
   const page = await pageWith(t, { profiles: [alice, bob], devices: [device], selectedProfile: 'Bob',
     measurements: [record] });

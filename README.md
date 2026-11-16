@@ -1,6 +1,6 @@
 # éPI
 
-éPI reçoit les pesées Bluetooth de balances Xiaomi (service 181B) et de balances compatibles Weight Scale (service 181D, indication 2A9D).
+éPI reçoit les pesées Bluetooth de balances Xiaomi, de balances compatibles Weight Scale et de plusieurs familles qui diffusent leurs mesures en BLE. Voir le [catalogue des balances et protocoles BLE](docs/BALANCES-BLE.md).
 
 | Version | Démarrage |
 | --- | --- |

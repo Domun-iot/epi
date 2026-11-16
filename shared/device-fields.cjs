@@ -56,7 +56,7 @@ function mergeDeviceMetadata(record, metadata, { resolveMac = true } = {}) {
 }
 
 function buildDevice(name, event, metadata = {}) {
-  const serviceUuid = event.serviceUuid ?? defaultServiceUuid;
+  const serviceUuid = event.serviceUuid === undefined ? defaultServiceUuid : event.serviceUuid;
   const record = {
     name: normalizeName(name),
     registeredAt: event.receivedAt,
@@ -67,6 +67,9 @@ function buildDevice(name, event, metadata = {}) {
       service: services[serviceUuid] ?? null,
       localName: event.localName ?? null,
       advertisementType: event.advertisementType ?? null,
+      ...(event.protocol && { protocol: event.protocol }),
+      ...(event.brand && { brand: event.brand }),
+      ...(event.model && { model: event.model, modelSource: 'measurement' }),
     },
   };
   record.bluetooth = mergeDeviceMetadata(record, metadata);

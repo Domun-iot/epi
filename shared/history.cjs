@@ -3,28 +3,30 @@
 const { calculateComposition } = require('./composition.cjs');
 
 const { profileAt, nameKey } = require('./profile-fields.cjs');
-const { decodeMeasurement, defaultServiceUuid, isCompleteMeasurement } = require('./scales/adapter.js');
+const { decodeMeasurement, defaultServiceUuid, isCompleteMeasurement, mergeMeasurement } = require('./scales/adapter.js');
 const { creationDate } = require('./record-version.cjs');
 
 const services = require('./bluetooth-services.json');
 
 function receptionRecord({ hex, address, rssi, stable, removed, scaleTime,
-  serviceUuid = hex ? defaultServiceUuid : null }, model) {
+  serviceUuid = hex ? defaultServiceUuid : null, manufacturerId, protocol, scaleUserId }, model) {
   // Older Xiaomi records can carry the raw advertisement without decoded reception fields.
   const decoded = hex && serviceUuid === defaultServiceUuid ? decodeMeasurement(hex, { serviceUuid, model }) : null;
   return {
     raw: hex ? { hex } : null,
-    bluetooth: { serviceUuid, service: services[serviceUuid] ?? null, address: address ?? null, rssiDbm: rssi ?? null },
+    bluetooth: { serviceUuid, service: services[serviceUuid] ?? null, address: address ?? null, rssiDbm: rssi ?? null,
+      ...(manufacturerId && { manufacturerId }), ...(protocol && { protocol }) },
     scale: {
       stable: stable ?? decoded?.stable ?? null,
       removed: removed ?? decoded?.removed ?? null,
       scaleTime: scaleTime ?? decoded?.scaleTime ?? null,
+      ...(scaleUserId !== undefined && { userId: scaleUserId }),
     },
   };
 }
 
 function historyRecord(event, profile, device = null) {
-  const { receivedAt, weight, unit, impedanceOhms } = event;
+  const { receivedAt, weight, unit, impedanceOhms, deviceMetrics } = event;
   profile = profileAt(profile, receivedAt);
   return {
     uuid: globalThis.crypto.randomUUID(),
@@ -36,7 +38,7 @@ function historyRecord(event, profile, device = null) {
       ...(profile.birthDate ? { birthDate: profile.birthDate } : {}),
     } : null,
     device,
-    measures: { weight, unit, impedanceOhms },
+    measures: { weight, unit, impedanceOhms, ...(deviceMetrics && { deviceMetrics }) },
     calculations: profile ? calculateComposition({ weight, unit, impedanceOhms }, profile).methods : null,
     reception: receptionRecord(event, device?.bluetooth?.model),
   };
@@ -66,7 +68,7 @@ function bufferHistory(save, waitMs = 15000) {
   let first;
   let timer;
   let done = false;
-  const key = event => JSON.stringify([event.address, event.serviceUuid, event.scaleTime, event.weight, event.unit]);
+  const key = event => JSON.stringify([event.address, event.protocol ?? event.serviceUuid, event.scaleTime, event.scaleUserId, event.weight, event.unit]);
   const finish = event => {
     done = true;
     clearTimeout(timer);
@@ -77,10 +79,12 @@ function bufferHistory(save, waitMs = 15000) {
     if (done) return;
     if (first && key(first) !== key(event)) return;
     if (isCompleteMeasurement(event)) {
-      finish(event);
+      finish(first ? mergeMeasurement(first, event) : event);
     } else if (!first) {
       first = event;
       timer = setTimeout(() => finish(first), waitMs);
+    } else {
+      first = mergeMeasurement(first, event);
     }
   };
 }
