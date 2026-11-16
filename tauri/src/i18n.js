@@ -8,12 +8,13 @@ const fallback = 'en-GB';
 const storageKey = 'epi-account-language';
 const regional = { en: 'en-GB', fr: 'fr-FR', pt: 'pt-PT' };
 
-// Keep the familiar Canadian variant when a regional tag includes more subtags.
 export function supportedLocale(tag) {
   if (typeof tag !== 'string') return undefined;
   try {
     const { language, region } = new Intl.Locale(tag.replaceAll('_', '-'));
-    const id = language === 'fr' && region === 'CA' ? 'fr-CA' : regional[language] ?? language;
+    const regionalId = `${language}-${region}`;
+    if (Object.hasOwn(languages, regionalId)) return regionalId;
+    const id = regional[language] ?? language;
     return Object.hasOwn(languages, id) ? id : undefined;
   } catch {
     return undefined;

@@ -212,8 +212,10 @@ function supportedLocale(value: unknown): Locale | null {
   if (typeof value !== 'string' || value.length > 64) return null;
   try {
     const { language, region } = new Intl.Locale(value.replaceAll('_', '-'));
+    const regionalId = `${language}-${region}`;
+    if (Object.hasOwn(googleReturn, regionalId)) return regionalId as Locale;
     const id = language === 'en' ? 'en-GB' : language === 'pt' ? 'pt-PT'
-      : language === 'fr' ? (region === 'CA' ? 'fr-CA' : 'fr-FR') : language;
+      : language === 'fr' ? 'fr-FR' : language;
     return Object.hasOwn(googleReturn, id) ? id as Locale : null;
   } catch {
     return null;

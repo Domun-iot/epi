@@ -1607,7 +1607,7 @@ test('dates selon la locale active et conservation de la date de naissance et de
   const scale = { ...device, registeredAt: profile.createdAt, updatedAt: profile.updatedAt };
   const measurement = { ...record, profile, device: scale, reception: { scale: { scaleTime } } };
   const page = await pageWith(t, { profiles: [profile], devices: [scale], selectedProfile: 'Alice', measurements: [measurement] },
-    { locale: 'en-US', timezoneId: 'America/Los_Angeles' });
+    { locale: 'en-GB', timezoneId: 'America/Los_Angeles' });
 
   assert.equal(await page.locator('html').getAttribute('lang'), 'en-GB');
   assert.match(await page.locator('.measurement-summary .muted').innerText(), /09:23$/);
@@ -2260,7 +2260,7 @@ test('the account dialog keeps the interface language across sign-in and sign-ou
 
   await page.getByRole('button', { name: 'Account', exact: true }).click();
   const dialog = page.locator('#account-dialog');
-  assert.equal(await dialog.getByLabel('Language', { exact: true }).inputValue(), 'en-GB');
+  assert.equal(await dialog.getByLabel('Language', { exact: true }).inputValue(), 'en-US');
   await dialog.getByLabel('Language', { exact: true }).selectOption('fr-CA');
   await page.locator('html[lang="fr-CA"]').waitFor({ state: 'attached' });
   assert.equal(languagePreference, 'fr-CA');
@@ -2304,8 +2304,12 @@ test('account registration suggests the detected language and saves Canadian Fre
   await page.getByRole('button', { name: 'Account', exact: true }).click();
   await page.getByRole('button', { name: 'Create an account', exact: true }).click();
   const language = page.getByLabel('Language', { exact: true });
-  assert.equal(await language.inputValue(), 'en-GB');
-  assert.equal(await language.locator('option').count(), 25);
+  assert.equal(await language.inputValue(), 'en-US');
+  const labels = await language.locator('option').allTextContents();
+  assert.equal(labels.length, 26);
+  assert.deepEqual(labels, [...labels].sort((first, second) => first.localeCompare(second, 'en-US')));
+  assert.ok(labels.includes('English (UK)'));
+  assert.ok(labels.includes('English (US)'));
   await language.selectOption('fr-CA');
   await page.getByLabel('Email address').fill('user@example.org');
   await page.getByLabel('Password', { exact: true }).fill('test-password');

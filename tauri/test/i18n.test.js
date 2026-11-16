@@ -8,12 +8,13 @@ test('matches account preferences, Google hints, browser languages and the OS in
   assert.equal(chooseLocale({ google: 'pt-BR', browser: ['fr-FR'], system: 'it' }), 'pt-PT');
   assert.equal(chooseLocale({ browser: ['ja', 'fr-CA'], system: 'it' }), 'fr-CA');
   assert.equal(chooseLocale({ browser: ['ja'], system: 'it-IT' }), 'it');
-  assert.equal(chooseLocale({ browser: ['en-US'] }), 'en-GB');
+  assert.equal(chooseLocale({ browser: ['en-US'] }), 'en-US');
+  assert.equal(chooseLocale({ preference: 'en_US', browser: ['en-GB'] }), 'en-US');
   assert.equal(chooseLocale({ browser: ['ja'], system: 'zh-Hant' }), 'en-GB');
 });
 
-test('all official EU locales and Canadian French provide every message and its parameters', async () => {
-  const expected = 'bg cs da de el en-GB es et fi fr-CA fr-FR ga hr hu it lt lv mt nl pl pt-PT ro sk sl sv'.split(' ');
+test('all supported locales provide every message and its parameters', async () => {
+  const expected = 'bg cs da de el en-GB en-US es et fi fr-CA fr-FR ga hr hu it lt lv mt nl pl pt-PT ro sk sl sv'.split(' ');
   assert.deepEqual(Object.keys(languages).sort(), expected);
   const read = async locale => JSON.parse(await readFile(new URL('../src/locales/' + locale + '.json', import.meta.url)));
   const english = await read('en-GB');
