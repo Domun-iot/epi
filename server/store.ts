@@ -50,6 +50,14 @@ export function openStore(path: string) {
     if (!db.prepare("SELECT 1 FROM pragma_table_info('accounts') WHERE name = 'created_at'").get()) {
       db.exec('ALTER TABLE accounts ADD COLUMN created_at TEXT; ALTER TABLE accounts ADD COLUMN updated_at TEXT');
     }
+    if (!db.prepare("SELECT 1 FROM pragma_table_info('accounts') WHERE name = 'domun_id'").get()) {
+      db.exec(`
+        ALTER TABLE accounts ADD COLUMN domun_id TEXT;
+        ALTER TABLE accounts ADD COLUMN paid_until TEXT;
+        UPDATE accounts SET domun_id = lower(hex(randomblob(16)));
+      `);
+    }
+    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS accounts_domun_id ON accounts(domun_id)');
     db.exec('CREATE UNIQUE INDEX IF NOT EXISTS accounts_google_sub ON accounts(google_sub)');
     db.exec('COMMIT');
   } catch (error) {
@@ -60,17 +68,24 @@ export function openStore(path: string) {
 
   const now = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
   const createAccount = db.prepare(`
-    INSERT INTO accounts (email, password_hash, locale, created_at) VALUES (?, ?, ?, ${now})
+    INSERT INTO accounts (email, password_hash, locale, created_at, domun_id)
+    VALUES (?, ?, ?, ${now}, lower(hex(randomblob(16))))
     ON CONFLICT (email) DO NOTHING
   `);
   type Account = { id: number; email: string; password_hash: string; google_sub: string | null; locale: string | null; google_locale: string | null;
-    created_at: string | null; updated_at: string | null };
+    created_at: string | null; updated_at: string | null; paid_until: string | null };
+  type DomunAccount = { id: string; email: string; paidUntil: string | null };
+  const listDomunAccounts = db.prepare(`
+    SELECT domun_id AS id, email, paid_until AS paidUntil
+    FROM accounts WHERE domun_id > ? ORDER BY domun_id LIMIT ?
+  `);
+  const updateEntitlement = db.prepare('UPDATE accounts SET paid_until = ? WHERE domun_id = ?');
   const findAccount = db.prepare('SELECT * FROM accounts WHERE email = ?');
   const findById = db.prepare('SELECT * FROM accounts WHERE id = ?');
   const findGoogle = db.prepare('SELECT * FROM accounts WHERE google_sub = ?');
   const createGoogle = db.prepare(
-    `INSERT INTO accounts (email, password_hash, google_sub, locale, google_locale, created_at)
-     VALUES (?, '', ?, ?, ?, ${now}) ON CONFLICT DO NOTHING RETURNING *`
+    `INSERT INTO accounts (email, password_hash, google_sub, locale, google_locale, created_at, domun_id)
+     VALUES (?, '', ?, ?, ?, ${now}, lower(hex(randomblob(16)))) ON CONFLICT DO NOTHING RETURNING *`
   );
   const linkGoogle = db.prepare(
     `UPDATE OR IGNORE accounts SET google_sub = ?, google_locale = ?, updated_at = ${now}
@@ -147,6 +162,9 @@ export function openStore(path: string) {
       writeBatch(removeAccount, statement => statement.run(id));
     },
     createAccount: (email: string, hash: string, locale: string | null) => createAccount.run(email, hash, locale).changes === 1,
+    listDomunAccounts: (after: string, limit: number) => listDomunAccounts.all(after, limit) as DomunAccount[],
+    updateEntitlement: (id: string, paidUntil: string | null) =>
+      updateEntitlement.run(paidUntil, id).changes === 1,
     findAccount: (email: string) => findAccount.get(email) as Account | undefined,
     findById: (id: number) => findById.get(id) as Account | undefined,
     findGoogle: (sub: string) => findGoogle.get(sub) as Account | undefined,

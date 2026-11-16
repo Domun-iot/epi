@@ -65,6 +65,10 @@ export function syncToken() {
   catch { return undefined; }
 }
 
+export function isPaidAccount() {
+  return accountInfo?.paid === true;
+}
+
 window.addEventListener('storage', event => {
   if (event.key !== sessionKey && event.key !== null) return;
   const token = account?.token;

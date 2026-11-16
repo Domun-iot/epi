@@ -12,7 +12,7 @@ mkdirSync(dirname(path), { recursive: true });
 const google = googleFromEnvironment();
 const publicPages = playPublicPages(join(dirname(path), 'play-public.json'));
 const store = openStore(path);
-const server = createApi(store, Date.now, google, publicPages);
+const server = createApi(store, Date.now, google, publicPages, process.env.EPI_DOMUN_API_TOKEN);
 server.once('close', () => store.close());
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => server.close());

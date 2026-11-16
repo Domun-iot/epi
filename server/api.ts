@@ -12,6 +12,10 @@ const fallbackPasswordHash = '0'.repeat(32) + ':' + '0'.repeat(128);
 const uuidPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u;
 const maxBodyBytes = 4 * 1024 * 1024;
 const maxBatchSize = 100;
+const domunAccountId = /^[a-f0-9]{32}$/u;
+const domunEntitlement = /^\/v1\/domun\/accounts\/([a-f0-9]{32})\/entitlement$/u;
+const domunTokenPattern = /^[a-f0-9]{64}$/u;
+const utcTimestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
 const hour = 60 * 60 * 1000;
 export const tokenLifetime = 30 * 24 * hour;
 
@@ -229,10 +233,15 @@ function accountLanguages(account: Account) {
   };
 }
 
-function accountInfo(account: Account) {
+function isPaid(account: Account, now: number) {
+  return account.paid_until !== null && Date.parse(account.paid_until) > now;
+}
+
+function accountInfo(account: Account, now: number) {
   return {
     email: account.email, googleLinked: Boolean(account.google_sub), hasPassword: Boolean(account.password_hash),
     ...accountLanguages(account),
+    paid: isPaid(account, now),
     ...(account.created_at && { createdAt: account.created_at }),
     ...(account.updated_at && { updatedAt: account.updated_at }),
   };
@@ -291,7 +300,41 @@ function browserResult(res: ServerResponse, succeeded: boolean, locale: Locale) 
 }
 
 export function createApi(store: Store, now = Date.now, google?: Google,
-  publicPages?: (path: string, res: ServerResponse) => boolean) {
+  publicPages?: (path: string, res: ServerResponse) => boolean, domunToken?: string) {
+  if (domunToken && !domunTokenPattern.test(domunToken)) {
+    throw new Error('EPI_DOMUN_API_TOKEN must contain 64 lowercase hexadecimal characters');
+  }
+  const domunSecret = domunToken ? Buffer.from(domunToken, 'hex') : undefined;
+
+  async function handleDomun(req: IncomingMessage, res: ServerResponse, path: string, query?: string) {
+    if (!domunSecret) throw new ApiError(404, 'not_found');
+    const token = /^Bearer ([0-9a-f]{64})$/iu.exec(req.headers.authorization ?? '');
+    if (!token || !timingSafeEqual(domunSecret, Buffer.from(token[1], 'hex'))) {
+      throw new ApiError(401, 'invalid_token');
+    }
+    if (req.method === 'GET' && path === '/v1/domun/accounts') {
+      const after = new URLSearchParams(query).get('after') ?? '';
+      if (after && !domunAccountId.test(after)) throw new ApiError(400, 'invalid_cursor');
+      const accounts = store.listDomunAccounts(after, maxBatchSize + 1);
+      const hasNext = accounts.length > maxBatchSize;
+      if (hasNext) accounts.pop();
+      return send(res, 200, { accounts, next: hasNext ? accounts.at(-1)!.id : null });
+    }
+    const entitlement = domunEntitlement.exec(path);
+    if (req.method === 'PUT' && entitlement) {
+      const { paidUntil } = await readBody(req);
+      if (paidUntil !== null) {
+        const time = typeof paidUntil === 'string' && utcTimestamp.test(paidUntil) ? Date.parse(paidUntil) : NaN;
+        if (typeof paidUntil !== 'string' || !Number.isFinite(time) || new Date(time).toISOString() !== paidUntil) {
+          throw new ApiError(400, 'invalid_paid_until');
+        }
+      }
+      if (!store.updateEntitlement(entitlement[1], paidUntil)) throw new ApiError(404, 'account_not_found');
+      res.writeHead(204, { 'Cache-Control': 'no-store' });
+      return res.end();
+    }
+    throw new ApiError(404, 'not_found');
+  }
   const attempts = new Map<string, GoogleAttempt>();
   const cleanupAttempts = () => {
     for (const [state, attempt] of attempts) {
@@ -327,6 +370,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
     try {
       const route = req.method + ' ' + req.url;
       const [path, query] = (req.url ?? '').split('?', 2);
+      if (path.startsWith('/v1/domun/')) return await handleDomun(req, res, path, query);
       if (req.method === 'GET' && publicPages?.(path, res)) return;
       if (path === '/v1/accounts' || path === '/v1/device-tokens' ||
           path === '/v1/account' || path === '/v1/transactions' || path === '/v1/transactions/pending' ||
@@ -341,7 +385,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         }
       }
       if (route === 'GET /v1/account') {
-        return send(res, 200, { ...accountInfo(currentAccount(req)), googleAvailable: Boolean(google) });
+        return send(res, 200, { ...accountInfo(currentAccount(req), now()), googleAvailable: Boolean(google) });
       }
       if (route === 'GET /v1/google/config') {
         return send(res, 200, { enabled: Boolean(google) });
@@ -355,7 +399,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         if (!store.unlinkGoogle(account.id, account.google_sub, account.password_hash, account.password_hash)) {
           throw new ApiError(409, 'google_conflict');
         }
-        return send(res, 200, accountInfo(store.findById(account.id)!));
+        return send(res, 200, accountInfo(store.findById(account.id)!, now()));
       }
       if (route === 'POST /v1/google/start') {
         if (!google) throw new ApiError(503, 'google_disabled');
@@ -433,7 +477,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           if (!store.linkGoogle(account.id, identity.sub, account.password_hash, googleLocale)) {
             throw new ApiError(409, 'google_conflict');
           }
-          return send(res, 200, accountInfo(store.findById(account.id)!));
+          return send(res, 200, accountInfo(store.findById(account.id)!, now()));
         }
         if (action.kind === 'unlink') {
           const { account } = action;
@@ -441,7 +485,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           if (!store.unlinkGoogle(account.id, identity.sub, account.password_hash, action.newHash)) {
             throw new ApiError(409, 'google_conflict');
           }
-          return send(res, 200, accountInfo(store.findById(account.id)!));
+          return send(res, 200, accountInfo(store.findById(account.id)!, now()));
         }
         let account = store.findGoogle(identity.sub);
         if (!account && action.kind === 'register') {
@@ -455,7 +499,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           store.updateGoogleLocale(account.id, identity.sub, googleLocale);
           account = store.findById(account.id)!;
         }
-        return send(res, 200, { ...accountInfo(account), token: issueToken(account, action.deviceId) });
+        return send(res, 200, { ...accountInfo(account, now()), token: issueToken(account, action.deviceId) });
       }
       if (route === 'POST /v1/accounts') {
         const body = await readBody(req);
@@ -473,7 +517,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         const account = store.findAccount(email);
         await checkPassword(password, account?.password_hash ?? '');
         if (!account) throw new ApiError(401, 'invalid_credentials');
-        return send(res, 200, { token: issueToken(account, deviceId), ...accountLanguages(account) });
+        return send(res, 200, { token: issueToken(account, deviceId), ...accountLanguages(account), paid: isPaid(account, now()) });
       }
 
       if (route === 'DELETE /v1/device-tokens') {

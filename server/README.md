@@ -34,6 +34,17 @@ Les erreurs ont la forme `{"error":"code"}`. L'inscription est ouverte. L'identi
 
 Le format d’envoi JSON accepte jusqu’à 100 entrées et 4 Mio par requête. Le format NDJSON permet d’envoyer la file locale en une requête, avec la même limite de taille par transaction. Le serveur valide et enregistre le flux par groupes d’au plus 100 transactions et 4 Mio. Si l’envoi est interrompu, le client peut renvoyer le lot entier. Le serveur conserve le premier contenu déposé pour un UUID. Un renvoi équivalent confirme cet UUID et peut ajouter le nom horodaté lorsqu’il manque à l’entrée d’origine. Un UUID associé à un JSON différent reste absent de la liste des confirmations. Les UUID utilisent le format canonique en minuscules. Un accusé de téléchargement sur un UUID inconnu du compte est ignoré et peut être renvoyé après le dépôt.
 
+## Gestion des abonnements par domun
+
+L’API privée accepte le jeton de service défini par `EPI_DOMUN_API_TOKEN` sous forme de 64 caractères hexadécimaux minuscules. domun l’envoie via `Authorization: Bearer <token>`. Réservez `/v1/domun/` à la boucle locale en production. En l’absence de jeton, ces routes répondent `404`.
+
+| Méthode et route | Corps | Réponse |
+| --- | --- | --- |
+| `GET /v1/domun/accounts` | Aucun. Paramètre `after` facultatif. | `200` avec `{"accounts":[{"id":"…","email":"a@example.org","paidUntil":null}],"next":null}`. Transmettez `next` dans `after` pour lire la page suivante. |
+| `PUT /v1/domun/accounts/<id>/entitlement` | `{"paidUntil":"2027-01-01T00:00:00.000Z"}` ou `{"paidUntil":null}` en JSON. | `204`. `404 account_not_found` si le compte a été supprimé. |
+
+L’identifiant du compte reste stable. Une réinscription reçoit un nouvel identifiant. Les réponses de connexion par mot de passe ou avec Google et `GET /v1/account` renvoient `paid: true` jusqu’à l’échéance UTC. Les comptes sans échéance commencent en accès gratuit.
+
 ## Comptes dans l’application
 
 Ouvrez « Compte » dans l’application web ou Tauri. La création du compte ouvre une session. La déconnexion révoque le jeton de cette installation. En cas d’échec de la révocation, la session reste ouverte et la déconnexion peut être relancée.

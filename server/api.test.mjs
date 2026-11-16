@@ -206,3 +206,76 @@ test('synchronizes batches per account and preserves receipts after token expira
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test('gives domun access to paginated account entitlements without sharing credentials', async t => {
+  const directory = mkdtempSync(join(tmpdir(), 'epi-domun-'));
+  const path = join(directory, 'epi.sqlite');
+  const legacy = new DatabaseSync(path);
+  legacy.exec(
+    "CREATE TABLE accounts (id INTEGER PRIMARY KEY, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL) STRICT;" +
+    "INSERT INTO accounts (email, password_hash) VALUES ('legacy@example.org', 'legacy-hash')"
+  );
+  legacy.close();
+  const store = openStore(path);
+  const token = 'b'.repeat(64);
+  let now = Date.parse('2026-11-16T09:00:00.000Z');
+  const server = createApi(store, () => now, undefined, undefined, token);
+  t.after(async () => {
+    if (server.listening) await new Promise(resolve => server.close(resolve));
+    store.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const url = 'http://127.0.0.1:' + server.address().port + '/v1';
+  const auth = key => ({ Authorization: 'Bearer ' + key });
+  const send = (path, key, body, method = 'POST') => fetch(url + path, {
+    method,
+    headers: { ...auth(key), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const credentials = { email: 'new@example.org', password: 'password', deviceId: 'test-pc' };
+  assert.equal((await send('/accounts', '', credentials)).status, 201);
+  async function login() {
+    const response = await send('/device-tokens', '', credentials);
+    assert.equal(response.status, 200);
+    return response.json();
+  }
+  const device = await login();
+  assert.equal(device.paid, false);
+  assert.equal((await fetch(url + '/domun/accounts')).status, 401);
+  assert.equal((await fetch(url + '/domun/accounts', { headers: auth(device.token) })).status, 401);
+  assert.equal((await fetch(url + '/domun/accounts?after=wrong', { headers: auth(token) })).status, 400);
+  for (let i = 0; i < 100; i++) store.createAccount(i + '@example.org', 'hash', null);
+  const first = await (await fetch(url + '/domun/accounts', { headers: auth(token) })).json();
+  assert.equal(first.accounts.length, 100);
+  assert.equal(first.next, first.accounts[99].id);
+  const second = await (await fetch(url + '/domun/accounts?after=' + first.next, { headers: auth(token) })).json();
+  assert.equal(second.accounts.length, 2);
+  assert.equal(second.next, null);
+  const accounts = [...first.accounts, ...second.accounts];
+  assert.equal(new Set(accounts.map(account => account.id)).size, 102);
+  const previous = accounts.find(account => account.email === 'legacy@example.org');
+  assert.match(previous.id, /^[a-f0-9]{32}$/u);
+  assert.deepEqual(previous, { id: previous.id, email: 'legacy@example.org', paidUntil: null });
+  const account = accounts.find(account => account.email === credentials.email);
+  const update = '/domun/accounts/' + account.id + '/entitlement';
+  const status = async () => (await (await fetch(url + '/account', { headers: auth(device.token) })).json()).paid;
+  assert.equal((await send(update, token, { paidUntil: '2026-02-30T09:00:00.000Z' }, 'PUT')).status, 400);
+  const paidUntil = '2026-11-16T10:00:00.000Z';
+  assert.equal((await send(update, device.token, { paidUntil }, 'PUT')).status, 401);
+  assert.equal((await send(update, token, { paidUntil }, 'PUT')).status, 204);
+  assert.equal(await status(), true);
+  const renewed = await login();
+  assert.equal(renewed.paid, true);
+  device.token = renewed.token;
+  now = Date.parse(paidUntil);
+  assert.equal(await status(), false);
+  assert.equal((await send(update, token, { paidUntil: null }, 'PUT')).status, 204);
+  store.deleteAccount(store.findAccount(credentials.email).id);
+  assert.equal((await send('/accounts', '', credentials)).status, 201);
+  assert.equal((await send(update, token, { paidUntil }, 'PUT')).status, 404);
+  assert.equal((await login()).paid, false);
+});
