@@ -3,7 +3,7 @@ const french = {
   explore: 'Découvrir éPI',
   scenes: {
     bluetooth: ['Lancez l’appli. Pesez-vous. C’est enregistré.',
-      'Une fois votre balance et votre profil configurés, ouvrez éPI et montez sur la balance. Pour {count} familles de protocoles Bluetooth, éPI capte directement les pesées, sans compte fabricant ni appairage.',
+      'Ouvrez éPI et montez sur la balance. Pour {count} familles de protocoles Bluetooth, éPI capte directement les pesées, sans compte fabricant ni appairage.',
       'Balances compatibles'],
     profiles: ['Une seule balance pour toute la famille.',
       'Chaque personne a son profil et son historique. éPI peut proposer un profil d’après les pesées précédentes. Vous pouvez aussi attribuer une pesée à la main.'],
