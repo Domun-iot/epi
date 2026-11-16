@@ -17,7 +17,7 @@ export const METRICS = composition.metrics.map(([id, , precision]) =>
 
 const zipFilters = [{ name: t('zipArchive'), extensions: ['zip'] }];
 
-export async function connect(onState, onStatus, onRaw, onWeighing, onTransactions) {
+export async function connect(onState, onStatus, onRaw, onWeighing, onTransactions, recoverDataConflict, queueReload) {
   const native = isTauri();
   const web = import.meta.env.MODE === 'web' && !native;
   const storage = native ? {
@@ -39,7 +39,11 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
   function receive(line) {
     onRaw?.(line);
     if (line.startsWith('PAYLOAD ')) return;
-    session.ingest(line).catch(error => onStatus?.(t('bluetoothProcessingError', { detail: localizeMessage(error?.message ?? String(error)) }), true));
+    session.ingest(line).catch(error => {
+      if (!recoverDataConflict(error)) {
+        onStatus?.(t('bluetoothProcessingError', { detail: localizeMessage(error?.message ?? String(error)) }), true);
+      }
+    });
   }
 
   async function retryBluetooth() {
@@ -72,11 +76,13 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
 
     // Validate the core records before merging the original bytes.
     await domain.createSession({ storage: { load: () => null, save: () => {} } }).importLegacy(records);
-    if (web) return session.importFiles(files);
-    const added = await invoke('import_files', { files });
-    if (added) onTransactions();
-    await session.reload();
-    return added;
+    return queueReload(async () => {
+      if (web) return session.importFiles(files);
+      const added = await invoke('import_files', { files });
+      if (added) onTransactions();
+      await session.reload();
+      return added;
+    });
   }
 
   return {

@@ -810,6 +810,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
   function reload() {
     return enqueue(async () => {
       await loadSaved();
+      acquisitionError = null;
       return publish();
     });
   }

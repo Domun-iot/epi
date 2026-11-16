@@ -42,13 +42,16 @@ export function notificationBody(entry, state, detailed = false) {
   const { title, text } = notificationText(entry, state);
   const message = detailed ? title : String(title ?? '').trimStart().split(/\r\n?|\n/, 1)[0].trimEnd();
   const heading = `<strong>${e(message)}</strong>`;
-  if (!detailed) return heading;
+  const files = Array.isArray(entry.reloadFiles) ? entry.reloadFiles : [];
+  const changes = files.length ? `<ul class="notification-reload-files">${files.map(file =>
+    `<li title="${e(file)}">${e(file)}</li>`).join('')}</ul>` : '';
+  if (!detailed) return heading + changes;
   const receipt = entry.type === 'pending';
   const receivedAt = receipt ? entry.record.event.receivedAt : entry.date;
   const restoredAt = !receipt ? Date.parse(entry.restoredAt) : NaN;
   const restoration = entry.type === 'measurement' ? 'measurementRestoredOn' : 'restoredOn';
   return `${heading}<small>${e(formatDate(receivedAt))}</small>
-    ${text ? `<span>${e(text)}</span>` : ''}
+    ${text ? `<span>${e(text)}</span>` : ''}${changes}
     ${Number.isFinite(restoredAt) ? `<small>${htmlText(restoration, { date: restorationDate.format(restoredAt) })}</small>` : ''}`;
 }
 

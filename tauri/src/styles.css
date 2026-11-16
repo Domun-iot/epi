@@ -507,6 +507,11 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .notification-summary { display: grid; gap: 2px; text-align: left; overflow-wrap: anywhere; }
 button.notification-summary { width: 100%; color: inherit; background: transparent; border: 0; padding: 0; }
 .notification-banner .notification-summary { display: block; padding: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.notification-reload-files { list-style: none; padding: 0; margin: 0; color: var(--muted); font-size: .85em; }
+.notification-reload-files li { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#notices.is-open:has(.notification-reload-files) { overflow: visible; }
+.notification-banner:has(.notification-reload-files) { min-height: 100%; height: auto; }
+.notification-banner .notification-reload-files { max-height: 6em; overflow: auto; }
 .notification-summary small { color: var(--muted); }
 .notification-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
 #notifications-icon[hidden] { display: none; }

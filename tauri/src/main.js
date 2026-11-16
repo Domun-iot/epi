@@ -1,4 +1,5 @@
 import { t, htmlText, messageCode } from './i18n.js';
+import { changedFileSummaries, createReloadQueue, isDataConflict } from './data-reload.js';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { connect } from './service.js';
 import { bluetoothView, createBluetoothWatch } from './bluetooth-watch.js';
@@ -7,7 +8,7 @@ import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
 import { renderChartDates, snapChartRange } from './measurement-charts.js';
 import { viewPresetHeader, viewPresetTitles } from './view-presets.js';
-import { notificationBody, notificationDetailHeader, notificationRecordView, notificationsView, resolveNotification } from './notifications-view.js';
+import { notificationBody, notificationDetailHeader, notificationRecordView, notificationsView, notificationText, resolveNotification } from './notifications-view.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
 
 import { startTransactionSync, requestTransactionSync } from './transaction-sync.js';
@@ -67,7 +68,7 @@ const desktopSearchFocus = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent
   && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 const panelStates = new WeakMap();
 const editorView = document.querySelector('#editor-view');
-const editor = createEditor(dialog, editorView, document.querySelector('#editor-actions'), renderEditorView);
+const editor = createEditor(dialog, editorView, document.querySelector('#editor-actions'), renderEditorView, recoverDataConflict);
 const pages = { measurements: t('measurements'), profiles: t('profiles'), devices: t('devices'), notifications: t('notifications'), bluetooth: t('bluetoothMonitor') };
 
 let session;
@@ -319,6 +320,11 @@ function dismissBanner() {
 }
 
 function showError(error) {
+  if (recoverDataConflict(error)) return;
+  showNoticeError(error);
+}
+
+function showNoticeError(error) {
   const entry = { type: 'error', text: error?.message || String(error), banner: true };
   if (session) void session.recordNotice(entry).catch(() => enqueueBanners([entry]));
   else enqueueBanners([entry]);
@@ -962,10 +968,37 @@ dataActionsResize.observe(dataActions);
 dataActionsResize.observe(reloadButton);
 for (const button of archiveButtons) dataActionsResize.observe(button.firstElementChild);
 
-reloadButton.addEventListener('click', () => void perform(async () => {
-  await session.reload();
-  await session.recordNotice({ type: 'info', text: messageCode('dataReloaded'), banner: true });
-}));
+const queueReload = createReloadQueue();
+let pendingReload;
+
+async function announceReload(before, after, manual = false) {
+  const files = manual ? [] : changedFileSummaries(before, after, entry => notificationText(entry, after));
+  await session.recordNotice({ type: 'info', text: messageCode(manual ? 'dataReloadedManually' : 'dataReloadedAutomatically'),
+    banner: true, ...(files.length && { reloadFiles: files }) });
+}
+
+function requestReload(automatic = false) {
+  if (!session) return;
+  if (pendingReload) {
+    pendingReload.automatic ||= automatic;
+    return;
+  }
+  const request = pendingReload = { automatic };
+  void queueReload(async () => {
+    pendingReload = null;
+    const before = state;
+    const after = await session.reload();
+    await announceReload(before, after, !request.automatic);
+  }).catch(showNoticeError);
+}
+
+function recoverDataConflict(error) {
+  if (!session || !isDataConflict(error)) return false;
+  requestReload(true);
+  return true;
+}
+
+reloadButton.addEventListener('click', () => requestReload());
 
 importButton.addEventListener('click', () => {
   if (session?.pickLegacy) void importArchive(() => session.pickLegacy());
@@ -1009,8 +1042,13 @@ try {
       window.history.pushState(null, '', '#measurements');
       renderPageChange();
     }
-  }, requestTransactionSync);
-  startTransactionSync(session);
+  }, requestTransactionSync, recoverDataConflict, queueReload);
+  startTransactionSync({
+    ...session,
+    ...(session.integrateTransactions && {
+      integrateTransactions: transactions => queueReload(() => session.integrateTransactions(transactions)),
+    }),
+  });
   enableLanguageSelection(session.setLanguagePreference);
   themeToggle.disabled = false;
   reloadButton.hidden = !session.native && !session.web;

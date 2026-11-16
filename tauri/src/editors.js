@@ -7,7 +7,7 @@ const { buildDevice } = domain;
 const field = (label, name, attributes) => `<label>${e(label)}<input name="${name}" ${attributes}></label>`;
 const option = (value, label, selected) => `<option value="${e(value)}"${selected ? ' selected' : ''}>${e(label)}</option>`;
 
-export function createEditor(dialog, view, toolbar, onViewChange) {
+export function createEditor(dialog, view, toolbar, onViewChange, recoverDataConflict) {
   let previousFocus;
 
   function closeView() {
@@ -51,7 +51,8 @@ export function createEditor(dialog, view, toolbar, onViewChange) {
         const result = await submit(Object.fromEntries(values));
         if (result !== false && form.isConnected) close();
       } catch (exception) {
-        error.textContent = localizeMessage(exception?.message || String(exception));
+        error.textContent = recoverDataConflict(exception) ? t('saveInterruptedByDataChange')
+          : localizeMessage(exception?.message || String(exception));
         error.hidden = false;
       } finally {
         submitting = false;

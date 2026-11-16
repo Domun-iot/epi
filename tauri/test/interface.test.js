@@ -2052,7 +2052,7 @@ test('les informations expirent après trois secondes et les erreurs attendent u
   await page.clock.install();
   const reload = page.locator('#reload-data');
   const banner = page.locator('#notices');
-  const info = banner.getByText('Données rechargées.', { exact: true });
+  const info = banner.getByText('Données rechargées manuellement.', { exact: true });
   await reload.evaluate(button => { button.hidden = false; });
   await reload.click();
   await info.waitFor();
@@ -2077,7 +2077,55 @@ test('les informations expirent après trois secondes et les erreurs attendent u
   await info.waitFor();
 });
 
+test('un conflit recharge les fichiers modifiés et regroupe les demandes rapprochées', async t => {
+  await buildWeb();
+  const id = '00000000-0000-4000-8000-000000000001';
+  const reloads = [];
+  const notices = [];
+  let conflicts = 0;
+  let snapshot = { profiles: [{ ...alice, uuid: id }], devices: [], measurements: [], pending: [],
+    notifications: [], profilePreferences: {}, viewPresets: { measurements: [], details: [] } };
+  const page = await pageWith(t, route => {
+    const { action, args } = route.request().postDataJSON();
+    if (action === 'pendingTransactions') return route.fulfill({ json: [] });
+    if (action === 'setTheme') {
+      conflicts += 1;
+      return route.fulfill({ status: 400, json: { error: conflicts === 1
+        ? 'Un fichier a changé. Recharge les données avant de réessayer.'
+        : 'epi-i18n:diagnostic.aFileHasBeenModifiedReload' } });
+    }
+    if (action === 'reload') {
+      reloads.push(performance.now());
+      if (reloads.length === 2) {
+        snapshot = { ...snapshot, profiles: [{ ...alice, uuid: id, heightCm: 166 }], measurements: [record] };
+      }
+    }
+    if (action === 'recordNotice') {
+      notices.push(args[0]);
+      snapshot = { ...snapshot, notifications: [...snapshot.notifications,
+        { ...args[0], id: String(notices.length), date: new Date().toISOString() }] };
+    }
+    return route.fulfill({ json: snapshot });
+  }, { timezoneId: 'Europe/Paris' }, 'web');
+
+  const banner = page.locator('#notices');
+  const theme = page.locator('#theme-toggle');
+  await page.locator('#reload-data').click();
+  await banner.getByText('Données rechargées manuellement.', { exact: true }).waitFor();
+  await dismissNotificationBanner(page);
+  await theme.click();
+  await theme.click();
+  await banner.getByText('Données rechargées automatiquement.', { exact: true }).waitFor();
+  assert.equal(conflicts, 2);
+  assert.equal(reloads.length, 2);
+  assert.ok(reloads[1] - reloads[0] >= 1000);
+  assert.equal(notices.length, 2);
+  assert.deepEqual(notices[1].reloadFiles, ['Profil · Alice', 'Pesée · Alice · 70 kg · 15/01/2026 18:23:21']);
+  assert.deepEqual(await banner.locator('.notification-reload-files li').allTextContents(), notices[1].reloadFiles);
+});
+
 test('le bandeau affiche uniquement la première ligne d’une erreur', async t => {
+  await buildWeb();
   const page = await pageWith(t, { profiles: [], devices: [], measurements: [], pending: [], notifications: [] },
     { viewport: { width: 320, height: 800 } }, 'web');
   const message = 'Impossible de recharger les données depuis le dossier utilisateur.';
