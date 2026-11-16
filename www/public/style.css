@@ -79,7 +79,8 @@ footer nav { display: flex; gap: .7rem 1.3rem; flex-wrap: wrap; }
   margin-top: 1.1rem;
   font-weight: 700;
 }
-.hero-link { color: inherit; }
+.hero-link { color: inherit; text-decoration: none; }
+.hero-link-label { text-decoration: underline; }
 .hero-link:focus-visible { outline-color: #fff1c9; }
 .features { margin-block: clamp(2rem, 6vw, 5rem); }
 .feature {

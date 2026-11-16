@@ -37,7 +37,7 @@ export function renderHome(base, intro, locale, escape) {
   }).join('');
   return '<div class="hero"><div><h1>' + intro.headline + '</h1><p>' + intro.intro + '</p>' +
     '<div lang="' + lang + '"><p class="motto">' + escape(copy.motto) + '</p>' +
-    '<a class="hero-link" href="#bluetooth">' + escape(copy.explore) + ' <span aria-hidden="true">↓</span></a></div>' +
+    '<a class="hero-link" href="#bluetooth"><span class="hero-link-label">' + escape(copy.explore) + '</span><span aria-hidden="true">↓</span></a></div>' +
     '</div><img class="chart" src="' + base + '/assets/chart.jpg" alt="" width="824" height="1784"></div>' +
     '<div class="features" lang="' + lang + '">' + scenes + '</div>';
 }
