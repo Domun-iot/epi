@@ -9,6 +9,7 @@ const { createAcquisition } = require('./acquisition.cjs');
 const { applyObservation, enrollmentRequest, findDevice } = require('./devices.cjs');
 const { ADDRESS, findProfile, profileFields, mergeLegacy, measurementSlot } = require('./records.cjs');
 const { uuid, identify, upgradeIdentities } = require('./identities.cjs');
+const { creationDate, globalKeys, isNewer, sameContent, stampRecord } = require('../../shared/record-version.cjs');
 
 const notificationLifetime = 7 * 86400_000;
 
@@ -123,6 +124,80 @@ function modifiedInactiveViews(state, prefs, kind, active) {
   });
 }
 
+function preferRecent(saved, disk) {
+  const merged = { ...disk };
+  function preferRows(local, fresh, identity) {
+    const candidates = new Map(local.map(row => [identity(row), row]));
+    const newest = fresh.map(row => {
+      const candidate = candidates.get(identity(row));
+      return isNewer(candidate, row) ? candidate : row;
+    });
+    return newest.every((row, index) => row === fresh[index]) ? fresh : newest;
+  }
+  merged.profiles = preferRows(saved.profiles, disk.profiles, row => row.uuid ?? nameKey(row.name));
+  merged.devices = preferRows(saved.devices, disk.devices, row => row.uuid ?? row.bluetooth.address);
+  merged.measurements = preferRows(saved.measurements, disk.measurements,
+    row => row.uuid ?? measurementSlot(row, disk.profiles));
+  merged.notifications = preferRows(saved.notifications, disk.notifications, row => row.id);
+  for (const kind of Object.keys(viewDefaults)) {
+    const presets = preferRows(saved.viewPresets[kind], disk.viewPresets[kind], row => row.id);
+    if (presets !== disk.viewPresets[kind]) merged.viewPresets = { ...merged.viewPresets, [kind]: presets };
+  }
+  for (const [name, prefs] of Object.entries(disk.profilePreferences)) {
+    const candidate = Object.hasOwn(saved.profilePreferences, name) ? saved.profilePreferences[name] : undefined;
+    if (isNewer(candidate, prefs)) merged.profilePreferences = { ...merged.profilePreferences, [name]: candidate };
+  }
+  if (isNewer(saved, disk)) {
+    for (const key of [...globalKeys, 'createdAt', 'updatedAt']) {
+      if (Object.hasOwn(saved, key)) merged[key] = saved[key];
+      else delete merged[key];
+    }
+  }
+  return sameContent(merged, disk) ? disk : merged;
+}
+
+function stampChanges(draft, previous) {
+  const now = new Date().toISOString();
+  const versionRows = (before, after, identity, stamp = stampRecord) => {
+    if (before === after) return before;
+    const old = new Map(before.map(row => [identity(row), row]));
+    const versioned = after.map(row => {
+      const stored = old.get(identity(row));
+      return stored === row ? row : stamp(row, stored, now);
+    });
+    return versioned.length === before.length && versioned.every((row, index) => row === before[index])
+      ? before : versioned;
+  };
+  draft.profiles = versionRows(previous.profiles, draft.profiles, row => row.uuid ?? nameKey(row.name));
+  draft.devices = versionRows(previous.devices, draft.devices, row => row.uuid ?? row.bluetooth.address);
+  draft.measurements = versionRows(previous.measurements, draft.measurements, row => row.uuid ?? measurementSlot(row, draft.profiles),
+    row => {
+      const { updatedAt, ...record } = row;
+      return { ...record, createdAt: creationDate(row) ?? now };
+    });
+  draft.notifications = versionRows(previous.notifications, draft.notifications, row => row.id);
+  if (draft.viewPresets !== previous.viewPresets) {
+    draft.viewPresets = Object.fromEntries(Object.keys(viewDefaults).map(kind =>
+      [kind, versionRows(previous.viewPresets[kind], draft.viewPresets[kind], row => row.id)]));
+  }
+  if (draft.profilePreferences !== previous.profilePreferences) {
+    const stampPreference = ([name, prefs]) => {
+      const old = Object.hasOwn(previous.profilePreferences, name) ? previous.profilePreferences[name] : undefined;
+      return [name, prefs === old ? prefs : stampRecord(prefs, old, now)];
+    };
+    draft.profilePreferences = Object.fromEntries(Object.entries(draft.profilePreferences).map(stampPreference));
+  }
+  const global = state => Object.fromEntries([...globalKeys, 'createdAt', 'updatedAt']
+    .filter(key => Object.hasOwn(state, key)).map(key => [key, state[key]]));
+  if (globalKeys.some(key => !sameContent(draft[key], previous[key]))) {
+    const hasPrevious = previous.createdAt || previous.updatedAt || globalKeys.some(key =>
+      Array.isArray(previous[key]) ? previous[key].length : previous[key] != null);
+    const version = stampRecord(global(draft), hasPrevious ? global(previous) : undefined, now);
+    draft.createdAt = version.createdAt;
+    if (version.updatedAt) draft.updatedAt = version.updatedAt;
+  }
+}
+
 function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing }) {
   let saved;
   let enrollment = null;
@@ -167,7 +242,10 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
   }
 
   async function loadSaved() {
-    saved = restore(await storage.load());
+    const disk = restore(await storage.load());
+    const latest = saved ? preferRecent(saved, disk) : disk;
+    if (latest !== disk) await storage.save(latest, disk);
+    saved = latest;
     try {
       await transact(draft => {
         upgradeIdentities(draft);
@@ -221,6 +299,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     }
     const remaining = retainNotifications(draft.notifications);
     if (remaining.length !== draft.notifications.length) draft.notifications = remaining;
+    stampChanges(draft, saved);
     if (Object.keys(draft).some(key => draft[key] !== saved[key])) {
       await storage.save(draft, saved);
       saved = draft;

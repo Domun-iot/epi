@@ -3,11 +3,12 @@ import { link, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/p
 import { dirname, join } from 'node:path';
 import { isDeepStrictEqual as equal } from 'node:util';
 import { fileRecords, recordPath, snapshotPath } from './file-records.js';
+import versions from '../shared/record-version.cjs';
 
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu;
 const safeName = /^[\p{Alphabetic}\p{Number}][\p{Alphabetic}\p{Number} _-]*$/u;
 const reserved = /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])$/iu;
-const globalKeys = ['selectedProfile', 'pending', 'addressFilter', 'anonymousPreferences', 'languagePreference'];
+const { globalKeys, isNewer } = versions;
 const presetFolders = { measurements: 'prefs/measurements', details: 'prefs/measurement-details' };
 const conflict = () => new Error('Un fichier a changé. Recharge les données avant de réessayer.');
 const parse = contents => contents === undefined ? undefined : JSON.parse(contents.replace(/^\uFEFF/u, ''));
@@ -109,7 +110,7 @@ export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importH
       const contents = await read(path);
       const current = parse(contents);
       if (equal(current, row)) return;
-      if (check && !equal(current, before)) throw conflict();
+      if (check && !equal(current, before) && !isNewer(row, current)) throw conflict();
       changes.set(path, { contents, next: row === undefined ? undefined : JSON.stringify(row, null, 2) + '\n' });
     }
 
@@ -126,7 +127,7 @@ export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importH
         added.delete(row);
         if (equal(row, old)) continue;
         const file = old.uuid ? byId.get(old.uuid) : disk.find(item => !used.has(item) && equal(item.row, old));
-        if (!file || !equal(file.row, old)) throw conflict();
+        if (!file || (!equal(file.row, old) && !isNewer(row, file.row))) throw conflict();
         used.add(file);
         const path = row && (measurements ? file.path : idPath(key, row.uuid));
         if (path?.toLowerCase() === file.path.toLowerCase()) {
@@ -179,11 +180,18 @@ export function fileStorage(root, { recordTransaction, ensureNoSymlinks, importH
       }
     }
     const globalChanges = globalKeys.filter(key => !equal(previous[key], state[key]));
-    if (globalChanges.length) {
+    if (globalChanges.length || isNewer(state, previous)) {
       const path = 'prefs/global.json';
       const contents = await read(path);
       const global = parse(contents) ?? (await readJson('interface.json')) ?? {};
-      for (const key of globalChanges) global[key] = state[key];
+      if (!isNewer(state, global) && (isNewer(global, previous) ||
+          globalChanges.some(key => !equal(global[key] ?? null, previous[key] ?? null) && !equal(global[key], state[key])))) {
+        throw conflict();
+      }
+      for (const key of [...globalChanges, 'createdAt', 'updatedAt']) {
+        if (state[key] === undefined) delete global[key];
+        else global[key] = state[key];
+      }
       changes.set(path, { contents, next: JSON.stringify(global, null, 2) + '\n' });
     }
 

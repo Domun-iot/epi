@@ -4,6 +4,7 @@ const { randomUUID } = require('node:crypto');
 const fs = require('node:fs');
 const { dirname, join } = require('node:path');
 const { transactionIndex, uuidPattern } = require('./transaction-index.cjs');
+const { isNewer, sameContent, versionDate } = require('./record-version.cjs');
 
 const filename = /^\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d\.\d{6}Z-[0-9a-f-]{36}\.json$/u;
 const unsafeName = /^(?:\.|(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$))|[. ]$|[\\:*?"<>|\p{Cc}]/iu;
@@ -79,7 +80,13 @@ function applyChanges(root, changes, finish) {
 }
 
 function saveChanges(root, changes) {
-  applyChanges(root, changes, () => recordTransaction(root, changes));
+  const resolved = changes.map(change => {
+    if (change.before === undefined || change.after === undefined) return change;
+    const current = readOptional(join(root, change.path));
+    return current !== undefined && current !== change.before && isNewer(parse(change.after), parse(current))
+      ? { ...change, before: current } : change;
+  }).filter(change => change.before !== change.after);
+  applyChanges(root, resolved, () => recordTransaction(root, resolved));
 }
 
 function validateChange(root, change) {
@@ -165,12 +172,18 @@ function transactionChanges(root, { type, data }, name) {
     const key = change.path.toLowerCase();
     if (paths.has(key)) throw new Error('Chemin répété dans la transaction · ' + name);
     paths.add(key);
-    return {
-      path: change.path,
-      before: readOptional(join(root, change.path)),
-      after: change.type === 'delete' ? undefined : serialize(change.value),
-    };
-  });
+    const before = readOptional(join(root, change.path));
+    if (before !== undefined) {
+      const current = parse(before);
+      const candidate = change.type === 'delete'
+        ? { updatedAt: name.slice(0, 27).replace(/T(\d\d)-(\d\d)-(\d\d)/u, 'T$1:$2:$3') }
+        : change.value;
+      if (sameContent(candidate, current) || (versionDate(current) && !isNewer(candidate, current))) {
+        return null;
+      }
+    }
+    return { path: change.path, before, after: change.type === 'delete' ? undefined : serialize(change.value) };
+  }).filter(change => change && (change.before !== undefined || change.after !== undefined));
 }
 
 function integrateTransactions(root, rows) {
@@ -205,7 +218,7 @@ function integrateTransactions(root, rows) {
       });
       ids.add(row.uuid);
       acknowledged.add(row.uuid);
-      changed = true;
+      changed ||= changes.length > 0;
     } catch {
       // Leave this transaction unacknowledged and continue the batch.
     }

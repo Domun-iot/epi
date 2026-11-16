@@ -18,14 +18,17 @@ function listRecordFiles(root, legacyFile, normalize) {
     const uuid = record.uuid ?? (uuidFile.test(name) ? name.slice(0, -5) : randomUUID());
     const file = uuid + '.json';
     if (!uuidFile.test(file)) throw Error('UUID invalide dans ' + name);
+    const identified = { ...record, uuid };
+    let contents = before;
     if (file.toLowerCase() !== name.toLowerCase()) {
       const folder = basename(root) + '/';
+      contents = serialize(identified);
       saveChanges(dirname(root), [
-        { path: folder + file, after: serialize({ ...record, uuid }) },
+        { path: folder + file, after: contents },
         { path: folder + name, before },
       ]);
     }
-    return { file, record: { ...record, uuid } };
+    return { file, record: identified, contents };
   });
 }
 

@@ -233,6 +233,8 @@ function accountInfo(account: Account) {
   return {
     email: account.email, googleLinked: Boolean(account.google_sub), hasPassword: Boolean(account.password_hash),
     ...accountLanguages(account),
+    ...(account.created_at && { createdAt: account.created_at }),
+    ...(account.updated_at && { updatedAt: account.updated_at }),
   };
 }
 
@@ -353,7 +355,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         if (!store.unlinkGoogle(account.id, account.google_sub, account.password_hash, account.password_hash)) {
           throw new ApiError(409, 'google_conflict');
         }
-        return send(res, 200, { ...accountInfo({ ...account, google_sub: null, google_locale: null }) });
+        return send(res, 200, accountInfo(store.findById(account.id)!));
       }
       if (route === 'POST /v1/google/start') {
         if (!google) throw new ApiError(503, 'google_disabled');
@@ -431,7 +433,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           if (!store.linkGoogle(account.id, identity.sub, account.password_hash, googleLocale)) {
             throw new ApiError(409, 'google_conflict');
           }
-          return send(res, 200, { ...accountInfo({ ...account, google_sub: identity.sub, google_locale: googleLocale }) });
+          return send(res, 200, accountInfo(store.findById(account.id)!));
         }
         if (action.kind === 'unlink') {
           const { account } = action;
@@ -439,7 +441,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           if (!store.unlinkGoogle(account.id, identity.sub, account.password_hash, action.newHash)) {
             throw new ApiError(409, 'google_conflict');
           }
-          return send(res, 200, { ...accountInfo({ ...account, google_sub: null, google_locale: null }), hasPassword: true });
+          return send(res, 200, accountInfo(store.findById(account.id)!));
         }
         let account = store.findGoogle(identity.sub);
         if (!account && action.kind === 'register') {
@@ -451,7 +453,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         if (!account) throw new ApiError(404, 'google_not_linked');
         if (googleLocale && googleLocale !== account.google_locale) {
           store.updateGoogleLocale(account.id, identity.sub, googleLocale);
-          account.google_locale = googleLocale;
+          account = store.findById(account.id)!;
         }
         return send(res, 200, { ...accountInfo(account), token: issueToken(account, action.deviceId) });
       }

@@ -47,6 +47,9 @@ export function openStore(path: string) {
     if (!db.prepare("SELECT 1 FROM pragma_table_info('accounts') WHERE name = 'locale'").get()) {
       db.exec('ALTER TABLE accounts ADD COLUMN locale TEXT; ALTER TABLE accounts ADD COLUMN google_locale TEXT');
     }
+    if (!db.prepare("SELECT 1 FROM pragma_table_info('accounts') WHERE name = 'created_at'").get()) {
+      db.exec('ALTER TABLE accounts ADD COLUMN created_at TEXT; ALTER TABLE accounts ADD COLUMN updated_at TEXT');
+    }
     db.exec('CREATE UNIQUE INDEX IF NOT EXISTS accounts_google_sub ON accounts(google_sub)');
     db.exec('COMMIT');
   } catch (error) {
@@ -55,23 +58,28 @@ export function openStore(path: string) {
     throw error;
   }
 
+  const now = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
   const createAccount = db.prepare(`
-    INSERT INTO accounts (email, password_hash, locale) VALUES (?, ?, ?)
+    INSERT INTO accounts (email, password_hash, locale, created_at) VALUES (?, ?, ?, ${now})
     ON CONFLICT (email) DO NOTHING
   `);
-  type Account = { id: number; email: string; password_hash: string; google_sub: string | null; locale: string | null; google_locale: string | null };
+  type Account = { id: number; email: string; password_hash: string; google_sub: string | null; locale: string | null; google_locale: string | null;
+    created_at: string | null; updated_at: string | null };
   const findAccount = db.prepare('SELECT * FROM accounts WHERE email = ?');
   const findById = db.prepare('SELECT * FROM accounts WHERE id = ?');
   const findGoogle = db.prepare('SELECT * FROM accounts WHERE google_sub = ?');
   const createGoogle = db.prepare(
-    "INSERT INTO accounts (email, password_hash, google_sub, locale, google_locale) VALUES (?, '', ?, ?, ?) ON CONFLICT DO NOTHING RETURNING *"
+    `INSERT INTO accounts (email, password_hash, google_sub, locale, google_locale, created_at)
+     VALUES (?, '', ?, ?, ?, ${now}) ON CONFLICT DO NOTHING RETURNING *`
   );
   const linkGoogle = db.prepare(
-    'UPDATE OR IGNORE accounts SET google_sub = ?, google_locale = ? WHERE id = ? AND google_sub IS NULL AND password_hash = ?'
+    `UPDATE OR IGNORE accounts SET google_sub = ?, google_locale = ?, updated_at = ${now}
+     WHERE id = ? AND google_sub IS NULL AND password_hash = ?`
   );
-  const updateGoogleLocale = db.prepare('UPDATE accounts SET google_locale = ? WHERE id = ? AND google_sub = ?');
+  const updateGoogleLocale = db.prepare(`UPDATE accounts SET google_locale = ?, updated_at = ${now} WHERE id = ? AND google_sub = ?`);
   const unlinkGoogle = db.prepare(
-    'UPDATE accounts SET google_sub = NULL, google_locale = NULL, password_hash = ? WHERE id = ? AND google_sub = ? AND password_hash = ?'
+    `UPDATE accounts SET google_sub = NULL, google_locale = NULL, password_hash = ?, updated_at = ${now}
+     WHERE id = ? AND google_sub = ? AND password_hash = ?`
   );
   const issueToken = db.prepare(`
     INSERT INTO devices (account_id, device_id, token_selector, token_hash, last_used_at)

@@ -78,6 +78,28 @@ test('acknowledges both local archives and keeps failed transactions out of rece
   assert.deepEqual(JSON.parse(fs.readFileSync(target, 'utf8')), { position: 4 });
 });
 
+test('acknowledges stale transactions without overwriting the newest file', t => {
+  const root = directory(t);
+  const path = 'profiles/profil-alice.json';
+  const target = join(root, path);
+  const local = { name: 'Alice', heightCm: 171, createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-03-01T00:00:00.000Z' };
+  saveChanges(root, [{ path, after: serialize(local) }]);
+  const transaction = (position, day, type, value) => {
+    const uuid = '00000000-0000-4000-8000-00000000000' + position;
+    return { uuid, name: day + 'T00-00-00.000000Z-' + uuid + '.json', type,
+      data: { path, ...(value && { value }) } };
+  };
+  const stale = transaction(3, '2026-05-01', 'update', { ...local, updatedAt: '2026-02-01T00:00:00.000Z' });
+  const removal = transaction(4, '2026-02-01', 'delete');
+  assert.deepEqual(integrateTransactions(root, [stale, removal]), { uuids: [stale.uuid, removal.uuid], changed: false });
+  assert.deepEqual(JSON.parse(fs.readFileSync(target, 'utf8')), local);
+  const newer = { ...local, updatedAt: '2026-04-01T00:00:00.000Z', heightCm: 172 };
+  const update = transaction(5, '2026-05-01', 'update', newer);
+  assert.deepEqual(integrateTransactions(root, [update]), { uuids: [update.uuid], changed: true });
+  assert.deepEqual(JSON.parse(fs.readFileSync(target, 'utf8')), newer);
+});
+
 test('recovers an archived transaction missing from the index without applying it again', t => {
   const origin = directory(t);
   const replica = directory(t);

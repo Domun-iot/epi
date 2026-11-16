@@ -41,7 +41,9 @@ test('shares native dataset files across web restarts and reloads', async t => {
   await web.setLanguagePreference('fr-CA');
   await web.saveProfile({ ...profile, editUuid: profileId, name: 'Louise' });
   assert.equal((await get('profiles/' + profileId + '.json')).name, 'Louise');
-  assert.deepEqual(await get('prefs/profil-Louise.json'), { columns: ['bmi', 'fatPercent'] });
+  const { createdAt, ...preferences } = await get('prefs/profil-Louise.json');
+  assert.equal(new Date(createdAt).toISOString(), createdAt);
+  assert.deepEqual(preferences, { columns: ['bmi', 'fatPercent'] });
   assert.equal((await get('prefs/global.json')).window.width, 900);
   assert.equal((await get('prefs/global.json')).languagePreference, 'fr-CA');
   const configured = await web.changeViewPreset('Louise', 'measurements', 'create', { name: 'Weekly' });
@@ -87,8 +89,11 @@ test('shares native dataset files across web restarts and reloads', async t => {
   assert.equal((await get('measures/' + profileId + '/2026-09-28T09-00-00.000Z.json')).uuid, measurementId);
 
   const path = 'profiles/' + profileId + '.json';
-  await put(path, { ...await get(path), heightCm: 171 });
-  await assert.rejects(restarted.saveProfile({ ...profile, editUuid: profileId, name: 'Louise', heightCm: 172 }));
+  await put(path, { ...await get(path), heightCm: 171, updatedAt: '2099-01-01T00:00:00.000Z' });
+  await assert.rejects(restarted.saveProfile({ ...profile, editUuid: profileId, name: 'Louise', heightCm: 172 }), /fichier a changé/);
   assert.equal((await restarted.reload()).profiles[0].heightCm, 171);
+  await put(path, { ...await get(path), heightCm: 169, updatedAt: '2020-01-01T00:00:00.000Z' });
+  await restarted.saveProfile({ ...profile, editUuid: profileId, name: 'Louise', heightCm: 172 });
+  assert.equal((await get(path)).heightCm, 172);
   assert.equal((await get('session.json')).profiles[0].name, 'Obsolete');
 });

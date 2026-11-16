@@ -213,6 +213,28 @@ fn record(file: &DataFile) -> Result<Value, String> {
     Ok(row)
 }
 
+pub(crate) fn version_time(value: &Value) -> Option<i64> {
+    [
+        "updatedAt",
+        "createdAt",
+        "registeredAt",
+        "receivedAt",
+        "date",
+    ]
+    .into_iter()
+    .find_map(|key| {
+        let date = &value[key];
+        date.as_str()
+            .and_then(|text| chrono::DateTime::parse_from_rfc3339(text).ok())
+            .map(|stamp| stamp.timestamp_millis())
+            .or_else(|| date.as_i64())
+    })
+}
+
+fn newer(candidate: &Value, current: &Value) -> bool {
+    version_time(candidate).is_some_and(|time| Some(time) > version_time(current))
+}
+
 fn read_json(path: &Path) -> Result<Option<Value>, String> {
     match fs::read(path) {
         Ok(bytes) => serde_json::from_slice(&bytes).map(Some).map_err(message),
@@ -286,22 +308,41 @@ pub(crate) fn read_window_preferences(root: &Path) -> Result<Value, String> {
 #[cfg(desktop)]
 pub(crate) fn save_window_preferences(root: &Path, window: Value) -> Result<(), String> {
     update_global_preferences(root, |global| {
-        global.insert("window".into(), window);
+        if global.get("window") != Some(&window) {
+            let previous = version_time(&Value::Object(global.clone()));
+            global.insert("window".into(), window);
+            let now = chrono::DateTime::<chrono::Utc>::from(std::time::SystemTime::now());
+            let instant = previous
+                .and_then(|time| chrono::DateTime::from_timestamp_millis(time.saturating_add(1)))
+                .filter(|time| *time > now)
+                .unwrap_or(now)
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+            let key = if global.contains_key("createdAt") {
+                "updatedAt"
+            } else {
+                "createdAt"
+            };
+            global.insert(key.into(), json!(instant));
+        }
+        Ok(())
     })
 }
 
 fn update_global_preferences(
     root: &Path,
-    update: impl FnOnce(&mut serde_json::Map<String, Value>),
+    update: impl FnOnce(&mut serde_json::Map<String, Value>) -> Result<(), String>,
 ) -> Result<(), String> {
     let _guard = GLOBAL_PREFS_WRITE.lock().map_err(message)?;
-    let mut global = read_global_preferences(root)?;
+    let before = read_global_preferences(root)?;
+    let mut global = before.clone();
     update(
         global
             .as_object_mut()
             .ok_or("epi-i18n:diagnostic.invalidGlobalPreferences")?,
-    );
-    save_json(root, &root.join(PREFS), &global, true)?;
+    )?;
+    if global != before && !save_json(root, &root.join(PREFS), &global, true)? {
+        return Err("epi-i18n:diagnostic.aConfigurationHasBeenModifiedReload".into());
+    }
     Ok(())
 }
 
@@ -401,6 +442,12 @@ fn save_file(
         if old == bytes {
             return Ok(true);
         }
+        let text = std::str::from_utf8(old).map_err(message)?;
+        let current: Value =
+            serde_json::from_str(text.trim_start_matches('\u{feff}')).map_err(message)?;
+        if newer(&current, value) {
+            return Ok(false);
+        }
     }
     let change = transactions::change(root, path, before.is_some(), Some(value))?;
     if !atomic_write(path, bytes, replace)? {
@@ -466,10 +513,14 @@ fn save_records(
         if existing.is_some_and(|(file, current)| file == &path && current == row) {
             continue;
         }
-        if previous_row == Some(row) && existing.is_none() {
+        if previous_row == Some(row) && existing.is_none_or(|(file, _)| file == &path) {
             continue;
         }
-        if existing.is_some_and(|(_, current)| current != row && previous_row != Some(current)) {
+        if (previous_row.is_some() && existing.is_none())
+            || existing.is_some_and(|(_, current)| {
+                current != row && previous_row != Some(current) && !newer(row, current)
+            })
+        {
             return Err("epi-i18n:diagnostic.aFileHasBeenModifiedReload".into());
         }
         let existing_path = existing.map(|(file, _)| file);
@@ -836,9 +887,11 @@ fn with_notifications(
             let path = notification_path(root, id)?;
             let old = read_json(&path)?;
             if let Some(row) = after.get(id) {
-                if before
-                    .get(id)
-                    .is_some_and(|previous| Some(*previous) != old.as_ref())
+                if old.as_ref() == Some(*row) {
+                    continue;
+                }
+                if before.get(id).copied() != old.as_ref()
+                    && !old.as_ref().is_some_and(|current| newer(row, current))
                 {
                     return Err("epi-i18n:diagnostic.theNotificationHasChangedReloadThe".into());
                 }
@@ -846,6 +899,9 @@ fn with_notifications(
                 json_write(&path, row, true)?;
                 operations.push(change);
             } else if old.is_some() {
+                if before.get(id).copied() != old.as_ref() {
+                    return Err("epi-i18n:diagnostic.theNotificationHasChangedReloadThe".into());
+                }
                 let change = transactions::change(root, &path, true, None)?;
                 fs::remove_file(&path).map_err(message)?;
                 operations.push(change);
@@ -920,6 +976,8 @@ pub fn save_session(app: AppHandle, session: Value, previous: Value) -> Result<b
             "addressFilter",
             "anonymousPreferences",
             "languagePreference",
+            "createdAt",
+            "updatedAt",
         ]
         .iter()
         .all(|key| session[*key] == previous[*key])
@@ -1000,11 +1058,15 @@ fn save_view_presets(root: &Path, current: &Value, previous: &Value) -> Result<(
                 continue;
             }
             let conflict = "epi-i18n:diagnostic.aConfigurationHasBeenModifiedReload";
-            if stored.as_ref() != old {
+            if stored.as_ref() != old
+                && !new
+                    .zip(stored.as_ref())
+                    .is_some_and(|(candidate, current)| newer(candidate, current))
+            {
                 return Err(conflict.into());
             }
             if let Some(new) = new {
-                if !save_json(root, &path, new, old.is_some())? {
+                if !save_json(root, &path, new, stored.is_some())? {
                     return Err(conflict.into());
                 }
             } else {
@@ -1019,29 +1081,64 @@ fn save_preferences(root: &Path, session: &Value, previous: &Value) -> Result<()
     if let Some(profiles) = session["profilePreferences"].as_object() {
         for (profile, prefs) in profiles.iter().filter(|(profile, _)| !profile.is_empty()) {
             let path = profile_prefs_path(root, profile);
-            if prefs != &previous["profilePreferences"][profile]
-                || !path.try_exists().map_err(message)?
+            let before = previous["profilePreferences"].get(profile);
+            let current = read_json(&path)?;
+            if current.as_ref() == Some(prefs) || (before == Some(prefs) && current.is_some()) {
+                continue;
+            }
+            if current
+                .as_ref()
+                .is_some_and(|stored| before != Some(stored) && !newer(prefs, stored))
             {
-                save_json(root, &path, prefs, true)?;
+                return Err("epi-i18n:diagnostic.aConfigurationHasBeenModifiedReload".into());
+            }
+            if !save_json(root, &path, prefs, current.is_some())? {
+                return Err("epi-i18n:diagnostic.aConfigurationHasBeenModifiedReload".into());
             }
         }
     }
     update_global_preferences(root, |global| {
-        global.retain(|key, _| matches!(key.as_str(), "window" | "languagePreference"));
-        if session["languagePreference"] != previous["languagePreference"] {
-            global.insert(
-                "languagePreference".into(),
-                session["languagePreference"].clone(),
-            );
-        }
-        for key in [
+        let current = Value::Object(global.clone());
+        let keys = [
             "selectedProfile",
             "pending",
             "addressFilter",
             "anonymousPreferences",
-        ] {
-            global.insert(key.into(), session[key].clone());
+            "languagePreference",
+        ];
+        if keys
+            .iter()
+            .any(|key| session[*key] != previous[*key] && session[*key] != current[*key])
+            && newer(&current, previous)
+            && !newer(session, &current)
+        {
+            return Err("epi-i18n:diagnostic.aConfigurationHasBeenModifiedReload".into());
         }
+        let mut changed = false;
+        for key in keys {
+            if session[key] == current[key] || session[key] == previous[key] {
+                continue;
+            }
+            if current.get(key).is_some()
+                && current[key] != previous[key]
+                && !newer(session, &current)
+            {
+                return Err("epi-i18n:diagnostic.aConfigurationHasBeenModifiedReload".into());
+            }
+            global.insert(key.into(), session[key].clone());
+            changed = true;
+        }
+        if changed || (newer(session, previous) && newer(session, &current)) {
+            global.remove("columns");
+            for key in ["createdAt", "updatedAt"] {
+                if let Some(value) = session.get(key) {
+                    global.insert(key.into(), value.clone());
+                } else {
+                    global.remove(key);
+                }
+            }
+        }
+        Ok(())
     })
 }
 
@@ -1477,7 +1574,11 @@ mod tests {
             "Alice"
         );
 
-        let session = json!({ "selectedProfile": "Bob", "languagePreference": "fr-CA" });
+        let session = json!({
+            "selectedProfile": "Bob", "languagePreference": "fr-CA",
+            "createdAt": read_global_preferences(root).unwrap()["createdAt"],
+            "updatedAt": "2099-01-01T00:00:00.000Z",
+        });
         save_preferences(root, &session, &legacy).unwrap();
         assert_eq!(read_window_preferences(root).unwrap(), window);
         assert_eq!(
@@ -1496,6 +1597,30 @@ mod tests {
         assert_eq!(
             read_global_preferences(root).unwrap()["languagePreference"],
             "fr-CA"
+        );
+    }
+
+    #[test]
+    fn saves_a_conflict_only_when_the_candidate_is_newer() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
+        let id = "a2788c87-ab0a-44f7-aeea-6e3d37442ae7";
+        let path = root.join(format!("profiles/{id}.json"));
+        let before = json!({ "profiles": [{ "uuid": id, "name": "Alice", "createdAt": "2026-01-01T00:00:00.000Z" }] });
+        let mut external = before["profiles"][0].clone();
+        external["updatedAt"] = json!("2026-03-01T00:00:00.000Z");
+        external["heightCm"] = json!(169);
+        json_write(&path, &external, false).unwrap();
+        let mut candidate = before.clone();
+        candidate["profiles"][0]["heightCm"] = json!(171);
+        candidate["profiles"][0]["updatedAt"] = json!("2026-02-01T00:00:00.000Z");
+        assert!(save_records(root, &candidate, &before, "profiles", name).is_err());
+        assert_eq!(read_json(&path).unwrap(), Some(external));
+        candidate["profiles"][0]["updatedAt"] = json!("2026-04-01T00:00:00.000Z");
+        save_records(root, &candidate, &before, "profiles", name).unwrap();
+        assert_eq!(
+            read_json(&path).unwrap().as_ref(),
+            candidate["profiles"].get(0)
         );
     }
 
@@ -1520,7 +1645,7 @@ mod tests {
             "Bob": { "columns": [] }
         });
         let session = json!({ "selectedProfile": "Bob", "profilePreferences": preferences });
-        save_preferences(root, &session, &session).unwrap();
+        save_preferences(root, &session, &old).unwrap();
         let reopened = read_session(root).unwrap();
         assert_eq!(reopened["selectedProfile"], "Bob");
         assert_eq!(reopened["profilePreferences"], preferences);

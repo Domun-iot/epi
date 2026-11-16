@@ -104,6 +104,8 @@ test('Google registration, linking and unlinking preserve local accounts and req
   assert.equal(alice.hasPassword, false);
   assert.equal(alice.locale, 'de');
   assert.equal(alice.googleLocale, 'fr-CA');
+  assert.equal(new Date(alice.createdAt).toISOString(), alice.createdAt);
+  assert.equal(alice.updatedAt, undefined);
   await request('google/finish', proof, 400);
   await request('device-tokens', { email: alice.email, password: 'guess', deviceId: 'pc' }, 401);
   assert.equal((await flow('login', 'alice-changed')).email, alice.email);
@@ -117,6 +119,8 @@ test('Google registration, linking and unlinking preserve local accounts and req
   assert.equal(updated.hasPassword, true);
   assert.equal(updated.locale, 'de');
   assert.equal(updated.googleLocale, undefined);
+  assert.equal(updated.createdAt, alice.createdAt);
+  assert.ok(updated.updatedAt >= alice.createdAt);
   await flow('login', 'alice', 404);
   await request('device-tokens', { email: alice.email, password, deviceId: 'pc' });
 

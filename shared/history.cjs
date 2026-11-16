@@ -4,6 +4,7 @@ const { calculateComposition } = require('./composition.cjs');
 
 const { profileAt, nameKey } = require('./profile-fields.cjs');
 const { decode } = require('./scale.cjs');
+const { creationDate } = require('./record-version.cjs');
 
 const services = require('./bluetooth-services.json');
 
@@ -26,6 +27,7 @@ function historyRecord(event, profile, device = null) {
   return {
     uuid: globalThis.crypto.randomUUID(),
     receivedAt,
+    createdAt: receivedAt,
     profile: profile ? {
       uuid: profile.uuid ?? null, name: profile.user ?? null, sex: profile.sex, age: profile.age,
       ageAtWeighIn: profile.age, heightCm: profile.heightCm,
@@ -39,7 +41,8 @@ function historyRecord(event, profile, device = null) {
 }
 
 function upgradeMeasurement(row, profileUuid, deviceUuid, uuid) {
-  const { profileUuid: oldProfile, deviceUuid: oldDevice, ...data } = row;
+  const { profileUuid: oldProfile, deviceUuid: oldDevice, updatedAt, ...data } = row;
+  const createdAt = creationDate(row);
   function snapshot(key, legacy, fallback) {
     const saved = row[key];
     const id = saved && Object.hasOwn(saved, 'uuid') ? saved.uuid
@@ -50,8 +53,10 @@ function upgradeMeasurement(row, profileUuid, deviceUuid, uuid) {
   const profile = snapshot('profile', oldProfile, profileUuid);
   const device = snapshot('device', oldDevice, deviceUuid);
   if (row.uuid && !Object.hasOwn(row, 'profileUuid') && !Object.hasOwn(row, 'deviceUuid')
+      && row.createdAt === createdAt && !Object.hasOwn(row, 'updatedAt')
       && profile === row.profile && device === row.device) return row;
   return { ...data, uuid: row.uuid ?? uuid ?? globalThis.crypto.randomUUID(),
+    ...(createdAt && { createdAt }),
     ...(profile !== undefined && { profile }), ...(device !== undefined && { device }) };
 }
 

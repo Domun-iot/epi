@@ -3,6 +3,7 @@
 const { nameKey } = require('../../shared/profile-fields.cjs');
 const { upgradeMeasurement } = require('../../shared/history.cjs');
 const { measurementKey } = require('./records.cjs');
+const { creationDate } = require('../../shared/record-version.cjs');
 
 const uuid = () => globalThis.crypto.randomUUID();
 const identify = row => row.uuid ? row : { ...row, uuid: uuid() };
@@ -19,7 +20,11 @@ function receiptKey(event) {
 
 function upgradeIdentities(state) {
   updateRows(state, 'profiles', identify);
-  updateRows(state, 'devices', identify);
+  updateRows(state, 'devices', row => {
+    const device = identify(row);
+    const date = creationDate(device);
+    return date && !device.createdAt ? { ...device, createdAt: date } : device;
+  });
   const profiles = new Map(state.profiles.map(row => [nameKey(row.name), row.uuid]));
   const devices = new Map(state.devices.map(row => [row.bluetooth.address, row.uuid]));
 

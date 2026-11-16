@@ -1,5 +1,5 @@
 use crate::{
-    storage::{atomic_write, read_bytes, restore_file, valid_transaction_path},
+    storage::{atomic_write, read_bytes, restore_file, valid_transaction_path, version_time},
     transaction_index,
 };
 use chrono::{DateTime, SecondsFormat, Utc};
@@ -170,7 +170,11 @@ struct FileChange {
     after: Option<Vec<u8>>,
 }
 
-fn transaction_changes(root: &Path, transaction: &Value) -> Result<Vec<FileChange>, String> {
+fn transaction_changes(
+    root: &Path,
+    transaction: &Value,
+    name: &str,
+) -> Result<Vec<FileChange>, String> {
     let invalid = || "epi-i18n:diagnostic.invalidDataPath".to_owned();
     let kind = transaction["type"].as_str().ok_or_else(invalid)?;
     let data = &transaction["data"];
@@ -206,7 +210,7 @@ fn transaction_changes(root: &Path, transaction: &Value) -> Result<Vec<FileChang
             } else {
                 Some(kind)
             };
-            let after = match (op, operation.get("value")) {
+            let mut after = match (op, operation.get("value")) {
                 (Some("create" | "update"), Some(value)) => {
                     let mut bytes = serde_json::to_vec_pretty(value).map_err(message)?;
                     bytes.push(b'\n');
@@ -215,8 +219,34 @@ fn transaction_changes(root: &Path, transaction: &Value) -> Result<Vec<FileChang
                 (Some("delete"), None) => None,
                 _ => return Err(invalid()),
             };
+            let before = read_bytes(&path)?;
+            if let Some(bytes) = &before {
+                let text = std::str::from_utf8(bytes).map_err(message)?;
+                let current: Value =
+                    serde_json::from_str(text.trim_start_matches('\u{feff}')).map_err(message)?;
+                if current == operation["value"] && op != Some("delete") {
+                    after = before.clone();
+                } else if let Some(current_time) = version_time(&current) {
+                    let candidate_time = if op == Some("delete") {
+                        name.get(..27)
+                            .and_then(|stamp| {
+                                chrono::NaiveDateTime::parse_from_str(
+                                    stamp,
+                                    "%Y-%m-%dT%H-%M-%S%.fZ",
+                                )
+                                .ok()
+                            })
+                            .map(|stamp| stamp.and_utc().timestamp_millis())
+                    } else {
+                        version_time(&operation["value"])
+                    };
+                    if candidate_time <= Some(current_time) {
+                        after = before.clone();
+                    }
+                }
+            }
             Ok(FileChange {
-                before: read_bytes(&path)?,
+                before,
                 path,
                 after,
             })
@@ -224,7 +254,12 @@ fn transaction_changes(root: &Path, transaction: &Value) -> Result<Vec<FileChang
         .collect()
 }
 
-fn apply_received(root: &Path, uuid: Uuid, name: &str, transaction: &Value) -> Result<(), String> {
+fn apply_received(
+    root: &Path,
+    uuid: Uuid,
+    name: &str,
+    transaction: &Value,
+) -> Result<bool, String> {
     let mut archive = transaction.clone();
     archive
         .as_object_mut()
@@ -233,7 +268,8 @@ fn apply_received(root: &Path, uuid: Uuid, name: &str, transaction: &Value) -> R
     let mut bytes = serde_json::to_vec_pretty(&archive).map_err(message)?;
     bytes.push(b'\n');
     let destination = root.join("transactions.sent").join(name);
-    let mut changes = transaction_changes(root, transaction)?;
+    let mut changes = transaction_changes(root, transaction, name)?;
+    let changed = changes.iter().any(|change| change.before != change.after);
     changes.push(FileChange {
         path: destination,
         before: None,
@@ -267,7 +303,7 @@ fn apply_received(root: &Path, uuid: Uuid, name: &str, transaction: &Value) -> R
             }
         }
     }
-    result
+    result.map(|()| changed)
 }
 
 fn integrate(root: &Path, rows: Vec<Value>) -> Result<IntegratedTransactions, String> {
@@ -292,11 +328,11 @@ fn integrate(root: &Path, rows: Vec<Value>) -> Result<IntegratedTransactions, St
             else {
                 continue;
             };
-            if apply_received(root, uuid, name, &transaction).is_err() {
+            let Ok(changed) = apply_received(root, uuid, name, &transaction) else {
                 continue;
-            }
+            };
             ids.insert(uuid);
-            result.changed = true;
+            result.changed |= changed;
         }
         if acknowledged.insert(uuid) {
             result.uuids.push(uuid);
@@ -375,6 +411,37 @@ pub fn record(root: &Path, operations: Vec<Value>) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stale_update_and_delete_are_acknowledged_without_changing_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let path = "profiles/profil-alice.json";
+        let transaction = |day: &str, kind: &str, data: Value| {
+            let uuid = Uuid::new_v4();
+            (
+                uuid,
+                json!({
+                    "uuid": uuid.to_string(), "name": format!("2026-01-{day}T00-00-00.000000Z-{uuid}.json"),
+                    "type": kind, "data": data,
+                }),
+            )
+        };
+        let current = json!({"name":"Alice", "createdAt":"2026-01-01T00:00:00.000Z", "updatedAt":"2026-01-15T00:00:00.000Z"});
+        let (_, create) = transaction("16", "create", json!({"path":path, "value":current}));
+        assert!(integrate(root, vec![create]).unwrap().changed);
+        let (older, update) = transaction(
+            "17",
+            "update",
+            json!({"path":path, "value":{"name":"old", "createdAt":"2026-01-01T00:00:00.000Z"}}),
+        );
+        let (deletion, delete) = transaction("12", "delete", json!({"path":path}));
+        let result = integrate(root, vec![update, delete]).unwrap();
+        assert_eq!(result.uuids, vec![older, deletion]);
+        assert!(!result.changed);
+        let stored = fs::read(root.join(path)).unwrap();
+        assert_eq!(serde_json::from_slice::<Value>(&stored).unwrap(), current);
+    }
 
     #[test]
     fn received_transactions_archive_successes_and_acknowledge_duplicates() {

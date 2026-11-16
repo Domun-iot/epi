@@ -1,6 +1,7 @@
 'use strict';
 
-const { readOptional, saveChanges, serialize } = require('../shared/transactions.cjs');
+const { saveChanges, serialize } = require('../shared/transactions.cjs');
+const { stampRecord } = require('../shared/record-version.cjs');
 const { randomUUID } = require('node:crypto');
 const { basename, dirname, join } = require('node:path');
 const { listProfileFiles } = require('./record-files.cjs');
@@ -25,8 +26,9 @@ async function prepareProfile(values, {
   if (values.utilisateur === undefined && !hasFields) return null;
   const user = values.utilisateur === undefined ? undefined : normalizeProfileName(values.utilisateur);
 
-  const stored = user === undefined ? undefined : listProfileFiles(directory)
-    .find(entry => entry.file === filename || nameKey(entry.record.name) === nameKey(user))?.record;
+  const entry = user === undefined ? undefined : listProfileFiles(directory)
+    .find(item => item.file === filename || nameKey(item.record.name) === nameKey(user));
+  const stored = entry?.record;
   const uuid = user === undefined ? undefined : stored?.uuid ?? randomUUID();
   const file = uuid ? join(directory, uuid + '.json') : null;
 
@@ -69,16 +71,9 @@ async function prepareProfile(values, {
   }
 
   if (file && (!stored?.uuid || hasFields || missing.length)) {
-    const record = { ...profile, name: user, uuid };
-    if (stored) {
-      if (stored.createdAt) record.createdAt = stored.createdAt;
-      if (hasFields || missing.length) record.updatedAt = new Date().toISOString();
-      else if (stored.updatedAt) record.updatedAt = stored.updatedAt;
-    } else {
-      record.createdAt = new Date().toISOString();
-    }
+    const record = stampRecord({ ...profile, name: user, uuid }, stored);
     saveChanges(dirname(directory), [{
-      path: basename(directory) + '/' + basename(file), before: readOptional(file), after: serialize(record),
+      path: basename(directory) + '/' + basename(file), before: entry?.contents, after: serialize(record),
     }]);
     output.write(`Profil « ${user} » enregistré.\n`);
   }

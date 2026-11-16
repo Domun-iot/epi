@@ -40,7 +40,8 @@ test('keeps the manual selection on reopen and edits profile details without cha
   assert.equal(selected.selectedProfile, 'Lou');
   assert.deepEqual(selected.measurements, initial.measurements);
   assert.equal(selected.measurements[0].profile.uuid, initial.profiles[0].uuid);
-  const { updatedAt, ...edited } = selected.profiles[0];
+  const { updatedAt, createdAt, ...edited } = selected.profiles[0];
+  assert.ok(createdAt <= updatedAt);
   assert.equal(new Date(updatedAt).toISOString(), updatedAt);
   assert.deepEqual(edited, { name: 'Lou', sex: 'F', heightCm: 171.5, age: 42, uuid: initial.profiles[0].uuid });
   await session.setColumnPreference('Lou', 'fatPercent', 'columns', true);
@@ -274,6 +275,34 @@ test('reloads external updates while leaving live enrollment in place', async ()
   assert.equal(state.enrollment.name, 'Salle');
 });
 
+test('reload keeps the more recent version and accepts external deletions', async () => {
+  const uuid = 'a2788c87-ab0a-44f7-aeea-6e3d37442ae7';
+  const created = { ...lou, uuid, createdAt: '2026-04-01T09:00:00.000Z' };
+  const latest = { ...created, heightCm: 173, updatedAt: '2026-06-01T09:00:00.000Z' };
+  const { session, disk } = fixture({ profiles: [latest], selectedProfile: 'Lou' });
+  await session.load();
+  disk().profiles = [created];
+  assert.deepEqual((await session.reload()).profiles, [latest]);
+  assert.deepEqual(disk().profiles, [latest]);
+  const external = { ...latest, heightCm: 175, updatedAt: '2026-07-01T09:00:00.000Z' };
+  disk().profiles = [external];
+  assert.deepEqual((await session.reload()).profiles, [external]);
+  disk().profiles = [];
+  assert.deepEqual((await session.reload()).profiles, []);
+});
+
+test('dates a creation and only records real updates', async () => {
+  const { session } = fixture();
+  const [created] = (await session.saveProfile(lou)).profiles;
+  assert.equal(new Date(created.createdAt).toISOString(), created.createdAt);
+  assert.equal(Object.hasOwn(created, 'updatedAt'), false);
+  const [unchanged] = (await session.saveProfile({ ...lou, editName: lou.name })).profiles;
+  assert.deepEqual(unchanged, created);
+  const [updated] = (await session.saveProfile({ ...lou, editName: lou.name, heightCm: 175 })).profiles;
+  assert.equal(updated.createdAt, created.createdAt);
+  assert.ok(updated.updatedAt > created.createdAt);
+});
+
 test('serializes writes and leaves published state unchanged if persistence rejects', async () => {
   let breakSave = true;
   const session = createSession({ storage: {
@@ -330,7 +359,9 @@ test('stores deletion snapshots and restores profiles, measurements and devices 
   const { session: reopened, disk: restoredDisk } = fixture(disk());
   const restored = await reopened.restoreNotification(removedProfile.id, false);
   assert.ok(restored.profiles.some(profile => profile.name === 'Lou'));
-  assert.deepEqual(restoredDisk().profilePreferences.Lou, preferences);
+  const { createdAt, ...restoredPreferences } = restoredDisk().profilePreferences.Lou;
+  assert.equal(new Date(createdAt).toISOString(), createdAt);
+  assert.deepEqual(restoredPreferences, preferences);
   assert.deepEqual(restored.measurements, [initial.measurements[1]]);
   await assert.rejects(reopened.restoreNotification(removedProfile.id), /déjà été restauré/);
 
@@ -441,7 +472,7 @@ test('moves old measurement references into archived snapshots without replacing
   const { session, disk } = fixture(seed);
   const { profileUuid, deviceUuid, ...reading } = seed.measurements[0];
   const [migrated] = (await session.load()).measurements;
-  assert.deepEqual(migrated, { ...reading, profile: { ...reading.profile, uuid: profileUuid },
+  assert.deepEqual(migrated, { ...reading, createdAt: new Date(reading.receivedAt).toISOString(), profile: { ...reading.profile, uuid: profileUuid },
     device: { ...device, uuid: deviceUuid } });
   assert.deepEqual(disk().measurements, [migrated]);
   assert.deepEqual((await session.reload()).measurements, [migrated]);

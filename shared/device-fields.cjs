@@ -61,6 +61,7 @@ function buildDevice(name, event, metadata = {}) {
   const record = {
     name: normalizeName(name),
     registeredAt: event.receivedAt,
+    createdAt: event.receivedAt,
     bluetooth: {
       address: event.address,
       serviceUuid,

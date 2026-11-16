@@ -1,6 +1,7 @@
 'use strict';
 
-const { readOptional, saveChanges, serialize } = require('../shared/transactions.cjs');
+const { saveChanges, serialize } = require('../shared/transactions.cjs');
+const { stampRecord } = require('../shared/record-version.cjs');
 const { randomUUID } = require('node:crypto');
 const { basename, dirname, join } = require('node:path');
 const { listRecordFiles } = require('./record-files.cjs');
@@ -21,8 +22,8 @@ function listDevices(root = directory) {
     }
     record.bluetooth.service ??= services[record.bluetooth.serviceUuid] ?? null;
     return record;
-  }).map(({ file, record }) => {
-    devicePaths.set(record, join(root, file));
+  }).map(({ file, record, contents }) => {
+    devicePaths.set(record, { file: join(root, file), contents });
     return record;
   });
 }
@@ -68,14 +69,16 @@ function updateDeviceMetadata(record, metadata) {
   const bluetooth = mergeDeviceMetadata(record, metadata);
   const changed = JSON.stringify(bluetooth) !== JSON.stringify(record.bluetooth);
   if (record.uuid && !changed) return;
-  const updated = { ...record, bluetooth, uuid: record.uuid ?? randomUUID() };
-  if (changed) updated.updatedAt = new Date().toISOString();
-  const file = devicePaths.get(record);
-  if (file) {
+  const updated = stampRecord({ ...record, bluetooth, uuid: record.uuid ?? randomUUID() }, record);
+  const source = devicePaths.get(record);
+  if (source) {
+    const { file, contents } = source;
     const root = dirname(file);
+    const after = serialize(updated);
     saveChanges(dirname(root), [{
-      path: basename(root) + '/' + basename(file), before: readOptional(file), after: serialize(updated),
+      path: basename(root) + '/' + basename(file), before: contents, after,
     }]);
+    source.contents = after;
   }
   Object.assign(record, updated);
 }
@@ -84,8 +87,9 @@ function registerDevice(name, event, root = directory, metadata = {}) {
   const record = { ...buildDevice(name, event, metadata), uuid: randomUUID() };
   const nameOnDisk = record.uuid + '.json';
   const file = join(root, nameOnDisk);
-  saveChanges(dirname(root), [{ path: basename(root) + '/' + nameOnDisk, after: serialize(record) }]);
-  devicePaths.set(record, file);
+  const contents = serialize(record);
+  saveChanges(dirname(root), [{ path: basename(root) + '/' + nameOnDisk, after: contents }]);
+  devicePaths.set(record, { file, contents });
   return record;
 }
 
