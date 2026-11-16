@@ -3,6 +3,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, renameSync
 import { basename, delimiter, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { updateAndroidIcons } from './brand-icons.mjs';
 
 const app = fileURLToPath(new URL('.', import.meta.url));
 const windows = process.platform === 'win32';
@@ -78,6 +79,7 @@ function buildAndroid(play) {
     throw new Error('L’initialisation du projet Android a échoué.');
   }
 
+  updateAndroidIcons(project);
   const buildArgs = play ? ['--aab', '--target', 'aarch64', 'x86_64'] : ['--apk', '--debug'];
   // Tauri uses the npm invocation to generate Gradle’s callback to the CLI.
   if (!run(npm, tauriArgs(['android', 'build', ...buildArgs, '--ci']), androidEnv)) {
