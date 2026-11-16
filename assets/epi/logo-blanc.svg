@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>éPI</title>
+  <rect width="512" height="512" fill="#ffffff"/>
+  <g fill="#ffc131">
+    <path d="M144 154
+             A152 152 0 1 1 318 349
+             A101 101 0 0 0 323 300
+             A107 107 0 1 0 203 136
+             A179 179 0 0 0 144 154Z"/>
+    <circle cx="289" cy="198" r="41"/>
+  </g>
+  <g fill="#24c8db">
+    <path d="M194 162
+             A153 153 0 1 0 367 358
+             A179 179 0 0 1 308 376
+             A107 107 0 1 1 188 212
+             A102 102 0 0 1 194 162Z"/>
+    <circle cx="223" cy="314" r="41"/>
+  </g>
+</svg>
