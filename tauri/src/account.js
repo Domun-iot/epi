@@ -24,6 +24,7 @@ const errorNotice = document.querySelector('#account-error');
 const switchButton = document.querySelector('#account-switch');
 const closeButton = document.querySelector('#account-close');
 const submitButton = document.querySelector('#account-submit');
+const publicPages = dialog.querySelectorAll('[data-account-public-page]');
 
 const googleButton = document.querySelector('#account-google');
 const googleButtonLogo = googleButton.querySelector('img');
@@ -89,6 +90,11 @@ function showError(message) {
 }
 
 function render() {
+  for (const link of publicPages) {
+    const url = new URL(link.href);
+    url.searchParams.set('lang', locale);
+    link.href = url.href;
+  }
   openButton.dataset.connected = String(Boolean(accountInfo));
   connectionStatus.textContent = t(accountInfo ? 'accountConnected' : 'accountDisconnected');
   openButton.title = connectionStatus.textContent;
@@ -131,7 +137,7 @@ function render() {
 }
 
 if (isTauri()) {
-  for (const link of dialog.querySelectorAll('[data-account-public-page]')) {
+  for (const link of publicPages) {
     link.addEventListener('click', async event => {
       event.preventDefault();
       try { await openUrl(link.href); }

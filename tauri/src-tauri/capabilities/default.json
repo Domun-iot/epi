@@ -11,8 +11,8 @@
       "identifier": "opener:allow-open-url",
       "allow": [
         { "url": "https://doi.org/*" },
-        { "url": "https://epi.domun.eu/confidentialite" },
-        { "url": "https://epi.domun.eu/supprimer-compte" },
+        { "url": "https://domun.eu/epi/privacy-policy[?]lang=*" },
+        { "url": "https://domun.eu/epi/delete-account[?]lang=*" },
         { "url": "https://accounts.google.com/o/oauth2/v2/auth?*" },
         { "url": "https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight" },
         { "url": "https://github.com/lolouk44/xiaomi_mi_scale/blob/master/src/Xiaomi_Scale_Body_Metrics.py" }
