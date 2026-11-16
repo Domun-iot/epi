@@ -62,9 +62,9 @@ function updateAssets() {
     for (const [name, svg] of Object.entries(variants)) {
       const source = join(brand, `${name}.svg`);
       if (name !== 'logo') writeFileSync(source, svg);
-      render(source, temp, name === 'logo-app' ? [180, 192, 512] : name === 'logo-blanc' ? [120, 512] : [512]);
+      render(source, temp, name === 'logo-app' ? [180, 192, 512] : name === 'logo' ? [120, 512] : [512]);
       copyFileSync(join(temp, '512x512.png'), join(brand, `${name}.png`));
-      if (name === 'logo-blanc') copyFileSync(join(temp, '120x120.png'), join(brand, 'logo-oauth-120.png'));
+      if (name === 'logo') copyFileSync(join(temp, '120x120.png'), join(brand, 'logo-oauth-120.png'));
     }
     for (const [size, name] of [[180, 'apple-touch-icon'], [192, 'epi-192'], [512, 'epi-512']]) {
       copyFileSync(join(temp, `${size}x${size}.png`), join(appIcons, `${name}.png`));
