@@ -55,17 +55,31 @@ function webSessionApi() {
     configureServer(server) {
       const root = fileURLToPath(new URL('../web/', appPath));
       const require = createRequire(appPath);
-      const domain = require('./domain/session.cjs');
-      const storage = require('../shared/data-directory.cjs');
-      const transactions = require('../shared/transactions.cjs');
+      const directories = ['./domain/', '../shared/'].map(path => fileURLToPath(new URL(path, appPath)));
+      const isSessionSource = file => directories.some(directory => resolve(file).startsWith(directory))
+        && /\.(cjs|json)$/.test(file);
       let sessionApi;
+
+      // Keep the server session in step with Vite's reloaded browser modules.
+      server.watcher.add(directories);
+      server.watcher.on('all', (event, file) => {
+        if (!['add', 'change', 'unlink'].includes(event) || !isSessionSource(file)) return;
+        for (const path of Object.keys(require.cache)) {
+          if (isSessionSource(path)) delete require.cache[path];
+        }
+        sessionApi = undefined;
+      });
       // Let Vite listen and open the browser before reading the data directory.
       server.middlewares.use('/api/session', async (request, response, next) => {
-        sessionApi ??= createSessionApi({ root, domain, storage, transactions }).catch(error => {
-          sessionApi = undefined;
-          throw error;
-        });
         try {
+          if (!sessionApi) {
+            const domain = require('./domain/session.cjs');
+            const storage = require('../shared/data-directory.cjs');
+            const transactions = require('../shared/transactions.cjs');
+            const loading = createSessionApi({ root, domain, storage, transactions });
+            sessionApi = loading;
+            loading.catch(() => { if (sessionApi === loading) sessionApi = undefined; });
+          }
           const { handleAction } = await sessionApi;
           await handleAction(request, response);
         } catch (error) {
