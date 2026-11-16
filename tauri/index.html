@@ -118,10 +118,17 @@
         <a href="https://epi.domun.eu/supprimer-compte" data-account-public-page data-i18n="requestAccountDeletion" target="_blank" rel="noopener noreferrer"></a>
       </form>
       <div class="actions">
-        <button type="button" class="button" id="account-google" hidden data-i18n="continueWithGoogle"></button>
-        <button type="button" class="button" id="account-switch" data-i18n="createAccount"></button>
-        <button type="submit" class="button primary" id="account-submit" form="account-form" data-i18n="signIn"></button>
-        <button type="button" class="button" id="account-close" data-i18n="close"></button>
+        <div class="account-action-group">
+          <button type="submit" class="button primary" id="account-submit" form="account-form" data-i18n="signIn"></button>
+          <button type="button" class="button" id="account-google" hidden>
+            <img src="./src/google-g.svg" width="18" height="18" alt="">
+            <span data-i18n="continueWithGoogle"></span>
+          </button>
+        </div>
+        <div class="account-action-group">
+          <button type="button" class="button" id="account-switch" data-i18n="createAccount"></button>
+          <button type="button" class="button" id="account-close" data-i18n="close"></button>
+        </div>
       </div>
     </dialog>
     <script type="module" src="/src/bootstrap.js"></script>

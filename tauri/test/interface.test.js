@@ -10,7 +10,7 @@ import { measurementCharts } from '../src/measurement-charts.js';
 
 let browser;
 const url = 'http://localhost:1420/';
-const types = new Map([['html', 'text/html'], ['js', 'application/javascript'], ['css', 'text/css']]);
+const types = new Map([['html', 'text/html'], ['js', 'application/javascript'], ['css', 'text/css'], ['png', 'image/png']]);
 let outDir;
 
 const address = 'AA:BB:CC:DD:EE:FF';
@@ -108,6 +108,28 @@ test('loads the French catalogue in Vite dev and falls back to English on failur
       await page.context().close();
     }
   }
+});
+
+test('garde les boutons de connexion groupés quand la fenêtre rétrécit', async t => {
+  const page = await pageWith(t, undefined, { viewport: { width: 700, height: 600 } });
+  await page.getByRole('button', { name: 'Compte', exact: true }).click();
+  const buttons = page.locator('#account-dialog .actions button');
+  assert.deepEqual(await buttons.allInnerTexts(), ['Se connecter', 'Google', 'Créer un compte', 'Fermer']);
+
+  const logo = page.locator('#account-google img');
+  await logo.evaluate(image => image.decode());
+  const googleLabel = page.locator('#account-google span');
+  assert.ok((await logo.boundingBox()).x < (await googleLabel.boundingBox()).x);
+
+  const rows = () => buttons.evaluateAll(items => items.map(button => button.getBoundingClientRect().top + button.offsetHeight / 2));
+  const [wideRow, ...wideButtons] = await rows();
+  assert.ok(wideButtons.every(row => row === wideRow));
+
+  await page.setViewportSize({ width: 350, height: 600 });
+  const [signIn, google, register, close] = await rows();
+  assert.equal(signIn, google);
+  assert.equal(register, close);
+  assert.ok(register > google);
 });
 
 test('affiche une erreur lorsque la connexion Google ne peut pas démarrer', async t => {

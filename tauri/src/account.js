@@ -25,6 +25,7 @@ const closeButton = document.querySelector('#account-close');
 const submitButton = document.querySelector('#account-submit');
 
 const googleButton = document.querySelector('#account-google');
+const googleButtonLabel = googleButton.querySelector('span');
 const googleFields = document.querySelector('#account-google-fields');
 const googlePasswordLabel = document.querySelector('#account-google-password-label');
 const googlePassword = form.elements.googlePassword;
@@ -108,8 +109,11 @@ function render() {
   googleConfirm.disabled = busy || !needsNewPassword;
   googleButton.hidden = Boolean(account && !accountInfo);
   googleButton.disabled = busy;
-  googleButton.textContent = !account ? (creating ? t('registerWithGoogle') : t('signInWithGoogle'))
+  const signingIn = !account && !creating;
+  googleButtonLabel.textContent = signingIn ? 'Google' : !account ? t('registerWithGoogle')
     : accountInfo?.googleLinked ? t('unlinkGoogle') : t('linkGoogle');
+  if (signingIn) googleButton.setAttribute('aria-label', t('signInWithGoogle'));
+  else googleButton.removeAttribute('aria-label');
   googleStatus.hidden = !waitingForGoogle;
   googleStatus.textContent = waitingForGoogle ? t('completeGoogleSignIn') : '';
   const closingAccount = !waitingForGoogle && !managingGoogle;
