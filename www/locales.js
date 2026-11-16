@@ -32,7 +32,7 @@ export function selectLocale(query, cookie = '', accept = '') {
 }
 
 const fields = ['language', 'headline', 'intro', 'privacy', 'deletion', 'legal', 'send',
-  'director', 'local', 'sync', 'rights', 'request', 'erasure'];
+  'director', 'local', 'sync', 'rights', 'request', 'erasure', 'accountEmail', 'submitted', 'submissionError'];
 const source = readFileSync(new URL('./copy.txt', import.meta.url), 'utf8');
 export const catalog = Object.fromEntries(source.trim().split(/\r?\n/).map(line => {
   const [locale, ...values] = line.split('|');
@@ -44,5 +44,7 @@ catalog['en-US'] = { ...catalog['en-GB'],
 };
 catalog['fr-CA'] = { ...catalog['fr-FR'],
   sync: catalog['fr-FR'].sync.replace('adresse e-mail', 'adresse courriel').replace('adresse e-mail', 'adresse courriel'),
-  request: 'Écrivez-nous à partir de l’adresse courriel associée à votre compte éPI. Nous pouvons vous demander de confirmer votre demande. Gardez votre mot de passe confidentiel.',
+  request: 'Indiquez l’adresse courriel associée à votre compte éPI. Nous pourrons vous contacter pour vérifier la demande.',
+  accountEmail: 'Adresse courriel du compte',
+  submissionError: 'La demande n’a pas pu être enregistrée. Vérifiez l’adresse courriel et réessayez.',
 };
