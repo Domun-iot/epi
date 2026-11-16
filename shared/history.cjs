@@ -3,13 +3,15 @@
 const { calculateComposition } = require('./composition.cjs');
 
 const { profileAt, nameKey } = require('./profile-fields.cjs');
-const { decode } = require('./scale.cjs');
+const { decodeMeasurement, defaultServiceUuid, isCompleteMeasurement } = require('./scales/adapter.js');
 const { creationDate } = require('./record-version.cjs');
 
 const services = require('./bluetooth-services.json');
 
-function receptionRecord({ hex, address, rssi, stable, removed, scaleTime, serviceUuid = hex ? '0x181B' : null }) {
-  const decoded = hex && serviceUuid === '0x181B' ? decode(hex) : null;
+function receptionRecord({ hex, address, rssi, stable, removed, scaleTime,
+  serviceUuid = hex ? defaultServiceUuid : null }, model) {
+  // Older Xiaomi records can carry the raw advertisement without decoded reception fields.
+  const decoded = hex && serviceUuid === defaultServiceUuid ? decodeMeasurement(hex, { serviceUuid, model }) : null;
   return {
     raw: hex ? { hex } : null,
     bluetooth: { serviceUuid, service: services[serviceUuid] ?? null, address: address ?? null, rssiDbm: rssi ?? null },
@@ -36,7 +38,7 @@ function historyRecord(event, profile, device = null) {
     device,
     measures: { weight, unit, impedanceOhms },
     calculations: profile ? calculateComposition({ weight, unit, impedanceOhms }, profile).methods : null,
-    reception: receptionRecord(event),
+    reception: receptionRecord(event, device?.bluetooth?.model),
   };
 }
 
@@ -74,7 +76,7 @@ function bufferHistory(save, waitMs = 15000) {
   return event => {
     if (done) return;
     if (first && key(first) !== key(event)) return;
-    if (event.serviceUuid === '0x181D' || event.impedanceOhms > 0) {
+    if (isCompleteMeasurement(event)) {
       finish(event);
     } else if (!first) {
       first = event;

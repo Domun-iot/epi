@@ -1,13 +1,12 @@
 'use strict';
 
-const { ADDRESS, canonicalAddress, createReceiver } = require('../../shared/scale.cjs');
+const { ADDRESS, canonicalAddress, createReceiver } = require('../../shared/scales/adapter.js');
 const { fromBase64 } = require('../../shared/bytes.cjs');
 const { mergeDeviceMetadata, parseDeviceMetadata } = require('../../shared/device-fields.cjs');
 const { globalMac } = require('../../shared/mac-manufacturer.cjs');
 const companies = require('../../shared/bluetooth-companies.json');
 const services = require('../../shared/bluetooth-services.json');
 
-const receive = createReceiver({ raw: true });
 const payloadPattern = new RegExp(
   String.raw`^PAYLOAD ${ADDRESS} (-?\d+|-) (Service|Manufacturer|Announcement) ([\da-f-]+) (\d+) ([\da-f]*) ([A-Za-z0-9+/=]*)$`, 'i');
 
@@ -19,6 +18,7 @@ function prefixStatus(source, companyPayload = false) {
 
 function createWatchDecoder() {
   const metadataByAddress = new Map();
+  const receive = createReceiver({ raw: true, bluetoothFor: address => metadataByAddress.get(address) });
   return line => {
     const metadata = parseDeviceMetadata(line);
     if (metadata) {

@@ -1,7 +1,7 @@
 'use strict';
 
 const { buildDevice, deviceFileKey } = require('../../shared/device-fields.cjs');
-const { canonicalAddress } = require('../../shared/scale.cjs');
+const { canonicalAddress } = require('../../shared/scales/adapter.js');
 const { historyRecord, latestWeights, matchWeight } = require('../../shared/history.cjs');
 const { nameKey } = require('../../shared/profile-fields.cjs');
 const { metrics } = require('../../shared/composition.cjs');
@@ -207,6 +207,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
 
   const acquisition = createAcquisition({
     waitMs, dedupMs, onWeighing,
+    bluetoothFor: address => findDevice(saved, address)?.bluetooth,
     settle: reading => enqueue(async () => {
       if (reading.committed) return;
       reading.expired = true;

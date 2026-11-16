@@ -8,7 +8,7 @@ const { join } = require('node:path');
 const { createInterface } = require('node:readline');
 const { parseArgs } = require('node:util');
 const { compileScanner } = require('./scanner.cjs');
-const { createReceiver } = require('./scale.cjs');
+const { createReceiver } = require('../shared/scales/adapter.js');
 
 const { prepareProfile, profileAt } = require('./profiles.cjs');
 const { formatComposition } = require('./composition.cjs');
@@ -117,8 +117,11 @@ async function main() {
     throw error;
   }
 
-  const receive = createReceiver({ mac, acceptAddress, raw: values.raw, includeHex: true });
-  const receiveStable = values.raw ? createReceiver({ mac, acceptAddress, includeHex: true }) : receive;
+  const metadataByAddress = new Map();
+  const bluetoothFor = address => findDevice({ address }, devices)?.bluetooth ?? metadataByAddress.get(address);
+  const receiverOptions = { mac, acceptAddress, bluetoothFor, includeHex: true };
+  const receive = createReceiver({ ...receiverOptions, raw: values.raw });
+  const receiveStable = values.raw ? createReceiver(receiverOptions) : receive;
   let stopping = false;
   let timer;
   let force;
@@ -129,7 +132,6 @@ async function main() {
     force = setTimeout(() => child.kill(), 3000);
     force.unref();
   };
-  const metadataByAddress = new Map();
   let saving = false;
   let measurementAddress;
   let saveQueue = Promise.resolve();

@@ -1,15 +1,17 @@
 'use strict';
 
-const { createReceiver } = require('../../shared/scale.cjs');
+const { createReceiver, isCompleteMeasurement } = require('../../shared/scales/adapter.js');
 const { parseDeviceMetadata } = require('../../shared/device-fields.cjs');
 
 const readingKey = ({ address, serviceUuid, scaleTime, weight, unit }) =>
   JSON.stringify([address, serviceUuid, scaleTime, weight, unit]);
 
-function createAcquisition({ waitMs, dedupMs, settle, fail, onWeighing }) {
-  const receive = createReceiver({ raw: true });
+function createAcquisition({ waitMs, dedupMs, settle, fail, onWeighing, bluetoothFor }) {
   const readings = new Map();
   const metadataByAddress = new Map();
+  const receive = createReceiver({ raw: true,
+    bluetoothFor: address => ({ ...bluetoothFor(address), ...metadataByAddress.get(address) }),
+  });
 
   function observe(line, now) {
     const metadata = parseDeviceMetadata(line);
@@ -42,7 +44,7 @@ function createAcquisition({ waitMs, dedupMs, settle, fail, onWeighing }) {
     if (reading.committed) return null;
     onWeighing?.();
     if (event.impedanceOhms > 0) reading.event = event;
-    return event.serviceUuid === '0x181D' || event.impedanceOhms > 0 || reading.expired ? reading : null;
+    return isCompleteMeasurement(event) || reading.expired ? reading : null;
   }
 
   function commit(reading) {

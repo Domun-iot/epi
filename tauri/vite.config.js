@@ -57,7 +57,7 @@ function webSessionApi() {
       const require = createRequire(appPath);
       const directories = ['./domain/', '../shared/'].map(path => fileURLToPath(new URL(path, appPath)));
       const isSessionSource = file => directories.some(directory => resolve(file).startsWith(directory))
-        && /\.(cjs|json)$/.test(file);
+        && /\.(cjs|js|json)$/.test(file);
       let sessionApi;
 
       // Keep the server session in step with Vite's reloaded browser modules.

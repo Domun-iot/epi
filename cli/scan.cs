@@ -112,10 +112,10 @@ internal static class Scanner
             }
             foreach (var section in packet.Advertisement.GetSectionsByType(0x16))
             {
-                if (section.Data.Length != 15) continue;
+                if (section.Data.Length < 2) continue;
                 using (var reader = DataReader.FromBuffer(section.Data))
                 {
-                    var bytes = new byte[15];
+                    var bytes = new byte[section.Data.Length];
                     reader.ReadBytes(bytes);
                     if (bytes[0] != 0x1b || bytes[1] != 0x18) continue;
                     Emit(packet, "181B", bytes, 2);

@@ -2,7 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { decode, createReceiver } = require('./scale.cjs');
+const { createReceiver } = require('../shared/scales/adapter.js');
+const { decode } = require('../shared/scales/xiaomi.js');
 
 // XMTZC05HM capture: https://github.com/lolouk44/hassio-addons/issues/14
 const full = '0226e40709060d2605e9015a37';
@@ -38,6 +39,18 @@ test('filters other addresses, unstable and unloaded readings and repeated broad
   assert.ok(receive(packet('0224' + full.slice(4)), 3));
   assert.ok(receive(packet(full), 30_002));
 });
+test('receives identified and unknown scales on the same receiver without mixing ports or addresses', () => {
+  const models = { 'AA:BB:CC:DD:EE:FF': { model: 'XMTZC05HM' } };
+  const receive = createReceiver({ bluetoothFor: address => models[address] });
+  const xiaomi = 'AABBCCDDEEFF -58 181B ' + full;
+  const weightScale = '112233445566 -62 181D 00404C';
+  assert.equal(receive(xiaomi, 0).weight, 70.85);
+  assert.equal(receive(weightScale, 1).weight, 97.6);
+  assert.equal(receive(xiaomi, 2), null);
+  assert.equal(receive(xiaomi.replace('AABBCCDDEEFF', '112233445577'), 3).weight, 70.85);
+  assert.equal(receive(xiaomi.replace('181B', '1234'), 4), null);
+});
+
 test('raw mode exposes repeat and unloaded packets', () => {
   const receive = createReceiver({ raw: true });
   assert.equal(receive(packet(removed), 0).hex, removed);

@@ -3,7 +3,7 @@
 const { nameKey } = require('./profile-fields.cjs');
 const companies = require('./bluetooth-companies.json');
 const services = require('./bluetooth-services.json');
-const { ADDRESS, canonicalAddress } = require('./scale.cjs');
+const { ADDRESS, canonicalAddress, defaultServiceUuid, identifyScale } = require('./scales/adapter.js');
 const { fromBase64 } = require('./bytes.cjs');
 const { macManufacturer } = require('./mac-manufacturer.cjs');
 
@@ -43,10 +43,9 @@ function mergeDeviceMetadata(record, metadata, { resolveMac = true } = {}) {
     const manufacturer = macManufacturer(bluetooth.address ?? metadata.address);
     if (manufacturer) bluetooth.macManufacturer = manufacturer;
   }
-  // The advertised name identifies a model only in combination with the company ID.
-  if (bluetooth.localName === 'MIBFS' && bluetooth.companyIds?.includes('0x0157')) {
-    bluetooth.brand = 'Xiaomi';
-    bluetooth.model = 'XMTZC05HM';
+  const identity = identifyScale(bluetooth);
+  if (identity) {
+    Object.assign(bluetooth, identity);
     bluetooth.modelSource = 'advertisement';
   } else if (bluetooth.modelSource === 'advertisement') {
     delete bluetooth.brand;
@@ -57,7 +56,7 @@ function mergeDeviceMetadata(record, metadata, { resolveMac = true } = {}) {
 }
 
 function buildDevice(name, event, metadata = {}) {
-  const serviceUuid = event.serviceUuid ?? '0x181B';
+  const serviceUuid = event.serviceUuid ?? defaultServiceUuid;
   const record = {
     name: normalizeName(name),
     registeredAt: event.receivedAt,

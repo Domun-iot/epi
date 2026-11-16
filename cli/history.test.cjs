@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { bufferHistory, historyRecord, latestWeights, matchWeight } = require('./history.cjs');
 const { chooseProfile } = require('./profile-choice.cjs');
+const { createReceiver } = require('../shared/scales/adapter.js');
 
 test('writes the complete reading instead of the matching weight-only reading within fifteen seconds', t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
@@ -23,7 +24,6 @@ test('writes the complete reading instead of the matching weight-only reading wi
 });
 
 test('saves the first complete reading immediately and keeps the original payload', () => {
-  const { createReceiver } = require('./scale.cjs');
   const hex = '0226e40709060d2605e9015a37';
   const event = createReceiver({ includeHex: true })('AABBCCDDEEFF -58 ' + hex);
   const saved = [];
@@ -57,7 +57,6 @@ test('saves the first reading at fifteen seconds when impedance never arrives', 
 });
 
 test('decodes and immediately saves a standard Weight Measurement indication', () => {
-  const { createReceiver } = require('./scale.cjs');
   const receive = createReceiver({ includeHex: true });
   const event = receive('AABBCCDDEEFF -58 181D 00803e ConnectableUndirected ');
   assert.equal(event.weight, 80);
