@@ -337,7 +337,7 @@
   "scaleClock": "Mérleg óra",
   "scaleFrameReceived": "Ennek a mérlegnek a kerete már megérkezett.",
   "scaleUnloaded": "A Mérleg elengedett",
-  "search": "Keresés",
+  "filterData": "Szűrés",
   "select": "Válassza ki",
   "selectedProfile": "Kiválasztott profil: {profile}",
   "seriesChange": "A „{series}” fejlődése az időszak során: {delta}",

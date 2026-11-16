@@ -337,7 +337,7 @@
   "scaleClock": "Tehtnica ura",
   "scaleFrameReceived": "Okvir za to lestvico je že prejet.",
   "scaleUnloaded": "Tehtnica izpuščena",
-  "search": "Iskanje",
+  "filterData": "Filtriraj",
   "select": "Izberite",
   "selectedProfile": "Izbran profil: {profile}",
   "seriesChange": "Razvoj »{series}« v obdobju: {delta}",

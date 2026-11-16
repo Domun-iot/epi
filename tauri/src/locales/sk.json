@@ -337,7 +337,7 @@
   "scaleClock": "Hodiny Váhy",
   "scaleFrameReceived": "Rám pre túto váhu už bol prijatý.",
   "scaleUnloaded": "Váhy prepustené",
-  "search": "Hľadať",
+  "filterData": "Filtrovať",
   "select": "Vyberte",
   "selectedProfile": "Zvolený profil: {profile}",
   "seriesChange": "Vývoj „{series}“ za obdobie: {delta}",

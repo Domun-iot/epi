@@ -337,7 +337,7 @@
   "scaleClock": "Relógio de Balança",
   "scaleFrameReceived": "A moldura desta escala já foi recebida.",
   "scaleUnloaded": "Libra lançada",
-  "search": "Pesquisar",
+  "filterData": "Filtrar",
   "select": "Selecione",
   "selectedProfile": "Perfil selecionado: {profile}",
   "seriesChange": "Evolução de “{series}” no período: {delta}",

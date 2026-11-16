@@ -337,7 +337,7 @@
   "scaleClock": "Vægt ur",
   "scaleFrameReceived": "Rammen til denne skala er allerede modtaget.",
   "scaleUnloaded": "Libra frigivet",
-  "search": "Søg",
+  "filterData": "Filtrér",
   "select": "Vælg",
   "selectedProfile": "Valgt profil: {profile}",
   "seriesChange": "Udvikling af \"{series}\" over perioden: {delta}",

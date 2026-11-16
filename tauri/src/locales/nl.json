@@ -337,7 +337,7 @@
   "scaleClock": "Weegschaal klok",
   "scaleFrameReceived": "Het frame voor deze weegschaal is al ontvangen.",
   "scaleUnloaded": "Weegschaal vrijgegeven",
-  "search": "Zoeken",
+  "filterData": "Filteren",
   "select": "Selecteer",
   "selectedProfile": "Geselecteerd profiel: {profile}",
   "seriesChange": "Evolutie van “{series}” gedurende de periode: {delta}",

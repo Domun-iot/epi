@@ -337,7 +337,7 @@
   "scaleClock": "Vaga sat",
   "scaleFrameReceived": "Okvir za ovu vagu je već primljen.",
   "scaleUnloaded": "Vaga puštena",
-  "search": "Traži",
+  "filterData": "Filtriraj",
   "select": "Odaberite",
   "selectedProfile": "Odabrani profil: {profile}",
   "seriesChange": "Evolucija \"{series}\" u razdoblju: {delta}",

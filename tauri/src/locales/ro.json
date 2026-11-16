@@ -337,7 +337,7 @@
   "scaleClock": "Ceas Balanță",
   "scaleFrameReceived": "Cadrul pentru această scară a fost deja primit.",
   "scaleUnloaded": "Balanța eliberată",
-  "search": "Caută",
+  "filterData": "Filtrează",
   "select": "Selectați",
   "selectedProfile": "Profil selectat: {profile}",
   "seriesChange": "Evoluția „{series}” în perioada: {delta}",

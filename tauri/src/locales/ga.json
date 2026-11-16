@@ -337,7 +337,7 @@
   "scaleClock": "Clog Mheá",
   "scaleFrameReceived": "Tá an fráma don scála seo faighte cheana féin.",
   "scaleUnloaded": "Libra scaoileadh",
-  "search": "Cuardach",
+  "filterData": "Scag",
   "select": "Roghnaigh",
   "selectedProfile": "Próifíl roghnaithe: {profile}",
   "seriesChange": "Éabhlóid “{series}” thar an tréimhse: {delta}",

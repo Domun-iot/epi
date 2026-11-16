@@ -337,7 +337,7 @@
   "scaleClock": "Zegar Waga",
   "scaleFrameReceived": "Rama do tej skali została już otrzymana.",
   "scaleUnloaded": "Waga uwolniona",
-  "search": "Szukaj",
+  "filterData": "Filtruj",
   "select": "Wybierz",
   "selectedProfile": "Wybrany profil: {profile}",
   "seriesChange": "Ewolucja „{series}” w okresie: {delta}",

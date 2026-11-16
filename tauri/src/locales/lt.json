@@ -337,7 +337,7 @@
   "scaleClock": "Svarstyklių laikrodis",
   "scaleFrameReceived": "Šios skalės rėmelis jau gautas.",
   "scaleUnloaded": "Svarstyklės paleistos",
-  "search": "Ieškoti",
+  "filterData": "Filtruoti",
   "select": "Pasirinkite",
   "selectedProfile": "Pasirinktas profilis: {profile}",
   "seriesChange": "„{series}“ raida per laikotarpį: {delta}",

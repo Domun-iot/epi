@@ -337,7 +337,7 @@
   "scaleClock": "Arloġġ Libra",
   "scaleFrameReceived": "Il-qafas għal din l-iskala diġà ġie riċevut.",
   "scaleUnloaded": "Libra rilaxxata",
-  "search": "Fittex",
+  "filterData": "Iffiltra",
   "select": "Agħżel",
   "selectedProfile": "Profil magħżul: {profile}",
   "seriesChange": "Evoluzzjoni ta' “{series}” matul il-perjodu: {delta}",

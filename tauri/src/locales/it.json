@@ -337,7 +337,7 @@
   "scaleClock": "Orologio della Bilancia",
   "scaleFrameReceived": "Il telaio per questa scala è già stato ricevuto.",
   "scaleUnloaded": "Liberata la Bilancia",
-  "search": "Cerca",
+  "filterData": "Filtra",
   "select": "Seleziona",
   "selectedProfile": "Profilo selezionato: {profile}",
   "seriesChange": "Evoluzione di “{series}” nel periodo: {delta}",

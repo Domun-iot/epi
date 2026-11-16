@@ -337,7 +337,7 @@
   "scaleClock": "Часовник Везни",
   "scaleFrameReceived": "Рамката за този мащаб вече е получена.",
   "scaleUnloaded": "Везни освободени",
-  "search": "Търсене",
+  "filterData": "Филтриране",
   "select": "Изберете",
   "selectedProfile": "Избран профил: {profile}",
   "seriesChange": "Развитие на “{series}” през периода: {delta}",

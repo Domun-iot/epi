@@ -337,7 +337,7 @@
   "scaleClock": "Vågens klocka",
   "scaleFrameReceived": "Ramen för denna skala har redan mottagits.",
   "scaleUnloaded": "Vågen släppt",
-  "search": "Sök",
+  "filterData": "Filtrera",
   "select": "Välj",
   "selectedProfile": "Vald profil: {profile}",
   "seriesChange": "Utveckling av \"{series}\" under perioden: {delta}",

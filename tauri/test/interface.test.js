@@ -882,7 +882,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await table.getByRole('columnheader', { name: 'IMC (kg/m²)', exact: true }).waitFor();
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
   await page.getByText('Données', { exact: true }).click();
-  const search = page.getByRole('searchbox', { name: 'Recherche' });
+  const search = page.getByRole('searchbox', { name: 'Filtrer' });
   await page.locator('.column-search:focus').waitFor();
   const options = page.locator('[data-column-option]:visible');
   const labels = await options.evaluateAll(nodes => nodes.map(node => node.dataset.columnOption));
@@ -1378,13 +1378,13 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   await page.getByRole('table', { name: 'Pesées' }).waitFor();
 });
 
-test('sur Android, Recherche apparaît à droite de Données sans prendre le focus', async t => {
+test('sur Android, Filtrer apparaît à droite de Données sans prendre le focus', async t => {
   const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice' }, {
     userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36',
     viewport: { width: 360, height: 800 },
   });
   const columns = page.getByText('Données', { exact: true });
-  const search = page.getByRole('searchbox', { name: 'Recherche' });
+  const search = page.getByRole('searchbox', { name: 'Filtrer' });
   await search.waitFor({ state: 'hidden' });
   await columns.click();
   await search.waitFor();

@@ -337,7 +337,7 @@
   "scaleClock": "Horloge de la balance",
   "scaleFrameReceived": "La trame de cette balance a déjà été reçue.",
   "scaleUnloaded": "Balance libérée",
-  "search": "Recherche",
+  "filterData": "Filtrer",
   "select": "Sélectionner",
   "selectedProfile": "Profil sélectionné : {profile}",
   "seriesChange": "Évolution de « {series} » sur la période : {delta}",

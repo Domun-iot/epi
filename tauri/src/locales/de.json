@@ -337,7 +337,7 @@
   "scaleClock": "Waage-Uhr",
   "scaleFrameReceived": "Der Rahmen für diese Skala ist bereits eingetroffen.",
   "scaleUnloaded": "Waage freigelassen",
-  "search": "Suchen",
+  "filterData": "Filtern",
   "select": "Auswählen",
   "selectedProfile": "Ausgewähltes Profil: {profile}",
   "seriesChange": "Entwicklung von „{series}“ im Laufe des Zeitraums: {delta}",

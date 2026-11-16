@@ -337,7 +337,7 @@
   "scaleClock": "Svaru pulkstenis",
   "scaleFrameReceived": "Šīs skalas rāmis jau ir saņemts.",
   "scaleUnloaded": "Svari atbrīvoti",
-  "search": "Meklēt",
+  "filterData": "Filtrēt",
   "select": "Izvēlieties",
   "selectedProfile": "Izvēlētais profils: {profile}",
   "seriesChange": "“{series}” evolūcija laika posmā: {delta}",

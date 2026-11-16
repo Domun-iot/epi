@@ -337,7 +337,7 @@
   "scaleClock": "reloj libra",
   "scaleFrameReceived": "Ya se ha recibido el marco para esta escala.",
   "scaleUnloaded": "libra liberada",
-  "search": "Buscar",
+  "filterData": "Filtrar",
   "select": "Seleccionar",
   "selectedProfile": "Perfil seleccionado: {profile}",
   "seriesChange": "Evolución de “{series}” en el periodo: {delta}",

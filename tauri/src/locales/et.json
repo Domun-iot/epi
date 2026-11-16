@@ -337,7 +337,7 @@
   "scaleClock": "Kaalude kell",
   "scaleFrameReceived": "Selle skaala raam on juba kätte saadud.",
   "scaleUnloaded": "Kaalud vabastati",
-  "search": "Otsi",
+  "filterData": "Filtreeri",
   "select": "Valige",
   "selectedProfile": "Valitud profiil: {profile}",
   "seriesChange": "\"{series}\" areng perioodil: {delta}",

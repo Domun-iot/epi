@@ -76,7 +76,7 @@ function columnSettings(selected, split, sourcesByMetric, open, query, chart) {
   return `<details class="settings" data-expand="columns"${open ? ' open' : ''}>
     <summary>${htmlText('data')}</summary>
     <div class="column-search-field">
-      <input class="column-search" type="search" aria-label="${htmlText('search')}" placeholder="${htmlText('search')}" value="${e(query)}">
+      <input class="column-search" type="search" aria-label="${htmlText('filterData')}" placeholder="${htmlText('filterData')}" value="${e(query)}">
     </div>
     <div class="column-options">${available.map(([id, label]) => {
       const toggle = split.has(id) ? t('recombineColumns') : t('splitColumns');

@@ -337,7 +337,7 @@
   "scaleClock": "Scale clock",
   "scaleFrameReceived": "A Bluetooth frame from this scale has already been received.",
   "scaleUnloaded": "Load removed",
-  "search": "Search",
+  "filterData": "Filter",
   "select": "Select",
   "selectedProfile": "Selected profile: {profile}",
   "seriesChange": "Change in “{series}” over this period: {delta}",

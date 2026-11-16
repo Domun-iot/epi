@@ -337,7 +337,7 @@
   "scaleClock": "Ρολόι Ζυγού",
   "scaleFrameReceived": "Το πλαίσιο για αυτήν την κλίμακα έχει ήδη ληφθεί.",
   "scaleUnloaded": "Ο Ζυγός απελευθερώθηκε",
-  "search": "Αναζήτηση",
+  "filterData": "Φιλτράρισμα",
   "select": "Επιλέξτε",
   "selectedProfile": "Επιλεγμένο προφίλ: {profile}",
   "seriesChange": "Εξέλιξη του \"{series}\" κατά την περίοδο: {delta}",

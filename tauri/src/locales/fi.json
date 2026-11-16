@@ -337,7 +337,7 @@
   "scaleClock": "Vaaka kello",
   "scaleFrameReceived": "Tämän asteikon kehys on jo vastaanotettu.",
   "scaleUnloaded": "Vaaka vapautettiin",
-  "search": "Etsi",
+  "filterData": "Suodata",
   "select": "Valitse",
   "selectedProfile": "Valittu profiili: {profile}",
   "seriesChange": "\"{series}\":n kehitys ajanjaksolla: {delta}",
