@@ -22,6 +22,7 @@ const flags = Object.fromEntries(Object.keys(locales).map(locale =>
 const assets = new Map(Object.entries({
   ...Object.fromEntries(Object.values(flags).map(code => ['flags/' + code + '.svg', 'image/svg+xml'])),
   'style.css': 'text/css; charset=utf-8',
+  'scenes.js': 'text/javascript; charset=utf-8',
   'epi.svg': 'image/svg+xml',
   'chart.jpg': 'image/jpeg',
 }).map(([name, type]) => [base + '/assets/' + name, {
@@ -32,6 +33,8 @@ assets.set(base + '/assets/weigh-ins.jpg', {
 });
 const stylePath = base + '/assets/style.css';
 const styleVersion = createHash('sha256').update(assets.get(stylePath).body).digest('hex').slice(0, 12);
+const scenesPath = base + '/assets/scenes.js';
+const scenesVersion = createHash('sha256').update(assets.get(scenesPath).body).digest('hex').slice(0, 12);
 const escape = value => value.replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[character]);
@@ -82,7 +85,9 @@ function render(path, page, locale, retention, status) {
   return '<!doctype html><html lang="' + locale + '"><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1"><title>' + titles[page] +
     ' | éPI</title><link rel="icon" href="' + base + '/assets/epi.svg"><link rel="stylesheet" href="' +
-    stylePath + '?v=' + styleVersion + '"></head><body><header><a class="brand" href="' + base +
+    stylePath + '?v=' + styleVersion + '">' +
+    (page === 'home' ? '<script defer src="' + scenesPath + '?v=' + scenesVersion + '"></script>' : '') +
+    '</head><body><header><a class="brand" href="' + base +
     '"><img src="' + base + '/assets/epi.svg" alt="" width="35" height="35">éPI</a>' +
     renderLanguagePicker(path, locale) + '</header>' +
     '<main' + (page === 'home' ? '' : ' class="document"') + '>' + content[page]() + '</main>' +
@@ -119,7 +124,8 @@ export function createSite({
     const headers = {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Language': locale,
-      'Content-Security-Policy': "default-src 'none'; img-src 'self'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+      'Content-Security-Policy': "default-src 'none'; img-src 'self'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" +
+        (page === 'home' ? "; script-src 'self'" : ''),
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
       'Cache-Control': 'private, no-store',

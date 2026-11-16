@@ -92,7 +92,14 @@ test('public pages, language selection and deletion requests', async t => {
   assert.equal(fallback.headers.get('content-language'), 'en-GB');
 
   const french = { headers: { 'Accept-Language': 'fr-FR' } };
-  const home = await (await get('/epi', french)).text();
+  const homePage = await get('/epi', french);
+  assert.match(homePage.headers.get('content-security-policy'), /script-src 'self'/);
+  const home = await homePage.text();
+  const sceneAsset = home.match(/<script defer src="(\/epi\/assets\/scenes\.js\?v=[a-f0-9]+)"><\/script>/);
+  assert.ok(sceneAsset);
+  const scriptResponse = await get(sceneAsset[1]);
+  assert.equal(scriptResponse.status, 200);
+  assert.match(scriptResponse.headers.get('content-type'), /^text\/javascript/);
   assert.match(home, /Simple au quotidien\. Complet pour les fous de données\./);
   assert.match(home, new RegExp('Pour ' + scaleFamilies.length + ' familles'));
   for (const id of ['bluetooth', 'profiles', 'composition', 'views', 'sync', 'local', 'source']) {
@@ -105,7 +112,10 @@ test('public pages, language selection and deletion requests', async t => {
     assert.ok(home.includes('href="/epi/' + path + '"'));
     const page = await get('/epi/' + path, french);
     assert.equal(page.status, 200);
-    assert.ok((await page.text()).includes(expected));
+    assert.doesNotMatch(page.headers.get('content-security-policy'), /script-src/);
+    const html = await page.text();
+    assert.ok(html.includes(expected));
+    assert.doesNotMatch(html, /<script/);
   }
   const german = await get('/epi/calculation-methods', { headers: { 'Accept-Language': 'de' } });
   assert.match(await german.text(), /<html lang="de".*<div lang="en-GB">/);

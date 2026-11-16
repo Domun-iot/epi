@@ -33,6 +33,7 @@ const french = {
   phone: 'Téléphone',
   browser: 'Navigateur',
   profiles: ['Camille', 'Lou', 'Sacha'],
+  chartScreenshot: 'Graphique de suivi du poids dans l’application éPI',
   screenshot: 'Tableau des pesées dans l’application éPI',
 };
 
@@ -71,6 +72,7 @@ const english = {
   phone: 'Phone',
   browser: 'Browser',
   profiles: ['Charlie', 'Lou', 'Sam'],
+  chartScreenshot: 'Weight history chart in the éPI app',
   screenshot: 'Weigh-in table in the éPI app',
 };
 
