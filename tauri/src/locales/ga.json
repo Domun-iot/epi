@@ -7,6 +7,8 @@
   "syncSignInRequired": "Sínigh isteach chun do shonraí a shioncronú.",
   "syncNow": "Sioncronaigh anois",
   "account": "Cuntas",
+  "manageAccount": "Bainistigh do chuntas",
+  "compareAccountPlans": "Cad eile a fhaigheann tú le Pro?",
   "accountAlreadyExists": "Tá cuntas ann cheana don seoladh seo. Logáil isteach sa chuntas seo chun Google a cheangal leis.",
   "accountConnected": "Sínithe isteach",
   "accountDisconnected": "Gan síniú isteach",

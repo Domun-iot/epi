@@ -20,11 +20,14 @@ const language = form.elements.language;
 const languageOptions = Object.entries(languages).sort(([, first], [, second]) => first.localeCompare(second, locale));
 language.replaceChildren(...languageOptions.map(([id, name]) => new Option(name, id, id === locale, id === locale)));
 const accountEmail = document.querySelector('#account-email');
+const freePlan = document.querySelector('#account-plan-free');
+const proPlan = document.querySelector('#account-plan-pro');
 const errorNotice = document.querySelector('#account-error');
 const switchButton = document.querySelector('#account-switch');
 const closeButton = document.querySelector('#account-close');
 const submitButton = document.querySelector('#account-submit');
 const publicPages = dialog.querySelectorAll('[data-account-public-page]');
+const native = isTauri();
 
 const googleButton = document.querySelector('#account-google');
 const googleButtonLogo = googleButton.querySelector('img');
@@ -119,6 +122,13 @@ function showError(message) {
   errorNotice.textContent = message;
 }
 
+function renderPlan() {
+  const connected = native && Boolean(accountInfo);
+  const paid = isPaidAccount();
+  freePlan.hidden = !connected || paid;
+  proPlan.hidden = !connected || !paid;
+}
+
 function render() {
   for (const link of publicPages) {
     const url = new URL(link.href);
@@ -131,6 +141,7 @@ function render() {
   title.textContent = account ? t('account') : creating ? t('createAccount') : t('signInHeading');
   accountEmail.hidden = !account;
   accountEmail.textContent = account?.email ?? '';
+  renderPlan();
   fields.hidden = Boolean(account);
   language.disabled = busy || !(saveLanguage || creating);
   email.disabled = password.disabled = busy || Boolean(account);
@@ -166,7 +177,8 @@ function render() {
   form.setAttribute('aria-busy', String(busy));
 }
 
-if (isTauri()) {
+if (native) {
+  window.addEventListener('epi:entitlement', renderPlan);
   for (const link of publicPages) {
     link.addEventListener('click', async event => {
       event.preventDefault();

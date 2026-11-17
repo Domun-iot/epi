@@ -7,6 +7,8 @@
   "syncSignInRequired": "Melden Sie sich an, um Ihre Daten zu synchronisieren.",
   "syncNow": "Jetzt synchronisieren",
   "account": "Konto",
+  "manageAccount": "Konto verwalten",
+  "compareAccountPlans": "Was bietet Pro zusätzlich?",
   "accountAlreadyExists": "Für diese Adresse existiert bereits ein Konto. Melden Sie sich bei diesem Konto an, um Google damit zu verknüpfen.",
   "accountConnected": "Angemeldet",
   "accountDisconnected": "Nicht angemeldet",

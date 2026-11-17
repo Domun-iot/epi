@@ -7,6 +7,8 @@
   "syncSignInRequired": "Inicie sessão para sincronizar os seus dados.",
   "syncNow": "Sincronizar agora",
   "account": "Conta",
+  "manageAccount": "Gerir a sua conta",
+  "compareAccountPlans": "O que oferece a mais a versão Pro?",
   "accountAlreadyExists": "Já existe uma conta para este endereço. Faça login nesta conta para associar o Google à mesma.",
   "accountConnected": "Sessão iniciada",
   "accountDisconnected": "Sem ligação à conta",

@@ -7,6 +7,8 @@
   "syncSignInRequired": "Pierakstieties, lai sinhronizētu datus.",
   "syncNow": "Sinhronizēt tūlīt",
   "account": "Konts",
+  "manageAccount": "Pārvaldīt kontu",
+  "compareAccountPlans": "Ko papildus piedāvā Pro?",
   "accountAlreadyExists": "Konts šai adresei jau pastāv. Piesakieties šajā kontā, lai saistītu ar to Google.",
   "accountConnected": "Kontam pieslēgts",
   "accountDisconnected": "Kontam nav pieslēgts",

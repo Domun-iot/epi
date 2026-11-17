@@ -7,6 +7,8 @@
   "syncSignInRequired": "Kirjaudu sisään synkronoidaksesi tiedot.",
   "syncNow": "Synkronoi nyt",
   "account": "Tili",
+  "manageAccount": "Hallinnoi tiliäsi",
+  "compareAccountPlans": "Mitä lisää Pro tarjoaa?",
   "accountAlreadyExists": "Tälle osoitteelle on jo tili. Kirjaudu sisään tähän tiliin yhdistääksesi Googlen siihen.",
   "accountConnected": "Kirjauduttu sisään",
   "accountDisconnected": "Ei kirjautunut sisään",

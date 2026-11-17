@@ -493,6 +493,7 @@ test('hides native ZIP and named views while FREE and enables them when PRO retu
     await page.clock.install({ time: initial });
     await page.addInitScript(snapshot => {
       window.isTauri = true;
+      window.openedUrls = [];
       let saved = snapshot;
       window.__TAURI_INTERNALS__ = {
         transformCallback: () => 1,
@@ -501,6 +502,7 @@ test('hides native ZIP and named views while FREE and enables them when PRO retu
           if (cmd === 'save_session') { saved = args.session; return false; }
           if (cmd === 'pending_transactions') return [];
           if (cmd === 'plugin:event|listen') return 1;
+          if (cmd === 'plugin:opener|open_url') window.openedUrls.push(args.url);
         }
       };
       localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({ email: 'alice@example.org', token: 'test-token' }));
@@ -514,6 +516,15 @@ test('hides native ZIP and named views while FREE and enables them when PRO retu
     });
   });
   await page.locator('#account-button .account-connected').waitFor();
+
+  await page.getByRole('button', { name: 'Compte', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Compte' });
+  const free = dialog.getByText('Free', { exact: true });
+  const pro = dialog.getByText('Pro', { exact: true });
+  await free.waitFor();
+  assert.equal(await pro.isVisible(), false);
+  await dialog.getByRole('link', { name: 'Quoi de plus en Pro ?' }).click();
+  assert.deepEqual(await page.evaluate(() => window.openedUrls), ['https://domun.eu/epi/pro?lang=fr-FR']);
   const zip = page.locator('#export-data');
   const importZip = page.locator('#import-data');
   const picker = page.locator('.view-preset-picker summary');
@@ -529,12 +540,28 @@ test('hides native ZIP and named views while FREE and enables them when PRO retu
   await zip.waitFor();
   await importZip.waitFor();
   await picker.waitFor();
+
+  await pro.waitFor();
+  assert.equal(await free.isVisible(), false);
+  await dialog.getByRole('link', { name: 'Gérer votre compte' }).click();
+  assert.deepEqual(await page.evaluate(() => window.openedUrls), [
+    'https://domun.eu/epi/pro?lang=fr-FR',
+    'https://domun.eu/account?lang=fr-FR',
+  ]);
   await page.clock.fastForward(61_000);
   await zip.waitFor({ state: 'hidden' });
   assert.equal(await importZip.isVisible(), false);
   assert.equal(await picker.count(), 0);
   assert.equal(downloads, 1);
   assert.ok(await page.locator('#account-button .account-connected').isVisible());
+
+  await free.waitFor();
+  assert.equal(await pro.isVisible(), false);
+
+  await page.route('https://sync.epi.test/v1/device-tokens', route => route.fulfill({ status: 204 }));
+  await dialog.getByRole('button', { name: 'Se déconnecter' }).click();
+  await free.waitFor({ state: 'hidden' });
+  assert.equal(await pro.isVisible(), false);
 });
 
 test('rechecks the saved account from its button and every minute', async t => {

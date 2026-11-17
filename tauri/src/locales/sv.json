@@ -7,6 +7,8 @@
   "syncSignInRequired": "Logga in för att synkronisera dina data.",
   "syncNow": "Synkronisera nu",
   "account": "konto",
+  "manageAccount": "Hantera ditt konto",
+  "compareAccountPlans": "Vad får du extra med Pro?",
   "accountAlreadyExists": "Det finns redan ett konto för den här adressen. Logga in på det här kontot för att koppla Google till det.",
   "accountConnected": "Inloggad",
   "accountDisconnected": "Inte inloggad",

@@ -420,6 +420,16 @@ dialog .notice { margin: 0; }
 .editor-form .notice[hidden] { display: none; }
 #account-fields[hidden], #account-google-fields[hidden] { display: none; }
 #account-email { overflow-wrap: anywhere; }
+.account-plan:not([hidden]) { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.account-plan-badge {
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: var(--hover);
+  color: var(--ink);
+  font-size: .85rem;
+  font-weight: 750;
+}
+#account-plan-pro .account-plan-badge { background: #245bd7; color: #fff; }
 .account-action-group { display: flex; align-items: center; gap: inherit; min-width: 0; }
 .account-action-group button { min-width: 0; overflow-wrap: anywhere; }
 #account-dialog .actions button[hidden] { display: none; }

@@ -7,6 +7,8 @@
   "syncSignInRequired": "Az adatok szinkronizálásához jelentkezzen be.",
   "syncNow": "Szinkronizálás most",
   "account": "fiók",
+  "manageAccount": "Fiók kezelése",
+  "compareAccountPlans": "Mivel nyújt többet a Pro?",
   "accountAlreadyExists": "Már létezik fiók ehhez a címhez. Jelentkezzen be ebbe a fiókba a Google társításához.",
   "accountConnected": "Bejelentkezve",
   "accountDisconnected": "Nincs bejelentkezve",

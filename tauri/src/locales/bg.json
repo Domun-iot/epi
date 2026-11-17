@@ -7,6 +7,8 @@
   "syncSignInRequired": "Влезте в профила си, за да синхронизирате данните.",
   "syncNow": "Синхронизирай сега",
   "account": "акаунт",
+  "manageAccount": "Управлявайте акаунта си",
+  "compareAccountPlans": "Какво повече предлага Pro?",
   "accountAlreadyExists": "Вече съществува акаунт за този адрес. Влезте в този акаунт, за да свържете Google с него.",
   "accountConnected": "Свързан акаунт",
   "accountDisconnected": "Акаунтът не е свързан",

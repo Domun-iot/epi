@@ -7,6 +7,8 @@
   "syncSignInRequired": "Prihláste sa, aby ste mohli synchronizovať údaje.",
   "syncNow": "Synchronizovať teraz",
   "account": "účtu",
+  "manageAccount": "Spravovať účet",
+  "compareAccountPlans": "Čo navyše ponúka Pro?",
   "accountAlreadyExists": "Pre túto adresu už existuje účet. Prihláste sa do tohto účtu a priraďte k nemu Google.",
   "accountConnected": "Prihlásené",
   "accountDisconnected": "Neprihlásené",

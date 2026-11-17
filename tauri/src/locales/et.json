@@ -7,6 +7,8 @@
   "syncSignInRequired": "Andmete sünkroonimiseks logige sisse.",
   "syncNow": "Sünkrooni kohe",
   "account": "konto",
+  "manageAccount": "Halda oma kontot",
+  "compareAccountPlans": "Mida Pro lisaks pakub?",
   "accountAlreadyExists": "Selle aadressi jaoks on konto juba olemas. Google'i seostamiseks logige sellele kontole sisse.",
   "accountConnected": "Sisse logitud",
   "accountDisconnected": "Pole sisse logitud",

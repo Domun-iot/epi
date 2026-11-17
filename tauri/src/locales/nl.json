@@ -7,6 +7,8 @@
   "syncSignInRequired": "Meld je aan om je gegevens te synchroniseren.",
   "syncNow": "Nu synchroniseren",
   "account": "Rekening",
+  "manageAccount": "Je account beheren",
+  "compareAccountPlans": "Wat biedt Pro extra?",
   "accountAlreadyExists": "Er bestaat al een account voor dit adres. Log in op dit account om Google eraan te koppelen.",
   "accountConnected": "Aangemeld",
   "accountDisconnected": "Niet aangemeld",

@@ -7,6 +7,8 @@
   "syncSignInRequired": "Autentificați-vă pentru a sincroniza datele.",
   "syncNow": "Sincronizează acum",
   "account": "Cont",
+  "manageAccount": "Gestionează-ți contul",
+  "compareAccountPlans": "Ce oferă în plus versiunea Pro?",
   "accountAlreadyExists": "Există deja un cont pentru această adresă. Conectați-vă la acest cont pentru a asocia Google cu acesta.",
   "accountConnected": "Cont conectat",
   "accountDisconnected": "Cont deconectat",

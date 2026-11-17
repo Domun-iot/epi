@@ -11,6 +11,8 @@
       "identifier": "opener:allow-open-url",
       "allow": [
         { "url": "https://doi.org/*" },
+        { "url": "https://domun.eu/account[?]lang=*" },
+        { "url": "https://domun.eu/epi/pro[?]lang=*" },
         { "url": "https://domun.eu/epi/privacy-policy[?]lang=*" },
         { "url": "https://domun.eu/epi/delete-account[?]lang=*" },
         { "url": "https://accounts.google.com/o/oauth2/v2/auth?*" },

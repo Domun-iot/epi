@@ -7,6 +7,8 @@
   "syncSignInRequired": "Prijavite se za sinhronizacijo podatkov.",
   "syncNow": "Sinhroniziraj zdaj",
   "account": "Račun",
+  "manageAccount": "Upravljajte svoj račun",
+  "compareAccountPlans": "Kaj več ponuja Pro?",
   "accountAlreadyExists": "Za ta naslov že obstaja račun. Prijavite se v ta račun, da z njim povežete Google.",
   "accountConnected": "Prijavljeni ste",
   "accountDisconnected": "Niste prijavljeni",

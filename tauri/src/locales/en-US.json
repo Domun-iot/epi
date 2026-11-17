@@ -7,6 +7,8 @@
   "syncSignInRequired": "Sign in to sync your data.",
   "syncNow": "Sync now",
   "account": "Account",
+  "manageAccount": "Manage your account",
+  "compareAccountPlans": "What more do you get with Pro?",
   "accountAlreadyExists": "An account already exists for this email address. Sign in to that account to link Google.",
   "accountConnected": "Signed in",
   "accountDisconnected": "Not connected",
