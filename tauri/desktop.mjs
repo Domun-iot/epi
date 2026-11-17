@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { createInterface } from 'node:readline';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, renameSync, statSync } from 'node:fs';
 import { basename, delimiter, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
@@ -24,6 +25,24 @@ function run(command, args, commandEnv = env) {
   const result = spawnSync(command, args, { cwd: app, env: commandEnv, stdio: 'inherit' });
   if (result.error) throw result.error;
   return result.status === 0;
+}
+
+function runBundle(format) {
+  const child = spawn(process.execPath, [cli, 'bundle', '--bundles', format, '--no-binary-patching'], {
+    cwd: app, env, stdio: ['inherit', 'inherit', 'pipe'],
+  });
+  const output = createInterface({ input: child.stderr, crlfDelay: Infinity });
+  output.on('line', line => {
+    const plain = line.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '');
+    // This warning only confirms the option deliberately passed above.
+    if (!/^\s*Warn\s+Skipping binary patching for .+ due to --no-binary-patching flag\.\s*$/.test(plain)) {
+      process.stderr.write(line + '\n');
+    }
+  });
+  return new Promise((resolve, reject) => {
+    child.once('error', reject);
+    child.once('close', code => resolve(code === 0));
+  });
 }
 
 function ensureDependencies() {
@@ -96,7 +115,7 @@ function buildAndroid(play) {
   console.log(`Android ${output}`);
 }
 
-function buildDesktop(selected) {
+async function buildDesktop(selected) {
   if (selected.includes('--portable') && selected.length !== 1
       || selected.some(format => format !== '--portable' && !Object.hasOwn(formats, format))) {
     throw new Error(`Formats disponibles : --portable, ${Object.keys(formats).join(', ')}.`);
@@ -105,7 +124,7 @@ function buildDesktop(selected) {
   for (const format of new Set(selected)) {
     if (format === '--portable') continue;
     const started = Date.now();
-    if (!run(process.execPath, [cli, 'bundle', '--bundles', format, '--no-binary-patching'])) {
+    if (!await runBundle(format)) {
       console.error(`La génération du format ${format} a échoué.`);
       process.exitCode = 1;
       continue;
@@ -131,9 +150,9 @@ try {
   if (!['windows', 'linux'].includes(platform)) throw new Error('Utilise ces scripts sur Windows ou Linux.');
   const [, , mode, ...args] = process.argv;
   if (mode === 'android' && (!args.length || args.length === 1 && args[0] === '--play')) buildAndroid(args.length > 0);
-  else if (mode === 'build' && windows) buildDesktop(args.length ? args : Object.keys(formats));
-  else if (mode === 'linux' && !windows) buildDesktop(args.length ? args : ['appimage']);
-  else if (mode === 'ubuntu' && !windows) buildDesktop(args.length ? args : ['deb']);
+  else if (mode === 'build' && windows) await buildDesktop(args.length ? args : Object.keys(formats));
+  else if (mode === 'linux' && !windows) await buildDesktop(args.length ? args : ['appimage']);
+  else if (mode === 'ubuntu' && !windows) await buildDesktop(args.length ? args : ['deb']);
   else throw new Error('Utilise le script de build correspondant à ta plateforme.');
 } catch (error) {
   console.error(error.message);
