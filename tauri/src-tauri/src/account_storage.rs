@@ -96,6 +96,7 @@ fn copy(source: &Path, target: &Path) -> Result<(), String> {
     }
     Ok(())
 }
+#[cfg(any(desktop, test))]
 pub(crate) fn is_data_root(root: &Path) -> bool {
     ["devices", "measures", "profiles"]
         .iter()

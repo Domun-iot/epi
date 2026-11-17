@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { createInterface } from 'node:readline';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, renameSync, statSync } from 'node:fs';
 import { basename, delimiter, join, resolve } from 'node:path';
@@ -90,6 +91,17 @@ function buildAndroid(play) {
     NDK_HOME: ndkHome,
     PATH: [join(javaHome, 'bin'), join(androidHome, 'platform-tools'), process.env.PATH].join(delimiter),
   };
+  if (windows) {
+    // Rust's linker response files must avoid non-ASCII paths with the Windows NDK.
+    const projectId = createHash('sha256').update(app).digest('hex').slice(0, 16);
+    const cargoTarget = resolve(app, process.env.CARGO_TARGET_DIR
+      || join(tools, 'cargo-target', 'android', projectId));
+    if (/[^\x00-\x7f]/.test(cargoTarget)) {
+      throw new Error('Définis CARGO_TARGET_DIR vers un dossier sans accent ni autre caractère non ASCII pour le build Android Windows.');
+    }
+    androidEnv.CARGO_TARGET_DIR = cargoTarget;
+    androidEnv['ORG_GRADLE_PROJECT_android.overridePathCheck'] = 'true';
+  }
   const project = join(app, 'src-tauri', 'gen', 'android');
   const gradlew = join(project, windows ? 'gradlew.bat' : 'gradlew');
   const npmPrefix = windows ? ['/d', '/c'] : [];
