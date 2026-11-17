@@ -20,6 +20,8 @@ Les [tests de démarrage](docs/TEST-DEMARRAGE.md) couvrent les lanceurs et décr
 
 Lance `run\web.bat` ou `sh run/web.sh` depuis le dépôt. Le lanceur construit la version web si elle manque ou si ses sources sont plus récentes. Pour préparer ou construire manuellement, utilise `run\prep\web.bat` et `run\build\web.bat` sous Windows, ou `sh run/prep/web.sh` et `sh run/build/web.sh` sous Linux. Le build lance la préparation si son marqueur manque.
 
+Sous Windows, le build web arrête les processus exécutant le fichier `tauri/node_modules/@esbuild/win32-x64/esbuild.exe` de ce dépôt avant `npm ci`, puis attend leur fin pour libérer le fichier.
+
 Copie le dossier `release/web/` sur le serveur Linux ou Windows, puis lance `npm start` depuis ce dossier. Node.js 20.19 ou supérieur et npm doivent être disponibles sur le serveur. La release contient le serveur et les fichiers statiques, sans installation npm à effectuer.
 
 Pour installer éPI depuis le navigateur, ouvre la version web en HTTPS ou en local sur `localhost`, puis utilise le menu du navigateur.
