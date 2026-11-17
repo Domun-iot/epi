@@ -2,19 +2,42 @@ import { escapeHtml, locale, t } from './i18n.js';
 
 export { escapeHtml };
 
-const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'medium' });
-const dateTimeMinutes = new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' });
-const calendarDate = new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeZone: 'UTC' });
-const wallTime = new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'medium', timeZone: 'UTC' });
+const dayMonth = { day: '2-digit', month: '2-digit' };
+const dateFields = { ...dayMonth, year: 'numeric' };
+const { hour12 } = new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).resolvedOptions();
+const minuteFields = { ...dateFields, hour: hour12 ? 'numeric' : '2-digit', minute: '2-digit' };
+const secondFields = { ...minuteFields, second: '2-digit' };
+const dateTime = new Intl.DateTimeFormat(locale, secondFields);
+const dateTimeMinutes = new Intl.DateTimeFormat(locale, minuteFields);
+const calendarDate = new Intl.DateTimeFormat(locale, { ...dateFields, timeZone: 'UTC' });
+const wallTime = new Intl.DateTimeFormat(locale, { ...secondFields, timeZone: 'UTC' });
+const chartDay = new Intl.DateTimeFormat(locale, dayMonth);
+const chartYear = new Intl.DateTimeFormat(locale, { year: 'numeric' });
+const chartMonth = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' });
+
+const isDateField = ({ type }) => Object.hasOwn(dateFields, type);
+const slashDate = parts => parts.filter(isDateField).map(({ value }) => value).join('/');
 
 function format(value, formatter) {
   const date = new Date(value ?? '');
-  return Number.isNaN(+date) ? '—' : formatter.format(date);
+  if (Number.isNaN(+date)) return '—';
+  const parts = formatter.formatToParts(date);
+  const dateText = slashDate(parts);
+  if (!parts.some(({ type }) => type === 'hour')) return dateText;
+  // Keep the locale's date/time connector and clock format after the numeric date.
+  const timeText = parts.slice(parts.findLastIndex(isDateField) + 1).map(({ value }) => value).join('');
+  return dateText + timeText.replace(/^\.(?=\s)/u, '');
 }
 
 export const formatDate = value => format(value, dateTime);
 export const formatDateMinutes = value => format(value, dateTimeMinutes);
 export const formatCalendarDate = value => format(value, calendarDate);
+export const formatChartDay = time => slashDate(chartDay.formatToParts(time));
+export const formatChartEdge = time => formatChartDay(time) + '\n' + chartYear.format(time);
+export function formatChartMonth(time) {
+  const parts = chartMonth.formatToParts(time);
+  return ['month', 'year'].map(field => parts.find(({ type }) => type === field).value).join('\n');
+}
 
 // The scale sends a wall-clock time with no time zone.
 export const formatScaleTime = value => format(value ? value + 'Z' : null, wallTime);

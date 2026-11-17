@@ -1,5 +1,6 @@
 import { acknowledgeTransactions, checkAccountConnection, downloadTransactions, transactionSyncToken as syncToken, uploadTransactions } from './account.js';
-import { locale, t } from './i18n.js';
+import { formatDateMinutes } from './format.js';
+import { t } from './i18n.js';
 
 const retryDelay = 60_000;
 const showDelay = 5_000;
@@ -52,11 +53,7 @@ function renderStatus() {
     return;
   }
   const stamp = oldest.slice(0, 27).replace(/T(\d\d)-(\d\d)-/, 'T$1:$2:');
-  const date = new Date(stamp);
-  const formatted = Number.isNaN(date.getTime()) ? stamp : new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium', timeStyle: 'short',
-  }).format(date);
-  message.textContent = t('syncDelay', { date: formatted });
+  message.textContent = t('syncDelay', { date: formatDateMinutes(stamp) });
   icon.title = message.textContent;
   icon.setAttribute('aria-label', message.textContent);
   if (elapsed < showDelay) statusTimer = setTimeout(renderStatus, showDelay - elapsed);

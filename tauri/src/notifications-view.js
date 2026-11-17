@@ -1,11 +1,6 @@
-import { locale, localizeMessage, messageCode, t, htmlText } from './i18n.js';
+import { localizeMessage, messageCode, t, htmlText } from './i18n.js';
 import { deviceCard } from './management-view.js';
 import { deleteButton, escapeHtml as e, formatCalendarDate, formatDate, number, pageHeader, pairs, weight } from './format.js';
-
-const restorationDate = new Intl.DateTimeFormat(locale, {
-  day: '2-digit', month: '2-digit', year: 'numeric',
-  hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
-});
 
 const notificationTitles = {
   measurement: { deleted: 'measurementDeleted', restored: 'measurementRestored', saved: 'measurementSaved' },
@@ -52,7 +47,7 @@ export function notificationBody(entry, state, detailed = false) {
   const restoration = entry.type === 'measurement' ? 'measurementRestoredOn' : 'restoredOn';
   return `${heading}<small>${e(formatDate(receivedAt))}</small>
     ${text ? `<span>${e(text)}</span>` : ''}${changes}
-    ${Number.isFinite(restoredAt) ? `<small>${htmlText(restoration, { date: restorationDate.format(restoredAt) })}</small>` : ''}`;
+    ${Number.isFinite(restoredAt) ? `<small>${htmlText(restoration, { date: formatDate(restoredAt) })}</small>` : ''}`;
 }
 
 export function notificationsView(state) {

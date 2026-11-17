@@ -696,7 +696,7 @@ test('counts down to automatic sync and can retry immediately', async t => {
   const dialog = page.getByRole('dialog', { name: 'Données en attente de synchronisation' });
   const syncNow = dialog.getByRole('button', { name: 'Synchroniser maintenant' });
   const countdown = dialog.locator('#sync-countdown');
-  await dialog.getByText(/15 janv\. 2026.*18:23/).waitFor();
+  await dialog.getByText(/15\/01\/2026 18:23/).waitFor();
   assert.equal(await countdown.textContent(), 'Synchronisation en cours…');
   assert.equal(await syncNow.isDisabled(), true);
   await page.clock.runFor(15_000);
@@ -1471,9 +1471,9 @@ test('le graphique suit les pesées et mémorise la visualisation par profil', a
   const assertReadableLabels = async () => {
     const labels = await dates.locator('.chart-date-major span').evaluateAll(nodes => nodes.map(node => {
       const { left, right } = node.getBoundingClientRect();
-      return { left, right, lines: node.textContent.split('\n').length };
+      return { left, right, text: node.textContent, edge: node.parentElement.matches('.chart-date-start, .chart-date-end') };
     }));
-    assert.ok(labels.every(({ lines }, index) => lines === 2
+    assert.ok(labels.every(({ edge, text }, index) => (edge ? /^\d{2}\/\d{2}\n\d{4}$/ : /^\d{2}\/\d{2}$/).test(text)
       && (index === 0 || labels[index - 1].right < labels[index].left)));
   };
 
@@ -1761,6 +1761,31 @@ test('dates selon la locale active et conservation de la date de naissance et de
   await choosePage(page, 'Devices');
   await page.getByText(/09:23$/, { exact: true }).waitFor();
   await page.getByText(/09:25$/, { exact: true }).waitFor();
+});
+
+test('le tableau et le graphique du dernier mois utilisent la locale du compte', async t => {
+  for (const [preference, dateTime, edge] of [
+    ['fr-FR', /^15\/01\/2026 17:23:21$/, '15/01\n2026'],
+    ['en-US', /^01\/15\/2026, 5:23:21\sPM$/, '01/15\n2026'],
+    ['fr-CA', /^2026\/01\/15 17\s+h\s+23\s+min\s+21\s+s$/, '01/15\n2026'],
+  ]) {
+    await t.test(preference, async t => {
+      const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [record] },
+        { locale: 'de-DE', timezoneId: 'UTC' }, undefined, page =>
+          page.addInitScript(locale => {
+            localStorage.setItem('epi-account-language', JSON.stringify({ preference: locale }));
+          }, preference));
+
+      assert.equal(await page.locator('html').getAttribute('lang'), preference);
+      assert.match(await page.locator('.reading-date').textContent(), dateTime);
+      await page.locator('[data-action="measurement-display"][data-value="chart"]').click();
+      await page.locator('[data-action="chart-period"][data-value="30"]').click();
+      const end = page.locator('.chart-date-end span');
+      await end.waitFor();
+      assert.equal(await end.textContent(), edge);
+      assert.match(await page.locator('.chart-point[data-series="weight"] .chart-tooltip > span').textContent(), dateTime);
+    });
+  }
 });
 
 test('la création de profil utilise la vue centrale et les boutons de la barre', async t => {

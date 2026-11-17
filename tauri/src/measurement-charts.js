@@ -1,10 +1,6 @@
 import { locale, t, htmlText } from './i18n.js';
-import { escapeHtml as e, formatDate } from './format.js';
+import { escapeHtml as e, formatChartDay, formatChartEdge, formatChartMonth, formatDate } from './format.js';
 
-const axisDay = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' });
-const axisMonth = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' });
-const axisEdgeDay = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'numeric' });
-const axisYear = new Intl.DateTimeFormat(locale, { year: 'numeric' });
 const axisValue = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
 const dayMs = 86400_000;
 
@@ -50,7 +46,6 @@ export function renderChartDates(axis, width) {
   const unit = pixelsPerDay >= 12 ? 'day' : pixelsPerDay * 7 >= 12 ? 'week' : 'month';
   const lastDay = periodStart(end, 'day').getTime();
   const position = time => width * (time - start) / (end - start);
-  const edgeLabel = time => [axisEdgeDay.format(time), axisYear.format(time)].join('\n');
   const dates = [];
   const date = periodStart(start, unit);
   advancePeriod(date, unit);
@@ -62,13 +57,12 @@ export function renderChartDates(axis, width) {
   const stride = Math.max(1, Math.ceil(48 / spacing));
   const edgeGap = 60;
   const firstMajor = dates.findIndex(time => position(time) >= edgeGap);
-  const format = unit === 'month' ? axisMonth : axisDay;
-  const ticks = [[start, edgeLabel(start)], ...dates.map((time, index) => {
+  const format = unit === 'month' ? formatChartMonth : formatChartDay;
+  const ticks = [[start, formatChartEdge(start)], ...dates.map((time, index) => {
     const label = firstMajor >= 0 && index >= firstMajor && (index - firstMajor) % stride === 0
       && width - position(time) >= edgeGap;
-    return [time, label ? format.formatToParts(time).filter(part => part.type !== 'literal')
-      .map(part => part.value).join('\n') : ''];
-  }), [end, edgeLabel(end)]];
+    return [time, label ? format(time) : ''];
+  }), [end, formatChartEdge(end)]];
   axis.innerHTML = ticks.map(([time, label]) => {
     const edge = time === start ? ' chart-date-start' : time === end ? ' chart-date-end' : '';
     const major = label ? ' chart-date-major' : '';
