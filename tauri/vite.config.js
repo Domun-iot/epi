@@ -3,11 +3,14 @@ import { build } from 'esbuild';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { readFile } from 'node:fs/promises';
 import { json } from '../web/session-api.js';
 import { createLocalApi } from '../web/local-api.js';
 import { accountApi } from '../web/account-api.js';
 
 const appPath = import.meta.url;
+const macPrefixesId = 'virtual:epi-mac-prefixes';
+const macPrefixesPath = fileURLToPath(new URL('../shared/mac-prefixes.json', appPath));
 const modules = {
   'virtual:epi-domain': './domain/browser.js',
   'virtual:epi-composition': '../shared/composition.cjs',
@@ -16,12 +19,40 @@ const modules = {
 function sharedModules() {
   const directory = fileURLToPath(new URL('.', appPath));
   const dependencies = new Map();
+  let prefixChunks;
+  async function loadPrefixChunks() {
+    return prefixChunks ??= readFile(macPrefixesPath, 'utf8').then(source => {
+      const chunks = [[]];
+      let bytes = 0;
+      for (const entry of Object.entries(JSON.parse(source))) {
+        const size = Buffer.byteLength(JSON.stringify(entry));
+        if (bytes + size > 200_000 && chunks.at(-1).length) {
+          chunks.push([]);
+          bytes = 0;
+        }
+        chunks.at(-1).push(entry);
+        bytes += size;
+      }
+      return chunks.map(entries => JSON.stringify(Object.fromEntries(entries)));
+    });
+  }
   return {
     name: 'epi-shared-modules',
+    buildStart() { prefixChunks = undefined; },
     resolveId(id) {
-      if (Object.hasOwn(modules, id)) return '\0' + id;
+      if (Object.hasOwn(modules, id) || id === macPrefixesId || id.startsWith(macPrefixesId + '/')) return '\0' + id;
     },
     async load(id) {
+      if (id === '\0' + macPrefixesId || id.startsWith('\0' + macPrefixesId + '/')) {
+        this.addWatchFile(macPrefixesPath);
+        const chunks = await loadPrefixChunks();
+        if (id !== '\0' + macPrefixesId) {
+          return 'export default ' + chunks[Number(id.split('/').at(-1))] + ';';
+        }
+        // Keep the complete offline lookup, but let Rollup emit bounded data chunks.
+        return chunks.map((_, index) => "import p" + index + " from '" + macPrefixesId + '/' + index + "';").join('\n')
+          + '\nexport default Object.assign({}, ' + chunks.map((_, index) => 'p' + index).join(', ') + ');';
+      }
       if (!id.startsWith('\0virtual:epi-')) return;
       const result = await build({
         entryPoints: [fileURLToPath(new URL(modules[id.slice(1)], appPath))],
@@ -31,6 +62,16 @@ function sharedModules() {
         format: 'esm',
         platform: 'browser',
         write: false,
+        plugins: [{
+          name: 'external-mac-prefixes',
+          setup(build) {
+            build.onLoad({ filter: /[\\/]mac-prefixes\.json$/ }, () => ({
+              contents: "import prefixes from '" + macPrefixesId + "'; module.exports = prefixes;",
+              loader: 'js',
+            }));
+            build.onResolve({ filter: /^virtual:epi-mac-prefixes$/ }, () => ({ path: macPrefixesId, external: true }));
+          },
+        }],
       });
       const files = Object.keys(result.metafile.inputs).map(path => resolve(directory, path));
       dependencies.set(id, files);
@@ -40,6 +81,13 @@ function sharedModules() {
     handleHotUpdate({ file, server }) {
       const updated = [...dependencies].filter(([, files]) => files.includes(resolve(file)));
       if (!updated.length) return;
+      if (resolve(file) === macPrefixesPath) {
+        prefixChunks = undefined;
+        // Rebuild the virtual data modules along with their CommonJS consumer.
+        for (const [id, module] of server.moduleGraph.idToModuleMap) {
+          if (id.startsWith('\0' + macPrefixesId)) server.moduleGraph.invalidateModule(module);
+        }
+      }
       // Rebuild the bundled CommonJS module before reloading its consumers.
       for (const [id] of updated) {
         const module = server.moduleGraph.getModuleById(id);
@@ -104,5 +152,14 @@ export default defineConfig(({ command, mode }) => ({
     strictPort: mode !== 'web',
     fs: { allow: [searchForWorkspaceRoot(process.cwd()), fileURLToPath(new URL('..', appPath))] },
   },
-  build: { target: ['chrome105', 'safari15'] },
+  build: {
+    target: ['chrome105', 'safari15'],
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.startsWith('\0' + macPrefixesId + '/')) return 'mac-prefixes-' + id.split('/').at(-1);
+        },
+      },
+    },
+  },
 }));
