@@ -24,7 +24,7 @@ test('the PRO page uses live native catalog prices and shares the comparison wit
   const page = await first.text();
   assert.equal(first.status, 200);
   assert.match(page, /1,10.+par mois.+5,75.+par an/);
-  assert.match(page, /Premier mois de PRO offert/);
+  assert.match(page, /En ce moment, premier mois de PRO offert/);
   assert.match(page, /href="\/account\/epi\/subscribe\?lang=fr-CA"/);
   assert.doesNotMatch(page, /public-software|127\.0\.0\.1/);
   const features = await (await get('/epi/plan-features.json')).json();
@@ -35,7 +35,7 @@ test('the PRO page uses live native catalog prices and shares the comparison wit
   promo = false;
   const changed = await (await get('/epi/pro')).text();
   assert.match(changed, /8,40/);
-  assert.doesNotMatch(changed, /Premier mois de PRO offert/);
+  assert.doesNotMatch(changed, /premier mois de PRO offert/i);
   available = false;
   const down = await get('/epi/pro');
   assert.equal(down.status, 503);
