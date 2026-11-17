@@ -194,12 +194,60 @@ fn transaction_time(name: &str) -> Option<i64> {
         })
         .map(|stamp| stamp.and_utc().timestamp_millis())
 }
+pub(crate) fn validate_transaction(transaction: &Value, name: &str) -> Result<(), String> {
+    let invalid = || "epi-i18n:diagnostic.invalidTransactionUuid".to_owned();
+    let id = transaction["uuid"]
+        .as_str()
+        .and_then(|id| {
+            Uuid::parse_str(id)
+                .ok()
+                .filter(|uuid| uuid.to_string() == id)
+        })
+        .ok_or_else(invalid)?;
+    if filename_uuid(name) != Some(id) {
+        return Err(invalid());
+    }
+    let kind = transaction["type"].as_str().ok_or_else(invalid)?;
+    let data = &transaction["data"];
+    let operations: &[Value] = if kind == "batch" {
+        data.as_array()
+            .filter(|rows| !rows.is_empty())
+            .ok_or_else(invalid)?
+    } else {
+        std::slice::from_ref(data)
+    };
+    let mut paths = HashSet::new();
+    for operation in operations {
+        if !operation.is_object() {
+            return Err(invalid());
+        }
+        let path = operation["path"]
+            .as_str()
+            .filter(|path| valid_transaction_path(path) && paths.insert(path.to_lowercase()))
+            .ok_or_else(invalid)?;
+        let _ = path;
+        let op = if kind == "batch" {
+            operation["type"].as_str()
+        } else {
+            Some(kind)
+        };
+        match (op, operation.get("value")) {
+            (Some("create" | "update"), Some(value)) if value.is_object() => {}
+            (Some("delete"), None) => {}
+            _ => return Err(invalid()),
+        }
+    }
+    Ok(())
+}
 fn remember_deletes(tombstones: &mut HashMap<String, i64>, value: &Value, name: &str) {
     let Some(time) = transaction_time(name) else {
         return;
     };
     let kind = value["type"].as_str();
     let mut remember = |path: &str| {
+        if !valid_transaction_path(path) {
+            return;
+        }
         let current = tombstones.entry(path.to_lowercase()).or_insert(time);
         *current = (*current).max(time);
     };
@@ -298,14 +346,14 @@ fn transaction_changes(
                 _ => return Err(invalid()),
             };
             let before = read_bytes(&path)?;
-            if before.is_none() && after.is_some() {
+            if after.is_some() {
                 let candidate =
                     version_time(&operation["value"]).or_else(|| transaction_time(name));
                 if tombstones
                     .get(&relative.to_lowercase())
                     .is_some_and(|deleted| candidate.is_none_or(|time| time <= *deleted))
                 {
-                    after = None;
+                    after = before.clone();
                 }
             }
             if let Some(bytes) = &before {
@@ -326,7 +374,7 @@ fn transaction_changes(
                             })
                             .map(|stamp| stamp.and_utc().timestamp_millis())
                     } else {
-                        version_time(&operation["value"])
+                        version_time(&operation["value"]).or_else(|| transaction_time(name))
                     };
                     if candidate_time <= Some(current_time) {
                         after = before.clone();
@@ -404,6 +452,12 @@ pub(crate) fn integrate(root: &Path, rows: Vec<Value>) -> Result<IntegratedTrans
         changed: false,
     };
     for transaction in rows {
+        let Some(name) = transaction["name"].as_str() else {
+            continue;
+        };
+        if validate_transaction(&transaction, name).is_err() {
+            continue;
+        }
         let Some(uuid) = transaction["uuid"].as_str().and_then(|id| {
             Uuid::parse_str(id)
                 .ok()
@@ -540,6 +594,41 @@ mod tests {
         assert_eq!(serde_json::from_slice::<Value>(&stored).unwrap(), current);
     }
 
+    #[test]
+    fn malformed_values_are_not_acknowledged_and_unversioned_updates_use_the_transaction_time() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let path = "profiles/profil-alice.json";
+        fs::create_dir_all(root.join("profiles")).unwrap();
+        fs::write(
+            root.join(path),
+            r#"{"name":"Alice","createdAt":"2026-01-01T00:00:00.000Z"}"#,
+        )
+        .unwrap();
+        let row = |value: Value| {
+            let id = Uuid::new_v4();
+            json!({"uuid":id,"name":format!("2026-02-01T00-00-00.000000Z-{id}.json"),"type":"update","data":{"path":path,"value":value}})
+        };
+        assert!(integrate(root, vec![row(Value::Null)])
+            .unwrap()
+            .uuids
+            .is_empty());
+        assert!(integrate(root, vec![row(json!([1, 2]))])
+            .unwrap()
+            .uuids
+            .is_empty());
+        assert_eq!(
+            integrate(root, vec![row(json!({"name":"Alice updated"}))])
+                .unwrap()
+                .uuids
+                .len(),
+            1
+        );
+        assert_eq!(
+            serde_json::from_slice::<Value>(&fs::read(root.join(path)).unwrap()).unwrap()["name"],
+            "Alice updated"
+        );
+    }
     #[test]
     fn received_transactions_archive_successes_and_acknowledge_duplicates() {
         let dir = tempfile::tempdir().unwrap();

@@ -11,6 +11,7 @@ export type DatasetContext = {
   accountId: string; accountNumber: number; deviceId: string; paidUntil: number; checkActive: () => void;
 };
 export type HostedApi = {
+  flush: (context: DatasetContext) => Promise<void>;
   session: (req: IncomingMessage, res: ServerResponse, context: DatasetContext) => Promise<void>;
   snapshot: (context: DatasetContext, summaryOnly?: boolean) => Promise<object>;
   upload: (context: DatasetContext, rows: { uuid: string; payload: string }[], revision?: string) => Promise<ReturnType<Store['upload']>>;
@@ -402,9 +403,11 @@ export function createApi(store: Store, now = Date.now, google?: Google,
     const device = authenticate(req.headers.authorization, store, now());
     const account = store.findById(device.account_id);
     if (!account) throw new ApiError(401, 'invalid_token');
+    let authorized = false;
     const checkActive = () => {
       if (authenticate(req.headers.authorization, store, now()).account_id !== account.id ||
           store.findById(account.id)?.domun_id !== account.domun_id) throw new ApiError(401, 'invalid_token');
+      if (authorized && (readPaidUntil || hosted) && !(paidUntil > now())) throw new ApiError(403, 'pro_required');
     };
     let paidUntil = Date.parse(account.paid_until ?? '') || 0;
     if (readPaidUntil) {
@@ -415,6 +418,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
       paidUntil = Date.parse(expires ?? '') || 0;
       if (!(paidUntil > now())) throw new ApiError(403, 'pro_required');
     } else if (hosted && !(paidUntil > now())) throw new ApiError(403, 'pro_required');
+    authorized = true;
     return { ...device, checkActive, context: { accountId: accountUuid(account.domun_id), accountNumber: account.id,
       deviceId: device.device_id, paidUntil, checkActive } };
   }
@@ -640,7 +644,8 @@ export function createApi(store: Store, now = Date.now, google?: Google,
       }
 
       if (req.method === 'GET' && path === '/v1/transactions/pending') {
-        const { account_id, device_id, checkActive } = await authorizeSync(req);
+        const { account_id, device_id, checkActive, context } = await authorizeSync(req);
+        await hosted?.flush(context);
         checkActive();
         const transactions: string[] = [];
         const envelope = '{"transactions":[';
@@ -661,6 +666,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           transactions.push(payload);
           position = rowPosition;
         }
+        checkActive();
         return sendJson(res, 200, envelope + transactions.join(',') + '],"next":' + JSON.stringify(next) + '}');
       }
 

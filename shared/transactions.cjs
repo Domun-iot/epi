@@ -106,7 +106,7 @@ function validateChange(root, change) {
       (change.type === 'delete' ? Object.hasOwn(change, 'value') : !Object.hasOwn(change, 'value'))) {
     throw new Error('Opération de transaction invalide.');
   }
-  ensureNoSymlinks(root, change.path);
+  if (root !== undefined) ensureNoSymlinks(root, change.path);
 }
 
 function ensureNoSymlinks(root, relative) {
@@ -120,10 +120,12 @@ function ensureNoSymlinks(root, relative) {
 }
 
 function archiveUuid(name, contents) {
-  const { uuid } = parse(contents);
+  const transaction = parse(contents);
+  const { uuid } = transaction;
   if (typeof uuid !== 'string' || !uuidPattern.test(uuid) || !filename.test(name) || !name.endsWith('-' + uuid + '.json')) {
     throw new Error('UUID de transaction invalide · ' + name);
   }
+  validateTransaction(undefined, { ...transaction, name });
   return uuid;
 }
 
@@ -137,6 +139,7 @@ function prepareHistory(entries) {
         ids.add(uuid);
       }
     } else {
+      if (typeof path !== 'string' || !/^transactions(?:[.](?:incoming|sent))?\/[^/]+$/u.test(path)) throw new Error('Chemin de journal invalide.');
       const uuid = archiveUuid(path.split('/').at(-1), contents);
       const completed = !path.startsWith('transactions.incoming/');
       if (completed) ids.add(uuid);
@@ -151,6 +154,7 @@ function importHistory(root, { ids, archives }) {
   const index = transactionIndex(root);
   let added = 0;
   for (const { path, contents, completed, uuid } of archives) {
+    ensureNoSymlinks(root, path);
     if (!completed && (ids.has(uuid) || index.has(uuid))) continue;
     const target = join(root, path);
     if (readOptional(target) !== undefined) continue;
@@ -226,11 +230,17 @@ function validateTransaction(root, row) {
   if (typeof row?.uuid !== 'string' || !uuidPattern.test(row.uuid) || typeof row.name !== 'string' ||
       !filename.test(row.name) || !row.name.endsWith('-' + row.uuid + '.json')) throw new Error('Transaction invalide.');
   const operations = row.type === 'batch' ? row.data : [{ ...row.data, type: row.type }];
-  if (!Array.isArray(operations) || operations.some(operation => operation?.type !== 'delete' &&
+  if (!Array.isArray(operations) || !operations.length || operations.some(operation => operation?.type !== 'delete' &&
       (!operation?.value || typeof operation.value !== 'object' || Array.isArray(operation.value)))) {
     throw new Error('Valeur de transaction invalide.');
   }
-  transactionChanges(root, row, row.name, new Map());
+  const paths = new Set();
+  for (const operation of operations) {
+    validateChange(root, operation);
+    const key = operation.path.toLowerCase();
+    if (paths.has(key)) throw new Error('Chemin répété dans la transaction.');
+    paths.add(key);
+  }
 }
 
 function integrateTransactions(root, rows) {
@@ -257,6 +267,7 @@ function integrateTransactions(root, rows) {
     }
     try {
       if (typeof name !== 'string' || !filename.test(name) || !name.endsWith('-' + row.uuid + '.json')) continue;
+      validateTransaction(root, row);
       const changes = transactionChanges(root, transaction, name, tombstones);
       const destination = join(root, 'transactions.sent', name);
       applyChanges(root, changes, () => {

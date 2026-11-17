@@ -414,6 +414,12 @@ function scheduleNotificationExpiry() {
 function onState(next) {
   const previous = state;
   state = next;
+  if (reading) {
+    const identity = row => JSON.stringify([row.receivedAt, row.profile?.uuid ?? row.profile?.name,
+      row.device?.uuid ?? row.device?.bluetooth?.address]);
+    reading = state.measurements.find(row => reading.uuid ? row.uuid === reading.uuid : identity(row) === identity(reading)) ?? null;
+    if (!reading) historyScroll = undefined;
+  }
   let savedMeasurement;
   if (previous.notifications !== state.notifications) {
     const known = new Map(previous.notifications.map(item => [item.id, item]));
@@ -1036,7 +1042,10 @@ async function importArchive(importer) {
   try {
     await perform(async () => {
       const imported = await importer();
-      if (sameDataset(epoch) && imported !== undefined) await session.recordNotice({ type: 'info', text: messageCode('importCompleted'), banner: true });
+      if (sameDataset(epoch) && imported !== undefined) {
+        await session.recordNotice({ type: 'info', text: messageCode('importCompleted'), banner: true });
+        if (sameDataset(epoch)) requestFullTransactionSync();
+      }
     });
   } finally {
     if (sameDataset(epoch)) importButton.disabled = false;

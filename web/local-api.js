@@ -79,23 +79,24 @@ export function createLocalApi({ root, domain, storage, transactions, verifyAcco
   }
   async function installation(request, response, body) {
     if (!Array.isArray(body?.args)) throw new Error('Invalid installation request.');
-    const [accountId, mode, remoteFiles = [], syncReady] = body.args;
+    const [accountId, mode, remoteFiles = [], syncReady, syncRevision] = body.args;
     let value;
     if (body.action === 'context') value = accounts.getDatasetContext(installationRoot);
     else if (body.action === 'logout') value = accounts.logoutDataset(installationRoot);
-    else if (['prepare', 'activate'].includes(body.action)) {
+    else if (['prepare', 'activate', 'confirmSync'].includes(body.action)) {
       const token = /^Bearer (\S+)$/.exec(request.headers.authorization ?? '')?.[1];
       if (!token) throw Object.assign(new Error('Sign-in required.'), { status: 401 });
       const info = await verify(token);
       if (info.accountId !== accountId) throw Object.assign(new Error('Invalid account.'), { status: 403 });
-      if (body.action === 'prepare') value = accounts.prepareAccountDataset(installationRoot, accountId);
+      if (body.action === 'confirmSync') value = accounts.confirmDatasetSync(installationRoot, accountId, mode);
+      else if (body.action === 'prepare') value = accounts.prepareAccountDataset(installationRoot, accountId);
       else {
         if (!Array.isArray(remoteFiles)) throw new Error('Invalid remote files.');
         if (remoteFiles.length && !(info.paid === true && Date.parse(info.paidUntil) > Date.now())) {
           throw Object.assign(new Error('PRO required.'), { status: 403 });
         }
         const prepared = accounts.prepareAccountDataset(installationRoot, accountId);
-        const stage = accounts.stageAccountDataset(installationRoot, accountId, mode, syncReady);
+        const stage = accounts.stageAccountDataset(installationRoot, accountId, mode, syncReady, syncRevision);
         try {
           if (remoteFiles.length) {
             await domain.createSession({ storage: { load: () => null, save: () => {} } }).importLegacy(fileRecords(remoteFiles));

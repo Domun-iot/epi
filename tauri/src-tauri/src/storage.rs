@@ -44,7 +44,11 @@ pub(crate) fn installation_root(app: &AppHandle) -> Result<PathBuf, String> {
         let executable = std::env::current_exe().ok();
         let root =
             if let Some(path) = std::env::var_os("EPI_DATA_DIR").filter(|path| !path.is_empty()) {
-                PathBuf::from(path)
+                let path = PathBuf::from(path);
+                if !path.is_absolute() {
+                    return Err("EPI_DATA_DIR must be an absolute path.".into());
+                }
+                path
             } else if let Some(shared) = executable
                 .as_deref()
                 .and_then(Path::parent)
@@ -1253,7 +1257,11 @@ pub(crate) fn merge_snapshot(root: &Path, files: Vec<DataFile>) -> Result<usize,
     let mut extras = Vec::new();
     let mut history = Vec::new();
     let mut ids = HashSet::new();
+    let mut seen_paths = HashSet::new();
     for file in files {
+        if !seen_paths.insert(file.path.to_lowercase()) {
+            return Err("Duplicate snapshot path.".into());
+        }
         if !valid_file(&file.path) && !valid_extra_path(&file.path) {
             return Err(format!(
                 "epi-i18n:diagnostic.invalidDataPath · {}",
@@ -1280,6 +1288,7 @@ pub(crate) fn merge_snapshot(root: &Path, files: Vec<DataFile>) -> Result<usize,
             if file.path.starts_with("transactions") {
                 let (_, name) = file.path.split_once('/').unwrap();
                 let uuid = transactions::filename_uuid(name).unwrap();
+                transactions::validate_transaction(&value, name)?;
                 if value["uuid"].as_str() != Some(uuid.to_string().as_str()) {
                     return Err(format!(
                         "epi-i18n:diagnostic.invalidTransactionUuid · {}",
@@ -1380,6 +1389,24 @@ fn merge_files(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
             if kind == "profiles" {
                 profiles.push(row);
             }
+        }
+    }
+    let mut validation_profiles = profiles.clone();
+    validation_profiles.extend(
+        files
+            .iter()
+            .zip(&imported)
+            .filter(|(file, _)| file.path.starts_with("profiles/"))
+            .map(|(_, row)| row.clone()),
+    );
+    for (file, row) in files
+        .iter()
+        .zip(&imported)
+        .filter(|(file, _)| file.path.starts_with("measures/"))
+    {
+        let path = measurement_path(row, &validation_profiles)?;
+        if !valid_file(&path) {
+            return Err(format!("Invalid measurement path: {}", file.path));
         }
     }
     let mut count = 0;
@@ -1727,6 +1754,30 @@ mod tests {
         assert_eq!(read_session(root).unwrap()["viewPresets"], presets);
     }
 
+    #[test]
+    fn invalid_measurement_or_transaction_prevents_any_snapshot_import_write() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let profile = || DataFile {
+            path: "profiles/profil-alice.json".into(),
+            contents: r#"{"name":"Alice"}"#.into(),
+        };
+        let invalid_measure = DataFile {
+            path: "measures/alice/bad.json".into(),
+            contents: r#"{"receivedAt":"not-a-date","profile":{"name":"Alice"}}"#.into(),
+        };
+        assert!(merge_snapshot(root, vec![profile(), invalid_measure]).is_err());
+        assert!(!root.join("profiles/profil-alice.json").exists());
+        let id = uuid::Uuid::new_v4();
+        let transaction = DataFile {
+            path: format!("transactions/2026-01-01T00-00-00.000000Z-{id}.json"),
+            contents:
+                json!({"uuid":id,"type":"update","data":{"path":"prefs/global.json","value":null}})
+                    .to_string(),
+        };
+        assert!(merge_snapshot(root, vec![profile(), transaction]).is_err());
+        assert!(!root.join("profiles/profil-alice.json").exists());
+    }
     #[test]
     fn merge_keeps_existing_paths_and_skips_identical_files() {
         let root = tempfile::tempdir().unwrap();

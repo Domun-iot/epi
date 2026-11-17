@@ -72,7 +72,7 @@ icon.addEventListener('click', () => {
   renderSyncDialog();
 });
 dialog.addEventListener('close', renderSyncDialog);
-syncNow.addEventListener('click', requestTransactionSync);
+syncNow.addEventListener('click', requestFullTransactionSync);
 for (const event of ['epi:account', 'epi:entitlement']) window.addEventListener(event, () => {
   requestTransactionSync();
   renderStatus();
@@ -106,7 +106,11 @@ function requestSync(mode) {
     if (queuedSync !== 'full') queuedSync = mode;
     return;
   }
-  void sync(mode);
+  void sync(mode).catch(() => {
+    // Keep data queued when local storage is busy or initial reconciliation fails.
+    renderStatus();
+    renderSyncDialog();
+  });
 }
 
 async function receive(context) {
@@ -145,7 +149,7 @@ async function sendPending(context, manual = false) {
     const pending = await context.pendingTransactions();
     if (!context.isCurrent()) return;
     updatePending(pending);
-    if (!pending.length) { context.clearRevision(); return; }
+    if (!pending.length) { await context.clearRevision(); return true; }
 
     const encoder = new TextEncoder();
     const batch = [];
@@ -159,12 +163,13 @@ async function sendPending(context, manual = false) {
     renderStatus();
     const result = await uploadTransactions(batch.map(({ line }) => line).join('\n') + '\n', token, context.revision);
     if (!context.isCurrent() || !Array.isArray(result?.uuids)) return;
-    context.clearRevision();
     const confirmed = new Set(result.uuids);
     const names = batch.filter(({ uuid }) => confirmed.has(uuid)).map(({ name }) => name);
-    if (!names.length) return;
+    if (!names.length) return true;
+    await context.clearRevision();
     await context.archiveTransactions(names);
     if (context.isCurrent()) updatePending(await context.pendingTransactions());
+    return true;
   } catch (error) {
     // Keep the original account queue intact after a conflict or interruption.
     if (error.code === 'dataset_changed' && context.isCurrent()) {
@@ -180,11 +185,17 @@ async function sync(mode) {
   running = true;
   renderSyncDialog();
   try {
-    if (mode === 'full') { await checkAccountConnection(); await files.prepareSync?.(); }
+    if (mode === 'full') {
+      if (files.prepareSync) await files.prepareSync(true);
+      else await checkAccountConnection();
+    }
     const context = files.getSyncContext();
     if (!context) { updatePending([]); return; }
     // Initial attachment is conditional on the reviewed server revision.
-    if (context.revision !== undefined) await sendPending(context, mode === 'full');
+    if (context.revision !== undefined) {
+      const completed = await sendPending(context, mode === 'full');
+      if (mode === 'full' && completed) await receiveSafely(context);
+    }
     else if (mode === 'full') {
       await sendPending(context, true);
       await receiveSafely(context);

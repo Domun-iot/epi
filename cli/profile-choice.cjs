@@ -1,13 +1,16 @@
 'use strict';
 
 const { listProfileFiles } = require('./record-files.cjs');
+const { profileDirectory, withActiveDataset } = require('./storage.cjs');
 const { createInterface } = require('node:readline/promises');
 const { normalizeProfileName } = require('./profiles.cjs');
 
 const { nameKey } = require('../shared/profile-fields.cjs');
 
 async function listProfiles(directory) {
-  const entries = listProfileFiles(directory).map(({ file, record }) => ({
+  const readEntries = () => listProfileFiles(directory);
+  const files = directory === profileDirectory ? withActiveDataset(readEntries) : readEntries();
+  const entries = files.map(({ file, record }) => ({
     file, name: record.name, uuid: record.uuid,
   }));
   return entries.sort((a, b) => a.name.localeCompare(b.name, 'fr'));

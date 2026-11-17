@@ -45,7 +45,7 @@ La release web personnelle et `dev-web` sélectionnent le même jeu de données 
 
 ## Données
 
-Sur PC, le CLI, Tauri et le serveur web utilisent `EPI_DATA_DIR` quand la variable est définie. Sinon, ils cherchent une racine `data/` reconnaissable par l’ancien jeu `devices/`, `measures/`, `profiles/`, le nouveau sous-dossier `local/`, les dossiers de comptes ou la configuration d’installation. La recherche remonte jusqu’à la racine depuis le dossier de l’exécutable, de l’AppImage ou du serveur web.
+Sur PC, le CLI, Tauri et le serveur web utilisent `EPI_DATA_DIR` quand la variable est définie avec un chemin absolu. Un chemin relatif est refusé pour éviter des jeux différents selon le dossier de lancement. Sinon, ils cherchent une racine `data/` reconnaissable par l’ancien jeu `devices/`, `measures/`, `profiles/`, le nouveau sous-dossier `local/`, les dossiers de comptes ou la configuration d’installation. La recherche remonte jusqu’à la racine depuis le dossier de l’exécutable, de l’AppImage ou du serveur web.
 
 Si aucun dossier partagé n’est trouvé, ils utilisent ou créent le dossier de données utilisateur commun. Sous Windows, c’est `%APPDATA%\fr.epi.balance\data`. Sous Linux, c’est `${XDG_DATA_HOME:-$HOME/.local/share}/fr.epi.balance/data`.
 

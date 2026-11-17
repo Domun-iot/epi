@@ -54,13 +54,14 @@ async function pageWith(t, snapshot, options = {}, mode, setup) {
   const page = await browser.newPage({ locale: 'fr-FR', ...options });
   page.setDefaultTimeout(10000);
   let installation = { activeAccountId: null, accountModeEnabled: false, locked: false,
-    datasetId: 'local', syncReady: true, localSummary: { count: 0, from: null, to: null, hasData: false } };
+    datasetId: 'local', datasetGeneration: 1, syncReady: true, localSummary: { count: 0, from: null, to: null, hasData: false } };
   await page.route(url + '**', async route => {
     const path = new URL(route.request().url()).pathname;
     if (mode === 'web' && path === '/api/installation') {
       const { action, args = [] } = route.request().postDataJSON();
-      if (action === 'prepare') return route.fulfill({json:{...installation,accountExists:true}});
-      if (action === 'activate') installation = {...installation,activeAccountId:args[0],datasetId:args[0],accountModeEnabled:true,locked:false};
+      if (action === 'prepare') return route.fulfill({json:{...installation,accountExists:true,accountSummary:installation.localSummary}});
+      if (action === 'activate') installation = {...installation,activeAccountId:args[0],datasetId:args[0],accountModeEnabled:true,locked:false,datasetGeneration:installation.datasetGeneration+1,syncRevision:args[4]};
+      if (action === 'confirmSync') { assert.equal(args[0],installation.activeAccountId); assert.equal(args[1],installation.datasetGeneration); delete installation.syncRevision; }
       if (action === 'logout') installation = {...installation,activeAccountId:null,datasetId:null,accountModeEnabled:true,locked:true};
       return route.fulfill({json:installation});
     }
@@ -78,6 +79,7 @@ async function pageWith(t, snapshot, options = {}, mode, setup) {
     if (response.status() >= 400) t.diagnostic(`${response.status()} ${response.url()}`);
   });
   t.after(() => page.context().close());
+  await page.route('https://sync.epi.test/v1/dataset',route=>route.fulfill({json:{accountId,files:[],summary:{count:0,from:null,to:null,hasData:false},revision:'a'.repeat(64)}}));
   if (snapshot && mode !== 'web') {
     await page.route('https://sync.epi.test/v1/**', route => route.fulfill({ json:
       route.request().url().endsWith('/account') ? { email: 'pro@example.org', ...paid } : { transactions: [] },
@@ -474,7 +476,7 @@ test('receives transactions on startup and acknowledges only the IDs returned by
   assert.equal(await button.getAttribute('title'), 'Connecté au compte');
 });
 
-test('refreshes local data, rechecks the account, then retries upload before downloading', { timeout: 15000 }, async t => {
+test('refreshes local data, repairs its canonical snapshot, then retries upload before downloading', { timeout: 15000 }, async t => {
   await buildWeb();
   const uuid = '00000000-0000-4000-8000-000000000001';
   const incomingUuid = '00000000-0000-4000-8000-000000000002';
@@ -520,12 +522,15 @@ test('refreshes local data, rechecks the account, then retries upload before dow
       if (refreshing) steps.push('account');
       return route.fulfill({ json: { email: 'alice@example.org', ...paid } });
     });
+    await page.route('https://sync.epi.test/v1/dataset',route=>{steps.push('snapshot');return route.fulfill({json:{accountId,files:[],summary:{count:0,from:null,to:null,hasData:false},revision:'a'.repeat(64)}});});
+    page.on('request',request=>{if(request.url()===url+'api/installation'){const body=request.postDataJSON();if(body.action==='activate'&&body.args[1]==='merge')steps.push('repair');}});
     await page.route('https://sync.epi.test/v1/transactions', async route => {
       if (!refreshing) {
         signalFirstUpload();
         await offline;
         return route.abort('connectionrefused').catch(() => {});
       }
+      assert.equal(route.request().headers()['if-match'],'a'.repeat(64));
       steps.push(['upload', JSON.parse(route.request().postData())]);
       return route.fulfill({ json: { uuids: [uuid] } });
     });
@@ -550,7 +555,7 @@ test('refreshes local data, rechecks the account, then retries upload before dow
   await received;
   await account.locator('.account-connected').waitFor();
   assert.deepEqual(steps, [
-    'reload', 'account', ['upload', { uuid, name }], ['archive', [name]], 'download',
+    'reload', 'account', 'snapshot', 'repair', ['upload', { uuid, name }], ['archive', [name]], 'download',
     ['integrate', [incoming]], ['acknowledge', { uuids: [incomingUuid] }],
   ]);
   assert.deepEqual(pending, []);
@@ -2857,4 +2862,21 @@ test('an old native form completion cannot select or save a profile in the next 
   assert.equal(await page.locator('#editor-view').innerText(),'');
   assert.equal(await page.getByText('Alice private',{exact:true}).count(),0);
   assert.equal(await page.evaluate(id=>window.saves.filter(save=>save.datasetId===id).length,otherId),0);
+});
+
+
+test('same-account state refresh updates an open measurement and closes it when removed', async t => {
+  await buildWeb();
+  const readingId='00000000-0000-4000-8000-000000000101';
+  let snapshot={profiles:[alice],devices:[device],selectedProfile:'Alice',measurements:[{...record,uuid:readingId}],pending:[],notifications:[]};
+  const page=await pageWith(t,route=>route.fulfill({json:snapshot}),{},'web');
+  await page.getByRole('button',{name:/Voir la pesée du/}).first().click();
+  await page.locator('.measurement-details').waitFor();
+  snapshot={...snapshot,measurements:[{...record,uuid:readingId,measures:{...record.measures,weight:75}}]};
+  await page.locator('#theme-toggle').click();
+  await page.locator('.measurement-details').getByText('75',{exact:true}).waitFor({state:'attached'});
+  snapshot={...snapshot,measurements:[]};
+  await page.locator('#theme-toggle').click();
+  await page.locator('.measurement-details').waitFor({state:'hidden'});
+  assert.equal(await page.locator('#view-content').getByText('75',{exact:true}).count(),0);
 });

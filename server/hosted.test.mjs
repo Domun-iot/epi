@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
-import { mkdtemp, readFile, access, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, access, rm, mkdir, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -11,22 +11,23 @@ import { createHostedApi } from '../web/hosted-api.js';
 
 const expires = '2099-01-01T00:00:00.000Z';
 const domunToken = 'a'.repeat(64);
-async function fixture(t) {
+async function fixture(t, { now = Date.now } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'epi-hosted-'));
   const store = openStore(join(root, 'epi.sqlite'));
   const rights = new Map();
-  const hosted = createHostedApi({ dataRoot: root, store });
-  const server = createApi(store, Date.now, undefined, undefined, domunToken,
+  const hosted = createHostedApi({ dataRoot: root, store, now });
+  const server = createApi(store, now, undefined, undefined, domunToken,
     async id => rights.get(id) ?? null, hosted).listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(async () => { await new Promise(resolve => server.close(resolve)); store.close(); await rm(root, { recursive: true, force: true }); });
   const origin = 'http://127.0.0.1:' + server.address().port;
-  async function call(path, { token, body, method, headers, status = 200 } = {}) {
+  async function call(path, { token, body, method, headers, status = 200, onResponse } = {}) {
     const response = await fetch(origin + path, { method: method ?? (body ? 'POST' : 'GET'),
       headers: { ...(token && { Authorization: 'Bearer ' + token }), ...(body && { 'Content-Type': 'application/json' }), ...headers },
       body: body && JSON.stringify(body) });
     const result = response.status === 204 ? undefined : await response.json();
     assert.equal(response.status, status, JSON.stringify(result));
+    onResponse?.(response);
     return result;
   }
   async function login(name, deviceId = 'browser', pro = false) {
@@ -106,7 +107,8 @@ test('materialization recovers already acknowledged legacy transactions and reje
   const id = randomUUID();
   const entry = transaction('create', 'profiles/' + id + '.json', { uuid: id, name: 'Recover', sex: 'F', age: 30, heightCm: 160 });
   f.store.upload(account.id, 'pc', [{ uuid: entry.uuid, payload: JSON.stringify(entry) }]);
-  assert.deepEqual((await f.call('/v1/transactions/pending', { token: pc.token })).transactions, []);
+  // Canonical preparation may publish new default preferences; the acknowledged original stays hidden.
+  assert.equal((await f.call('/v1/transactions/pending', { token: pc.token })).transactions.some(row => row.uuid === entry.uuid), false);
   const snapshot = await f.call('/v1/dataset', { token: pc.token });
   assert.ok(snapshot.files.some(file => file.path === 'profiles/' + id + '.json'));
   const fresh = transaction('update', 'profiles/' + id + '.json', { uuid: id, name: 'Updated', sex: 'F', age: 31, heightCm: 160,
@@ -180,4 +182,82 @@ test('legacy deletions without timestamps require explicit recovery instead of r
   f.store.upload(account.id, 'pc', [{ uuid: entry.uuid, payload: JSON.stringify(entry) }]);
   const result = await f.call('/v1/dataset', { token: pc.token, status: 503 });
   assert.equal(result.error, 'dataset_recovery_required');
+});
+
+
+test('PRO expiry during canonical preparation blocks upload and snapshot response', async t => {
+  const initial = Date.now();
+  let time = initial;
+  const f = await fixture(t, { now: () => time });
+  const pc = await f.login('alice', 'pc');
+  const account = f.store.findAccount('alice@example.org');
+  const deadline = initial + 1000;
+  f.rights.set(account.domun_id, new Date(deadline).toISOString());
+  const readAll = f.store.allTransactions;
+  f.store.allTransactions = (...args) => { time = deadline; return readAll(...args); };
+  const entry = transaction('create', 'profiles/' + randomUUID() + '.json', { name: 'Must not be stored' });
+  await f.call('/v1/transactions', { token: pc.token, body: { transactions: [entry] }, status: 403 });
+  assert.equal(readAll(account.id).length, 0);
+  time = initial;
+  await f.call('/v1/dataset', { token: pc.token, status: 403 });
+});
+
+test('a durable hosted edit reports success with deferred publication and recovers after a DB write failure', async t => {
+  const f = await fixture(t);
+  const browser = await f.login('alice', 'browser', true);
+  const account = f.store.findAccount('alice@example.org');
+  const publish = f.store.uploadServer;
+  let broken = true;
+  f.store.uploadServer = (...args) => { if (broken) throw new Error('Simulated SQLite write failure'); return publish(...args); };
+  const saved = await f.action(browser, 'saveProfile', [{ name: 'Durable', sex: 'F', age: 40, heightCm: 165 }], {
+    onResponse: response => assert.equal(response.headers.get('X-Epi-Sync'), 'pending'),
+  });
+  assert.equal(saved.profiles[0].name, 'Durable');
+  assert.equal(f.store.allTransactions(account.id).length, 0);
+  assert.equal((await f.action(browser, 'load')).profiles[0].name, 'Durable');
+  broken = false;
+  // Replace the adapter to simulate a process restart; the web browser stays idle.
+  Object.assign(f.hosted, createHostedApi({ dataRoot: f.root, store: f.store }));
+  const phone = await f.login('alice', 'phone');
+  assert.ok((await f.call('/v1/transactions/pending', { token: phone.token })).transactions.length > 0);
+});
+
+
+test('pending-only account data is not described as an empty dataset', async t => {
+  const f = await fixture(t);
+  const pc = await f.login('alice', 'pc', true);
+  const entry = transaction('create', 'prefs/global.json', { pending: [{ id: randomUUID(), event: { weightKg: 70 } }] });
+  await f.call('/v1/transactions', { token: pc.token, body: { transactions: [entry] } });
+  const snapshot = await f.call('/v1/dataset', { token: pc.token });
+  assert.equal(snapshot.summary.hasData, true);
+  assert.equal(snapshot.summary.count, 0);
+});
+
+test('canonical recovery remains available after the same device acknowledged all transactions', async t => {
+  const f = await fixture(t);
+  const pc = await f.login('alice', 'pc', true);
+  const phone = await f.login('alice', 'phone');
+  const id = randomUUID();
+  const entry = transaction('create', 'profiles/' + id + '.json', { uuid: id, name: 'Recover after old backup', sex: 'F', age: 40, heightCm: 165 });
+  await f.call('/v1/transactions', { token: phone.token, body: { transactions: [entry] } });
+  const pending = await f.call('/v1/transactions/pending', { token: pc.token });
+  await f.call('/v1/transactions/acknowledge', { token: pc.token, body: { uuids: pending.transactions.map(row => row.uuid) } });
+  assert.deepEqual((await f.call('/v1/transactions/pending', { token: pc.token })).transactions, []);
+  const snapshot = await f.call('/v1/dataset', { token: pc.token });
+  assert.ok(snapshot.files.some(file => file.path === 'profiles/' + id + '.json'));
+});
+
+
+test('hosted account data rejects a nested directory link before reading another directory', async t => {
+  const f = await fixture(t);
+  const browser = await f.login('alice');
+  await f.action(browser, 'load');
+  const external = join(f.root, 'external');
+  await mkdir(external);
+  const profiles = join(f.root, 'accounts', browser.accountId, 'profiles');
+  await rm(profiles, { recursive: true });
+  try { await symlink(external, profiles, process.platform === 'win32' ? 'junction' : 'dir'); }
+  catch (error) { if (['EPERM', 'EACCES'].includes(error.code)) return t.skip('Directory links are unavailable on this host.'); throw error; }
+  const result = await f.action(browser, 'load', [], { status: 409 });
+  assert.equal(result.error, 'invalid_dataset_path');
 });

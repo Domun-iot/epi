@@ -6,7 +6,7 @@ import { readFile, writeFile } from '@tauri-apps/plugin-fs';
 import { domain } from 'virtual:epi-domain';
 import { createWebSession } from './web-session.js';
 import { isPaidAccount, syncToken, getAccountId, getAccountInfo, getSavedAccount, checkAccountConnection,
-  configureAccountDatasets, setDatasetAccess } from './account.js';
+  configureAccountDatasets, setDatasetAccess, forgetAccountSession } from './account.js';
 import { createDatasetController } from './dataset-controller.js';
 import { chooseAccountData } from './account-data-dialog.js';
 import { requestWebSession } from './web-session.js';
@@ -42,19 +42,21 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
   const backend = native ? {
     context: () => invoke('get_dataset_context'),
     prepare: accountId => invoke('prepare_account_dataset', { accountId }),
-    activate: (accountId, mode, remoteFiles, token, syncReady) => invoke('activate_account_dataset', { accountId, mode, remoteFiles, syncReady }),
+    activate: (accountId, mode, remoteFiles, token, syncReady, syncRevision) => invoke('activate_account_dataset', { accountId, mode, remoteFiles, syncReady, syncRevision }),
+    confirmSync: (accountId, datasetGeneration) => invoke('confirm_dataset_sync', { accountId, datasetId: accountId, datasetGeneration }),
     logout: () => invoke('logout_dataset'),
   } : web && !hosted ? {
     context: () => installation('context'),
     prepare: (accountId, token) => installation('prepare', [accountId], token),
-    activate: (accountId, mode, remoteFiles, token, syncReady) => installation('activate', [accountId, mode, remoteFiles, syncReady], token),
+    activate: (accountId, mode, remoteFiles, token, syncReady, syncRevision) => installation('activate', [accountId, mode, remoteFiles, syncReady, syncRevision], token),
+    confirmSync: (accountId, datasetGeneration) => installation('confirmSync', [accountId, datasetGeneration], syncToken()),
     logout: () => installation('logout'),
   } : hosted ? { hosted: true } : browserBackend();
 
   datasets = createDatasetController({ backend, chooseData: chooseAccountData,
     access: access => {
       setDatasetAccess(access);
-      if (!access.locked) queueMicrotask(onTransactions);
+      if (!access.locked && !access.repaired) queueMicrotask(onTransactions);
     },
     readRemote: async token => {
       const response = await fetch(__DEV_ACCOUNT_API__ + '/v1/dataset', {
@@ -65,7 +67,7 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
       return value;
     },
     async change(context, saved, epoch) {
-      window.dispatchEvent(new CustomEvent('epi:dataset-reset', { detail: { datasetId: context.datasetId, epoch } }));
+      if (!saved?.repair) window.dispatchEvent(new CustomEvent('epi:dataset-reset', { detail: { datasetId: context.datasetId, epoch } }));
       credentials = saved;
       const current = () => datasets.epoch === epoch;
       const stateChanged = state => { if (current()) onState(state); };
@@ -100,12 +102,39 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
     datasets.capture();
     return active;
   };
+  const attachments = new Map();
   configureAccountDatasets({
-    beforeSignIn: (info, token) => datasets.signIn(info, token),
-    beforeSignOut: () => datasets.signOut(),
+    beforeSignIn: (info, token) => { attachments.set(token, { ...datasets.context }); return datasets.signIn(info, token); },
+    beforeSignOut: async () => {
+      const token = syncToken();
+      datasets.invalidate();
+      const logoutEpoch = datasets.epoch;
+      await datasets.waitIdle();
+      if (datasets.epoch !== logoutEpoch || syncToken() !== token) throw new Error('dataset_changed');
+      await datasets.signOut();
+    },
     onExpired: () => datasets.expire(),
+    onCancelled: async ({ token } = {}) => {
+      const previous = attachments.get(token);
+      attachments.delete(token);
+      const previousStoredToken = syncToken();
+      datasets.invalidate();
+      const cancellationEpoch = datasets.epoch;
+      await datasets.waitIdle();
+      if (datasets.epoch !== cancellationEpoch || syncToken() !== previousStoredToken) return;
+      if (!hosted && previous) {
+        const current = await backend.context();
+        if (datasets.epoch !== cancellationEpoch || syncToken() !== previousStoredToken) return;
+        if (current.activeAccountId === previous.activeAccountId && current.accountModeEnabled === previous.accountModeEnabled) {
+          await datasets.refresh();
+          return;
+        }
+      }
+      await datasets.signOut();
+    },
   });
   await datasets.initialize();
+  if (!hosted && datasets.context.accountModeEnabled && datasets.context.locked) await forgetAccountSession();
   const saved = getSavedAccount();
   if (saved?.token) {
     void Promise.resolve(checkAccountConnection()).then(async info => {
@@ -140,6 +169,7 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
   });
 
   window.addEventListener('epi:account', event => {
+    attachments.clear();
     credentials = undefined;
     if (event.detail?.reason === 'storage') {
       // A different tab's account must never be paired with this tab's old dataset.
@@ -224,11 +254,12 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
   return {
     ...facade, native, web, hosted,
     retryBluetooth: native ? retryBluetooth : undefined,
-    async prepareSync() {
-      if (hosted || datasets.locked || datasets.context.syncReady || !proFeatures()) return;
+    async prepareSync(repair = false) {
       const info = await checkAccountConnection();
       const token = syncToken();
-      if (info && token && info.accountId === datasets.context.activeAccountId) await datasets.signIn(info, token);
+      if (hosted || (!native && !web) || datasets.locked || !proFeatures() || !info || !token || info.accountId !== datasets.context.activeAccountId) return;
+      if (!datasets.context.syncReady) await datasets.signIn(info, token);
+      else if (repair) await datasets.signIn(info, token, { repair: true });
     },
     getSyncContext() {
       const token = syncToken();
@@ -236,7 +267,7 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
           || !token || !datasets.context.syncReady || datasets.context.activeAccountId !== getAccountId()) return;
       const binding = { ...datasets.capture(), datasetGeneration: datasets.context.datasetGeneration, token };
       return { ...binding, ...txFor(binding), revision: datasets.revision,
-        clearRevision: () => datasets.clearRevision(),
+        clearRevision: () => datasets.clearRevision(binding),
         isCurrent: () => datasets.isCurrent(binding) && syncToken() === token && proFeatures()
           && datasets.context.activeAccountId === getAccountId() };
     },

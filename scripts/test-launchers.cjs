@@ -14,10 +14,13 @@ const shells = windows ? ['windows', ...(bash ? ['linux'] : [])] : ['linux'];
 
 function launch(shell, script, args, cwd, env) {
   const command = shell === 'windows' ? process.env.ComSpec || 'cmd.exe' : bash || 'sh';
+  const slash = value => windows ? value.replaceAll('\\', '/') : value;
   const argv = shell === 'windows'
     ? ['/d', '/c', 'call', script, ...args]
-    : [script, ...args];
-  const result = spawnSync(command, argv, { cwd, env, encoding: 'utf8', timeout: 30000 });
+    : [slash(script), ...args.map(value => path.isAbsolute(value) ? slash(value) : value)];
+  const childEnv = shell === 'linux' && windows ? Object.fromEntries(Object.entries(env ?? process.env).map(([key, value]) =>
+    [key, key.startsWith('EPI_SMOKE_') || key === 'EPI_DATA_DIR' ? slash(value) : value])) : env;
+  const result = spawnSync(command, argv, { cwd, env: childEnv, encoding: 'utf8', timeout: 30000 });
   if (result.error) throw result.error;
   return result;
 }
@@ -106,7 +109,7 @@ async function checkRelease(shell, target, scenario) {
     };
     const args = ['argument with spaces', '--raw'];
     const result = launch(shell, path.join(checkout, launcher), [probe, ...args], sandbox, env);
-    assert.equal(fs.existsSync(buildLog), scenario !== 'fresh');
+    assert.equal(fs.existsSync(buildLog), scenario !== 'fresh', result.stderr + result.stdout);
     if (scenario !== 'fresh') {
       assert.equal(fs.readFileSync(buildLog, 'utf8').trim(), desktop ? '--portable' : '');
     }
@@ -118,7 +121,8 @@ async function checkRelease(shell, target, scenario) {
       expectExit(result, batch && desktop ? 0 : 23);
       await waitForFile(marker);
       const [cwd, ...actualArgs] = JSON.parse(fs.readFileSync(marker, 'utf8'));
-      assert.equal(fs.realpathSync(cwd), fs.realpathSync(desktop ? checkout : sandbox));
+      const actualDirectory = fs.realpathSync(cwd), expectedDirectory = fs.realpathSync(desktop ? checkout : sandbox);
+      assert.equal(windows ? actualDirectory.toLowerCase() : actualDirectory, windows ? expectedDirectory.toLowerCase() : expectedDirectory);
       assert.deepEqual(actualArgs, args);
     }
   } finally {
@@ -133,7 +137,7 @@ function checkFixture(shell) {
     const env = { ...process.env, EPI_DATA_DIR: output };
     for (let attempt = 0; attempt < 2; attempt++) {
       expectExit(launch(shell, path.join(repo, launcher), [], output, env), 0);
-      const files = fs.readdirSync(path.join(output, 'measures'), { recursive: true });
+      const files = fs.readdirSync(path.join(output, 'local', 'measures'), { recursive: true });
       assert.equal(files.filter(name => name.endsWith('.json')).length, 48);
     }
   } finally {

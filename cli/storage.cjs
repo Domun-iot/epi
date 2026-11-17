@@ -14,7 +14,7 @@ const { withInstallationLock } = require('../shared/installation-lock.cjs');
 const installationRoot = resolveDataDirectory(isSea() ? dirname(process.execPath) : __dirname);
 // Importing CLI helpers must not migrate the user's files (tests and --help also import them).
 let initialSettings = {};
-try { initialSettings = JSON.parse(readFileSync(join(installationRoot, 'installation.json'), 'utf8')); }
+try { initialSettings = JSON.parse(readFileSync(join(installationRoot, 'installation.json'), 'utf8').replace(/^\uFEFF/u, '')); }
 catch (error) { if (error.code !== 'ENOENT') throw error; }
 if (initialSettings.activeAccountId != null && !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u.test(initialSettings.activeAccountId)) throw Error('Invalid account UUID.');
 const datasetContext = { datasetId: initialSettings.activeAccountId ?? 'local', datasetGeneration: initialSettings.datasetGeneration ?? 0 };
@@ -70,6 +70,7 @@ function writeMeasurement(record, root = measureDirectory) {
   if (name != null && !/^[\p{L}\p{N}][\p{L}\p{N} _-]{0,63}$/u.test(name)) {
     throw Error('Nom de profil invalide pour le dossier de pesées.');
   }
+  if (record.profile?.uuid != null && !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(record.profile.uuid)) throw Error('UUID de profil invalide.');
   let folder = record.profile?.uuid ?? (name == null ? '_sans-profil' : name.normalize('NFC').toLowerCase().trimEnd());
   if (/^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])$/i.test(folder)) folder = '_' + folder;
   const stamp = new Date(record.receivedAt).toISOString().replace(/:/gu, '-');

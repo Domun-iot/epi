@@ -61,17 +61,20 @@ pub(crate) fn setup(app: &AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window("main")
         .ok_or("Fenêtre introuvable.")?;
-    let saved = storage::installation_root(app).and_then(|root| {
-        let saved = crate::account_storage::read_window(&root)?;
-        let preferences: Preferences = serde_json::from_value(saved).unwrap_or_default();
-        if let Err(error) = preferences.restore(&window) {
-            eprintln!("Restauration de la fenêtre : {error}");
+    let root = storage::installation_root(app)?;
+    let preferences: Preferences = match crate::account_storage::read_window(&root) {
+        Ok(saved) => serde_json::from_value(saved).unwrap_or_default(),
+        Err(error) => {
+            // Another application may briefly own the data lock during startup.
+            // Window bounds must not turn that recoverable condition into a fatal setup error.
+            eprintln!("Restauration des préférences de fenêtre : {error}");
+            Preferences::default()
         }
-        Ok((root, preferences))
-    });
-    // Show the window even if the preferences could not be read.
+    };
+    if let Err(error) = preferences.restore(&window) {
+        eprintln!("Restauration de la fenêtre : {error}");
+    }
     window.show().map_err(|error| error.to_string())?;
-    let (root, preferences) = saved?;
     if preferences.minimized {
         window.minimize().map_err(|error| error.to_string())?;
     }

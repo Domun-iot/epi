@@ -40,7 +40,9 @@ function userDataDirectory() {
 }
 
 function resolveDataDirectory(startDirectory) {
-  return process.env.EPI_DATA_DIR || findSharedData(startDirectory) || userDataDirectory();
+  const override = process.env.EPI_DATA_DIR;
+  if (override && !isAbsolute(override)) throw new Error('EPI_DATA_DIR must be an absolute path.');
+  return override || findSharedData(startDirectory) || userDataDirectory();
 }
 
 module.exports = { dataFolders, resolveDataDirectory, findSharedData, isDataRoot };

@@ -74,57 +74,130 @@ fn write_owner(path: &Path, value: &Owner) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     file.sync_all().map_err(|e| e.to_string())
 }
-fn reclaim(path: &Path) -> Result<(), String> {
-    let meta = fs::symlink_metadata(path).map_err(|_| BUSY.to_owned())?;
+#[derive(Clone, Deserialize, Serialize)]
+struct Claim {
+    pid: u32,
+    token: String,
+    ticket: u64,
+}
+struct ClaimGuard(PathBuf);
+impl Drop for ClaimGuard {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+fn recovery_claims(directory: &Path, own_name: &str) -> Result<Vec<Claim>, String> {
+    let mut claims = Vec::new();
+    for entry in fs::read_dir(directory).map_err(|_| BUSY.to_owned())? {
+        let entry = entry.map_err(|_| BUSY.to_owned())?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name == own_name {
+            continue;
+        }
+        let (pid, token) = name.split_once('-').ok_or(BUSY)?;
+        let pid: u32 = pid.parse().ok().filter(|pid| *pid > 0).ok_or(BUSY)?;
+        if !Uuid::parse_str(token).is_ok_and(|uuid| uuid.to_string() == token) {
+            return Err(BUSY.into());
+        }
+        let ty = entry.file_type().map_err(|_| BUSY.to_owned())?;
+        if !ty.is_dir() || ty.is_symlink() {
+            return Err(BUSY.into());
+        }
+        if !alive(pid) {
+            fs::remove_dir_all(entry.path()).map_err(|_| BUSY.to_owned())?;
+            continue;
+        }
+        let value: Claim = serde_json::from_slice(
+            &fs::read(entry.path().join("ticket.json")).map_err(|_| BUSY.to_owned())?,
+        )
+        .map_err(|_| BUSY.to_owned())?;
+        if value.pid != pid
+            || value.token != token
+            || value.ticket == 0
+            || value.ticket > 9_007_199_254_740_991
+        {
+            return Err(BUSY.into());
+        }
+        claims.push(value);
+    }
+    Ok(claims)
+}
+fn with_recovery_claim<T>(
+    path: &Path,
+    callback: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let directory = path.parent().ok_or(BUSY)?.join(".installation.recovery");
+    fs::create_dir_all(&directory).map_err(|_| BUSY.to_owned())?;
+    let meta = fs::symlink_metadata(&directory).map_err(|_| BUSY.to_owned())?;
     if !meta.is_dir() || meta.is_symlink() {
         return Err(BUSY.into());
     }
-    let owner_file = path.join("owner.json");
-    let previous = owner(&owner_file)?;
-    let orphan_old = old(path);
-    if previous
-        .as_ref()
-        .map_or(!orphan_old, |value| alive(value.pid))
-    {
-        return Err(BUSY.into());
-    }
-    let recovery_file = path.join("recovery.json");
-    let old_recovery = owner(&recovery_file)?;
-    if let Some(recovery) = &old_recovery {
-        if alive(recovery.pid) || owner(&recovery_file)? != old_recovery {
-            return Err(BUSY.into());
-        }
-        fs::remove_file(&recovery_file).map_err(|_| BUSY.to_owned())?;
-    } else if recovery_file.exists() {
-        if !old(&recovery_file) {
-            return Err(BUSY.into());
-        }
-        fs::remove_file(&recovery_file).map_err(|_| BUSY.to_owned())?;
-    }
-    let recovery = Owner {
+    let mut claim = Claim {
         pid: std::process::id(),
         token: Uuid::new_v4().to_string(),
+        ticket: 0,
     };
-    write_owner(&recovery_file, &recovery)?;
-    let result = (|| {
+    let name = format!("{}-{}", claim.pid, claim.token);
+    let claim_path = directory.join(&name);
+    fs::create_dir(&claim_path).map_err(|_| BUSY.to_owned())?;
+    let _guard = ClaimGuard(claim_path.clone());
+    claim.ticket = recovery_claims(&directory, &name)?
+        .iter()
+        .map(|value| value.ticket)
+        .max()
+        .unwrap_or(0)
+        .checked_add(1)
+        .filter(|ticket| *ticket <= 9_007_199_254_740_991)
+        .ok_or(BUSY)?;
+    let mut file = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(claim_path.join("ticket.json"))
+        .map_err(|_| BUSY.to_owned())?;
+    file.write_all(&serde_json::to_vec(&claim).map_err(|_| BUSY.to_owned())?)
+        .map_err(|_| BUSY.to_owned())?;
+    file.sync_all().map_err(|_| BUSY.to_owned())?;
+    drop(file);
+    for other in recovery_claims(&directory, &name)? {
+        if (other.ticket, other.pid, other.token.as_str())
+            < (claim.ticket, claim.pid, claim.token.as_str())
+        {
+            return Err(BUSY.into());
+        }
+    }
+    callback()
+}
+fn reclaim(path: &Path) -> Result<(), String> {
+    with_recovery_claim(path, || {
+        let meta = fs::symlink_metadata(path).map_err(|_| BUSY.to_owned())?;
+        if !meta.is_dir() || meta.is_symlink() {
+            return Err(BUSY.into());
+        }
+        let owner_file = path.join("owner.json");
+        let previous = owner(&owner_file)?;
+        let orphan_old = old(path);
+        if previous
+            .as_ref()
+            .map_or(!orphan_old, |value| alive(value.pid))
+        {
+            return Err(BUSY.into());
+        }
+        if owner(&path.join("recovery.json"))?.is_some_and(|value| alive(value.pid)) {
+            return Err(BUSY.into());
+        }
         let current = owner(&owner_file)?;
         if current != previous
             || current
                 .as_ref()
                 .map_or(!orphan_old, |value| alive(value.pid))
-            || owner(&recovery_file)?.as_ref() != Some(&recovery)
         {
-            return Err(BUSY.to_owned());
+            return Err(BUSY.into());
         }
         let quarantine =
-            path.with_file_name(format!(".installation.lock.recovered-{}", recovery.token));
+            path.with_file_name(format!(".installation.lock.recovered-{}", Uuid::new_v4()));
         fs::rename(path, &quarantine).map_err(|_| BUSY.to_owned())?;
         fs::remove_dir_all(quarantine).map_err(|e| e.to_string())
-    })();
-    if result.is_err() && owner(&recovery_file).ok().flatten().as_ref() == Some(&recovery) {
-        let _ = fs::remove_file(recovery_file);
-    }
-    result
+    })
 }
 pub(crate) struct InstallationLock {
     key: PathBuf,

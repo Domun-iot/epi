@@ -60,6 +60,7 @@ pub fn run() {
             account_storage::activate_account_dataset,
             account_storage::logout_dataset,
             account_storage::mark_dataset_sync_ready,
+            account_storage::confirm_dataset_sync,
             system_locale::system_locale,
             storage::load_language_preference,
             storage::load_session,

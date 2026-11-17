@@ -111,3 +111,53 @@ test('a failed new dataset load remains locked and cannot reveal the old dataset
   assert.equal(controller.locked, true);
   assert.throws(() => controller.capture(), /dataset_locked/);
 });
+
+test('the reviewed bootstrap revision survives restart and stale work cannot clear it', async () => {
+  let confirms = 0;
+  let context = { activeAccountId: accountId, datasetId: accountId, datasetGeneration: 4,
+    accountModeEnabled: true, syncReady: true, syncRevision: 'a'.repeat(64), locked: false };
+  const controller = createDatasetController({ backend: {
+    context: async () => context,
+    confirmSync: async (id, generation) => { assert.equal(id, accountId); assert.equal(generation,4); confirms += 1; },
+  }, change: async () => {}, access: () => {} });
+  await controller.initialize();
+  assert.equal(controller.revision, 'a'.repeat(64));
+  const old = controller.capture();
+  controller.invalidate();
+  await controller.clearRevision(old);
+  assert.equal(confirms,0);
+  await controller.refresh();
+  await controller.clearRevision(controller.capture());
+  assert.equal(confirms,1);
+  assert.equal(controller.revision,undefined);
+});
+
+test('explicit repair reads the complete same-account snapshot despite prior receipts without repeating the first-bind choice', async () => {
+  const { controller, calls, choices, accesses } = setup({ existing: true, ready: true });
+  await controller.initialize();
+  await controller.signIn(pro, 'token');
+  const before = controller.capture();
+  assert.equal(calls.filter(call => call.remote).length,0);
+  await controller.signIn(pro, 'token', { repair: true });
+  assert.equal(calls.filter(call => call.remote).length,1);
+  assert.equal(calls.at(-1).id,accountId);
+  assert.equal(calls.at(-1).mode,'merge');
+  assert.equal(choices.length,0);
+  assert.equal(controller.isCurrent(before),false);
+  assert.ok(accesses.some(access => access.pending && access.repairing));
+});
+
+test('cancellation during hosted initial load stays locked when the delayed load completes', async () => {
+  let finishLoad;
+  const accesses=[];
+  const controller=createDatasetController({backend:{hosted:true},access:value=>accesses.push(value),
+    change:context=>context.locked?undefined:new Promise(resolve=>{finishLoad=resolve;})});
+  await controller.initialize();
+  const login=controller.signIn(free,'token');
+  while(!finishLoad)await new Promise(resolve=>setImmediate(resolve));
+  controller.invalidate();
+  finishLoad();
+  assert.equal(await login,false);
+  assert.equal(controller.locked,true);
+  assert.equal(accesses.at(-1).locked,true);
+});

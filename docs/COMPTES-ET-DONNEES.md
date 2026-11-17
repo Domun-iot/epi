@@ -29,7 +29,7 @@ Au premier rattachement PRO, ou lors du premier passage de FREE à PRO, le clien
 
 La préparation se fait dans un dossier temporaire. Une fusion part de l'instantané distant, puis intègre les écritures locales et leur état courant selon leurs versions. Les suppressions sont conservées dans le journal afin d'empêcher le retour d'une ancienne écriture. Une restauration volontaire porte une nouvelle date de modification. Une sauvegarde du jeu remplacé reste disponible. Un journal de remplacement permet de terminer une bascule interrompue.
 
-La première émission est conditionnée à la révision distante présentée. Si le serveur a changé, les fichiers restent en attente et le choix est proposé à nouveau. Annuler ne publie rien. Les confirmations de réception ne déplacent que les transactions confirmées dans l'archive du même compte.
+La première émission est conditionnée à la révision distante présentée, conservée dans la configuration même après redémarrage. Si le serveur a changé, les fichiers restent en attente et le choix est proposé à nouveau. Annuler ne publie rien. Les confirmations de réception ne déplacent que les transactions confirmées dans l'archive du même compte.
 
 ## Isolation des opérations
 
@@ -38,6 +38,8 @@ Un verrou interprocessus partagé par Node, le CLI et Tauri protège les migrati
 Chaque travail asynchrone conserve le compte et la génération du jeu qui l'a lancé. Une réponse ancienne ne met pas à jour le nouveau compte ; les commandes de fichiers refusent une génération devenue périmée, y compris un remplacement du même compte. Les données temporaires de l'interface et les journaux Bluetooth sont séparés lors d'une bascule.
 
 Sur le web hébergé, le serveur vérifie le jeton sur chaque requête et choisit lui-même accounts/<UUID>. Aucun identifiant fourni par le navigateur ne permet de choisir un autre dossier. Les écritures web PRO rejoignent le même journal que les autres clients. Les appels de synchronisation sont refusés en FREE. Les fichiers hébergés sont supprimés lors de la purge définitive du compte.
+
+Un rechargement/synchronisation manuel PRO et la fin d'un import ZIP peuvent réparer le cache depuis l'instantané complet du même compte, indépendamment des anciens accusés. La fusion garde les modifications locales plus récentes et les suppressions. Cette réparation ne redemande pas le choix du premier rattachement et conserve les dialogues du compte courant.
 
 ## Vérifications
 

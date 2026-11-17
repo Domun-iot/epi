@@ -195,3 +195,146 @@ test('the hosted login language can change without reading or writing a locked d
   await page.locator('html[lang="en-US"]').waitFor({state:'attached'});
   assert.equal(await page.evaluate(() => localStorage.getItem('epi-interface-language')), 'en-US');
 });
+
+
+test('cancelling Google while its completion response is pending never attaches or saves the ready token', async t => {
+  const page = await open(t);
+  let release;
+  const held = new Promise(resolve=>{release=resolve;});
+  t.after(release);
+  await page.context().route('https://accounts.google.com/**',route=>route.fulfill({body:'Google sign-in'}));
+  await page.route(api+'/v1/google/start',route=>route.fulfill({json:{state:'state',secret:'secret',url:'https://accounts.google.com/o/oauth2/v2/auth'}}));
+  await page.route(api+'/v1/google/finish',async route=>{
+    await held;
+    await route.fulfill({json:{...info,token:'ready-google-token'}}).catch(()=>{});
+  });
+  await page.evaluate(()=>window.accounts.configureAccountDatasets({beforeSignIn:async()=>{window.attached=true;return true;}}));
+  await page.locator('#account-button').click();
+  const finishing=page.waitForRequest(api+'/v1/google/finish');
+  await page.locator('#account-google').click();
+  await finishing;
+  await page.locator('#account-close').click();
+  await page.locator('#account-submit:enabled').waitFor();
+  release();
+  await page.waitForTimeout(50);
+  assert.equal(await page.evaluate(()=>Boolean(window.attached)),false);
+  assert.equal(await page.evaluate(()=>window.accounts.getSavedAccount()),null);
+  assert.equal(await page.locator('#account-google-status').isVisible(),false);
+});
+
+test('an external account switch aborts Google management, clears secrets and ignores the old account locale', async t => {
+  const aliceInfo={...info,googleLinked:false,hasPassword:true};
+  const bobInfo={accountId:'b1800c21-2a45-4b03-9ccd-e80edc2bca2d',email:'bob@example.org',paid:false,paidUntil:null};
+  const page=await open(t,{saved:{email:info.email,accountId,token:'alice-token',info:aliceInfo},response:aliceInfo});
+  let release;
+  const held=new Promise(resolve=>{release=resolve;});
+  t.after(release);
+  await page.context().route('https://accounts.google.com/**',route=>route.fulfill({body:'Google sign-in'}));
+  await page.route(api+'/v1/account',route=>route.fulfill({json:route.request().headers().authorization==='Bearer bob-token'?bobInfo:aliceInfo}));
+  await page.route(api+'/v1/google/start',route=>route.fulfill({json:{state:'state',secret:'secret',url:'https://accounts.google.com/o/oauth2/v2/auth'}}));
+  await page.route(api+'/v1/google/finish',async route=>{
+    await held;
+    await route.fulfill({json:{...aliceInfo,googleLinked:true,locale:'fr-FR'}}).catch(()=>{});
+  });
+  await page.evaluate(()=>window.accounts.configureAccountDatasets({}));
+  await page.locator('#account-button').click();
+  await page.locator('#account-google').click();
+  await page.locator('[name=googlePassword]').fill('Alice private password');
+  const finishing=page.waitForRequest(api+'/v1/google/finish');
+  await page.locator('#account-google').click();
+  await finishing;
+  await page.evaluate(({api,bobInfo})=>{
+    localStorage.setItem('epi-account:'+api,JSON.stringify({email:bobInfo.email,accountId:bobInfo.accountId,token:'bob-token',info:bobInfo}));
+    window.dispatchEvent(new StorageEvent('storage',{key:'epi-account:'+api}));
+  },{api,bobInfo});
+  await page.locator('#account-submit:enabled').waitFor();
+  assert.equal(await page.locator('[name=googlePassword]').inputValue(),'');
+  assert.equal(await page.locator('[name=password]').inputValue(),'');
+  assert.equal(await page.locator('#account-google-status').isVisible(),false);
+  release();
+  await page.waitForTimeout(50);
+  assert.equal(await page.evaluate(()=>window.accounts.getSavedAccount().token),'bob-token');
+  assert.equal(await page.evaluate(()=>localStorage.getItem('epi-account-language')),null);
+  assert.equal(await page.locator('#account-error').isVisible(),false);
+});
+
+test('token persistence failure cancels an activated hosted binding and fails closed', async t => {
+  const page=await open(t);
+  await page.evaluate(api=>{
+    const write=Storage.prototype.setItem;
+    Storage.prototype.setItem=function(key,value){if(key==='epi-account:'+api)throw new DOMException('Full','QuotaExceededError');return write.call(this,key,value);};
+    window.accounts.configureAccountDatasets({
+      beforeSignIn:async()=>{window.accounts.setDatasetAccess({locked:false,hosted:true});return true;},
+      onCancelled:async binding=>{window.cancelledBinding=binding;window.accounts.setDatasetAccess({locked:true,hosted:true});},
+    });
+  },api);
+  await login(page);
+  await page.waitForFunction(()=>Boolean(window.cancelledBinding));
+  await page.locator('#account-submit:enabled').waitFor();
+  assert.deepEqual(await page.evaluate(()=>window.cancelledBinding),{token:'test-token',accountId});
+  assert.equal(await page.evaluate(()=>window.accounts.getSavedAccount()),null);
+  assert.equal(await page.locator('.shell').isVisible(),false);
+  assert.equal(await page.locator('#account-dialog').isVisible(),true);
+});
+
+test('cancelling Google during attachment invalidates only that binding and discards its late completion', async t => {
+  const page=await open(t);
+  await page.context().route('https://accounts.google.com/**',route=>route.fulfill({body:'Google sign-in'}));
+  await page.route(api+'/v1/google/start',route=>route.fulfill({json:{state:'state',secret:'secret',url:'https://accounts.google.com/o/oauth2/v2/auth'}}));
+  await page.route(api+'/v1/google/finish',route=>route.fulfill({json:{...info,token:'ready-google-token'}}));
+  await page.evaluate(()=>window.accounts.configureAccountDatasets({
+    beforeSignIn:()=>new Promise(resolve=>{window.finishAttachment=resolve;}),
+    onCancelled:async binding=>{window.cancelledBinding=binding;window.finishAttachment(true);},
+  }));
+  await page.locator('#account-button').click();
+  await page.locator('#account-google').click();
+  await page.waitForFunction(()=>Boolean(window.finishAttachment));
+  await page.locator('#account-close').click();
+  await page.locator('#account-submit:enabled').waitFor();
+  assert.deepEqual(await page.evaluate(()=>window.cancelledBinding),{token:'ready-google-token',accountId});
+  assert.equal(await page.evaluate(()=>window.accounts.getSavedAccount()),null);
+});
+
+
+test('a delayed language save from the prior account cannot change the next account interface', async t => {
+  const bobInfo={accountId:'b1800c21-2a45-4b03-9ccd-e80edc2bca2d',email:'bob@example.org',paid:false,paidUntil:null};
+  const page=await open(t,{saved:{email:info.email,accountId,token:'alice-token',info}});
+  await page.route(api+'/v1/account',route=>route.fulfill({json:route.request().headers().authorization==='Bearer bob-token'?bobInfo:info}));
+  await page.evaluate(()=>{
+    window.accounts.configureAccountDatasets({});
+    window.accounts.enableLanguageSelection(()=>new Promise(resolve=>{window.finishLanguage=resolve;}));
+  });
+  await page.locator('#account-button').click();
+  await page.locator('#account-form [name=language]').selectOption('en-US');
+  await page.waitForFunction(()=>Boolean(window.finishLanguage));
+  await page.evaluate(({api,bobInfo})=>{
+    localStorage.setItem('epi-account:'+api,JSON.stringify({email:bobInfo.email,accountId:bobInfo.accountId,token:'bob-token',info:bobInfo}));
+    window.dispatchEvent(new StorageEvent('storage',{key:'epi-account:'+api}));
+    window.finishLanguage();
+  },{api,bobInfo});
+  await page.locator('#account-submit:enabled').waitFor();
+  assert.equal(await page.evaluate(()=>localStorage.getItem('epi-interface-language')),null);
+  assert.equal(await page.locator('html').getAttribute('lang'),'fr-FR');
+  assert.equal(await page.evaluate(()=>window.accounts.getSavedAccount().token),'bob-token');
+});
+
+
+test('a failed credential deletion still closes local access, rejects the retained token and revokes it', async t => {
+  const page=await open(t,{saved:{email:info.email,accountId,token:'test-token',info}});
+  let revoked=false;
+  await page.route(api+'/v1/device-tokens',route=>{revoked=true;return route.fulfill({status:204});});
+  await page.evaluate(api=>{
+    const remove=Storage.prototype.removeItem;
+    Storage.prototype.removeItem=function(key){if(key==='epi-account:'+api)throw new DOMException('Unavailable','SecurityError');return remove.call(this,key);};
+    window.accounts.configureAccountDatasets({beforeSignOut:async()=>window.accounts.setDatasetAccess({locked:true,hosted:false})});
+  },api);
+  await page.locator('#account-button').click();
+  await page.locator('#account-submit').click();
+  await page.locator('#account-fields').waitFor();
+  assert.equal(await page.evaluate(()=>window.accounts.getSavedAccount()),null);
+  assert.equal(await page.evaluate(()=>window.accounts.syncToken()),undefined);
+  assert.equal(await page.locator('.shell').isVisible(),false);
+  await page.locator('#account-error').getByText('Le stockage local du compte est inaccessible.',{exact:true}).waitFor();
+  await page.waitForTimeout(50);
+  assert.equal(revoked,true);
+});

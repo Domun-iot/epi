@@ -57,7 +57,7 @@ export async function createSessionApi({ root, dataDir: explicitDataDir, domain,
         requirePro();
         const revision = transactionRevision;
         const result = await performAction();
-        await afterAction?.(request, input, result);
+        await afterAction?.(request, input, result, response);
         if (revision !== transactionRevision) response.setHeader('X-Epi-Transactions', 'pending');
         return result;
       });

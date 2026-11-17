@@ -172,3 +172,24 @@ test('pending batch deletions also protect against replayed unversioned old rows
   assert.equal(fs.existsSync(join(root, path)), false);
   assert.deepEqual(fs.readdirSync(join(root, 'transactions.incoming')), []);
 });
+
+
+test('history import and incoming delivery reject malformed operations before archiving or indexing them', t => {
+  const { prepareHistory } = require('./transactions.cjs');
+  const root = directory(t);
+  const uuid = '00000000-0000-4000-8000-000000000001';
+  const name = '2026-03-01T00-00-00.000000Z-' + uuid + '.json';
+  for (const invalid of [
+    { type: 'batch', data: [] },
+    { type: 'create', data: { path: 'profiles/a.json', value: null } },
+    { type: 'create', data: { path: '../escape.json', value: {} } },
+    { type: 'delete', data: { path: 'profiles/a.json', value: {} } },
+    { type: 'batch', data: [{ type: 'create', path: 'profiles/a.json', value: {} }, { type: 'delete', path: 'profiles/A.json' }] },
+  ]) {
+    const row = { uuid, name, ...invalid };
+    assert.throws(() => prepareHistory([{ path: 'transactions.sent/' + name, contents: serialize(row) }]));
+    assert.deepEqual(integrateTransactions(root, [row]), { uuids: [], changed: false });
+    assert.equal(fs.existsSync(join(root, 'transactions.sent', name)), false);
+    assert.equal(fs.existsSync(join(root, 'transactions.index')), false);
+  }
+});

@@ -26,8 +26,9 @@ async function prepareProfile(values, {
   if (values.utilisateur === undefined && !hasFields) return null;
   const user = values.utilisateur === undefined ? undefined : normalizeProfileName(values.utilisateur);
 
-  const entry = user === undefined ? undefined : listProfileFiles(directory)
-    .find(item => item.file === filename || nameKey(item.record.name) === nameKey(user));
+  const readEntries = () => listProfileFiles(directory);
+  const entries = user === undefined ? [] : directory === profileDirectory ? withActiveDataset(readEntries) : readEntries();
+  const entry = entries.find(item => item.file === filename || nameKey(item.record.name) === nameKey(user));
   const stored = entry?.record;
   const uuid = user === undefined ? undefined : stored?.uuid ?? randomUUID();
   const file = uuid ? join(directory, uuid + '.json') : null;

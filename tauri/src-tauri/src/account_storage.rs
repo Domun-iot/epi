@@ -75,6 +75,14 @@ fn safe(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
+fn safe_directory(path: &Path) -> Result<(), String> {
+    match fs::symlink_metadata(path) {
+        Ok(meta) if !meta.is_dir() || meta.is_symlink() => Err("Unexpected data directory.".into()),
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.to_string()),
+    }
+}
 fn copy(source: &Path, target: &Path) -> Result<(), String> {
     safe(source)?;
     if source.is_dir() {
@@ -132,24 +140,41 @@ fn recover_replacement(root: &Path) -> Result<(), String> {
         .as_str()
         .filter(|name| name.strip_prefix(".account-").is_some_and(valid_id))
         .ok_or("Invalid replacement stage.")?;
-    let backup = journal["backup"]
-        .as_str()
-        .filter(|name| {
-            name.strip_prefix(&format!("account-{id}-"))
-                .is_some_and(valid_id)
-        })
-        .ok_or("Invalid replacement backup.")?;
+    let backup = if journal["backup"].is_null() {
+        None
+    } else {
+        Some(
+            journal["backup"]
+                .as_str()
+                .filter(|name| {
+                    name.strip_prefix(&format!("account-{id}-"))
+                        .is_some_and(valid_id)
+                })
+                .ok_or("Invalid replacement backup.")?,
+        )
+    };
     if journal["nextConfig"]["activeAccountId"] != id {
         return Err("Invalid replacement settings.".into());
     }
     let target = root.join("accounts").join(id);
     let temporary = root.join(temporary);
-    let backup = root.join("backups").join(backup);
+    let backup = backup.map(|name| root.join("backups").join(name));
+    safe_directory(&target)?;
+    safe_directory(&temporary)?;
+    if let Some(backup) = &backup {
+        safe_directory(backup)?;
+    }
+    if !target.exists() && !temporary.exists() && backup.as_ref().is_none_or(|path| !path.exists())
+    {
+        return Err("Missing staged account dataset.".into());
+    }
     if target.exists() && !temporary.exists() {
         write(&root.join("installation.json"), &journal["nextConfig"])?;
     } else {
-        if !target.exists() && backup.exists() {
-            fs::rename(backup, &target).map_err(error)?;
+        if !target.exists() {
+            if let Some(backup) = backup.filter(|path| path.exists()) {
+                fs::rename(backup, &target).map_err(error)?;
+            }
         }
         if temporary.exists() {
             fs::remove_dir_all(temporary).map_err(error)?;
@@ -160,6 +185,12 @@ fn recover_replacement(root: &Path) -> Result<(), String> {
 pub(crate) fn initialize(root: &Path) -> Result<Value, String> {
     let _installation = crate::installation_lock::acquire(root)?;
     fs::create_dir_all(root).map_err(error)?;
+    for name in ["local", "accounts", "backups"] {
+        safe_directory(&root.join(name))?;
+    }
+    for name in ["installation.json", "migration.json", "replacement.json"] {
+        safe(&root.join(name))?;
+    }
     recover_replacement(root)?;
     safe(&root.join("installation.json"))?;
     if let Some(migration) = read(&root.join("migration.json"))? {
@@ -194,6 +225,12 @@ pub(crate) fn initialize(root: &Path) -> Result<Value, String> {
     let mut config = read(&root.join("installation.json"))?.unwrap_or_else(|| json!({}));
     if !config.is_object() {
         return Err("Invalid installation settings.".into());
+    }
+    if config
+        .get("accountModeEnabled")
+        .is_some_and(|value| !value.is_boolean())
+    {
+        return Err("Invalid account mode setting.".into());
     }
     if let Some(id) = config["activeAccountId"].as_str() {
         if !valid_id(id) {
@@ -256,6 +293,25 @@ pub(crate) fn initialize(root: &Path) -> Result<Value, String> {
         .is_some_and(|ids| ids.iter().all(|id| id.as_str().is_some_and(valid_id)))
     {
         return Err("Invalid synchronization account settings.".into());
+    }
+    if config.get("syncRevisions").is_none() {
+        config["syncRevisions"] = json!({});
+    }
+    if !config["syncRevisions"]
+        .as_object()
+        .is_some_and(|revisions| {
+            revisions.iter().all(|(id, value)| {
+                valid_id(id)
+                    && value.as_str().is_some_and(|revision| {
+                        revision.len() == 64
+                            && revision
+                                .bytes()
+                                .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+                    })
+            })
+        })
+    {
+        return Err("Invalid synchronization revision settings.".into());
     }
     if config.get("datasetGeneration").is_none() {
         config["datasetGeneration"] = json!(0);
@@ -337,12 +393,16 @@ fn context(root: &Path) -> Result<Value, String> {
             .as_str()
             .map_or(json!("local"), |id| json!(id))
     };
-    Ok(
-        json!({"activeAccountId":config["activeAccountId"],"accountModeEnabled":config["accountModeEnabled"],
+    let mut result = json!({"activeAccountId":config["activeAccountId"],"accountModeEnabled":config["accountModeEnabled"],
         "locked":locked,"datasetId":dataset_id,"datasetGeneration":config["datasetGeneration"],
         "syncReady":config["syncReadyAccountIds"].as_array().unwrap().contains(&config["activeAccountId"]),
-        "localSummary":summary(&root.join("local"))?}),
-    )
+        "localSummary":summary(&root.join("local"))?});
+    if let Some(revision) =
+        config["syncRevisions"][config["activeAccountId"].as_str().unwrap_or("")].as_str()
+    {
+        result["syncRevision"] = json!(revision);
+    }
+    Ok(result)
 }
 pub(crate) fn resolve_active(
     root: &Path,
@@ -389,6 +449,10 @@ fn prepare(root: &Path, account_id: &str) -> Result<Value, String> {
         .as_array()
         .unwrap()
         .contains(&json!(account_id)));
+    result.as_object_mut().unwrap().remove("syncRevision");
+    if let Some(revision) = initialize(root)?["syncRevisions"][account_id].as_str() {
+        result["syncRevision"] = json!(revision);
+    }
     Ok(result)
 }
 fn queue_baseline(root: &Path) -> Result<(), String> {
@@ -411,7 +475,12 @@ fn queue_baseline(root: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-fn select_account(config: &mut Value, account_id: &str, sync_ready: bool) -> Result<(), String> {
+fn select_account(
+    config: &mut Value,
+    account_id: &str,
+    sync_ready: bool,
+    sync_revision: Option<&str>,
+) -> Result<(), String> {
     config["activeAccountId"] = json!(account_id);
     config["accountModeEnabled"] = json!(true);
     let generation = config["datasetGeneration"]
@@ -426,15 +495,27 @@ fn select_account(config: &mut Value, account_id: &str, sync_ready: bool) -> Res
             ids.push(json!(account_id));
         }
     }
+    if let Some(revision) = sync_revision {
+        config["syncRevisions"][account_id] = json!(revision);
+    }
     Ok(())
 }
-fn activate(
+fn activate_with_revision(
     root: &Path,
     account_id: &str,
     mode: &str,
     remote_files: Vec<storage::DataFile>,
     sync_ready: bool,
+    sync_revision: Option<&str>,
 ) -> Result<Value, String> {
+    if sync_revision.is_some_and(|revision| {
+        revision.len() != 64
+            || !revision
+                .bytes()
+                .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+    }) {
+        return Err("Invalid synchronization revision.".into());
+    }
     let _installation = crate::installation_lock::acquire(root)?;
     if !valid_id(account_id) {
         return Err("Invalid account UUID.".into());
@@ -444,13 +525,14 @@ fn activate(
     }
     let mut config = initialize(root)?;
     let target = root.join("accounts").join(account_id);
+    safe_directory(&target)?;
     let replacing = target.exists();
     if replacing && !["merge", "remote"].contains(&mode) {
         if mode != "existing" || !remote_files.is_empty() {
             return Err("This account already has a local dataset.".into());
         }
         safe(&target)?;
-        select_account(&mut config, account_id, sync_ready)?;
+        select_account(&mut config, account_id, sync_ready, sync_revision)?;
         write(&root.join("installation.json"), &config)?;
         return context(root);
     }
@@ -506,7 +588,7 @@ fn activate(
                 storage::atomic_write(&temporary.join("transactions").join(name), &bytes, false)?;
             }
         }
-        select_account(&mut config, account_id, sync_ready)?;
+        select_account(&mut config, account_id, sync_ready, sync_revision)?;
         if attach_anonymous {
             config["pendingAnonymousBackup"] = json!(format!("anonymous-{}", Uuid::new_v4()));
         }
@@ -515,15 +597,18 @@ fn activate(
             let name = format!("account-{account_id}-{}", Uuid::new_v4());
             let backup = root.join("backups").join(&name);
             fs::create_dir_all(backup.parent().unwrap()).map_err(error)?;
-            write(
-                &root.join("replacement.json"),
-                &json!({"accountId":account_id,"temporary":temporary.file_name().unwrap().to_string_lossy(),"backup":name,"nextConfig":config}),
-            )?;
-            fs::rename(&target, &backup).map_err(error)?;
             Some(backup)
         } else {
             None
         };
+        write(
+            &root.join("replacement.json"),
+            &json!({"accountId":account_id,"temporary":temporary.file_name().unwrap().to_string_lossy(),
+            "backup":backup.as_ref().map(|path| path.file_name().unwrap().to_string_lossy().into_owned()),"nextConfig":config}),
+        )?;
+        if let Some(backup) = &backup {
+            fs::rename(&target, backup).map_err(error)?;
+        }
         fs::rename(&temporary, &target).map_err(error)?;
         if let Err(e) = write(&root.join("installation.json"), &config) {
             fs::rename(&target, &temporary).map_err(error)?;
@@ -548,6 +633,44 @@ fn activate(
     }
     result
 }
+#[cfg(test)]
+fn activate(
+    root: &Path,
+    account_id: &str,
+    mode: &str,
+    files: Vec<storage::DataFile>,
+    sync_ready: bool,
+) -> Result<Value, String> {
+    activate_with_revision(root, account_id, mode, files, sync_ready, None)
+}
+fn confirm_sync(root: &Path, account_id: &str, generation: u64) -> Result<Value, String> {
+    let _installation = crate::installation_lock::acquire(root)?;
+    resolve_active(root, Some(account_id), true, Some(generation))?;
+    let mut config = initialize(root)?;
+    config["syncRevisions"]
+        .as_object_mut()
+        .unwrap()
+        .remove(account_id);
+    write(&root.join("installation.json"), &config)?;
+    context(root)
+}
+#[tauri::command]
+pub fn confirm_dataset_sync(
+    app: AppHandle,
+    account_id: String,
+    dataset_id: String,
+    dataset_generation: u64,
+) -> Result<Value, String> {
+    let _guard = lock_for_app(&app)?;
+    if dataset_id != account_id {
+        return Err("dataset_changed".into());
+    }
+    confirm_sync(
+        &storage::installation_root(&app)?,
+        &account_id,
+        dataset_generation,
+    )
+}
 #[tauri::command]
 pub fn get_dataset_context(app: AppHandle) -> Result<Value, String> {
     let _guard = lock_for_app(&app)?;
@@ -565,14 +688,16 @@ pub fn activate_account_dataset(
     mode: String,
     remote_files: Option<Vec<storage::DataFile>>,
     sync_ready: Option<bool>,
+    sync_revision: Option<String>,
 ) -> Result<Value, String> {
     let _guard = lock_for_app(&app)?;
-    activate(
+    activate_with_revision(
         &storage::installation_root(&app)?,
         &account_id,
         &mode,
         remote_files.unwrap_or_default(),
         sync_ready.unwrap_or(false),
+        sync_revision.as_deref(),
     )
 }
 #[tauri::command]
@@ -742,6 +867,71 @@ mod tests {
         fs::remove_dir(root.join("local")).unwrap();
         fs::create_dir_all(root.join("accounts").join(A)).unwrap();
         assert!(is_data_root(root));
+    }
+    #[test]
+    fn bootstrap_revision_survives_restart_and_stale_confirmation_is_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let revision = "a".repeat(64);
+        let initial =
+            activate_with_revision(root, A, "attach", vec![], true, Some(&revision)).unwrap();
+        assert_eq!(context(root).unwrap()["syncRevision"], revision);
+        let next = activate_with_revision(root, A, "existing", vec![], true, Some(&"b".repeat(64)))
+            .unwrap();
+        assert!(confirm_sync(root, A, initial["datasetGeneration"].as_u64().unwrap()).is_err());
+        assert_eq!(context(root).unwrap()["syncRevision"], "b".repeat(64));
+        assert!(
+            confirm_sync(root, A, next["datasetGeneration"].as_u64().unwrap())
+                .unwrap()
+                .get("syncRevision")
+                .is_none()
+        );
+    }
+    #[test]
+    fn first_attachment_recovers_the_published_files_and_pending_anonymous_backup() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let mut config = initialize(root).unwrap();
+        fs::create_dir_all(root.join("local/profiles")).unwrap();
+        fs::write(
+            root.join("local/profiles/profil-alice.json"),
+            r#"{"name":"Alice"}"#,
+        )
+        .unwrap();
+        let temporary = format!(".account-{}", Uuid::new_v4());
+        let backup = format!("anonymous-{}", Uuid::new_v4());
+        fs::create_dir_all(root.join(&temporary).join("profiles")).unwrap();
+        fs::write(
+            root.join(&temporary).join("profiles/profil-alice.json"),
+            r#"{"name":"Alice"}"#,
+        )
+        .unwrap();
+        select_account(&mut config, A, true, Some(&"a".repeat(64))).unwrap();
+        config["pendingAnonymousBackup"] = json!(backup);
+        write(
+            &root.join("replacement.json"),
+            &json!({"accountId":A,"temporary":temporary,"backup":null,"nextConfig":config}),
+        )
+        .unwrap();
+        fs::create_dir(root.join("accounts")).unwrap();
+        fs::rename(root.join(temporary), root.join("accounts").join(A)).unwrap();
+        assert_eq!(context(root).unwrap()["activeAccountId"], A);
+        assert!(root
+            .join("backups")
+            .join(backup)
+            .join("profiles/profil-alice.json")
+            .exists());
+        assert!(!root.join("replacement.json").exists());
+    }
+    #[test]
+    fn non_directory_account_container_is_rejected_before_migration() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::create_dir(root.join("profiles")).unwrap();
+        fs::write(root.join("accounts"), "unexpected file").unwrap();
+        assert!(initialize(root).is_err());
+        assert!(root.join("profiles").is_dir());
+        assert!(!root.join("local").exists());
     }
     #[test]
     fn rejects_invalid_remote_snapshot_without_selecting_account() {

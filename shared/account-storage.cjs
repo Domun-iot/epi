@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const { dirname, join } = require('node:path');
 const { randomUUID, createHash } = require('node:crypto');
 const { withInstallationLock } = require('./installation-lock.cjs');
-const { recordTransaction, integrateTransactions } = require('./transactions.cjs');
+const { recordTransaction, integrateTransactions, validateTransaction } = require('./transactions.cjs');
 
 const accountPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u;
 const datasetEntries = ['devices', 'measures', 'profiles', 'prefs', 'notifications',
@@ -31,6 +31,10 @@ function safeTree(path) {
   if (info.isSymbolicLink() || (!info.isDirectory() && !info.isFile())) throw new Error('Unexpected data path: ' + path);
   if (info.isDirectory()) for (const entry of fs.readdirSync(path)) safeTree(join(path, entry));
 }
+function safeDirectory(path) {
+  const info = fs.lstatSync(path, { throwIfNoEntry: false });
+  if (info && (!info.isDirectory() || info.isSymbolicLink())) throw new Error('Unexpected data directory: ' + path);
+}
 function validAccount(accountId) {
   if (typeof accountId !== 'string' || !accountPattern.test(accountId)) throw new Error('Invalid account UUID.');
   return accountId;
@@ -38,7 +42,8 @@ function validAccount(accountId) {
 function settings(root) {
   const value = read(join(root, 'installation.json'), {});
   if (!value || typeof value !== 'object' || Array.isArray(value)
-      || (value.activeAccountId != null && !accountPattern.test(value.activeAccountId))) {
+      || (value.activeAccountId != null && (typeof value.activeAccountId !== 'string' || !accountPattern.test(value.activeAccountId)))
+      || (value.accountModeEnabled !== undefined && typeof value.accountModeEnabled !== 'boolean')) {
     throw new Error('Invalid installation settings.');
   }
   return { ...value, activeAccountId: value.activeAccountId ?? null,
@@ -66,19 +71,23 @@ function recoverReplacement(root) {
   if (!journal) return;
   validAccount(journal.accountId);
   if (!/^\.account-[0-9a-f-]{36}$/u.test(journal.temporary)
-      || !/^account-[0-9a-f-]{36}-[0-9a-f-]{36}$/u.test(journal.backup)
+      || (journal.backup != null && !/^account-[0-9a-f-]{36}-[0-9a-f-]{36}$/u.test(journal.backup))
       || journal.nextConfig?.activeAccountId !== journal.accountId) throw new Error('Invalid replacement journal.');
   const target = join(root, 'accounts', journal.accountId);
-  const temporary = join(root, journal.temporary), backup = join(root, 'backups', journal.backup);
+  const temporary = join(root, journal.temporary), backup = journal.backup ? join(root, 'backups', journal.backup) : undefined;
+  safeDirectory(target); safeDirectory(temporary); if (backup) safeDirectory(backup);
+  if (!exists(target) && !exists(temporary) && (!backup || !exists(backup))) throw new Error('Missing staged account dataset.');
   if (exists(target) && !exists(temporary)) save(root, journal.nextConfig);
   else {
-    if (!exists(target) && exists(backup)) fs.renameSync(backup, target);
+    if (!exists(target) && backup && exists(backup)) fs.renameSync(backup, target);
     if (exists(temporary)) fs.rmSync(temporary, { recursive: true, force: true });
   }
   fs.rmSync(join(root, 'replacement.json'));
 }
 function initializeInstallation(root) {
   fs.mkdirSync(root, { recursive: true });
+  for (const name of ['local', 'accounts', 'backups']) safeDirectory(join(root, name));
+  for (const name of ['installation.json', 'migration.json', 'replacement.json']) safeTree(join(root, name));
   recoverReplacement(root);
   safeTree(join(root, 'installation.json'));
   const migration = read(join(root, 'migration.json'));
@@ -102,8 +111,7 @@ function initializeInstallation(root) {
   const config = settings(root);
   const accounts = join(root, 'accounts');
   if (exists(accounts)) {
-    safeTree(accounts);
-    if (fs.readdirSync(accounts).some(name => accountPattern.test(name))) config.accountModeEnabled = true;
+    if (fs.readdirSync(accounts, { withFileTypes: true }).some(entry => entry.isDirectory() && accountPattern.test(entry.name))) config.accountModeEnabled = true;
   }
   if (config.activeAccountId) config.accountModeEnabled = true;
   if (config.pendingAnonymousBackup) {
@@ -123,7 +131,12 @@ function initializeInstallation(root) {
   }
   if (!Array.isArray(config.syncReadyAccountIds ?? [])) throw new Error('Invalid synchronization settings.');
   config.syncReadyAccountIds ??= [];
-  if (config.syncReadyAccountIds.some(id => !accountPattern.test(id))) throw new Error('Invalid synchronization account UUID.');
+  if (config.syncReadyAccountIds.some(id => typeof id !== 'string' || !accountPattern.test(id))) throw new Error('Invalid synchronization account UUID.');
+  config.syncRevisions ??= {};
+  if (!config.syncRevisions || typeof config.syncRevisions !== 'object' || Array.isArray(config.syncRevisions)
+      || Object.entries(config.syncRevisions).some(([id, revision]) => !accountPattern.test(id) || typeof revision !== 'string' || !/^[0-9a-f]{64}$/u.test(revision))) {
+    throw new Error('Invalid synchronization revision settings.');
+  }
   config.datasetGeneration ??= 0;
   if (!Number.isSafeInteger(config.datasetGeneration) || config.datasetGeneration < 0) throw new Error('Invalid dataset generation.');
   config.layoutVersion = 1;
@@ -161,24 +174,35 @@ function summary(root) {
   return { count, from, to, hasData };
 }
 function queueBaseline(root) {
+  const validate = (name, contents) => {
+    const value = JSON.parse(contents.replace(/^\uFEFF/u, ''));
+    if (name === 'prefs/global.json' || name === 'interface.json') delete value.window;
+    const uuid = randomUUID();
+    const transaction = { uuid, name: '2000-01-01T00-00-00.000000Z-' + uuid + '.json',
+      type: 'create', data: { path: name, value } };
+    validateTransaction(root, transaction);
+    return JSON.stringify(value);
+  };
   // A historical installation may contain records predating its transaction journal.
   // Each file is a separate small transaction, so a large history is uploadable in batches.
+  const baselinePath = /^(?:profiles\/(?:profil-[^/]+|[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12})\.json|devices\/[^/]+\.json|measures\/[^/]+\/[^/]+\.json|prefs\/(?:global|profil[-~][^/]+|(?:measurements|measurement-details)\/[^/]+)\.json|notifications\/[^/]+\.json)$/u;
   function visit(directory, relative) {
     if (!exists(directory)) return;
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name), name = relative ? relative + '/' + entry.name : entry.name;
       if (entry.isSymbolicLink()) throw new Error('Unexpected dataset symlink.');
       if (entry.isDirectory()) visit(path, name);
-      else if (entry.isFile() && name.endsWith('.json')) {
-        let contents = fs.readFileSync(path, 'utf8');
-        if (name === 'prefs/global.json') {
-          const value = JSON.parse(contents); delete value.window; contents = JSON.stringify(value);
-        }
+      else if (entry.isFile() && baselinePath.test(name)) {
+        const contents = validate(name, fs.readFileSync(path, 'utf8'));
         recordTransaction(root, [{ path: name, after: contents }]);
       }
     }
   }
   for (const folder of ['profiles', 'devices', 'measures', 'prefs', 'notifications']) visit(join(root, folder), folder);
+  for (const name of ['interface.json', 'session.json']) {
+    const path = join(root, name);
+    if (exists(path)) recordTransaction(root, [{ path: name, after: validate(name, fs.readFileSync(path, 'utf8')) }]);
+  }
 }
 
 function getDatasetContext(root) {
@@ -187,7 +211,9 @@ function getDatasetContext(root) {
   const datasetId = locked ? null : config.activeAccountId ?? 'local';
   return { activeAccountId: config.activeAccountId, accountModeEnabled: config.accountModeEnabled,
     locked, datasetId, datasetGeneration: config.datasetGeneration,
-    syncReady: config.syncReadyAccountIds.includes(config.activeAccountId), localSummary: summary(join(root, 'local')) };
+    syncReady: config.syncReadyAccountIds.includes(config.activeAccountId),
+    ...(config.syncRevisions[config.activeAccountId] && { syncRevision: config.syncRevisions[config.activeAccountId] }),
+    localSummary: summary(join(root, 'local')) };
 }
 function resolveActiveDataset(root, expectedDatasetId, expectedGeneration) {
   const context = getDatasetContext(root);
@@ -197,7 +223,7 @@ function resolveActiveDataset(root, expectedDatasetId, expectedGeneration) {
     throw Object.assign(new Error('The active dataset changed.'), { code: 'dataset_changed' });
   }
   const target = context.activeAccountId ? join(root, 'accounts', context.activeAccountId) : join(root, 'local');
-  safeTree(target);
+  safeDirectory(target); safeTree(target);
   if (context.activeAccountId && !exists(target)) throw new Error('The selected account dataset is missing.');
   return target;
 }
@@ -205,9 +231,9 @@ function prepareAccountDataset(root, accountId) {
   validAccount(accountId);
   const context = getDatasetContext(root);
   const target = join(root, 'accounts', accountId);
-  safeTree(target);
+  safeDirectory(target); safeTree(target);
   return { ...context, accountExists: exists(target), accountSummary: summary(target),
-    syncReady: settings(root).syncReadyAccountIds.includes(accountId) };
+    syncReady: settings(root).syncReadyAccountIds.includes(accountId), syncRevision: settings(root).syncRevisions[accountId] };
 }
 
 // Async web callers import validated remote files into stage.root before commit().
@@ -226,20 +252,24 @@ function fingerprint(root) {
   }
   visit(root); return hash.digest('hex');
 }
-function stageAccountDataset(root, accountId, mode, syncReady = false) {
+function stageAccountDataset(root, accountId, mode, syncReady = false, syncRevision) {
+  if (syncRevision !== undefined && (typeof syncRevision !== 'string' || !/^[0-9a-f]{64}$/u.test(syncRevision))) throw new Error('Invalid synchronization revision.');
   validAccount(accountId);
   if (!['attach', 'merge', 'remote', 'existing'].includes(mode)) throw new Error('Invalid account activation mode.');
   const config = initializeInstallation(root);
   const target = join(root, 'accounts', accountId);
+  safeDirectory(target);
   const replacing = exists(target);
   if (replacing && !['remote', 'merge'].includes(mode)) {
     if (mode !== 'existing') throw new Error('This account already has a local dataset.');
     return { root: target, commit: () => {
       const current = settings(root);
-      if (current.datasetGeneration !== config.datasetGeneration) throw new Error('The active dataset changed.');
+      if (current.datasetGeneration !== config.datasetGeneration || current.activeAccountId !== config.activeAccountId
+          || current.accountModeEnabled !== config.accountModeEnabled) throw new Error('The active dataset changed.');
       const ready = syncReady ? [...new Set([...current.syncReadyAccountIds, accountId])] : current.syncReadyAccountIds;
       save(root, { ...current, activeAccountId: accountId, accountModeEnabled: true,
-        datasetGeneration: current.datasetGeneration + 1, syncReadyAccountIds: ready });
+        datasetGeneration: current.datasetGeneration + 1, syncReadyAccountIds: ready,
+        syncRevisions: { ...current.syncRevisions, ...(syncRevision && { [accountId]: syncRevision }) } });
       return getDatasetContext(root);
     }, abort() {} };
   }
@@ -250,32 +280,36 @@ function stageAccountDataset(root, accountId, mode, syncReady = false) {
   const source = replacing ? target : attachAnonymous ? anonymous : undefined;
   const sourceFingerprint = source ? fingerprint(source) : undefined;
   fs.mkdirSync(temporary, { recursive: true });
-  if (attachAnonymous && mode === 'attach') {
-    safeTree(anonymous);
-    fs.cpSync(anonymous, temporary, { recursive: true, force: false });
-    queueBaseline(temporary);
-  }
+  try {
+    if (attachAnonymous && mode === 'attach') {
+      safeTree(anonymous);
+      fs.cpSync(anonymous, temporary, { recursive: true, force: false });
+      queueBaseline(temporary);
+    }
+  } catch (error) { fs.rmSync(temporary, { recursive: true, force: true }); throw error; }
   let committed = false;
   return { root: temporary, commit() {
     if (committed) throw new Error('Dataset stage already committed.');
     safeTree(temporary);
     if (source && fingerprint(source) !== sourceFingerprint) throw Object.assign(new Error('The dataset changed while preparing this operation.'), { code: 'dataset_changed' });
     const current = settings(root);
-    if (current.datasetGeneration !== config.datasetGeneration) throw new Error('The active dataset changed.');
+    if (current.datasetGeneration !== config.datasetGeneration || current.activeAccountId !== config.activeAccountId
+        || current.accountModeEnabled !== config.accountModeEnabled) throw new Error('The active dataset changed.');
     fs.mkdirSync(dirname(target), { recursive: true });
     const ready = syncReady ? [...new Set([...current.syncReadyAccountIds, accountId])] : current.syncReadyAccountIds;
     const next = { ...current, activeAccountId: accountId, accountModeEnabled: true,
-      datasetGeneration: current.datasetGeneration + 1, syncReadyAccountIds: ready };
+      datasetGeneration: current.datasetGeneration + 1, syncReadyAccountIds: ready,
+      syncRevisions: { ...current.syncRevisions, ...(syncRevision && { [accountId]: syncRevision }) } };
+    if (attachAnonymous) next.pendingAnonymousBackup = 'anonymous-' + randomUUID();
     let backup;
     if (replacing) {
       backup = join(root, 'backups', 'account-' + accountId + '-' + randomUUID());
       fs.mkdirSync(dirname(backup), { recursive: true });
-      write(join(root, 'replacement.json'), { accountId, temporary: require('node:path').basename(temporary),
-        backup: require('node:path').basename(backup), nextConfig: next });
-      fs.renameSync(target, backup);
     }
+    write(join(root, 'replacement.json'), { accountId, temporary: require('node:path').basename(temporary),
+      backup: backup ? require('node:path').basename(backup) : null, nextConfig: next });
+    if (backup) fs.renameSync(target, backup);
     fs.renameSync(temporary, target);
-    if (attachAnonymous) next.pendingAnonymousBackup = 'anonymous-' + randomUUID();
     try { save(root, next); }
     catch (error) {
       fs.renameSync(target, temporary);
@@ -333,8 +367,8 @@ function mergeAccountIntoStage(root, accountId, stageRoot) {
   if (!exists(source)) throw new Error('The account dataset does not exist.');
   mergeSourceIntoStage(root, source, stageRoot);
 }
-function activateAccountDataset(root, accountId, mode, syncReady = false) {
-  const stage = stageAccountDataset(root, accountId, mode, syncReady);
+function activateAccountDataset(root, accountId, mode, syncReady = false, syncRevision) {
+  const stage = stageAccountDataset(root, accountId, mode, syncReady, syncRevision);
   try { return stage.commit(); }
   catch (error) { stage.abort(); throw error; }
 }
@@ -352,7 +386,16 @@ function markDatasetSyncReady(root, accountId) {
   return getDatasetContext(root);
 }
 
-const lockedMethods = { markDatasetSyncReady, initializeInstallation, getDatasetContext, resolveActiveDataset,
+function confirmDatasetSync(root, accountId, generation) {
+  validAccount(accountId);
+  const config = initializeInstallation(root);
+  if (config.activeAccountId !== accountId || config.datasetGeneration !== generation) {
+    throw Object.assign(new Error('The active dataset changed.'), { code: 'dataset_changed' });
+  }
+  delete config.syncRevisions[accountId]; save(root, config);
+  return getDatasetContext(root);
+}
+const lockedMethods = { confirmDatasetSync, markDatasetSyncReady, initializeInstallation, getDatasetContext, resolveActiveDataset,
   prepareAccountDataset, mergeAnonymousIntoStage, mergeAccountIntoStage, activateAccountDataset, logoutDataset };
 module.exports = Object.fromEntries(Object.entries(lockedMethods).map(([name, method]) =>
   [name, (root, ...args) => withInstallationLock(root, () => method(root, ...args))]));
