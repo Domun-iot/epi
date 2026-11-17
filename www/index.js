@@ -8,6 +8,12 @@ import { referenceTitle, renderHome, renderReference } from './features.js';
 import { isMailbox, readAccountEmail, saveDeletionMail } from './deletion-mail.js';
 
 const base = '/epi';
+const playUrl = 'https://play.google.com/store/apps/details?id=fr.epi.balance';
+const playIcon = '<img src="' + base + '/assets/google-play.svg" alt="" width="24" height="24">';
+const homeActionsCopy = {
+  fr: ['Télécharger sur', 'Gratuite et sans pub', 'Découvrir la version Pro', 'Synchronisation, vues enregistrées et sauvegardes ZIP'],
+  en: ['Get it on', 'Free and ad-free', 'Explore the Pro version', 'Sync, saved views and ZIP backups'],
+};
 const illustratedPages = new Set(['home', 'pro']);
 const routes = new Map([
   [base, 'home'],
@@ -27,6 +33,7 @@ const assets = new Map(Object.entries({
   'style.css': 'text/css; charset=utf-8',
   'scenes.js': 'text/javascript; charset=utf-8',
   'epi.svg': 'image/svg+xml',
+  'google-play.svg': 'image/svg+xml',
   'chart.jpg': 'image/jpeg',
 }).map(([name, type]) => [base + '/assets/' + name, {
   type, body: readFileSync(new URL('./public/' + name, import.meta.url)),
@@ -61,6 +68,18 @@ function renderDeletionForm(t, deletion, status) {
     '<button class="button" type="submit">' + t.send + '</button></form>';
 }
 
+function renderHomeActions(locale) {
+  const language = locale.startsWith('fr-') ? 'fr' : 'en';
+  const [download, free, pro, benefits] = homeActionsCopy[language];
+  return '<div class="home-actions" lang="' + language + '">' +
+    '<a class="home-action home-download" href="' + playUrl + '">' + playIcon +
+    '<span><small>' + download + '</small><strong>Google Play</strong><span>' + free + '</span></span>' +
+    '<span class="home-action-arrow" aria-hidden="true">↗</span></a>' +
+    '<a class="home-action home-pro" href="' + base + '/pro"><span class="pro-badge" aria-hidden="true">PRO</span>' +
+    '<span><strong>' + pro + '</strong><span>' + benefits + '</span></span>' +
+    '<span class="home-action-arrow" aria-hidden="true">→</span></a></div>';
+}
+
 function render(path, page, locale, retention, status, prices) {
   const t = catalog[locale];
   const privacy = base + '/privacy-policy';
@@ -73,8 +92,7 @@ function render(path, page, locale, retention, status, prices) {
     scales: referenceTitle('scales', locale), methods: referenceTitle('methods', locale),
   };
   const content = {
-    home: () => renderHome(base, t, locale, escape) + '<p><a class="button" href="' + base + '/pro">' +
-      escape(planCopy(locale).title) + '</a></p>',
+    home: () => renderHome(base, t, locale, escape) + renderHomeActions(locale),
     pro: () => renderPro(base, locale, prices, escape),
     scales: () => renderReference(base, page, locale, escape),
     methods: () => renderReference(base, page, locale, escape),
@@ -88,14 +106,18 @@ function render(path, page, locale, retention, status, prices) {
       '<p><a href="https://logisan.fr/mentions-legales/">Logisan</a></p>',
     missing: () => '<h1>404</h1><p><a href="' + base + '">éPI</a></p>',
   };
-  return '<!doctype html><html lang="' + locale + '"><head><meta charset="utf-8">' +
+  const home = page === 'home';
+  return '<!doctype html><html lang="' + locale + '"' + (home ? ' class="home-page"' : '') +
+    '><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1"><title>' + titles[page] +
     ' | éPI</title><link rel="icon" href="' + base + '/assets/epi.svg"><link rel="stylesheet" href="' +
     stylePath + '?v=' + styleVersion + '">' +
     (illustratedPages.has(page) ? '<script defer src="' + scenesPath + '?v=' + scenesVersion + '"></script>' : '') +
     '</head><body><header><a class="brand" href="' + base +
     '"><img src="' + base + '/assets/epi.svg" alt="" width="35" height="35">éPI</a>' +
-    renderLanguagePicker(path, locale) + '</header>' +
+    '<div class="header-actions">' + (home ? '<a class="header-play" href="' + playUrl +
+      '" aria-label="éPI · Google Play" title="Google Play">' + playIcon + '</a>' : '') +
+    renderLanguagePicker(path, locale) + '</div></header>' +
     '<main' + (illustratedPages.has(page) ? '' : ' class="document"') + '>' + content[page]() + '</main>' +
     '<footer><span><a href="https://domun.eu/">Domun</a> by <a href="https://logisan.fr/">Logisan</a></span><nav><a href="' + privacy + '">' + t.privacy +
     '</a><a href="' + deletion + '">' + t.deletion + '</a><a href="' + base + '/legal-notice">' + t.legal +

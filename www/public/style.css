@@ -12,7 +12,28 @@ header, footer { display: flex; align-items: center; justify-content: space-betw
 header { padding-block: 1.1rem; border-bottom: 1px solid #cbd3c8; }
 .brand { display: inline-flex; align-items: center; gap: .65rem; font-size: 1.45rem; font-weight: 750; text-decoration: none; }
 .brand img { background: #173c36; padding: .2rem; border-radius: .65rem; }
-.languages { position: relative; }
+.header-actions { display: flex; align-items: center; gap: .55rem; min-width: 0; }
+.header-play { display: grid; flex: none; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: .65rem; background: #173c36; }
+.header-play:hover { background: #255d51; }
+.home-page { scroll-padding-block: 4.25rem 6rem; }
+.home-page body > :is(header, footer) {
+  position: sticky;
+  width: 100%;
+  padding-inline: max(1.25rem, (100% - 70rem) / 2);
+  background: #f6f5ef;
+}
+.home-page body > header { top: 0; z-index: 3; padding-block: .55rem; }
+.home-page body > footer {
+  bottom: 0;
+  z-index: 2;
+  padding-block: .5rem max(.5rem, env(safe-area-inset-bottom));
+  gap: .2rem 1rem;
+}
+.home-page footer nav { gap: .12rem .9rem; }
+.home-page footer a { display: inline-block; padding-block: .18rem; }
+.languages { position: relative; min-width: 0; }
+.header-actions summary > span[lang] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.languages summary::after { flex: none; }
 .languages summary {
   display: flex;
   gap: .55rem;
@@ -438,6 +459,47 @@ footer nav { display: flex; gap: .7rem 1.3rem; flex-wrap: wrap; }
 .reference-list > div { padding-bottom: .65rem; border-bottom: 1px solid #cbd3c8; }
 .reference-list dt { font-weight: 700; }
 .reference-list dd { margin-inline-start: 0; }
+.home-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .8rem;
+  padding: clamp(.7rem, 2.3vw, 1.4rem);
+  margin-block: 0 clamp(2rem, 6vw, 4rem);
+  border: 1px solid #cbd3c8;
+  border-radius: 1.5rem;
+  background: #e4ece3;
+}
+.home-action {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(.75rem, 2vw, 1.2rem);
+  padding: clamp(.9rem, 3vw, 1.45rem);
+  border: 1px solid transparent;
+  border-radius: 1rem;
+  text-decoration: none;
+}
+.home-action :is(strong, small, span > span) { display: block; }
+.home-action strong { font-size: clamp(1.15rem, 2.35vw, 1.55rem); line-height: 1.2; }
+.home-action span > span { margin-top: .35rem; font-size: .9rem; }
+.home-action-arrow { font-size: 1.4rem; line-height: 1; }
+.home-download { background: #173c36; color: #fff; }
+.home-download:hover { background: #255d51; }
+.home-download img { width: clamp(1.5rem, 3.2vw, 2rem); height: auto; }
+.home-download span > span { color: #dbe9df; }
+.home-pro { border-color: #aec1b3; background: #fffdf7; color: #173c36; }
+.home-pro:hover { background: #f0f6eb; border-color: #789688; }
+.home-pro .pro-badge { margin: 0; }
+@media (max-width: 42rem) {
+  .home-actions { grid-template-columns: minmax(0, 1fr); }
+  .home-page { scroll-padding-bottom: 7.5rem; }
+  .home-page body > footer { font-size: .82rem; }
+}
+@media (max-width: 34rem) {
+  .home-page body > header { flex-wrap: nowrap; gap: .5rem; }
+  .header-actions .languages summary { gap: .35rem; padding-inline: .45rem; }
+  .header-actions summary > span[lang] { max-width: 6.5rem; }
+}
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
 }
