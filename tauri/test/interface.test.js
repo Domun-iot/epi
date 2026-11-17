@@ -1332,7 +1332,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   const sectionOrder = () => sectionHeaders.evaluateAll(nodes => nodes.map(node => node.parentElement.dataset.detailSection));
   await sectionHeaders.filter({ hasText: 'Fiche de la balance à la pesée' })
     .dragTo(sectionHeaders.filter({ hasText: 'Méthodes de calcul' }));
-  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile', 'extra:createdAt']);
+  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
   assert.equal(await legend.first().isVisible(), true);
   const fatRow = comparison.getByRole('row').filter({ hasText: 'Masse grasse (%)' });
   assert.equal(await fatRow.getByRole('cell').first().textContent(), '32,5');
@@ -1360,7 +1360,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await table.getByRole('columnheader', { name: 'Deu', exact: true }).waitFor();
   await table.getByRole('button', { name: /^Voir la pesée du/ }).click();
   assert.deepEqual(await methodHeaders.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['Deu', 'IMC', 'Mi']);
-  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile', 'extra:createdAt']);
+  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
   await page.getByRole('button', { name: 'Retour' }).click();
   assert.deepEqual(await columnOrder(), ['date', 'fatPercent', 'weight', 'bmi']);
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
@@ -1889,14 +1889,14 @@ test('le toucher réordonne l’historique, les méthodes et les sections du dé
   await section('methods').click();
   await touchDrag(client, section('device'), section('methods'));
   const sectionOrder = () => page.locator('[data-detail-section]').evaluateAll(nodes => nodes.map(node => node.dataset.detailSection));
-  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile', 'extra:createdAt']);
+  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
   assert.equal(await section('device').evaluate(summary => summary.parentElement.open), false);
   await section('device').click();
   assert.equal(await section('device').evaluate(summary => summary.parentElement.open), true);
   await page.reload();
   await openReading.tap();
   assert.deepEqual(await headers.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['Deu', 'IMC', 'Mi']);
-  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile', 'extra:createdAt']);
+  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
 });
 
 test('les volets du flux brut et des détails sont mémorisés par profil', async t => {
@@ -1953,7 +1953,10 @@ test('dates selon la locale active et conservation de la date de naissance et de
   assert.equal(await page.locator('html').getAttribute('lang'), 'en-GB');
   assert.match(await page.locator('.measurement-summary .muted').innerText(), /09:23$/);
   await page.getByRole('button', { name: /View weigh-in from 15\/01\/2026, 09:23:21/ }).click();
-  assert.match(await page.locator('.measurement-details > p').innerText(), /09:23$/);
+  assert.match(await page.locator('.measurement-details > p').first().innerText(), /09:23$/);
+  assert.match(await page.locator('.measurement-created-on').textContent(), /^Created on : 15\/01\/2026, 09:23:21/);
+  await page.locator('[data-detail-section="reception"] > summary').click();
+  await page.locator('[data-detail-section="profile"] > summary').click();
   await page.getByText(/^08\/03\/2026, 02:15:00/).waitFor();
   await page.getByText('05/01/1980', { exact: true }).waitFor();
   await choosePage(page, 'Profiles');
@@ -2542,7 +2545,7 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   assert.match(await saved.innerText(), /\d{1,2}:\d{2}:\d{2}/);
   await saved.click();
   await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
-  assert.match(await page.locator('.measurement-details > p').innerText(), /\d{1,2}:\d{2}:\d{2}/);
+  assert.match(await page.locator('.measurement-details > p').first().innerText(), /\d{1,2}:\d{2}:\d{2}/);
   await choosePage(page, 'Mesures');
   await page.getByRole('button', { name: /Voir la pesée du/ }).first().click();
   await page.locator('#detail-actions').getByRole('button', { name: 'Supprimer', exact: true }).click();
@@ -3016,11 +3019,15 @@ test('weigh-in details show calculated impedance below the table only when no me
     const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [row] });
     await page.locator('.reading-date').click();
     await page.locator('.measurement-details').waitFor();
+    const createdOn = page.locator('.measurement-created-on');
+    assert.match(await createdOn.textContent(), /^Créé le : /);
+    assert.equal(await page.locator('.measurement-created-on + details').count(), 1);
+    assert.equal(await page.locator('[data-detail-section="extra:createdAt"]').count(), 0);
     const note = page.locator('.calculated-impedance');
     assert.equal(await note.count(), expected ? 1 : 0);
     if (expected) {
       assert.equal(await note.textContent(), 'Impédance calculée à partir du pourcentage de masse grasse : 512,3 Ω.');
-      assert.equal(await page.locator('.comparison-scroll + .calculated-impedance + details').count(), 1);
+      assert.equal(await page.locator('.comparison-scroll + .calculated-impedance + .measurement-created-on + details').count(), 1);
       assert.equal(await page.locator('.measurement-details details[open]').count(), 0);
     }
   }

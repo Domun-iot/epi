@@ -204,6 +204,8 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
     && composition.impedanceValue(row) != null
     ? `<p class="muted calculated-impedance">${htmlText('impedanceCalculatedFromBodyFat', [number(composition.impedanceValue(row))])}</p>` : '';
   const readings = `<p><strong>${weight(measures)}</strong> · ${formatReadingDate(row.receivedAt)}</p>`;
+  const createdOn = row.createdAt != null
+    ? `<p class="muted measurement-created-on">${htmlText('createdOn')} : ${e(formatDate(row.createdAt))}</p>` : '';
   const comparison = activeMethods.length ? `<div class="panel table-scroll pinned-header comparison-scroll" role="region" aria-label="${htmlText('comparisonOfMethods')}" tabindex="0">
     <table aria-label="${htmlText('comparisonOfMethods')}"${defaultOrder(methodColumnOrder)}><thead><tr><th scope="col">${htmlText('measurementField')}</th><th scope="col">${htmlText('average')}</th>${activeMethods.map(method => methodHeader(method, columnDrag(method.id))).join('')}</tr></thead>
     <tbody>${METRICS.filter(([id]) => activeMethods.some(method => Number.isFinite(row.calculations?.[method.id]?.[id])))
@@ -234,18 +236,18 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
     ]), false],
     ['device', t('scaleAtWeighIn'), row.device && pairs([[t('name'), deviceName(row.device)], ...deviceFields(row.device)]), false],
   ];
-  const known = new Set(['uuid', 'profileUuid', 'deviceUuid', 'receivedAt', 'profile', 'device', 'measures', 'calculations', 'reception']);
+  const known = new Set(['uuid', 'profileUuid', 'deviceUuid', 'receivedAt', 'createdAt', 'profile', 'device', 'measures', 'calculations', 'reception']);
   if (!row.measures) for (const key of ['weight', 'unit', 'impedanceOhms']) known.add(key);
   const jsonNumber = new Intl.NumberFormat("en-US", { useGrouping: false, maximumFractionDigits: 1 });
   for (const [key, value] of Object.entries(row)) {
     if (known.has(key) || value == null) continue;
-    const json = key === 'createdAt' || key === 'updatedAt' ? formatDate(value)
+    const json = key === 'updatedAt' ? formatDate(value)
       : JSON.stringify(value, (_key, field) => typeof field === "number" ? Number(jsonNumber.format(field)) : field, 2);
     sections.push(['extra:' + key, key, `<pre>${e(json)}</pre>`, false]);
   }
   const bySection = new Map(sections.filter(([, , body]) => body).map(([id, ...section]) => [id, section]));
   const orderedSections = [...new Set([...sectionOrder, ...bySection.keys()])].filter(id => bySection.has(id));
-  const content = `<div class="measurement-details"${defaultOrder(sections.map(([id]) => id))}>${readings}${comparison}${calculatedImpedance}${orderedSections.map(id => {
+  const content = `<div class="measurement-details"${defaultOrder(sections.map(([id]) => id))}>${readings}${comparison}${calculatedImpedance}${createdOn}${orderedSections.map(id => {
       const [title, body, defaultOpen] = bySection.get(id);
       const open = sectionsOpen[id] ?? defaultOpen;
       return `<details data-detail-section="${e(id)}"${open ? ' open' : ''}><summary>${e(title)}</summary>${body}</details>`;
