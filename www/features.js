@@ -75,8 +75,6 @@ export function renderReference(base, page, locale, escape) {
     calculationMethods.map(([metric, ...sources]) => row(sources.map(([name, url]) =>
       '<a href="' + url + '">' + escape(name) + '</a>').join(' · '), copy.methods[metric])).join('') +
     '</dl>' + paragraph(copy.impedance);
-  const anchor = page === 'scales' ? 'bluetooth' : 'composition';
-  return '<div lang="' + lang + '"><a class="back-link" href="' + base + '#' + anchor +
-    '"><span aria-hidden="true">← </span>' + escape(copy.back) + '</a><h1>' +
+  return '<div lang="' + lang + '"><h1>' +
     escape(referenceTitle(page, locale)) + '</h1>' + (page === 'scales' ? scales() : methods()) + '</div>';
 }

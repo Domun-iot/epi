@@ -6,10 +6,9 @@ import { formatCatalog, loadPrices, planCopy, planLanguage, renderPro } from './
 import { catalog, locales, selectLocale } from './locales.js';
 import { referenceTitle, renderHome, renderReference } from './features.js';
 import { isMailbox, readAccountEmail, saveDeletionMail } from './deletion-mail.js';
+import { flags, playIcon, playUrl, renderFooter, renderHeader } from './layout.js';
 
 const base = '/epi';
-const playUrl = 'https://play.google.com/store/apps/details?id=fr.epi.balance';
-const playIcon = '<img src="' + base + '/assets/google-play.svg" alt="" width="24" height="24">';
 const homeActionsCopy = {
   fr: ['Télécharger sur', 'Gratuite et sans pub', 'Découvrir la version Pro', 'Synchronisation, vues enregistrées et sauvegardes ZIP'],
   en: ['Get it on', 'Free and ad-free', 'Explore the Pro version', 'Sync, saved views and ZIP backups'],
@@ -24,10 +23,6 @@ const routes = new Map([
   [base + '/delete-account', 'deletion'],
   [base + '/legal-notice', 'legal'],
 ]);
-const flagOverrides = { cs: 'cz', da: 'dk', el: 'gr', et: 'ee', ga: 'ie', sl: 'si', sv: 'se' };
-const flags = Object.fromEntries(Object.keys(locales).map(locale =>
-  [locale, flagOverrides[locale] ?? locale.split('-').at(-1).toLowerCase()],
-));
 const assets = new Map(Object.entries({
   ...Object.fromEntries(Object.values(flags).map(code => ['flags/' + code + '.svg', 'image/svg+xml'])),
   'style.css': 'text/css; charset=utf-8',
@@ -49,15 +44,6 @@ const escape = value => value.replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[character]);
 
-function renderLanguagePicker(path, locale) {
-  const label = key => '<img class="flag" src="' + base + '/assets/flags/' + flags[key] +
-    '.svg" alt="" width="20" height="15"><span lang="' + key + '">' + locales[key] + '</span>';
-  const links = Object.keys(locales).map(key => '<li><a href="' + path + '?lang=' + key + '"' +
-    (key === locale ? ' aria-current="true"' : '') + '>' + label(key) + '</a></li>').join('');
-  return '<details class="languages"><summary><span class="sr-only">' + catalog[locale].language +
-    ' </span>' + label(locale) + '</summary><ul class="language-options">' + links + '</ul></details>';
-}
-
 function renderDeletionForm(t, deletion, status) {
   if (status === 'submitted') return '<p role="status">' + t.submitted + '</p>';
   return '<p>' + t.request + '</p>' +
@@ -72,7 +58,7 @@ function renderHomeActions(locale) {
   const language = locale.startsWith('fr-') ? 'fr' : 'en';
   const [download, free, pro, benefits] = homeActionsCopy[language];
   return '<div class="home-actions" lang="' + language + '">' +
-    '<a class="home-action home-download" href="' + playUrl + '">' + playIcon +
+    '<a class="home-action home-download" href="' + playUrl + '">' + playIcon(base) +
     '<span><small>' + download + '</small><strong>Google Play</strong><span>' + free + '</span></span>' +
     '<span class="home-action-arrow" aria-hidden="true">↗</span></a>' +
     '<a class="home-action home-pro" href="' + base + '/pro"><span class="pro-badge" aria-hidden="true">PRO</span>' +
@@ -113,15 +99,9 @@ function render(path, page, locale, retention, status, prices) {
     ' | éPI</title><link rel="icon" href="' + base + '/assets/epi.svg"><link rel="stylesheet" href="' +
     stylePath + '?v=' + styleVersion + '">' +
     (illustratedPages.has(page) ? '<script defer src="' + scenesPath + '?v=' + scenesVersion + '"></script>' : '') +
-    '</head><body><header><a class="brand" href="' + base +
-    '"><img src="' + base + '/assets/epi.svg" alt="" width="35" height="35">éPI</a>' +
-    '<div class="header-actions">' + (home ? '<a class="header-play" href="' + playUrl +
-      '" aria-label="éPI · Google Play" title="Google Play">' + playIcon + '</a>' : '') +
-    renderLanguagePicker(path, locale) + '</div></header>' +
+    '</head><body>' + renderHeader(base, path, locale, home) +
     '<main' + (illustratedPages.has(page) ? '' : ' class="document"') + '>' + content[page]() + '</main>' +
-    '<footer><span><a href="https://domun.eu/">Domun</a> by <a href="https://logisan.fr/">Logisan</a></span><nav><a href="' + privacy + '">' + t.privacy +
-    '</a><a href="' + deletion + '">' + t.deletion + '</a><a href="' + base + '/legal-notice">' + t.legal +
-    '</a></nav></footer></body></html>';
+    renderFooter(base, locale) + '</body></html>';
 }
 
 export function createSite({
