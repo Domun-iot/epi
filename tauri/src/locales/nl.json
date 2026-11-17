@@ -437,5 +437,8 @@
   "manualProfileMissing": "Het gekozen profiel bestaat niet meer. Kies een ander profiel.",
   "manualDuplicate": "Er bestaat al een weging voor dit profiel op deze datum en tijd.",
   "manualDateBeforeBirth": "De datum van de weging mag niet vóór de geboortedatum liggen.",
-  "estimatedImpedance": "Geschatte impedantie: {0} Ω"
+  "estimatedImpedance": "Geschatte impedantie: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Impedantie berekend uit het lichaamsvetpercentage: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Voor deze weging is geen berekende impedantie beschikbaar. Opgegeven lichaamsvet: {0}%. De schattingen in de tabel kunnen van deze waarde afwijken.",
+  "impedanceApproximation": "Dichtstbijzijnde benadering: opgegeven lichaamsvet {0}%, berekend {1}% (verschil: {2} procentpunt)."
 }

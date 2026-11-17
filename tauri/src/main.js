@@ -75,6 +75,7 @@ let session;
 let state = { profiles: [], devices: [], measurements: [], pending: [], notifications: [] };
 let rows = [];
 let reading = null;
+let highlightedMeasurement = null;
 let historyScroll;
 let columnQuery = '';
 let chartSelection;
@@ -116,6 +117,7 @@ window.addEventListener('epi:dataset-reset', event => {
   previousAcquisitionError = undefined;
   notificationId = null;
   reading = null;
+  highlightedMeasurement = null;
   rows = [];
   historyScroll = undefined;
   scrollBeforeEditor = undefined;
@@ -185,7 +187,10 @@ function renderProfilePicker() {
 function renderEditorView() {
   const editing = !editorView.hidden;
   previewDeviceCapture = undefined;
-  if (editing) scrollBeforeEditor ??= viewScroll.scrollTop;
+  if (editing) {
+    highlightedMeasurement = null;
+    scrollBeforeEditor ??= viewScroll.scrollTop;
+  }
   for (const element of [viewHeader, viewContent]) element.hidden = editing;
   pendingActions.inert = editing;
   render();
@@ -193,12 +198,14 @@ function renderEditorView() {
   if (!editing) {
     scrollBeforeEditor = undefined;
     if (reading && currentPage() === 'measurements') backButton.focus({ preventScroll: true });
+    if (highlightedMeasurement) focusSavedMeasurement();
   }
 }
 
 function render() {
   importButton.hidden = exportButton.hidden = state.proViews === false;
   const page = currentPage();
+  if (page !== 'measurements' || reading) highlightedMeasurement = null;
   renderProfilePicker();
   renderTheme();
   if (page === 'bluetooth') statusLink.setAttribute('aria-current', 'page');
@@ -231,7 +238,7 @@ function render() {
   const layoutKey = layout ? [layout.presets, layout.preset, layout.modified, ...Object.values(layout.layout)] : [];
   const nextMain = page === 'bluetooth' ? [page, state.addressFilter, state.devices, session?.web]
     : detail ? [page, detail, state.selectedProfile, ...layoutKey] : [page, state.selectedProfile, ...(page === 'measurements'
-    ? [state.measurements, state.measurementDisplay, state.chartOptions?.mode, state.chartOptions?.period,
+    ? [state.measurements, highlightedMeasurement, state.measurementDisplay, state.chartOptions?.mode, state.chartOptions?.period,
       ...(state.chartOptions?.range ?? []), ...(state.chartLastRange ?? []), ...Object.values(state.chartSeries ?? {}), ...layoutKey]
     : page === 'profiles' ? [state.profiles] : page === 'devices' ? [state.devices, state.addressFilter]
       : [state.notifications, notificationId, state.devices, target?.record])];
@@ -269,7 +276,8 @@ function render() {
     const focusedPresetAction = active?.closest('.view-preset-header') && active.dataset.action;
     const markup = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder,
-        columnsOpen, columnQuery, header, state.measurementDisplay, { ...state.chartOptions, lastRange: state.chartLastRange, statuses: state.chartSeries })
+        columnsOpen, columnQuery, header, highlightedMeasurement ? 'table' : state.measurementDisplay,
+        { ...state.chartOptions, lastRange: state.chartLastRange, statuses: state.chartSeries }, highlightedMeasurement)
       : page === 'profiles' ? profilesView(state.profiles, state.selectedProfile)
       : page === 'devices' ? devicesView(state.devices, state.addressFilter, state.rawOpen, !session?.web)
       : page === 'bluetooth' ? bluetoothView(state, session?.web)
@@ -443,7 +451,7 @@ function onState(next, context) {
   if (next.acquisitionError && next.acquisitionError !== previousAcquisitionError) showError(next.acquisitionError);
   previousAcquisitionError = next.acquisitionError;
   previewDeviceCapture?.(state.pending);
-  if (savedMeasurement) openMeasurement(savedMeasurement);
+  if (savedMeasurement) showSavedMeasurement(savedMeasurement);
   else render();
   renderFrames();
 }
@@ -472,6 +480,23 @@ function go(page, uuid) {
   const fragment = uuid ? `${page}/${uuid}` : page;
   if (window.location.hash !== '#' + fragment) window.location.hash = fragment;
   else if (uuid) focusRecord();
+}
+
+function showSavedMeasurement(row) {
+  if (currentPage() !== 'measurements') window.history.pushState(null, '', '#measurements');
+  reading = null;
+  historyScroll = undefined;
+  highlightedMeasurement = row.uuid;
+  if (!editorView.hidden) scrollBeforeEditor = 0;
+  render();
+  viewScroll.scrollTop = 0;
+  if (editorView.hidden) focusSavedMeasurement();
+}
+
+function focusSavedMeasurement() {
+  const savedRow = view.querySelector('.measurement-new');
+  savedRow?.querySelector('.reading-date')?.focus({ preventScroll: true });
+  savedRow?.scrollIntoView({ block: 'nearest' });
 }
 
 function openMeasurement(row) {
@@ -692,8 +717,11 @@ const actions = {
   'chart-mode': mode => session.setChartOptions(state.selectedProfile,
     state.viewLayouts.measurements.preset?.id ?? null, { mode }),
   'chart-axis': id => session.cycleChartSeries(state.selectedProfile, state.viewLayouts.measurements.preset?.id ?? null, id),
-  'measurement-display': display => session.setMeasurementDisplay(state.selectedProfile, display,
-    state.viewLayouts.measurements.preset?.id ?? null),
+  'measurement-display': display => {
+    if (display === 'chart') highlightedMeasurement = null;
+    return session.setMeasurementDisplay(state.selectedProfile, display,
+      state.viewLayouts.measurements.preset?.id ?? null);
+  },
   'split-column': id => session.setColumnPreference(state.selectedProfile, id, 'splitColumns',
     !state.splitColumns.includes(id)),
   reading: index => {
@@ -1055,10 +1083,12 @@ themeToggle.addEventListener('click', async () => {
 profilePicker.addEventListener('change', () => {
   editor.closeView();
   reading = null;
+  highlightedMeasurement = null;
   const name = profilePicker.value || null;
   void perform(() => session.selectProfile(name)).then(renderProfilePicker);
 });
 function renderPageChange() {
+  highlightedMeasurement = null;
   reading = null;
   notificationId = null;
   if (!editorView.hidden) {

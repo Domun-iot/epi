@@ -128,3 +128,10 @@ test('persists the closest impedance and repairs an existing failed calculation 
   assert.ok(saved.measurements.at(-1).calculations.impedanceOhms > 0);
   assert.equal(saved.measurements.at(-1).measures.fatPercent, 45);
 });
+
+test('saving without a profile selects anonymous history so the new row is visible', async () => {
+  const { session } = fixture({ profiles: [alice], selectedProfile: 'Alice' });
+  const state = await session.saveManualMeasurement({ weight: 70, profileUuid: null, receivedAt: when });
+  assert.equal(state.selectedProfile, null);
+  assert.equal(state.measurements.at(-1).profile, null);
+});

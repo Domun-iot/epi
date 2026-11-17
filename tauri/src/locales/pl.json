@@ -437,5 +437,8 @@
   "manualProfileMissing": "Wybrany profil już nie istnieje. Wybierz inny profil.",
   "manualDuplicate": "Dla tego profilu istnieje już pomiar z tą datą i godziną.",
   "manualDateBeforeBirth": "Data ważenia nie może być wcześniejsza niż data urodzenia.",
-  "estimatedImpedance": "Szacowana impedancja: {0} Ω"
+  "estimatedImpedance": "Szacowana impedancja: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Impedancja obliczona z procentowej zawartości tkanki tłuszczowej: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Dla tego ważenia nie ma obliczonej impedancji. Podana zawartość tkanki tłuszczowej: {0}%. Szacunki w tabeli mogą różnić się od tej wartości.",
+  "impedanceApproximation": "Najbliższe przybliżenie: podana zawartość tkanki tłuszczowej {0}%, uzyskana {1}% (różnica: {2} punktów procentowych)."
 }

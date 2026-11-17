@@ -437,5 +437,8 @@
   "manualProfileMissing": "Das gewählte Profil existiert nicht mehr. Wähle ein anderes Profil.",
   "manualDuplicate": "Für dieses Profil existiert bereits eine Wägung mit diesem Datum und dieser Uhrzeit.",
   "manualDateBeforeBirth": "Das Datum der Wägung darf nicht vor dem Geburtsdatum liegen.",
-  "estimatedImpedance": "Geschätzte Impedanz: {0} Ω"
+  "estimatedImpedance": "Geschätzte Impedanz: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Aus dem Körperfettanteil berechnete Impedanz: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Für diese Wägung ist keine berechnete Impedanz verfügbar. Angegebener Körperfettanteil: {0} %. Die Schätzwerte in der Tabelle können davon abweichen.",
+  "impedanceApproximation": "Beste Annäherung: angegebener Körperfettanteil {0} %, berechnet {1} % (Abweichung: {2} Prozentpunkte)."
 }

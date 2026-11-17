@@ -437,5 +437,8 @@
   "manualProfileMissing": "Den valgte profil findes ikke længere. Vælg en anden profil.",
   "manualDuplicate": "Der findes allerede en vejning for denne profil på denne dato og dette klokkeslæt.",
   "manualDateBeforeBirth": "Datoen for vejningen kan ikke være før fødselsdatoen.",
-  "estimatedImpedance": "Estimeret impedans: {0} Ω"
+  "estimatedImpedance": "Estimeret impedans: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Impedans beregnet ud fra fedtprocent: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Ingen beregnet impedans er tilgængelig for denne vejning. Indtastet kropsfedt: {0} %. Estimaterne i tabellen kan afvige fra denne værdi.",
+  "impedanceApproximation": "Nærmeste tilnærmelse: indtastet kropsfedt {0} %, beregnet {1} % (forskel: {2} procentpoint)."
 }

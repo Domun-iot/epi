@@ -437,5 +437,8 @@
   "manualProfileMissing": "Izvēlētais profils vairs nepastāv. Izvēlies citu profilu.",
   "manualDuplicate": "Šim profilam jau ir svēršanās ar šo datumu un laiku.",
   "manualDateBeforeBirth": "Svēršanās datums nevar būt pirms dzimšanas datuma.",
-  "estimatedImpedance": "Aprēķinātā pretestība: {0} Ω"
+  "estimatedImpedance": "Aprēķinātā pretestība: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "No ķermeņa tauku procentuālā daudzuma aprēķinātā pretestība: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Šim svērumam nav pieejama aprēķinātā pretestība. Norādītie ķermeņa tauki: {0} %. Tabulas aplēses var atšķirties no šīs vērtības.",
+  "impedanceApproximation": "Tuvākais rezultāts: norādītie ķermeņa tauki {0} %, iegūti {1} % (starpība: {2} procentpunkti)."
 }

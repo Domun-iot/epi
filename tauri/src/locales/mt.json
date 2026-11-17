@@ -437,5 +437,8 @@
   "manualProfileMissing": "Il-profil magħżul m’għadux jeżisti. Agħżel profil ieħor.",
   "manualDuplicate": "Diġà jeżisti kejl tal-piż għal dan il-profil f’din id-data u f’dan il-ħin.",
   "manualDateBeforeBirth": "Id-data tal-użin ma tistax tkun qabel id-data tat-twelid.",
-  "estimatedImpedance": "Impedenza stmata: {0} Ω"
+  "estimatedImpedance": "Impedenza stmata: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Impedenza kkalkulata mill-perċentwal tax-xaħam tal-ġisem: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "M’hemmx impedenza kkalkulata disponibbli għal dan l-użin. Xaħam tal-ġisem mogħti: {0}%. L-istimi fit-tabella jistgħu jvarjaw minn dan il-valur.",
+  "impedanceApproximation": "L-eqreb approssimazzjoni: xaħam tal-ġisem mogħti {0}%, miksub {1}% (differenza: {2} punti perċentwali)."
 }

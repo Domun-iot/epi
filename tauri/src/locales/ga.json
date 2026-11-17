@@ -437,5 +437,8 @@
   "manualProfileMissing": "Níl an phróifíl roghnaithe ann a thuilleadh. Roghnaigh próifíl eile.",
   "manualDuplicate": "Tá meá ann cheana don phróifíl seo ag an dáta agus ag an am seo.",
   "manualDateBeforeBirth": "Ní féidir dáta na meáite a bheith roimh an dáta breithe.",
-  "estimatedImpedance": "Impedans measta: {0} Ω"
+  "estimatedImpedance": "Impedans measta: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Bacainn ríofa ó chéatadán saille coirp: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Níl bacainn ríofa ar fáil don mheá seo. Saill choirp a soláthraíodh: {0}%. D’fhéadfadh meastacháin an tábla a bheith difriúil ón luach seo.",
+  "impedanceApproximation": "An neasluach is gaire: saill choirp a soláthraíodh {0}%, a fuarthas {1}% (difríocht: {2} pointe céatadáin)."
 }

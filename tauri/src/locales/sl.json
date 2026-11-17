@@ -437,5 +437,8 @@
   "manualProfileMissing": "Izbrani profil ne obstaja več. Izberi drug profil.",
   "manualDuplicate": "Za ta profil že obstaja tehtanje s tem datumom in časom.",
   "manualDateBeforeBirth": "Datum tehtanja ne more biti pred datumom rojstva.",
-  "estimatedImpedance": "Ocenjena impedanca: {0} Ω"
+  "estimatedImpedance": "Ocenjena impedanca: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Impedanca, izračunana iz odstotka telesne maščobe: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Za to tehtanje ni izračunane impedance. Vnesena telesna maščoba: {0} %. Ocene v tabeli se lahko razlikujejo od te vrednosti.",
+  "impedanceApproximation": "Najbližji približek: vnesena telesna maščoba {0} %, dobljena {1} % (razlika: {2} odstotnih točk)."
 }

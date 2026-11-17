@@ -1053,7 +1053,7 @@ test('central views use the same spacing above and below the header', async t =>
   });
 
   await page.getByText('Données', { exact: true }).click();
-  await page.getByLabel('Masse grasse (%)', { exact: true }).check();
+  await page.getByLabel('Masse grasse (%)', { exact: true }).uncheck();
 
   const gaps = selector => page.locator('#view').evaluate((view, selector) => {
     const header = view.querySelector('.page-header');
@@ -1112,7 +1112,7 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   assert.equal(await rename.count(), 0);
   assert.equal(await remove.count(), 0);
   assert.equal(await saveButton.count(), 0);
-  await fat.check();
+  await fat.uncheck();
   assert.equal(await saveButton.isVisible(), true);
   assert.equal((await title.textContent()).trim(), 'Pesées *');
   assert.equal(await chevron.count(), 0);
@@ -1122,7 +1122,7 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   const reload = options.getByRole('button', { name: 'Pesées', exact: true });
   assert.equal(await reload.locator('svg').count(), 1);
   await reload.click();
-  assert.equal(await fat.isChecked(), false);
+  assert.equal(await fat.isChecked(), true);
   assert.equal(await saveButton.count(), 0);
   const weightHeader = page.getByRole('columnheader', { name: 'Poids', exact: true });
   const dateHeader = page.getByRole('columnheader', { name: 'Date', exact: true });
@@ -2042,7 +2042,7 @@ test('une trame reçue pendant la saisie prépare l’enregistrement de la balan
   await name.fill('Balance capturée');
   await save.click();
   await editor.waitFor({ state: 'hidden' });
-  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
+  await page.locator('.measurement-new').waitFor();
   await choosePage(page, 'Appareils');
   await page.getByRole('heading', { name: 'Balance capturée', exact: true }).waitFor();
   assert.equal(await page.getByText(/En attente d’une pesée/).count(), 0);
@@ -2128,8 +2128,8 @@ test('capture et renommage, attribution automatique et flux brut horodaté', asy
   await page.getByText(/En attente d’une pesée/).waitFor();
   await feed(page, metadata);
   await feed(page, frame);
-  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
-  await page.getByText('70,9 kg', { exact: true }).waitFor();
+  await page.locator('.measurement-new').waitFor();
+  await page.getByText('70,9 kg', { exact: true }).first().waitFor();
   await choosePage(page, 'Appareils');
   await page.getByRole('heading', { name: 'Balance Xiaomi', exact: true }).waitFor();
   assert.equal(await chosenProfile(page), 'Alice');
@@ -2186,9 +2186,9 @@ test('attribution sans profil sur smartphone, création depuis une pesée et his
   await toolbar.getByRole('button', { name: 'Enregistrer' }).click();
   await editor.waitFor({ state: 'hidden' });
   assert.equal(await chosenProfile(page), 'Camille');
-  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
-  await page.getByText('70,9 kg', { exact: true }).waitFor();
-  await page.locator('#back-to-measurements').click();
+  await page.locator('.measurement-new').waitFor();
+  await page.getByText('70,9 kg', { exact: true }).first().waitFor();
+  assert.equal(await page.locator('.measurement-details').count(), 0);
   const table = page.getByRole('table', { name: 'Pesées' });
   await table.getByText('70,9 kg', { exact: true }).waitFor();
   await page.getByText('Données', { exact: true }).click();
@@ -2265,8 +2265,8 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   await profiles.getByRole('button', { name: 'Bob Sélectionner', exact: true }).getByText('Bob', { exact: true }).tap();
   await editor.waitFor({ state: 'hidden' });
   assert.equal(await chosenProfile(page), 'Bob Martin');
-  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
-  await page.getByText('70,9 kg', { exact: true }).waitFor();
+  await page.locator('.measurement-new').waitFor();
+  await page.getByText('70,9 kg', { exact: true }).first().waitFor();
 
   await feed(page, 'AABBCCDDEEFF -62 181D 00404C');
   await banner.getByRole('button', { name: 'Attribuer la pesée' }).click();
@@ -2279,9 +2279,9 @@ test('appareil détecté sans capture, attribution confirmée et calcul temporai
   await editor.getByLabel('Taille (cm)').fill('170');
   await toolbar.getByRole('button', { name: 'Enregistrer' }).click();
   await editor.waitFor({ state: 'hidden' });
-  assert.equal(await chosenProfile(page), 'Bob Martin');
-  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
-  await page.getByText('97,6 kg', { exact: true }).waitFor();
+  assert.equal(await chosenProfile(page), '');
+  await page.locator('.measurement-new').waitFor();
+  await page.getByRole('table').getByText('97,6 kg', { exact: true }).waitFor();
   await page.getByRole('combobox', { name: 'Profil actif' }).selectOption('');
   await page.getByRole('table').getByText('97,6 kg', { exact: true }).waitFor();
   assert.equal(await page.getByText('Données', { exact: true }).count(), 0);
@@ -2294,6 +2294,7 @@ test('affiche les mesures reçues de la balance et leur provenance', async t => 
   await feed(page, 'AABBCCDDEEFF -58 181D 0e803eea070b100b0c0d02e600d606 Gatt ');
   await page.locator('#pending-actions').getByRole('button', { name: 'Attribuer la pesée' }).click();
   await page.getByRole('list', { name: 'Profils' }).getByRole('button', { name: 'Alice Sélectionner' }).click();
+  await page.locator('.measurement-new .reading-date').click();
   const measures = page.locator('details[data-detail-section="measures"]');
   await measures.locator('summary').click();
   assert.equal(await measures.locator('dt').filter({ hasText: /^IMC$/ }).locator('+ dd').textContent(), '23');
@@ -2534,15 +2535,20 @@ test('les notifications de pesée ouvrent le détail et la suppression permet de
   await page.getByRole('heading', { name: 'Écoute Bluetooth' }).waitFor();
   await feed(page, frame);
   await notices.getByText('Pesée enregistrée', { exact: true }).waitFor();
-  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
-  await page.getByText('70,9 kg', { exact: true }).waitFor();
+  await page.locator('.measurement-new').waitFor();
+  await page.getByText('70,9 kg', { exact: true }).first().waitFor();
   assert.equal(await notices.locator('.notification-summary').innerText(), 'Pesée enregistrée');
+  assert.match(await page.locator('.measurement-new').innerText(), /70,9 kg/);
+  assert.equal(await page.locator('.measurement-new').getAttribute('data-value'), '0');
   await dismissNotificationBanner(page);
+  await page.locator('#theme-toggle').click();
+  await page.locator('.measurement-new').waitFor();
   const icon = page.getByRole('button', { name: 'Notifications', exact: true });
   await icon.click();
   const saved = page.locator('.notification-item').getByRole('button', { name: /^Pesée enregistrée/ });
   assert.match(await saved.innerText(), /Impédance reçue/);
   assert.match(await saved.innerText(), /\d{1,2}:\d{2}:\d{2}/);
+  assert.equal(await page.locator('.measurement-new').count(), 0);
   await saved.click();
   await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
   assert.match(await page.locator('.measurement-details > p').first().innerText(), /\d{1,2}:\d{2}:\d{2}/);
@@ -2906,8 +2912,9 @@ test('manual measurement accepts a weight without a profile and preserves local 
   await form.getByLabel('Date et heure de la pesée').fill('2026-01-15T19:23:21');
   await page.locator('#editor-actions').getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await form.waitFor({ state: 'hidden' });
-  await page.locator('.measurement-details').waitFor();
-  assert.equal(await enter.count(), 0);
+  await page.locator('.measurement-new').waitFor();
+  assert.equal(await enter.count(), 1);
+  assert.equal(await page.locator('.measurement-details').count(), 0);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1')));
   assert.equal(saved.profiles.length, 0);
   assert.equal(saved.devices.length, 0);
@@ -2918,12 +2925,14 @@ test('manual measurement accepts a weight without a profile and preserves local 
   assert.equal(reading.measures.unit, 'lb');
   assert.equal(reading.receivedAt, '2026-01-15T18:23:21.000Z');
   assert.deepEqual(reading.device, { source: 'manual' });
+  await page.locator('.measurement-new .reading-date').click();
   const device = page.locator('[data-detail-section="device"]');
   await device.locator('summary').click();
   assert.match(await device.innerText(), /Saisie manuelle/);
   assert.equal(await device.getByText('Adresse Bluetooth', { exact: true }).count(), 0);
   await page.getByRole('button', { name: 'Retour', exact: true }).click();
   await enter.waitFor();
+  assert.equal(await page.locator('.measurement-new').count(), 0);
   await page.reload();
   await page.getByRole('cell', { name: '154,3 lb', exact: true }).waitFor();
 });
@@ -2959,8 +2968,33 @@ test('manual measurement creates the first profile for body fat and keeps the dr
   assert.equal(saved.measurements[0].measures.fatPercent, 30.5);
   assert.ok(saved.measurements[0].calculations.impedanceOhms > 0);
   assert.equal(saved.measurements[0].measures.impedanceOhms ?? null, null);
+  await page.locator('.measurement-new .reading-date').click();
   await page.locator('[data-detail-section="measures"] > summary').click();
   await page.locator('[data-detail-section="measures"] dd').getByText('30,5', { exact: true }).waitFor();
+});
+
+test('saving from a chart shows the new row until leaving the list and preserves the chart preference', async t => {
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [record] });
+  await page.getByRole('button', { name: 'Graphique', exact: true }).click();
+  await page.locator('.measurement-chart').waitFor();
+  await page.getByRole('button', { name: 'Saisir', exact: true }).click();
+  await page.locator('#editor-view').getByLabel('Poids', { exact: true }).fill('72');
+  await page.locator('#editor-actions').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await page.locator('#editor-view').waitFor({ state: 'hidden' });
+  const row = page.locator('.measurement-new');
+  await row.waitFor();
+  assert.equal(await row.getAttribute('aria-current'), 'true');
+  assert.equal(await row.getAttribute('data-value'), '0');
+  assert.match(await row.innerText(), /72 kg/);
+  assert.equal(await page.locator('.measurement-chart').count(), 0);
+  await dismissNotificationBanner(page);
+  await row.waitFor();
+  await page.getByRole('button', { name: 'Saisir', exact: true }).click();
+  await page.locator('#editor-actions').getByRole('button', { name: 'Annuler', exact: true }).click();
+  assert.equal(await row.count(), 0);
+  await page.locator('.measurement-chart').waitFor();
+  await page.getByRole('button', { name: 'Tableau', exact: true }).click();
+  assert.equal(await row.count(), 0);
 });
 
 test('manual measurement uses the active profile instead of the closest weight', async t => {
@@ -3070,7 +3104,7 @@ test('manual measurement asks for an existing profile when none is active and ab
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a')));
   assert.equal(saved.measurements.length, 1);
   assert.equal(saved.measurements[0].profile.name, 'Bob');
-  await page.getByRole('button', { name: 'Retour', exact: true }).click();
+  await page.locator('.measurement-new').waitFor();
   await page.getByRole('button', { name: 'Saisir', exact: true }).click();
   await editor.getByLabel('Poids', { exact: true }).fill('81');
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('epi:dataset-reset', { detail: { datasetId: 'local' } })));
@@ -3117,6 +3151,6 @@ test('synchronized notices and weighings stay quiet and local notices still disp
   await page.getByRole('button', { name: 'Saisir', exact: true }).click();
   await page.locator('#editor-view').getByLabel('Poids', { exact: true }).fill('73');
   await page.locator('#editor-actions').getByRole('button', { name: 'Enregistrer', exact: true }).click();
-  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
+  await page.locator('.measurement-new').waitFor();
   await page.locator('#notices').getByText('Pesée enregistrée', { exact: true }).waitFor();
 });

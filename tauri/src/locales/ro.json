@@ -437,5 +437,8 @@
   "manualProfileMissing": "Profilul ales nu mai există. Alege alt profil.",
   "manualDuplicate": "Există deja o cântărire pentru acest profil la această dată și oră.",
   "manualDateBeforeBirth": "Data cântăririi nu poate fi anterioară datei nașterii.",
-  "estimatedImpedance": "Impedanță estimată: {0} Ω"
+  "estimatedImpedance": "Impedanță estimată: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Impedanță calculată din procentul de grăsime corporală: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Nu există impedanță calculată pentru această cântărire. Grăsime corporală introdusă: {0}%. Estimările din tabel pot diferi de această valoare.",
+  "impedanceApproximation": "Cea mai apropiată aproximare: grăsime corporală introdusă {0}%, obținută {1}% (diferență: {2} puncte procentuale)."
 }

@@ -232,7 +232,7 @@ test('can filter acquisition, enroll a separate balance, and compute an anonymou
   assert.equal(state.devices[0].bluetooth.address, otherAddress);
   const next = await session.confirmProfile({ id: state.pending[0].id, name: null,
     profile: { sex: 'F', heightCm: 162, age: 29 } });
-  assert.equal(next.selectedProfile, 'Lou');
+  assert.equal(next.selectedProfile, null);
   assert.equal(next.measurements[0].profile.name, null);
   assert.ok(next.measurements[0].calculations.IMC.bmi > 0);
   assert.equal(next.profiles.length, 1);

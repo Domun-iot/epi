@@ -437,5 +437,8 @@
   "manualProfileMissing": "Valitud profiili pole enam olemas. Vali teine profiil.",
   "manualDuplicate": "Selle profiili jaoks on selle kuupäeva ja kellaajaga kaalumine juba olemas.",
   "manualDateBeforeBirth": "Kaalumise kuupäev ei tohi olla enne sünnikuupäeva.",
-  "estimatedImpedance": "Hinnanguline impedants: {0} Ω"
+  "estimatedImpedance": "Hinnanguline impedants: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Keharasvaprotsendi põhjal arvutatud impedants: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Selle kaalumise jaoks pole arvutatud impedantsi saadaval. Sisestatud keharasv: {0}%. Tabeli hinnangud võivad sellest väärtusest erineda.",
+  "impedanceApproximation": "Lähim tulemus: sisestatud keharasv {0}%, saadud {1}% (erinevus: {2} protsendipunkti)."
 }

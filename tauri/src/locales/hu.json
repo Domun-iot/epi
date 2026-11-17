@@ -437,5 +437,8 @@
   "manualProfileMissing": "A kiválasztott profil már nem létezik. Válassz másik profilt.",
   "manualDuplicate": "Ehhez a profilhoz már tartozik mérés ezzel a dátummal és időponttal.",
   "manualDateBeforeBirth": "A mérés dátuma nem előzheti meg a születési dátumot.",
-  "estimatedImpedance": "Becsült impedancia: {0} Ω"
+  "estimatedImpedance": "Becsült impedancia: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Testzsírszázalékból számított impedancia: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Ehhez a méréshez nem áll rendelkezésre számított impedancia. Megadott testzsír: {0}%. A táblázat becslései eltérhetnek ettől az értéktől.",
+  "impedanceApproximation": "Legközelebbi közelítés: megadott testzsír {0}%, kapott érték {1}% (eltérés: {2} százalékpont)."
 }

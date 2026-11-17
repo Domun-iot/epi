@@ -437,5 +437,8 @@
   "manualProfileMissing": "Vybraný profil již neexistuje. Vyber jiný profil.",
   "manualDuplicate": "Pro tento profil již existuje vážení se stejným datem a časem.",
   "manualDateBeforeBirth": "Datum vážení nemůže předcházet datu narození.",
-  "estimatedImpedance": "Odhadovaná impedance: {0} Ω"
+  "estimatedImpedance": "Odhadovaná impedance: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Impedance vypočtená z procenta tělesného tuku: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Pro toto vážení není k dispozici vypočtená impedance. Zadaný tělesný tuk: {0} %. Odhady v tabulce se mohou od této hodnoty lišit.",
+  "impedanceApproximation": "Nejbližší přiblížení: zadaný tělesný tuk {0} %, vypočtený {1} % (rozdíl: {2} procentních bodů)."
 }

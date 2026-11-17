@@ -437,5 +437,8 @@
   "manualProfileMissing": "Den valda profilen finns inte längre. Välj en annan profil.",
   "manualDuplicate": "Det finns redan en vägning för den här profilen med detta datum och denna tid.",
   "manualDateBeforeBirth": "Vägningens datum får inte vara före födelsedatumet.",
-  "estimatedImpedance": "Uppskattad impedans: {0} Ω"
+  "estimatedImpedance": "Uppskattad impedans: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Impedans beräknad från kroppsfettprocent: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Ingen beräknad impedans finns för denna vägning. Angivet kroppsfett: {0} %. Tabellens uppskattningar kan avvika från detta värde.",
+  "impedanceApproximation": "Närmaste approximation: angivet kroppsfett {0} %, beräknat {1} % (skillnad: {2} procentenheter)."
 }

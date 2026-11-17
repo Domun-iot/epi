@@ -287,7 +287,8 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing,
     const retained = retainNotifications(draft.notifications);
     if (retained.length !== draft.notifications.length) draft.notifications = retained;
     const result = change(draft);
-    if (!draft.selectedProfile && draft.profiles.length === 1) {
+    if (!draft.selectedProfile && draft.profiles.length === 1
+        && !draft.measurements.some(row => !row.profile?.name)) {
       draft.selectedProfile = draft.profiles[0].name;
     }
     const proViews = hasProViews();
@@ -391,7 +392,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing,
     if (existing) return;
     draft.measurements = [...draft.measurements, measurement];
     notify(draft, { type: 'measurement', action: 'saved', record: measurement });
-    if (profile?.name) draft.selectedProfile = profile.name;
+    draft.selectedProfile = profile?.name ?? null;
   }
 
   function saveManualMeasurement(input = {}) {

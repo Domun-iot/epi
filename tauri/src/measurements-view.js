@@ -119,7 +119,7 @@ function averageValue(row, id, sources) {
   return composition.average(values);
 }
 
-export function measurementsView(rows, profile, columns, splitColumns, columnOrder, expanded, query, header, display, chartOptions) {
+export function measurementsView(rows, profile, columns, splitColumns, columnOrder, expanded, query, header, display, chartOptions, highlightedMeasurement) {
   const selected = new Set(columns);
   const split = new Set(splitColumns);
   const sourcesByMetric = new Map(METRICS.map(([id]) => [
@@ -182,7 +182,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
         <thead><tr>${headers}</tr>
         ${twoRows ? `<tr>${ordered.map(({ id, separate, subheaders }) => separate
           ? `<th scope="col"${columnDrag(id)}>${htmlText('average')}</th>${subheaders.join('')}` : '').join('')}</tr>` : ''}</thead>
-        <tbody>${rows.map((row, index) => `<tr data-action="reading" data-value="${index}">
+        <tbody>${rows.map((row, index) => `<tr data-action="reading" data-value="${index}"${row.uuid && row.uuid === highlightedMeasurement ? ' class="measurement-new" aria-current="true"' : ''}>
           ${ordered.map(({ cells }) => cells(row)).join('')}
         </tr>`).join('')}</tbody>
       </table>

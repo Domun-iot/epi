@@ -437,5 +437,8 @@
   "manualProfileMissing": "Pasirinkto profilio nebėra. Pasirink kitą profilį.",
   "manualDuplicate": "Šiam profiliui jau yra svėrimas su šia data ir laiku.",
   "manualDateBeforeBirth": "Svėrimo data negali būti ankstesnė už gimimo datą.",
-  "estimatedImpedance": "Apskaičiuota varža: {0} Ω"
+  "estimatedImpedance": "Apskaičiuota varža: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Iš kūno riebalų procento apskaičiuotas impedansas: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Šiam svėrimui nėra apskaičiuoto impedanso. Nurodyti kūno riebalai: {0} %. Lentelės įverčiai gali skirtis nuo šios reikšmės.",
+  "impedanceApproximation": "Artimiausias rezultatas: nurodyti kūno riebalai {0} %, gauta {1} % (skirtumas: {2} procentinio punkto)."
 }

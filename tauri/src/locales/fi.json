@@ -437,5 +437,8 @@
   "manualProfileMissing": "Valittua profiilia ei enää ole. Valitse toinen profiili.",
   "manualDuplicate": "Tälle profiilille on jo tallennettu punnitus samalle päivämäärälle ja kellonajalle.",
   "manualDateBeforeBirth": "Punnituksen päivämäärä ei voi olla ennen syntymäpäivää.",
-  "estimatedImpedance": "Arvioitu impedanssi: {0} Ω"
+  "estimatedImpedance": "Arvioitu impedanssi: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Kehon rasvaprosentista laskettu impedanssi: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Tälle punnitukselle ei ole laskettua impedanssia. Annettu kehon rasvaprosentti: {0} %. Taulukon arviot voivat poiketa tästä arvosta.",
+  "impedanceApproximation": "Lähin arvio: annettu rasvaprosentti {0} %, saatu {1} % (ero: {2} prosenttiyksikköä)."
 }

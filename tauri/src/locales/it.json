@@ -437,5 +437,8 @@
   "manualProfileMissing": "Il profilo scelto non esiste più. Scegli un altro profilo.",
   "manualDuplicate": "Esiste già una pesata per questo profilo con questa data e ora.",
   "manualDateBeforeBirth": "La data della pesata non può precedere la data di nascita.",
-  "estimatedImpedance": "Impedenza stimata: {0} Ω"
+  "estimatedImpedance": "Impedenza stimata: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Impedenza calcolata dalla percentuale di grasso corporeo: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Nessuna impedenza calcolata disponibile per questa pesata. Grasso corporeo indicato: {0}%. Le stime della tabella possono differire da questo valore.",
+  "impedanceApproximation": "Approssimazione più vicina: grasso corporeo indicato {0}%, ottenuto {1}% (differenza: {2} punti percentuali)."
 }

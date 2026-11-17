@@ -437,5 +437,8 @@
   "manualProfileMissing": "Odabrani profil više ne postoji. Odaberi drugi profil.",
   "manualDuplicate": "Za ovaj profil već postoji vaganje s ovim datumom i vremenom.",
   "manualDateBeforeBirth": "Datum vaganja ne može prethoditi datumu rođenja.",
-  "estimatedImpedance": "Procijenjena impedancija: {0} Ω"
+  "estimatedImpedance": "Procijenjena impedancija: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Impedancija izračunata iz postotka tjelesne masti: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Za ovo vaganje nema izračunate impedancije. Unesena tjelesna mast: {0} %. Procjene u tablici mogu se razlikovati od te vrijednosti.",
+  "impedanceApproximation": "Najbliža aproksimacija: unesena tjelesna mast {0} %, dobivena {1} % (razlika: {2} postotnih bodova)."
 }

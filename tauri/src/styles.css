@@ -552,3 +552,6 @@ button.notification-summary { width: 100%; color: inherit; background: transpare
 @media (max-width: 450px) {
   .toolbar { flex-wrap: wrap; }
 }
+
+.measurements-table tr.measurement-new > td { background: light-dark(#dcecff, #243f63); border-block-color: var(--blue); }
+.measurements-table tr.measurement-new > td:first-child { box-shadow: inset 4px 0 0 var(--blue); }
