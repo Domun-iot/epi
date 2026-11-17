@@ -3027,10 +3027,32 @@ test('weigh-in details show calculated impedance below the table only when no me
     assert.equal(await note.count(), expected ? 1 : 0);
     if (expected) {
       assert.equal(await note.textContent(), 'Impédance calculée à partir du pourcentage de masse grasse : 512,3 Ω.');
-      assert.equal(await page.locator('.comparison-scroll + .calculated-impedance + .measurement-created-on + details').count(), 1);
+      assert.equal(await page.locator('.comparison-scroll + .calculated-impedance ~ .measurement-created-on + details').count(), 1);
       assert.equal(await page.locator('.measurement-details details[open]').count(), 0);
     }
   }
+});
+
+test('repairs a failed body fat estimate and discloses its nearest result below the table', async t => {
+  const row = { ...record, uuid: 'approximation-test',
+    profile: { name: 'Test', sex: 'H', age: 50, ageAtWeighIn: 50, heightCm: 175 },
+    measures: { weight: 102, unit: 'kg', fatPercent: 45, impedanceOhms: null },
+    calculations: { IMC: { bmi: 33.3 } } };
+  const page = await pageWith(t, { profiles: [row.profile], selectedProfile: 'Test', measurements: [row] });
+  await page.locator('.reading-date').click();
+  const note = page.locator('.calculated-impedance');
+  await note.waitFor();
+  assert.match(await note.textContent(), /1[\s\u202f]228/);
+  assert.equal(await page.locator('.impedance-approximation').textContent(),
+    'Approximation la plus proche : masse grasse fournie 45 %, obtenue 38,9 % (écart : 6,1 points).');
+  assert.equal(await page.locator('.comparison-scroll + .calculated-impedance + .impedance-approximation').count(), 1);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a')));
+  assert.equal(saved.measurements[0].measures.fatPercent, 45);
+  assert.ok(saved.measurements[0].calculations.impedanceOhms > 0);
+  await page.reload();
+  await page.locator('.reading-date').click();
+  await note.waitFor();
+  await page.locator('.impedance-approximation').waitFor();
 });
 
 test('manual measurement asks for an existing profile when none is active and abandons a draft on dataset reset', async t => {

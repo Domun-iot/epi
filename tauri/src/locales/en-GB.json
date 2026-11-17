@@ -438,5 +438,7 @@
   "manualDuplicate": "A weigh-in already exists for this profile at this date and time.",
   "manualDateBeforeBirth": "The weigh-in date cannot be before the date of birth.",
   "estimatedImpedance": "Estimated impedance: {0} Ω",
-  "impedanceCalculatedFromBodyFat": "Impedance calculated from body fat percentage: {0} Ω."
+  "impedanceCalculatedFromBodyFat": "Impedance calculated from body fat percentage: {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "No calculated impedance is available for this weigh-in. Supplied body fat: {0}%. The table estimates may differ from this value.",
+  "impedanceApproximation": "Closest approximation: supplied body fat {0}%, obtained {1}% (difference: {2} percentage points)."
 }

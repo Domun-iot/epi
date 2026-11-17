@@ -136,7 +136,24 @@ function estimateImpedance(event, profile, methodsAt) {
       else right = middle;
     }
   }
-  return null;
+  // If the target is outside the attainable mean, retain the closest model
+  // result. Each segment is monotonic (split at its extrema above), so its
+  // endpoints and one-sided limits contain the nearest possible value.
+  let closest = null;
+  let error = Infinity;
+  for (const [low, high] of segments) {
+    const inset = Math.min((high - low) / 4, 1e-7);
+    for (const z of [low, low + inset, high - inset, high, (low + high) / 2]) {
+      const { value, coefficients: [, b, c] } = evaluate(z);
+      if (!Number.isFinite(value) || (b === 0 && c === 0)) continue;
+      const gap = Math.abs(value - target);
+      if (gap < error || (gap === error && Math.abs(z - seed) < Math.abs(closest - seed))) {
+        closest = z;
+        error = gap;
+      }
+    }
+  }
+  return closest;
 }
 
 module.exports = { estimateImpedance };

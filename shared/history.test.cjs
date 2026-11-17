@@ -65,11 +65,11 @@ test('keeps weight-only anonymous records and legacy calculation results unchang
   assert.equal(legacy.calculations.impedanceOhms, undefined);
 });
 
-test('retains an unattainable percentage and computes a dated profile using the weigh-in date', () => {
+test('retains an out-of-range model target with the closest impedance and uses the weigh-in age', () => {
   const row = historyRecord({ ...event, fatPercent: 99.9 }, profile, manual);
   assert.equal(row.measures.fatPercent, 99.9);
   assert.equal(row.measures.impedanceOhms, null);
-  assert.equal(row.calculations.impedanceOhms, undefined);
+  assert.ok(row.calculations.impedanceOhms > 0);
   const born = { ...profile, birthDate: '1990-01-01', age: undefined };
   const targetProfile = { ...born, age: 30 };
   const fatPercent = mean(calculateComposition({ ...event, impedanceOhms: 500 }, targetProfile));

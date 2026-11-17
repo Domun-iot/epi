@@ -438,5 +438,7 @@
   "manualDuplicate": "Une pesée existe déjà pour ce profil à cette date et à cette heure.",
   "manualDateBeforeBirth": "La date de la pesée ne peut pas précéder la naissance.",
   "estimatedImpedance": "Impédance estimée : {0} Ω",
-  "impedanceCalculatedFromBodyFat": "Impédance calculée à partir du pourcentage de masse grasse : {0} Ω."
+  "impedanceCalculatedFromBodyFat": "Impédance calculée à partir du pourcentage de masse grasse : {0} Ω.",
+  "impedanceUnavailableFromBodyFat": "Impédance non calculée pour cette pesée. Masse grasse fournie : {0} %. Les estimations du tableau peuvent différer de cette valeur.",
+  "impedanceApproximation": "Approximation la plus proche : masse grasse fournie {0} %, obtenue {1} % (écart : {2} points)."
 }

@@ -50,6 +50,18 @@ function historyRecord(event, profile, device = null) {
 }
 
 function upgradeMeasurement(row, profileUuid, deviceUuid, uuid) {
+  const measures = row.measures ?? row;
+  const fatPercent = measures.fatPercent ?? measures.deviceMetrics?.fatPercent;
+  if (!(Number.isFinite(measures.impedanceOhms) && measures.impedanceOhms > 0)
+      && !(Number.isFinite(row.calculations?.impedanceOhms) && row.calculations.impedanceOhms > 0)
+      && Number.isFinite(fatPercent) && fatPercent > 0 && fatPercent < 100 && row.profile) {
+    const composition = calculateComposition(measures, {
+      ...row.profile, age: row.profile.ageAtWeighIn ?? row.profile.age,
+    });
+    if (composition.estimatedImpedanceOhms != null) row = { ...row,
+      calculations: { ...composition.methods, impedanceOhms: composition.estimatedImpedanceOhms },
+    };
+  }
   const { profileUuid: oldProfile, deviceUuid: oldDevice, updatedAt, ...data } = row;
   const createdAt = creationDate(row);
   function snapshot(key, legacy, fallback) {

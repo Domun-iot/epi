@@ -203,6 +203,14 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
   const calculatedImpedance = !(Number.isFinite(measures.impedanceOhms) && measures.impedanceOhms > 0)
     && composition.impedanceValue(row) != null
     ? `<p class="muted calculated-impedance">${htmlText('impedanceCalculatedFromBodyFat', [number(composition.impedanceValue(row))])}</p>` : '';
+  const suppliedFat = measures.fatPercent ?? measures.deviceMetrics?.fatPercent;
+  const unavailableImpedance = composition.impedanceValue(row) == null
+    && Number.isFinite(suppliedFat) && suppliedFat > 0 && suppliedFat < 100
+    ? `<p class="muted unavailable-impedance">${htmlText('impedanceUnavailableFromBodyFat', [number(suppliedFat)])}</p>` : '';
+  const calculatedFat = composition.average(Object.values(row.calculations ?? {}).map(method => method?.fatPercent));
+  const approximation = calculatedImpedance && Number.isFinite(suppliedFat) && calculatedFat != null
+    && number(calculatedFat) !== number(suppliedFat)
+    ? `<p class="muted impedance-approximation">${htmlText('impedanceApproximation', [number(suppliedFat), number(calculatedFat), number(Math.abs(calculatedFat - suppliedFat))])}</p>` : '';
   const readings = `<p><strong>${weight(measures)}</strong> · ${formatReadingDate(row.receivedAt)}</p>`;
   const createdOn = row.createdAt != null
     ? `<p class="muted measurement-created-on">${htmlText('createdOn')} : ${e(formatDate(row.createdAt))}</p>` : '';
@@ -247,7 +255,7 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
   }
   const bySection = new Map(sections.filter(([, , body]) => body).map(([id, ...section]) => [id, section]));
   const orderedSections = [...new Set([...sectionOrder, ...bySection.keys()])].filter(id => bySection.has(id));
-  const content = `<div class="measurement-details"${defaultOrder(sections.map(([id]) => id))}>${readings}${comparison}${calculatedImpedance}${createdOn}${orderedSections.map(id => {
+  const content = `<div class="measurement-details"${defaultOrder(sections.map(([id]) => id))}>${readings}${comparison}${calculatedImpedance}${approximation}${unavailableImpedance}${createdOn}${orderedSections.map(id => {
       const [title, body, defaultOpen] = bySection.get(id);
       const open = sectionsOpen[id] ?? defaultOpen;
       return `<details data-detail-section="${e(id)}"${open ? ' open' : ''}><summary>${e(title)}</summary>${body}</details>`;

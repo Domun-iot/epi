@@ -61,19 +61,19 @@ test('accepts a rounded target above the exact maximum, and chooses a determinis
   assert.ok(first.estimatedImpedanceOhms < maximumAt);
 });
 
-test('does not mistake the Mi discontinuity for an attainable mean', () => {
+test('returns a disclosed approximation at the Mi discontinuity', () => {
   // At this profile Sun never yields a valid fat percentage. The mean of
   // Mi and Deu jumps from 34 to 40, leaving 37 unattainable.
   const person = { sex: 'H', age: 40, heightCm: 100 };
   const event = { weight: 10, unit: 'kg', impedanceOhms: null, fatPercent: 37 };
   const result = calculateComposition(event, person);
-  assert.equal(result.estimatedImpedanceOhms, undefined);
-  assert.equal(result.impedanceOhms, null);
-  assert.deepEqual(result.methods, calculateComposition({ ...event, fatPercent: undefined }, person).methods);
+  assert.ok(result.estimatedImpedanceOhms > 0);
+  assert.ok(Math.abs(fatAverage(result) - 37) >= 2.9);
+  assert.ok(Math.abs(fatAverage(result) - 37) <= 3.1);
 });
 
-test('keeps impossible, invalid and entirely constant targets without inventing impedance', () => {
-  for (const fatPercent of [99.9, 0, 100, -1, NaN, Infinity, '25']) {
+test('keeps invalid and entirely constant targets without inventing impedance', () => {
+  for (const fatPercent of [0, 100, -1, NaN, Infinity, '25']) {
     const result = calculateComposition({ ...reading, impedanceOhms: null, fatPercent }, profile);
     assert.equal(result.estimatedImpedanceOhms, undefined);
     assert.equal(result.impedanceOhms, null);
@@ -107,4 +107,19 @@ test('reads measured or calculated impedance without changing legacy record supp
     assert.equal(impedanceValue({ measures: { impedanceOhms } }), null);
     assert.equal(impedanceValue({ calculations: { impedanceOhms } }), null);
   }
+});
+
+test('finds the nearest attainable mean for the 45 percent regression without altering the input', () => {
+  const event = Object.freeze({ weight: 102, unit: 'kg', impedanceOhms: null, fatPercent: 45 });
+  const person = { sex: 'H', age: 50, heightCm: 175 };
+  const result = calculateComposition(event, person);
+  assert.ok(Math.abs(result.estimatedImpedanceOhms - 1228.0266) < 0.01);
+  assert.equal(display(fatAverage(result)), '38.9');
+  assert.equal(event.fatPercent, 45);
+  const gap = Math.abs(fatAverage(result) - event.fatPercent);
+  for (let impedanceOhms = 1; impedanceOhms <= 3000; impedanceOhms += 2) {
+    const candidate = calculateComposition({ ...event, impedanceOhms }, person);
+    assert.ok(gap <= Math.abs(fatAverage(candidate) - event.fatPercent) + 1e-8);
+  }
+  assert.ok(calculateComposition({ ...event, fatPercent: 99.9 }, person).estimatedImpedanceOhms > 0);
 });

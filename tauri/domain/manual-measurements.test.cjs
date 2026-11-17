@@ -108,3 +108,23 @@ test('rejects dates before birth and duplicate profile instants, but permits dif
   const restored = await session.restoreNotification(notice.id);
   assert.equal(restored.measurements.find(item => item.uuid === row.uuid).device.source, 'manual');
 });
+
+test('persists the closest impedance and repairs an existing failed calculation using the saved profile', async () => {
+  const profile = { name: 'Test', sex: 'H', age: 50, heightCm: 175 };
+  const legacy = { uuid: 'legacy-row', receivedAt: when, createdAt: when,
+    profile: { ...profile, ageAtWeighIn: 50 },
+    measures: { weight: 102, unit: 'kg', impedanceOhms: null, fatPercent: 45 },
+    calculations: { IMC: { bmi: 33.3 } } };
+  const { session, disk } = fixture({ profiles: [{ ...profile, age: 51 }], selectedProfile: 'Test', measurements: [legacy] });
+  const state = await session.load();
+  const row = state.measurements[0];
+  assert.equal(row.measures.fatPercent, 45);
+  assert.equal(row.measures.impedanceOhms, null);
+  assert.ok(Math.abs(row.calculations.impedanceOhms - 1228.0266) < 0.01);
+  assert.equal(average(Object.values(row.calculations).map(m => m?.fatPercent)).toFixed(1), '38.9');
+  const reopened = await fixture(disk()).session.load();
+  assert.deepEqual(reopened.measurements[0], row);
+  const saved = await session.saveManualMeasurement({ weight: 102, fatPercent: 45, receivedAt: '2020-01-03T10:30:00.000Z' });
+  assert.ok(saved.measurements.at(-1).calculations.impedanceOhms > 0);
+  assert.equal(saved.measurements.at(-1).measures.fatPercent, 45);
+});
