@@ -252,9 +252,10 @@ export function measurementCharts(rows, series, { period = 'all', range, lastRan
   const lines = visible.map(item => plotSeries(item, timeline, start, end, mode)).filter(Boolean);
   const active = lines.find(({ id }) => statuses[id] === 'bold') ?? lines[0];
   const subtitle = active?.points.length > 1 ? chartChange(active) : '';
+  const legendSeries = [...configured].sort((first, second) => first.label.localeCompare(second.label, locale));
   const legend = `<div class="chart-legend" role="group" aria-labelledby="chart-series-label">
     <span id="chart-series-label">${htmlText('chartSeries')}</span>
-    ${configured.map(({ id, label, color }) => `<button type="button" data-action="chart-axis" data-value="${id}"
+    ${legendSeries.map(({ id, label, color }) => `<button type="button" data-action="chart-axis" data-value="${id}"
       data-status="${statuses[id]}" aria-pressed="${statuses[id] === 'bold'}" aria-description="${e(statusLabels[statuses[id]])}"
       style="--series-color:${color}">${e(label)}</button>`).join('')}
   </div>`;
