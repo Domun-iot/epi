@@ -14,7 +14,7 @@ const { creationDate, globalKeys, isNewer, sameContent, stampRecord } = require(
 const notificationLifetime = 7 * 86400_000;
 
 const viewDefaults = {
-  measurements: { columns: ['bmi'], splitColumns: [], columnOrder: [] },
+  measurements: { columns: ['bmi', 'fatPercent'], splitColumns: [], columnOrder: [] },
   details: { methodColumnOrder: [], detailSectionOrder: [] },
 };
 const chartColumns = ['impedanceOhms', ...metrics.map(([id]) => id)];

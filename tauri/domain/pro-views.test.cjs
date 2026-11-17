@@ -28,7 +28,7 @@ test('FREE uses one editable layout; returning to PRO restores both profiles and
   await session.setMeasurementDisplay('Alice', 'chart', null);
   await session.setPanelOpen('Alice', 'methods', true);
   view = await session.selectProfile('Bob');
-  assert.deepEqual(view.columns, ['bmi', 'impedanceOhms']);
+  assert.deepEqual(view.columns, ['bmi', 'fatPercent', 'impedanceOhms']);
   assert.equal(view.measurementDisplay, 'chart');
   assert.equal(view.detailSectionsOpen.methods, true);
   assert.equal(view.viewLayouts.measurements.modified, false);
