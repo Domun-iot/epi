@@ -22,6 +22,8 @@ language.replaceChildren(...languageOptions.map(([id, name]) => new Option(name,
 const accountEmail = document.querySelector('#account-email');
 const freePlan = document.querySelector('#account-plan-free');
 const proPlan = document.querySelector('#account-plan-pro');
+const freeBadge = document.querySelector('#account-badge-free');
+const proBadge = document.querySelector('#account-badge-pro');
 const errorNotice = document.querySelector('#account-error');
 const switchButton = document.querySelector('#account-switch');
 const closeButton = document.querySelector('#account-close');
@@ -125,8 +127,8 @@ function showError(message) {
 function renderPlan() {
   const connected = Boolean(accountInfo);
   const paid = isPaidAccount();
-  freePlan.hidden = !connected || paid;
-  proPlan.hidden = !connected || !paid;
+  freeBadge.hidden = freePlan.hidden = !connected || paid;
+  proBadge.hidden = proPlan.hidden = !connected || !paid;
 }
 
 function render() {

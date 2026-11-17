@@ -94,23 +94,19 @@
       </form>
     </dialog>
     <dialog id="account-dialog" aria-labelledby="account-title">
-      <h2 id="account-title" data-i18n="signInHeading"></h2>
+      <div class="account-heading">
+        <h2 id="account-title" data-i18n="signInHeading"></h2>
+        <a id="account-badge-free" class="account-plan-badge" href="https://domun.eu/epi/pro" data-account-public-page target="_blank" rel="noopener noreferrer" hidden>Free</a>
+        <span id="account-badge-pro" class="account-plan-badge" hidden>Pro</span>
+        <p id="account-email" hidden></p>
+        <a id="account-plan-free" class="account-plan" href="https://domun.eu/epi/pro" data-account-public-page data-i18n="compareAccountPlans" target="_blank" rel="noopener noreferrer" hidden></a>
+        <a id="account-plan-pro" class="account-plan" href="https://domun.eu/account" data-account-public-page data-i18n="manageAccount" target="_blank" rel="noopener noreferrer" hidden></a>
+      </div>
       <form id="account-form" class="editor-form">
         <div id="account-fields" class="editor-form">
           <label><span data-i18n="emailAddress"></span> <input name="email" type="email" autocomplete="username" maxlength="254" required></label>
           <label><span data-i18n="password"></span> <input name="password" type="password" autocomplete="current-password" required></label>
         </div>
-        <p id="account-email" hidden></p>
-        <p id="account-plan-free" class="account-plan" hidden>
-          <a href="https://domun.eu/epi/pro" data-account-public-page target="_blank" rel="noopener noreferrer">
-            <span class="account-plan-badge">Free</span>
-            <span data-i18n="compareAccountPlans"></span>
-          </a>
-        </p>
-        <p id="account-plan-pro" class="account-plan" hidden>
-          <span class="account-plan-badge">Pro</span>
-          <a href="https://domun.eu/account" data-account-public-page data-i18n="manageAccount" target="_blank" rel="noopener noreferrer"></a>
-        </p>
         <label><span id="account-language-label" data-i18n="language"></span>
           <select name="language" aria-labelledby="account-language-label"></select>
         </label>

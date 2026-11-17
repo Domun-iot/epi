@@ -382,7 +382,19 @@ test('the web account dialog shows PRO and switches to FREE when it expires', as
   assert.equal(await manage.count(), 0);
   assert.equal(await compare.getAttribute('href'), 'https://domun.eu/epi/pro?lang=fr-FR');
   await page.context().route('https://domun.eu/epi/pro?lang=fr-FR', route => route.fulfill({ body: 'éPI PRO' }));
-  const [popup] = await Promise.all([page.waitForEvent('popup'), compare.getByText('Free', { exact: true }).click()]);
+  for (const width of [700, 375]) {
+    await page.setViewportSize({ width, height: 700 });
+    const heading = await dialog.locator('#account-title').boundingBox();
+    const email = await dialog.locator('#account-email').boundingBox();
+    const badge = await dialog.getByRole('link', { name: 'Free', exact: true }).boundingBox();
+    const link = await compare.boundingBox();
+    assert.ok(badge.x > heading.x);
+    assert.ok(link.x > email.x);
+    assert.ok(Math.abs(heading.y + heading.height / 2 - badge.y - badge.height / 2) < 1);
+    assert.ok(Math.abs(email.y + email.height / 2 - link.y - link.height / 2) < 1);
+    assert.ok(Math.abs(badge.x + badge.width - link.x - link.width) < 1);
+  }
+  const [popup] = await Promise.all([page.waitForEvent('popup'), dialog.getByRole('link', { name: 'Free', exact: true }).click()]);
   await popup.waitForURL('https://domun.eu/epi/pro?lang=fr-FR', { timeout: 5000 });
 });
 
