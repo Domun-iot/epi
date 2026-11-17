@@ -123,7 +123,7 @@ function showError(message) {
 }
 
 function renderPlan() {
-  const connected = native && Boolean(accountInfo);
+  const connected = Boolean(accountInfo);
   const paid = isPaidAccount();
   freePlan.hidden = !connected || paid;
   proPlan.hidden = !connected || !paid;
@@ -177,8 +177,8 @@ function render() {
   form.setAttribute('aria-busy', String(busy));
 }
 
+window.addEventListener('epi:entitlement', renderPlan);
 if (native) {
-  window.addEventListener('epi:entitlement', renderPlan);
   for (const link of publicPages) {
     link.addEventListener('click', async event => {
       event.preventDefault();

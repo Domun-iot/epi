@@ -349,6 +349,43 @@ test('le mode web ouvre l’écran expliquant où écouter le Bluetooth', async 
   assert.equal(await page.getByRole('region', { name: 'Trames Bluetooth reçues' }).count(), 0);
 });
 
+test('the web account dialog shows PRO and switches to FREE when it expires', async t => {
+  await buildWeb();
+  const initial = new Date('2026-11-17T10:00:00Z');
+  const paidUntil = new Date(+initial + 30_000).toISOString();
+  const snapshot = { profiles: [], devices: [], measurements: [], pending: [], notifications: [] };
+  const page = await pageWith(t, snapshot, {}, 'web', async page => {
+    await page.clock.install({ time: initial });
+    await page.addInitScript(() => {
+      localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({
+        email: 'alice@example.org', token: 'test-token',
+      }));
+    });
+    await page.route('https://sync.epi.test/v1/account', route => route.fulfill({ json: {
+      email: 'alice@example.org', paid: true, paidUntil,
+    } }));
+    await page.route('https://sync.epi.test/v1/transactions/pending', route => route.fulfill({ json: { transactions: [] } }));
+  });
+
+  await page.getByRole('button', { name: 'Compte', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Compte' });
+  const manage = dialog.getByRole('link', { name: 'Gérer votre compte' });
+  const compare = dialog.getByRole('link', { name: 'Quoi de plus en Pro ?' });
+  await manage.waitFor();
+  assert.ok(await dialog.getByText('Pro', { exact: true }).isVisible());
+  assert.equal(await manage.getAttribute('href'), 'https://domun.eu/account?lang=fr-FR');
+  assert.equal(await compare.count(), 0);
+
+  await page.clock.fastForward(31_000);
+  await compare.waitFor();
+  assert.ok(await dialog.getByText('Free', { exact: true }).isVisible());
+  assert.equal(await manage.count(), 0);
+  assert.equal(await compare.getAttribute('href'), 'https://domun.eu/epi/pro?lang=fr-FR');
+  await page.context().route('https://domun.eu/epi/pro?lang=fr-FR', route => route.fulfill({ body: 'éPI PRO' }));
+  const [popup] = await Promise.all([page.waitForEvent('popup'), compare.click()]);
+  await popup.waitForURL('https://domun.eu/epi/pro?lang=fr-FR', { timeout: 5000 });
+});
+
 test('receives transactions on startup and acknowledges only the IDs returned by storage', { timeout: 15000 }, async t => {
   await buildWeb();
   const rows = Array.from({ length: 3 }, (_, index) => {
