@@ -12,9 +12,8 @@ import { chooseAccountData } from './account-data-dialog.js';
 import composition from 'virtual:epi-composition';
 import { datasetFiles, fileRecords, readArchive, writeArchive } from './legacy-import.js';
 
-const translatedMethods = new Set(['IMC', 'Mi', 'D60*', 'HW', 'HB', 'Owe', 'Cun*']);
-export const METHOD_COLUMNS = composition.columns.map(([id, name]) =>
-  [id, translatedMethods.has(id) ? t('method.' + id.replace('*', '')) : name]);
+export const METHOD_COLUMNS = composition.columns.map(([id]) =>
+  [id, t('method.' + id.replace('*', ''))]);
 export const METRICS = composition.metrics.map(([id, , precision]) =>
   [id, t('metric.' + id), precision]);
 

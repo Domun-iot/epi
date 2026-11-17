@@ -122,8 +122,8 @@ test('merge dialog displays both summaries and preserves explicit cancel, merge 
   const summaries = {local:{count:12,from:'2025-01-01T00:00:00Z',to:'2025-12-31T23:59:00Z'},remote:{count:24,from:'2024-01-01T00:00:00Z',to:'2026-01-01T00:00:00Z'}};
   for (const choice of ['cancel','merge','remote']) {
     await page.evaluate(summaries => { window.selection = window.chooseAccountData(summaries); }, summaries);
-    assert.equal(await page.locator('#account-data-local-count').innerText(), '12 pesées');
-    assert.equal(await page.locator('#account-data-remote-count').innerText(), '24 pesées');
+    assert.equal(await page.locator('#account-data-local-count').innerText(), 'Pesées : 12');
+    assert.equal(await page.locator('#account-data-remote-count').innerText(), 'Pesées : 24');
     assert.match(await page.locator('#account-data-local-period').innerText(), /2025/);
     await page.locator('#account-data-dialog button[value=' + choice + ']').click();
     assert.equal(await page.evaluate(() => window.selection), choice === 'cancel' ? null : choice);

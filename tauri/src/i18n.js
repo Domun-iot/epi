@@ -140,5 +140,7 @@ export function localizeMessage(source) {
       return t(id, { detail: source.slice(prefix.length, source.length - suffix.length) });
     }
   }
+  // Imported file errors may include a path before the owned diagnostic.
+  if (source.includes(' · ')) return source.split(' · ').map(localizeMessage).join(' · ');
   return source;
 }

@@ -134,6 +134,33 @@ test('loads the French catalogue in Vite dev and falls back to English on failur
   }
 });
 
+test('loads and renders every supported catalogue in the built application', async t => {
+  const { languages } = await import('../src/i18n.js');
+  for (const locale of Object.keys(languages)) {
+    const catalog = JSON.parse(await readFile(new URL('../src/locales/' + locale + '.json', import.meta.url), 'utf8'));
+    const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice',
+      devices: [device], measurements: [record] }, { locale });
+    try {
+      assert.equal(await page.locator('html').getAttribute('lang'), locale);
+      assert.equal(await page.title(), catalog.appTitle);
+      assert.equal(await page.locator('[data-page="measurements"] span[data-i18n]').innerText(), catalog.measurements);
+      assert.equal(await page.locator('#account-data-description').textContent(), catalog.accountDataDescription);
+      assert.equal(await page.locator('#account-badge-free').textContent(), catalog.freePlan);
+      await page.locator('.reading-date').click();
+      await page.locator('.measurement-details').waitFor();
+      const titles = await page.locator('.method-header').evaluateAll(items => items.map(item => item.title));
+      assert.ok(titles.includes(catalog['method.IMC']), locale + ': method label');
+      await page.locator('[data-detail-section="device"]').evaluate(element => element.open = true);
+      await page.locator('#account-button').click();
+      assert.equal(await page.locator('#account-language-label').innerText(), catalog.language);
+      assert.equal(await page.locator('#account-close').innerText(), catalog.close);
+      assert.doesNotMatch(await page.locator('body').innerText(), /epi-i18n:|\{(?:detail|count|from|to|0)\}/, locale);
+    } finally {
+      await page.context().close();
+    }
+  }
+});
+
 test('garde les boutons de connexion groupés quand la fenêtre rétrécit', async t => {
   const page = await pageWith(t, undefined, { viewport: { width: 700, height: 600 } });
   await page.getByRole('button', { name: 'Compte', exact: true }).click();
@@ -949,9 +976,9 @@ test('l’écoute Bluetooth conserve les trames récentes et purge celles de plu
   const stored = () => page.evaluate(key => JSON.parse(localStorage.getItem(key)), logKey);
   assert.deepEqual((await stored()).map(row => row.text), ['Trame récente']);
   await feed(page, 'PAYLOAD AABBCCDDEEFF -58 Service 180F 1 7F ');
-  await log.getByText(/1 octet reçu/).waitFor();
+  await log.getByText(/Reçus : 1 o/).waitFor();
   await page.reload();
-  await log.getByText(/1 octet reçu/).waitFor();
+  await log.getByText(/Reçus : 1 o/).waitFor();
   assert.equal((await stored()).length, 2);
 });
 
@@ -963,10 +990,10 @@ test('l’écoute Bluetooth filtre, décode et suit les trames jusqu’à une pe
   const log = page.getByRole('region', { name: 'Trames Bluetooth reçues' });
   const payload = (id, data = 'DEAD', length = data.length / 2) => `PAYLOAD AABBCCDDEEFF -58 Manufacturer ${id} ${length} ${data} `;
   await feed(page, payload('0157', '412020420A7F80FF'));
-  const shortFrame = log.getByText(/^\[\d{2}\/\d{2}\/\d{4}.*\d{2}:\d{2}:\d{2}\].*Anhui Huami.*8 octets reçus/);
-  assert.match(await shortFrame.innerText(), /8 octets reçus\n41 20 20 42 0A 7F 80 FF\nA  B····$/);
+  const shortFrame = log.getByText(/^\[\d{2}\/\d{2}\/\d{4}.*\d{2}:\d{2}:\d{2}\].*Anhui Huami.*Reçus : 8 o/);
+  assert.match(await shortFrame.innerText(), /Reçus : 8 o\n41 20 20 42 0A 7F 80 FF\nA  B····$/);
   await feed(page, payload('FFFF', '41'.repeat(120)));
-  const longFrame = log.getByText(/Fabricant 0xFFFF · -58 dBm · 120 octets reçus/);
+  const longFrame = log.getByText(/Fabricant 0xFFFF · -58 dBm · Reçus : 120 o/);
   assert.deepEqual((await longFrame.innerText()).split('\n').slice(1), [
     Array(120).fill('41').join(' '), 'A'.repeat(120),
   ]);
@@ -975,7 +1002,7 @@ test('l’écoute Bluetooth filtre, décode et suit les trames jusqu’à une pe
   await feed(page, frame.replace('0226', '0206'));
   await feed(page, metadata);
   await feed(page, frame.replace('0226', '0206'));
-  const decodedFrame = log.getByText(/XMTZC05HM.*13 octets reçus.*70,9 kg.*Poids instable/);
+  const decodedFrame = log.getByText(/XMTZC05HM.*Reçus : 13 o.*70,9 kg.*Poids instable/);
   await decodedFrame.waitFor();
   assert.deepEqual(await decodedFrame.locator('.bluetooth-decoded').allTextContents(), ['70,9 kg', '489 Ω']);
   await feed(page, frame.replace('AABBCCDDEEFF', '000000000001'));
@@ -1006,8 +1033,8 @@ test('l’écoute Bluetooth identifie le fabricant par préfixe MAC lorsque le c
   const log = page.getByRole('region', { name: 'Trames Bluetooth reçues' });
   await log.waitFor();
   await feed(page, 'PAYLOAD D4278722D707 -91 Manufacturer 3030 1 30 QVBfMzQxODczMTY0NA==');
-  const inferred = log.getByText(/AP_3418731644 · Shanghai High-Flying Electronics Technology Co\., Ltd \(0x3030\) · -91 dBm · 1 octet reçu/);
-  assert.match(await inferred.innerText(), /1 octet reçu\n30\n0$/);
+  const inferred = log.getByText(/AP_3418731644 · Shanghai High-Flying Electronics Technology Co\., Ltd \(0x3030\) · -91 dBm · Reçus : 1 o/);
+  assert.match(await inferred.innerText(), /Reçus : 1 o\n30\n0$/);
   await feed(page, 'PAYLOAD D4278722D707 -91 Manufacturer 0157 1 30 ');
   await log.getByText(/Anhui Huami.* \(0x0157\)/).waitFor();
   const known = log.locator('.bluetooth-id-known');

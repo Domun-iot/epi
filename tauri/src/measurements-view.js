@@ -251,7 +251,7 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
     if (known.has(key) || value == null) continue;
     const json = key === 'updatedAt' ? formatDate(value)
       : JSON.stringify(value, (_key, field) => typeof field === "number" ? Number(jsonNumber.format(field)) : field, 2);
-    sections.push(['extra:' + key, key, `<pre>${e(json)}</pre>`, false]);
+    sections.push(['extra:' + key, key === 'updatedAt' ? t('lastModification') : key, `<pre>${e(json)}</pre>`, false]);
   }
   const bySection = new Map(sections.filter(([, , body]) => body).map(([id, ...section]) => [id, section]));
   const orderedSections = [...new Set([...sectionOrder, ...bySection.keys()])].filter(id => bySection.has(id));

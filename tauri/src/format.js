@@ -97,7 +97,8 @@ export function deviceFields(device = {}) {
     [t('macPrefixManufacturer'), bluetooth.macManufacturer],
     [t('brand'), bluetooth.brand],
     [t('model'), bluetooth.model],
-    [t('modelSource'), bluetooth.modelSource],
+    [t('modelSource'), bluetooth.modelSource === 'advertisement' ? t('modelFromAdvertisement')
+      : bluetooth.modelSource === 'measurement' ? t('modelFromMeasurement') : bluetooth.modelSource],
     [t('registeredOn'), formatDateMinutes(device.registeredAt)],
     [t('lastModification'), formatDateMinutes(device.updatedAt)],
   ];

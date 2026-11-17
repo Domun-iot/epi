@@ -1,4 +1,4 @@
-import { locale, t, htmlText } from './i18n.js';
+import { t, htmlText } from './i18n.js';
 import { bluetooth } from 'virtual:epi-domain';
 import { button, escapeHtml, formatDate, formatScaleTime, number, pageHeader, weight } from './format.js';
 
@@ -52,8 +52,6 @@ export function bluetoothView({ addressFilter, devices }, web) {
   };
 }
 
-const bytePlural = new Intl.PluralRules(locale);
-
 function formatFrame(frame) {
   const source = [frame.localName, frame.model].filter(Boolean).join(' ');
   const announcement = frame.label.startsWith('Service annoncé · ');
@@ -71,7 +69,7 @@ function formatFrame(frame) {
   }
   fields.push(frame.advertisementType === 'Gatt' ? 'GATT' : '',
     frame.rssi == null ? '' : `${frame.rssi} dBm`,
-    t(bytePlural.select(frame.bytes) === 'one' ? 'bytesReceivedOne' : 'bytesReceivedOther', { count: number(frame.bytes) }));
+    t('bytesReceived', { count: number(frame.bytes) }));
   let text = fields.filter(Boolean).join(' · ');
   if (Number.isFinite(frame.weight)) {
     text += ' · ';

@@ -49,7 +49,7 @@ pub struct PendingTransaction {
 fn check_directory(path: &Path) -> Result<(), String> {
     match fs::symlink_metadata(path) {
         Ok(meta) if !meta.is_dir() || meta.is_symlink() => {
-            Err("epi-i18n:diagnostic.invalidDataPath".into())
+            Err("epi-i18n:diagnostic.invalidDataPath2".into())
         }
         Ok(_) => Ok(()),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
@@ -130,7 +130,9 @@ pub async fn archive_transactions(
         fs::create_dir_all(&sent).map_err(message)?;
         for name in names {
             if filename_uuid(&name).is_none() {
-                return Err("epi-i18n:diagnostic.invalidTransactionUuid".into());
+                return Err(format!(
+                    "epi-i18n:diagnostic.invalidTransactionUuid · {name}"
+                ));
             }
             let source = pending.join(&name);
             match fs::symlink_metadata(&source) {
@@ -160,7 +162,7 @@ pub struct IntegratedTransactions {
 fn local_ids(root: &Path) -> Result<HashSet<Uuid>, String> {
     let index = root.join("transactions.index");
     if fs::symlink_metadata(index).is_ok_and(|meta| !meta.is_file() || meta.is_symlink()) {
-        return Err("epi-i18n:diagnostic.invalidDataPath".into());
+        return Err("epi-i18n:diagnostic.invalidDataPath2".into());
     }
     let mut ids = transaction_index::load(root).map_err(message)?;
     for folder in ["transactions", "transactions.sent"] {
@@ -195,7 +197,7 @@ fn transaction_time(name: &str) -> Option<i64> {
         .map(|stamp| stamp.and_utc().timestamp_millis())
 }
 pub(crate) fn validate_transaction(transaction: &Value, name: &str) -> Result<(), String> {
-    let invalid = || "epi-i18n:diagnostic.invalidTransactionUuid".to_owned();
+    let invalid = || format!("epi-i18n:diagnostic.invalidTransactionUuid · {name}");
     let id = transaction["uuid"]
         .as_str()
         .and_then(|id| {
@@ -301,7 +303,7 @@ fn transaction_changes(
     name: &str,
     tombstones: &HashMap<String, i64>,
 ) -> Result<Vec<FileChange>, String> {
-    let invalid = || "epi-i18n:diagnostic.invalidDataPath".to_owned();
+    let invalid = || "epi-i18n:diagnostic.invalidDataPath2".to_owned();
     let kind = transaction["type"].as_str().ok_or_else(invalid)?;
     let data = &transaction["data"];
     let operations: &[Value] = if kind == "batch" {
@@ -400,7 +402,7 @@ fn apply_received(
     let mut archive = transaction.clone();
     archive
         .as_object_mut()
-        .ok_or("epi-i18n:diagnostic.invalidDataPath")?
+        .ok_or("epi-i18n:diagnostic.invalidDataPath2")?
         .remove("name");
     let mut bytes = serde_json::to_vec_pretty(&archive).map_err(message)?;
     bytes.push(b'\n');
@@ -420,7 +422,7 @@ fn apply_received(
             }
             let path = &change.path;
             if read_bytes(path)? != change.before {
-                return Err("epi-i18n:diagnostic.invalidDataPath".into());
+                return Err("epi-i18n:diagnostic.invalidDataPath2".into());
             }
             if let Some(after) = &change.after {
                 if !atomic_write(path, after, change.before.is_some())? {
