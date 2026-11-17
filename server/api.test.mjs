@@ -287,3 +287,76 @@ test('gives domun access to paginated account entitlements without sharing crede
   assert.equal((await send(update, token, { paidUntil }, 'PUT')).status, 404);
   assert.equal((await login()).paid, false);
 });
+
+test('marks a connected account, blocks its devices and purges only eligible accounts', async t => {
+  const directory = mkdtempSync(join(tmpdir(), 'epi-purge-'));
+  const path = join(directory, 'epi.sqlite');
+  const store = openStore(path);
+  const token = 'c'.repeat(64);
+  let now = Date.parse('2026-02-28T09:00:00.000Z');
+  const server = createApi(store, () => now, undefined, undefined, token);
+  const db = new DatabaseSync(path);
+  t.after(async () => {
+    if (server.listening) await new Promise(resolve => server.close(resolve));
+    db.close();
+    store.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const url = 'http://127.0.0.1:' + server.address().port + '/v1';
+  const credentials = { email: 'delete@example.org', password: 'password', deviceId: 'desktop' };
+  const auth = key => ({ Authorization: 'Bearer ' + key });
+  const send = (path, body, key = '') => fetch(url + path, {
+    method: 'POST', headers: { ...auth(key), 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  const register = () => send('/accounts', credentials);
+  const login = (deviceId = credentials.deviceId) => send('/device-tokens', { ...credentials, deviceId });
+  assert.equal((await register()).status, 201);
+  const device = (await (await login()).json()).token;
+  const otherDevice = (await (await login('phone')).json()).token;
+  const transaction = { uuid: randomUUID() };
+  assert.equal((await send('/transactions', { transactions: [transaction] }, device)).status, 200);
+  const account = store.findAccount(credentials.email);
+  store.createAccount('active@example.org', 'hash', null);
+  const active = store.findAccount('active@example.org');
+  store.createAccount('second@example.org', 'hash', null);
+  const second = store.findAccount('second@example.org');
+  store.markDeleted(second.domun_id, new Date(now).toISOString());
+
+  const mark = (key, deviceToken) => fetch(url + '/domun/account-deletion', {
+    method: 'DELETE', headers: { ...auth(key), 'X-Domun-Device': deviceToken }
+  });
+  const purgePath = '/domun/accounts/purge';
+  const preview = async () => (await (await fetch(url + purgePath, { headers: auth(token) })).json()).accounts;
+  const purge = async ids => (await send(purgePath, { ids }, token)).json();
+  assert.equal((await mark(device, device)).status, 401);
+  assert.equal((await mark(token, 'wrong')).status, 401);
+  assert.equal((await mark(token, device)).status, 204);
+  assert.equal((await mark(token, device)).status, 401);
+  assert.equal((await login()).status, 401);
+  assert.equal((await fetch(url + '/transactions/pending', { headers: auth(otherDevice) })).status, 401);
+  assert.equal((await register()).status, 409);
+  for (const table of ['accounts', 'devices', 'transactions', 'receipts']) {
+    const idColumn = table === 'accounts' ? 'id' : 'account_id';
+    assert.ok(db.prepare('SELECT 1 FROM ' + table + ' WHERE ' + idColumn + ' = ?').get(account.id), table);
+  }
+  now = Date.parse('2026-03-31T09:00:00.000Z');
+  assert.deepEqual(await preview(), []);
+  assert.deepEqual(await purge([account.domun_id, active.domun_id]), { purged: 0 });
+  now++;
+  assert.deepEqual(new Set((await preview()).map(row => row.id)), new Set([account.domun_id, second.domun_id]));
+  assert.deepEqual(await purge([account.domun_id, active.domun_id]), { purged: 1 });
+  for (const table of ['accounts', 'devices', 'transactions', 'receipts']) {
+    const idColumn = table === 'accounts' ? 'id' : 'account_id';
+    assert.equal(db.prepare('SELECT 1 FROM ' + table + ' WHERE ' + idColumn + ' = ?').get(account.id), undefined, table);
+  }
+  assert.deepEqual((await preview()).map(row => row.id), [second.domun_id]);
+  assert.deepEqual(await purge([account.domun_id, second.domun_id]), { purged: 1 });
+  assert.deepEqual(await preview(), []);
+  assert.equal((await register()).status, 201);
+  assert.equal((await fetch(url + '/account', { headers: auth(device) })).status, 401);
+  assert.ok(store.findAccount(active.email));
+});

@@ -15,6 +15,7 @@ const maxBodyBytes = 4 * 1024 * 1024;
 const maxBatchSize = 100;
 const domunAccountId = /^[a-f0-9]{32}$/u;
 const domunEntitlement = /^\/v1\/domun\/accounts\/([a-f0-9]{32})\/entitlement$/u;
+const domunPurgePath = '/v1/domun/accounts/purge';
 const domunTokenPattern = /^[a-f0-9]{64}$/u;
 const utcTimestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
 const hour = 60 * 60 * 1000;
@@ -76,7 +77,8 @@ function transactionRow(value: unknown) {
   return { uuid: value.uuid, payload };
 }
 
-async function uploadStream(req: IncomingMessage, store: Store, accountId: number, deviceId: string) {
+async function uploadStream(req: IncomingMessage, upload: (rows: ReturnType<typeof transactionRow>[]) =>
+  ReturnType<Store['upload']>) {
   const uuids = new Set<string>();
   let inserted = 0;
   const rows: ReturnType<typeof transactionRow>[] = [];
@@ -92,7 +94,7 @@ async function uploadStream(req: IncomingMessage, store: Store, accountId: numbe
 
   function flush() {
     if (!rows.length) return;
-    const result = store.upload(accountId, deviceId, rows);
+    const result = upload(rows);
     inserted += result.inserted;
     for (const uuid of result.uuids) uuids.add(uuid);
     rows.length = 0;
@@ -168,15 +170,15 @@ function hashToken(secret: string) {
   return createHash('sha256').update(secret).digest('hex');
 }
 
-function readToken(req: IncomingMessage) {
-  const token = /^Bearer ([0-9a-f]{32})\.([0-9a-f]{64})$/i.exec(req.headers.authorization ?? '');
+function readToken(authorization: string | undefined) {
+  const token = /^Bearer ([0-9a-f]{32})\.([0-9a-f]{64})$/i.exec(authorization ?? '');
   if (!token) throw new ApiError(401, 'invalid_token');
   const [, selector, secret] = token;
   return { selector, hash: hashToken(secret) };
 }
 
-function authenticate(req: IncomingMessage, store: Store, now: number) {
-  const { selector, hash } = readToken(req);
+function authenticate(authorization: string | undefined, store: Store, now: number) {
+  const { selector, hash } = readToken(authorization);
   const cutoff = now - tokenLifetime;
   const device = store.useToken(now, selector, hash, cutoff);
   if (device) return device;
@@ -304,6 +306,17 @@ function browserResult(res: ServerResponse, succeeded: boolean, locale: Locale) 
     '<script>' + closeGoogleWindow + '</script></html>');
 }
 
+function purgeCutoff(now: number) {
+  const date = new Date(now);
+  const day = date.getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() - 1);
+  const lastDay = new Date(date);
+  lastDay.setUTCMonth(lastDay.getUTCMonth() + 1, 0);
+  date.setUTCDate(Math.min(day, lastDay.getUTCDate()));
+  return date.toISOString();
+}
+
 export function createApi(store: Store, now = Date.now, google?: Google,
   publicPages?: (path: string, res: ServerResponse) => boolean, domunToken?: string, readPaidUntil?: PaidUntil) {
   if (domunToken && !domunTokenPattern.test(domunToken)) {
@@ -317,10 +330,26 @@ export function createApi(store: Store, now = Date.now, google?: Google,
     if (!token || !timingSafeEqual(domunSecret, Buffer.from(token[1], 'hex'))) {
       throw new ApiError(401, 'invalid_token');
     }
-    if (req.method === 'GET' && path === '/v1/domun/accounts') {
+    if (req.method === 'DELETE' && path === '/v1/domun/account-deletion') {
+      const device = req.headers['x-domun-device'];
+      const account = currentAccount(typeof device === 'string' ? 'Bearer ' + device : undefined);
+      store.markDeleted(account.domun_id, new Date(now()).toISOString());
+      res.writeHead(204, { 'Cache-Control': 'no-store' });
+      return res.end();
+    }
+    if (req.method === 'POST' && path === domunPurgePath) {
+      const { ids } = await readBody(req);
+      if (!Array.isArray(ids) || !ids.length || !ids.every(id => typeof id === 'string' && domunAccountId.test(id))) {
+        throw new ApiError(400, 'invalid_account_ids');
+      }
+      return send(res, 200, { purged: store.purgeAccounts(ids, purgeCutoff(now())) });
+    }
+    if (req.method === 'GET' && (path === '/v1/domun/accounts' || path === domunPurgePath)) {
       const after = new URLSearchParams(query).get('after') ?? '';
       if (after && !domunAccountId.test(after)) throw new ApiError(400, 'invalid_cursor');
-      const accounts = store.listDomunAccounts(after, maxBatchSize + 1);
+      const accounts = path === domunPurgePath
+        ? store.accountsEligibleForPurge(purgeCutoff(now()), after, maxBatchSize + 1)
+        : store.listDomunAccounts(after, maxBatchSize + 1);
       const hasNext = accounts.length > maxBatchSize;
       if (hasNext) accounts.pop();
       return send(res, 200, { accounts, next: hasNext ? accounts.at(-1)!.id : null });
@@ -347,23 +376,28 @@ export function createApi(store: Store, now = Date.now, google?: Google,
     }
   };
 
-  function currentAccount(req: IncomingMessage) {
-    const { account_id } = authenticate(req, store, now());
+  function currentAccount(authorization: string | undefined) {
+    const { account_id } = authenticate(authorization, store, now());
     const account = store.findById(account_id);
     if (!account) throw new ApiError(401, 'invalid_token');
     return account;
   }
 
   async function authorizeSync(req: IncomingMessage) {
-    const device = authenticate(req, store, now());
-    if (!readPaidUntil) return device;
+    const device = authenticate(req.headers.authorization, store, now());
     const account = store.findById(device.account_id);
     if (!account) throw new ApiError(401, 'invalid_token');
-    let expires: string | null;
-    try { expires = await readPaidUntil(account.domun_id); }
-    catch { throw new ApiError(503, 'subscription_unavailable'); }
-    if (!expires || !(Date.parse(expires) > now())) throw new ApiError(403, 'pro_required');
-    return device;
+    const checkActive = () => {
+      if (store.findById(account.id)?.domun_id !== account.domun_id) throw new ApiError(401, 'invalid_token');
+    };
+    if (readPaidUntil) {
+      let expires: string | null;
+      try { expires = await readPaidUntil(account.domun_id); }
+      catch { throw new ApiError(503, 'subscription_unavailable'); }
+      checkActive();
+      if (!expires || !(Date.parse(expires) > now())) throw new ApiError(403, 'pro_required');
+    }
+    return { ...device, checkActive };
   }
 
   async function liveEntitlement(account: Account) {
@@ -379,7 +413,9 @@ export function createApi(store: Store, now = Date.now, google?: Google,
   function issueToken(account: Account, deviceId: string) {
     const selector = randomBytes(16).toString('hex');
     const secret = randomSecret();
-    store.issueToken(account.id, deviceId, selector, hashToken(secret), now());
+    if (!store.issueToken(account.domun_id, deviceId, selector, hashToken(secret), now())) {
+      throw new ApiError(401, 'invalid_credentials');
+    }
     return selector + '.' + secret;
   }
 
@@ -412,20 +448,21 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         }
       }
       if (route === 'GET /v1/account') {
-        const account = currentAccount(req);
+        const account = currentAccount(req.headers.authorization);
         return send(res, 200, { ...accountInfo(account, now()), ...await liveEntitlement(account), domunId: account.domun_id, googleAvailable: Boolean(google) });
       }
       if (route === 'GET /v1/google/config') {
         return send(res, 200, { enabled: Boolean(google) });
       }
       if (route === 'POST /v1/google/unlink') {
-        const account = currentAccount(req);
+        const account = currentAccount(req.headers.authorization);
         const { password } = await readBody(req);
         if (!account.google_sub) throw new ApiError(409, 'google_not_linked');
         if (!validPassword(password)) throw new ApiError(400, 'invalid_credentials_format');
         let passwordHash = account.password_hash;
         if (passwordHash) await checkPassword(password, passwordHash);
         else passwordHash = await hashPassword(password);
+        if (currentAccount(req.headers.authorization).domun_id !== account.domun_id) throw new ApiError(401, 'invalid_token');
         if (!store.unlinkGoogle(account.id, account.google_sub, account.password_hash, passwordHash)) {
           throw new ApiError(409, 'google_conflict');
         }
@@ -439,13 +476,13 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         if (body.action === 'login' || body.action === 'register') {
           action = { kind: body.action, deviceId: deviceIdFrom(body.deviceId), locale: supportedLocale(body.locale) };
         } else if (body.action === 'link') {
-          const account = currentAccount(req);
+          const account = currentAccount(req.headers.authorization);
           if (account.google_sub) throw new ApiError(409, 'google_conflict');
           await checkPassword(body.password, account.password_hash);
           action = { kind: 'link', account };
         } else if (body.action === 'unlink') {
           // Older app builds still start an OAuth flow for accounts without a password.
-          const account = currentAccount(req);
+          const account = currentAccount(req.headers.authorization);
           if (!account.google_sub || account.password_hash) throw new ApiError(409, 'google_conflict');
           const { password } = body;
           if (!validPassword(password)) {
@@ -497,7 +534,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           throw new ApiError(400, 'google_attempt_expired');
         }
         const { action, identity } = attempt;
-        if ('account' in action && currentAccount(req).id !== action.account.id) {
+        if ('account' in action && currentAccount(req.headers.authorization).domun_id !== action.account.domun_id) {
           throw new ApiError(401, 'invalid_token');
         }
         if (attempt.status === 'pending' || attempt.status === 'exchanging') return send(res, 202, { pending: true });
@@ -556,14 +593,15 @@ export function createApi(store: Store, now = Date.now, google?: Google,
       }
 
       if (route === 'DELETE /v1/device-tokens') {
-        const { selector, hash } = readToken(req);
+        const { selector, hash } = readToken(req.headers.authorization);
         store.revokeToken(selector, hash);
         res.writeHead(204, { 'Cache-Control': 'no-store' });
         return res.end();
       }
 
       if (req.method === 'GET' && path === '/v1/transactions/pending') {
-        const { account_id, device_id } = await authorizeSync(req);
+        const { account_id, device_id, checkActive } = await authorizeSync(req);
+        checkActive();
         const transactions: string[] = [];
         const envelope = '{"transactions":[';
         const after = new URLSearchParams(query).get('after') ?? '';
@@ -587,21 +625,26 @@ export function createApi(store: Store, now = Date.now, google?: Google,
       }
 
       if (route === 'POST /v1/transactions') {
-        const { account_id, device_id } = await authorizeSync(req);
+        const { account_id, device_id, checkActive } = await authorizeSync(req);
+        const upload = (rows: ReturnType<typeof transactionRow>[]) => {
+          checkActive();
+          return store.upload(account_id, device_id, rows);
+        };
         const contentType = req.headers['content-type']?.split(';')[0].trim().toLowerCase();
         if (contentType === 'application/x-ndjson') {
-          return send(res, 200, await uploadStream(req, store, account_id, device_id));
+          return send(res, 200, await uploadStream(req, upload));
         }
         const body = await readBody(req);
         const rows = batch(body.transactions).map(transactionRow);
-        return send(res, 200, store.upload(account_id, device_id, rows));
+        return send(res, 200, upload(rows));
       }
 
       if (route === 'POST /v1/transactions/acknowledge') {
-        const { account_id, device_id } = await authorizeSync(req);
+        const { account_id, device_id, checkActive } = await authorizeSync(req);
         const body = await readBody(req);
         const uuids = batch(body.uuids);
         if (!uuids.every(isUuid)) throw new ApiError(400, 'invalid_uuid');
+        checkActive();
         return send(res, 200, { inserted: store.acknowledge(account_id, device_id, uuids) });
       }
 

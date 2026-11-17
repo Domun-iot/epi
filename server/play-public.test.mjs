@@ -38,8 +38,8 @@ test('account deletion removes synchronized data and all credentials for only th
   const account = store.createGoogle('delete@example.org', 'google-id', null, null);
   store.createAccount('keep@example.org', 'hash', null);
   const other = store.findAccount('keep@example.org');
-  store.issueToken(account.id, 'device', 'selector', 'hash', 100);
-  store.issueToken(other.id, 'device', 'other-selector', 'hash', 100);
+  store.issueToken(account.domun_id, 'device', 'selector', 'hash', 100);
+  store.issueToken(other.domun_id, 'device', 'other-selector', 'hash', 100);
   const row = { uuid: 'ad81fa9d-f2ab-403f-a04b-a28eb6727d6b', payload: '{}' };
   store.upload(account.id, 'device', [row]);
   store.upload(other.id, 'device', [row]);

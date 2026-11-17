@@ -41,6 +41,9 @@ L’API privée accepte le jeton de service défini par `EPI_DOMUN_API_TOKEN` so
 | Méthode et route | Corps | Réponse |
 | --- | --- | --- |
 | `GET /v1/domun/accounts` | Aucun. Paramètre `after` facultatif. | `200` avec `{"accounts":[{"id":"…","email":"a@example.org","paidUntil":null}],"next":null}`. Transmettez `next` dans `after` pour lire la page suivante. |
+| `DELETE /v1/domun/account-deletion` | En-tête `X-Domun-Device` avec le jeton d’appareil du compte. | `204`. Marque le compte et bloque ses accès. |
+| `GET /v1/domun/accounts/purge` | Paramètre `after` facultatif. | `200` avec `accounts`, où chaque compte contient `id`, `email` et `deletedAt`, et le curseur `next`. |
+| `POST /v1/domun/accounts/purge` | `{"ids":["…"]}` | `200` avec le nombre de comptes purgés dans `purged`. Seuls les comptes listés et marqués depuis strictement plus d’un mois calendaire UTC sont éligibles. |
 | `PUT /v1/domun/accounts/<id>/entitlement` | `{"paidUntil":"2027-01-01T00:00:00.000Z"}` ou `{"paidUntil":null}` en JSON. | `204`. `404 account_not_found` si le compte a été supprimé. |
 
 Le serveur vérifie auprès de `EPI_DOMUN_BILLING_URL` (boucle locale, jeton `EPI_DOMUN_API_TOKEN`) les droits de chaque envoi, lecture et acquittement de transactions. Un compte FREE reçoit `403 pro_required`; une panne de l’admin donne `503 subscription_unavailable`. La connexion au compte et les données déjà stockées restent disponibles pour le prochain abonnement.

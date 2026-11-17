@@ -50,6 +50,9 @@ export function openStore(path: string) {
     if (!db.prepare("SELECT 1 FROM pragma_table_info('accounts') WHERE name = 'created_at'").get()) {
       db.exec('ALTER TABLE accounts ADD COLUMN created_at TEXT; ALTER TABLE accounts ADD COLUMN updated_at TEXT');
     }
+    if (!db.prepare("SELECT 1 FROM pragma_table_info('accounts') WHERE name = 'deleted_at'").get()) {
+      db.exec('ALTER TABLE accounts ADD COLUMN deleted_at TEXT');
+    }
     if (!db.prepare("SELECT 1 FROM pragma_table_info('accounts') WHERE name = 'domun_id'").get()) {
       db.exec(`
         ALTER TABLE accounts ADD COLUMN domun_id TEXT;
@@ -59,6 +62,7 @@ export function openStore(path: string) {
     }
     db.exec('CREATE UNIQUE INDEX IF NOT EXISTS accounts_domun_id ON accounts(domun_id)');
     db.exec('CREATE UNIQUE INDEX IF NOT EXISTS accounts_google_sub ON accounts(google_sub)');
+    db.exec('CREATE INDEX IF NOT EXISTS accounts_pending_purge ON accounts(domun_id, deleted_at) WHERE deleted_at IS NOT NULL');
     db.exec('COMMIT');
   } catch (error) {
     db.exec('ROLLBACK');
@@ -80,25 +84,32 @@ export function openStore(path: string) {
     FROM accounts WHERE domun_id > ? ORDER BY domun_id LIMIT ?
   `);
   const updateEntitlement = db.prepare('UPDATE accounts SET paid_until = ? WHERE domun_id = ?');
-  const findAccount = db.prepare('SELECT * FROM accounts WHERE email = ?');
-  const findById = db.prepare('SELECT * FROM accounts WHERE id = ?');
-  const findGoogle = db.prepare('SELECT * FROM accounts WHERE google_sub = ?');
+  const markDeleted = db.prepare('UPDATE accounts SET deleted_at = ? WHERE domun_id = ? AND deleted_at IS NULL');
+  const eligibleForPurge = db.prepare(`
+    SELECT domun_id AS id, email, deleted_at AS deletedAt
+    FROM accounts WHERE deleted_at IS NOT NULL AND deleted_at < ? AND domun_id > ?
+    ORDER BY domun_id LIMIT ?
+  `);
+  const purgeCandidate = db.prepare('SELECT id FROM accounts WHERE domun_id = ? AND deleted_at < ?');
+  const findAccount = db.prepare('SELECT * FROM accounts WHERE email = ? AND deleted_at IS NULL');
+  const findById = db.prepare('SELECT * FROM accounts WHERE id = ? AND deleted_at IS NULL');
+  const findGoogle = db.prepare('SELECT * FROM accounts WHERE google_sub = ? AND deleted_at IS NULL');
   const createGoogle = db.prepare(
     `INSERT INTO accounts (email, password_hash, google_sub, locale, google_locale, created_at, domun_id)
      VALUES (?, '', ?, ?, ?, ${now}, lower(hex(randomblob(16)))) ON CONFLICT DO NOTHING RETURNING *`
   );
   const linkGoogle = db.prepare(
     `UPDATE OR IGNORE accounts SET google_sub = ?, google_locale = ?, updated_at = ${now}
-     WHERE id = ? AND google_sub IS NULL AND password_hash = ?`
+     WHERE id = ? AND deleted_at IS NULL AND google_sub IS NULL AND password_hash = ?`
   );
   const updateGoogleLocale = db.prepare(`UPDATE accounts SET google_locale = ?, updated_at = ${now} WHERE id = ? AND google_sub = ?`);
   const unlinkGoogle = db.prepare(
     `UPDATE accounts SET google_sub = NULL, google_locale = NULL, password_hash = ?, updated_at = ${now}
-     WHERE id = ? AND google_sub = ? AND password_hash = ?`
+     WHERE id = ? AND deleted_at IS NULL AND google_sub = ? AND password_hash = ?`
   );
   const issueToken = db.prepare(`
     INSERT INTO devices (account_id, device_id, token_selector, token_hash, last_used_at)
-    VALUES (?, ?, ?, ?, ?)
+    SELECT id, ?, ?, ?, ? FROM accounts WHERE domun_id = ? AND deleted_at IS NULL
     ON CONFLICT (account_id, device_id) DO UPDATE SET
       token_selector = excluded.token_selector, token_hash = excluded.token_hash,
       last_used_at = excluded.last_used_at
@@ -106,6 +117,7 @@ export function openStore(path: string) {
   const useToken = db.prepare(`
     UPDATE devices SET last_used_at = MAX(last_used_at, ?)
     WHERE token_selector = ? AND token_hash = ? AND last_used_at >= ?
+      AND EXISTS (SELECT 1 FROM accounts WHERE id = account_id AND deleted_at IS NULL)
     RETURNING account_id, device_id
   `);
   const expireToken = db.prepare(`
@@ -141,11 +153,11 @@ export function openStore(path: string) {
     ON CONFLICT (account_id, device_id, uuid) DO NOTHING
   `);
 
-  function writeBatch<T>(rows: T[], write: (row: T) => StatementResultingChanges) {
+  function writeBatch<T>(rows: T[], write: (row: T) => StatementResultingChanges | undefined) {
     db.exec('BEGIN IMMEDIATE');
     try {
       let inserted = 0;
-      for (const row of rows) inserted += Number(write(row).changes);
+      for (const row of rows) inserted += Number(write(row)?.changes ?? 0);
       db.exec('COMMIT');
       return inserted;
     } catch (error) {
@@ -154,12 +166,32 @@ export function openStore(path: string) {
     }
   }
 
-  const removeAccount = ['receipts', 'transactions', 'devices', 'accounts'].map(table =>
-    db.prepare(table === 'accounts' ? 'DELETE FROM accounts WHERE id = ?' : `DELETE FROM ${table} WHERE account_id = ?`));
+  const removeAccountData = ['receipts', 'transactions', 'devices'].map(table =>
+    db.prepare(`DELETE FROM ${table} WHERE account_id = ?`));
+  const removeAccountRow = db.prepare('DELETE FROM accounts WHERE id = ?');
+  function removeAccount(id: number) {
+    for (const statement of removeAccountData) statement.run(id);
+    return removeAccountRow.run(id);
+  }
 
   return {
     deleteAccount(id: number) {
-      writeBatch(removeAccount, statement => statement.run(id));
+      writeBatch([id], removeAccount);
+    },
+    markDeleted: (id: string, deletedAt: string) => markDeleted.run(deletedAt, id),
+    accountsEligibleForPurge: (before: string, after: string, limit: number) =>
+      eligibleForPurge.all(before, after, limit) as { id: string; email: string; deletedAt: string }[],
+    purgeAccounts(ids: string[], before: string) {
+      const previousSecureDelete = db.prepare('PRAGMA secure_delete').get()!.secure_delete as number;
+      db.exec('PRAGMA secure_delete = ON');
+      try {
+        return writeBatch(ids, id => {
+          const row = purgeCandidate.get(id, before) as { id: number } | undefined;
+          return row && removeAccount(row.id);
+        });
+      } finally {
+        db.exec('PRAGMA secure_delete = ' + previousSecureDelete);
+      }
     },
     createAccount: (email: string, hash: string, locale: string | null) => createAccount.run(email, hash, locale).changes === 1,
     listDomunAccounts: (after: string, limit: number) => listDomunAccounts.all(after, limit) as DomunAccount[],
@@ -175,8 +207,8 @@ export function openStore(path: string) {
     updateGoogleLocale: (id: number, sub: string, locale: string) => updateGoogleLocale.run(locale, id, sub),
     unlinkGoogle: (id: number, sub: string, oldHash: string, newHash: string) =>
       unlinkGoogle.run(newHash, id, sub, oldHash).changes === 1,
-    issueToken: (accountId: number, deviceId: string, selector: string, hash: string, now: number) =>
-      issueToken.run(accountId, deviceId, selector, hash, now),
+    issueToken: (id: string, deviceId: string, selector: string, hash: string, now: number) =>
+      issueToken.run(deviceId, selector, hash, now, id).changes === 1,
     useToken: (now: number, selector: string, hash: string, cutoff: number) =>
       useToken.get(now, selector, hash, cutoff) as { account_id: number; device_id: string } | undefined,
     expireToken: (selector: string, hash: string, cutoff: number) => expireToken.get(selector, hash, cutoff),
