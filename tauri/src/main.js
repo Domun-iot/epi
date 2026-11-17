@@ -503,14 +503,14 @@ function editProfile(profile) {
   });
 }
 
-function addProfile(item) {
+function addProfile(item, onCalculateWithoutProfile) {
   editor.profileEditor(null, async profile => {
     const epoch = datasetEpoch;
     await session.saveProfile(profile);
     if (!sameDataset(epoch)) return false;
     if (item) await session.confirmProfile({ id: item.id, name: profile.name });
     else await session.selectProfile(profile.name);
-  });
+  }, false, { onCalculateWithoutProfile });
 }
 
 function enterMeasurement(draft) {
@@ -674,9 +674,11 @@ const actions = {
   'assign-profile': id => {
     const pending = state.pending.find(item => String(item.id) === id);
     if (!pending) return;
-    editor.assignmentEditor(pending, state.profiles, request => session.confirmProfile(request), () => addProfile(pending), () => {
+    const calculateWithoutProfile = () => {
       editor.profileEditor(null, profile => session.confirmProfile({ id: pending.id, name: null, profile }), true);
-    });
+    };
+    editor.assignmentEditor(pending, state.profiles, request => session.confirmProfile(request),
+      () => addProfile(pending, state.profiles.length ? undefined : calculateWithoutProfile), calculateWithoutProfile);
   },
   discard: id => {
     const item = state.pending.find(entry => String(entry.id) === id);

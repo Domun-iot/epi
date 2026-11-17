@@ -22,7 +22,7 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
   }
 
   function open(title, content, submit, submitLabel = t('save'), {
-    modal = false, extraActions = '', deleteAction = '', submitChoices = [], subtitle = '', hidePendingWeighIns = false, onCancel,
+    modal = false, extraActions = '', secondaryActions = '', deleteAction = '', submitChoices = [], subtitle = '', hidePendingWeighIns = false, onCancel,
   } = {}) {
     const epoch = getEpoch();
     const current = () => epoch === getEpoch();
@@ -31,7 +31,7 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
     const submitButton = submitLabel ? `<button class="button primary" type="submit" form="${formId}">${e(submitLabel)}</button>` : '';
     const choices = submitChoices.map(({ label, value, primary }) =>
       `<button class="button${primary ? ' primary' : ''}" type="submit" form="${formId}" name="include" value="${value}">${e(label)}</button>`).join('');
-    const actions = `${extraActions}${button(t('cancel'), 'close-editor')}${deleteAction}${submitButton}${choices}`;
+    const actions = `${extraActions}${button(t('cancel'), 'close-editor')}${secondaryActions}${deleteAction}${submitButton}${choices}`;
     host.innerHTML = `${modal ? `<h2 id="dialog-title">${e(title)}</h2>` : pageHeader(title, subtitle)}
       <form id="${formId}" class="editor-form${modal ? '' : ' panel'}"${hidePendingWeighIns ? ' data-hide-pending-weigh-ins' : ''}>${content}<p class="notice error" role="alert" hidden></p></form>
       ${modal ? `<div class="actions">${actions}</div>` : ''}`;
@@ -85,7 +85,7 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
     return form;
   }
 
-  function profileEditor(profile, submit, anonymous = false, { restore = false, onDelete, onCancel } = {}) {
+  function profileEditor(profile, submit, anonymous = false, { restore = false, onDelete, onCancel, onCalculateWithoutProfile } = {}) {
     const edit = Boolean(profile) && !restore;
     const ageType = profile?.age != null && !profile?.birthDate ? 'age' : 'birthDate';
     const title = restore ? t('restoreProfile')
@@ -107,10 +107,12 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
     }, restore ? t('restore') : t('save'), {
       hidePendingWeighIns: !edit && !restore && !anonymous,
       subtitle: restore ? t('thisProfileHasBeenDeleted') : '',
+      secondaryActions: onCalculateWithoutProfile ? button(t('calculateWithoutProfile'), 'calculate-one-off') : '',
       deleteAction: edit && onDelete ? button(t('delete'), 'delete-profile') : '',
       onCancel,
     });
     if (edit && onDelete) toolbar.querySelector('[data-action="delete-profile"]').addEventListener('click', onDelete);
+    if (onCalculateWithoutProfile) toolbar.querySelector('[data-action="calculate-one-off"]').addEventListener('click', onCalculateWithoutProfile);
     const selector = form.querySelector('[name="ageType"]');
     const syncAge = () => ['age', 'birthDate'].forEach(name => {
       const input = form.querySelector(`[name="${name}"]`);
@@ -184,6 +186,7 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
   }
 
   function assignmentEditor(pending, profiles, submit, create, anonymous) {
+    if (!profiles.length) return create();
     const profileItems = sortByName(profiles).map(({ name }) => {
       const firstName = name.trim().split(/\s+/, 1)[0];
       return `<li><button class="button assignment-profile" type="submit" name="name" value="${e(name)}">
