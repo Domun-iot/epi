@@ -11,7 +11,7 @@ import { viewPresetHeader, viewPresetTitles } from './view-presets.js';
 import { notificationBody, notificationDetailHeader, notificationRecordView, notificationsView, notificationText, resolveNotification } from './notifications-view.js';
 import { devicesView, noticesView, profilesView } from './management-view.js';
 
-import { startTransactionSync, requestTransactionSync } from './transaction-sync.js';
+import { startTransactionSync, requestFullTransactionSync, requestTransactionSync } from './transaction-sync.js';
 import { enableLanguageSelection } from './account.js';
 
 for (const modal of document.querySelectorAll('dialog')) {
@@ -981,13 +981,15 @@ function requestReload(automatic = false) {
   if (!session) return;
   if (pendingReload) {
     pendingReload.automatic ||= automatic;
+    pendingReload.manual ||= !automatic;
     return;
   }
-  const request = pendingReload = { automatic };
+  const request = pendingReload = { automatic, manual: !automatic };
   void queueReload(async () => {
     pendingReload = null;
     const before = state;
     const after = await session.reload();
+    if (request.manual) requestFullTransactionSync();
     await announceReload(before, after, !request.automatic);
   }).catch(showNoticeError);
 }

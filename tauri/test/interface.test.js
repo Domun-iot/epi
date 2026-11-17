@@ -398,6 +398,89 @@ test('receives transactions on startup and acknowledges only the IDs returned by
   assert.equal(await button.getAttribute('title'), 'Connecté au compte');
 });
 
+test('refreshes local data, rechecks the account, then retries upload before downloading', { timeout: 15000 }, async t => {
+  await buildWeb();
+  const uuid = '00000000-0000-4000-8000-000000000001';
+  const incomingUuid = '00000000-0000-4000-8000-000000000002';
+  const name = '2026-01-15T17-23-21.000000Z-' + uuid + '.json';
+  const incoming = { name: '2026-01-15T17-24-21.000000Z-' + incomingUuid + '.json', uuid: incomingUuid };
+  let pending = [{ name, transaction: { uuid } }];
+  const snapshot = { profiles: [], devices: [], measurements: [], pending: [], notifications: [] };
+  const steps = [];
+  let refreshing = false;
+  let rejectFirstUpload;
+  const offline = new Promise(resolve => { rejectFirstUpload = resolve; });
+  t.after(rejectFirstUpload);
+  let signalFirstUpload;
+  const firstUpload = new Promise(resolve => { signalFirstUpload = resolve; });
+  let signalReload;
+  const reloaded = new Promise(resolve => { signalReload = resolve; });
+  let signalReceived;
+  const received = new Promise(resolve => { signalReceived = resolve; });
+  const page = await pageWith(t, route => {
+    const { action, args } = route.request().postDataJSON();
+    if (action === 'reload') {
+      steps.push('reload');
+      signalReload();
+    }
+    if (action === 'pendingTransactions') return route.fulfill({ json: pending });
+    if (action === 'archiveTransactions') {
+      steps.push(['archive', args[0]]);
+      pending = pending.filter(row => !args[0].includes(row.name));
+      return route.fulfill({ json: {} });
+    }
+    if (action === 'integrateTransactions') {
+      steps.push(['integrate', args[0]]);
+      return route.fulfill({ json: { uuids: [incomingUuid], state: snapshot } });
+    }
+    return route.fulfill({ json: snapshot });
+  }, {}, 'web', async page => {
+    await page.addInitScript(() => {
+      localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({
+        email: 'alice@example.org', token: 'test-token',
+      }));
+    });
+    await page.route('https://sync.epi.test/v1/account', route => {
+      if (!refreshing) return route.abort('connectionrefused');
+      steps.push('account');
+      return route.fulfill({ json: { email: 'alice@example.org' } });
+    });
+    await page.route('https://sync.epi.test/v1/transactions', async route => {
+      if (!refreshing) {
+        signalFirstUpload();
+        await offline;
+        return route.abort('connectionrefused').catch(() => {});
+      }
+      steps.push(['upload', JSON.parse(route.request().postData())]);
+      return route.fulfill({ json: { uuids: [uuid] } });
+    });
+    await page.route('https://sync.epi.test/v1/transactions/pending', route => {
+      if (refreshing) steps.push('download');
+      return route.fulfill({ json: { transactions: refreshing ? [incoming] : [] } });
+    });
+    await page.route('https://sync.epi.test/v1/transactions/acknowledge', async route => {
+      steps.push(['acknowledge', route.request().postDataJSON()]);
+      await route.fulfill({ json: { inserted: 1 } });
+      signalReceived();
+    });
+  });
+
+  await firstUpload;
+  const account = page.locator('#account-button');
+  await account.locator('.account-disconnected').waitFor();
+  refreshing = true;
+  await page.locator('#reload-data').click();
+  await reloaded;
+  rejectFirstUpload();
+  await received;
+  await account.locator('.account-connected').waitFor();
+  assert.deepEqual(steps, [
+    'reload', 'account', ['upload', { uuid, name }], ['archive', [name]], 'download',
+    ['integrate', [incoming]], ['acknowledge', { uuids: [incomingUuid] }],
+  ]);
+  assert.deepEqual(pending, []);
+});
+
 test('rechecks the saved account from its button and every minute', async t => {
   let offline = true;
   let checks = 0;

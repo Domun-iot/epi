@@ -16,7 +16,7 @@ let files;
 let receivedForToken;
 let running = false;
 let uploading = false;
-let requestedAgain = false;
+let queuedSync;
 let oldest;
 let waitingSince;
 let statusTimer;
@@ -95,12 +95,20 @@ export function startTransactionSync(storage) {
 }
 
 export function requestTransactionSync() {
+  requestSync('regular');
+}
+
+export function requestFullTransactionSync() {
+  requestSync('full');
+}
+
+function requestSync(mode) {
   if (!files?.pendingTransactions) return;
   if (running) {
-    requestedAgain = true;
+    if (queuedSync !== 'full') queuedSync = mode;
     return;
   }
-  void sync();
+  void sync(mode);
 }
 
 async function receive(token) {
@@ -125,18 +133,17 @@ async function receive(token) {
   return false;
 }
 
-async function sync() {
-  running = true;
-  renderSyncDialog();
+async function receiveForToken(token) {
+  if (!token || syncToken() !== token) return;
   try {
-    const token = syncToken();
-    if (token && receivedForToken !== token) {
-      try {
-        if (await receive(token)) receivedForToken = token;
-      } catch {
-        // Outgoing transactions can still be sent after a receive failure.
-      }
-    }
+    if (await receive(token)) receivedForToken = token;
+  } catch {
+    // A later sync can retry reading the server queue.
+  }
+}
+
+async function sendPending(token) {
+  try {
     const pending = await files.pendingTransactions();
     updatePending(pending);
     if (!token || token !== syncToken() || !pending.length) return;
@@ -161,11 +168,27 @@ async function sync() {
   } catch {
     // Keep the files queued after network, server or local storage errors.
   } finally {
-    running = uploading = false;
+    uploading = false;
     renderStatus();
-    if (requestedAgain) {
-      requestedAgain = false;
-      requestTransactionSync();
+  }
+}
+
+async function sync(mode) {
+  running = true;
+  renderSyncDialog();
+  try {
+    const token = syncToken();
+    if (mode === 'full') await checkAccountConnection();
+    else if (receivedForToken !== token) await receiveForToken(token);
+
+    await sendPending(token);
+    if (mode === 'full') await receiveForToken(token);
+  } finally {
+    running = false;
+    if (queuedSync) {
+      const next = queuedSync;
+      queuedSync = undefined;
+      requestSync(next);
     } else {
       renderSyncDialog();
     }
