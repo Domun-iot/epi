@@ -512,3 +512,22 @@ test('moves old measurement references into archived snapshots without replacing
   assert.deepEqual(disk().measurements, [migrated]);
   assert.deepEqual((await session.reload()).measurements, [migrated]);
 });
+
+test('sync publication context stays scoped to integration and its reload, including queued local actions', async () => {
+  let disk;
+  const contexts = [];
+  const session = createSession({ storage: {
+    load: () => structuredClone(disk),
+    save: value => { disk = structuredClone(value); },
+    integrateTransactions: async () => ({ uuids: ['remote'], changed: true }),
+  } });
+  await session.load();
+  session.subscribe((state, context) => contexts.push(context));
+  await Promise.all([
+    session.integrateTransactions([]),
+    session.recordNotice({ type: 'info', text: 'Local action', banner: true }),
+    session.reload({ source: 'sync' }),
+    session.reload(),
+  ]);
+  assert.deepEqual(contexts, [{ source: 'sync' }, undefined, { source: 'sync' }, undefined]);
+});

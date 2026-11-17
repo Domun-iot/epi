@@ -415,7 +415,7 @@ function scheduleNotificationExpiry() {
   }, Math.max(100, Date.parse(first.date) + 7 * 86400_000 - Date.now()));
 }
 
-function onState(next) {
+function onState(next, context) {
   const previous = state;
   state = next;
   if (reading) {
@@ -432,7 +432,7 @@ function onState(next) {
     noticeQueue = noticeQueue.map(item => current.get(item.id) ?? item);
     const incoming = state.notifications.filter(item => item.banner && !known.has(item.id)
       && item.type !== 'pending' && item.type !== 'enrollment');
-    if (initializedNotifications) {
+    if (initializedNotifications && context?.source !== 'sync') {
       const savedNotice = incoming.findLast(item => item.type === 'measurement' && item.action === 'saved');
       if (savedNotice) savedMeasurement = state.measurements.find(row => row.uuid === savedNotice.record.uuid);
       enqueueBanners(incoming);

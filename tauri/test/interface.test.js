@@ -3049,3 +3049,45 @@ test('manual measurement asks for an existing profile when none is active and ab
   assert.equal(await page.locator('#editor-actions button').count(), 0);
   assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a')).measurements), saved.measurements);
 });
+
+test('synchronized notices and weighings stay quiet and local notices still display', async t => {
+  await buildWeb();
+  let disk;
+  const session = domain.createSession({ storage: { load: () => disk, save: value => { disk = structuredClone(value); } } });
+  let snapshot = await session.load();
+  await session.saveManualMeasurement({ weight: 72, unit: 'kg', receivedAt: '2026-01-15T17:23:21Z' });
+  const synced = await session.refreshView();
+  let release;
+  const ready = new Promise(resolve => { release = resolve; });
+  t.after(release);
+  let acknowledge;
+  const received = new Promise(resolve => { acknowledge = resolve; });
+  const uuid = '00000000-0000-4000-8000-000000000001';
+  const page = await pageWith(t, async route => {
+    const { action, args } = route.request().postDataJSON();
+    if (action === 'pendingTransactions') return route.fulfill({ json: [] });
+    if (action === 'integrateTransactions') { snapshot = synced; return route.fulfill({ json: { uuids: [uuid], state: snapshot } }); }
+    if (action === 'saveManualMeasurement') snapshot = await session.saveManualMeasurement(...args);
+    return route.fulfill({ json: snapshot });
+  }, {}, 'web', async page => {
+    await page.addInitScript(() => localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({ email: 'alice@example.org', token: 'test-token' })));
+    await page.route('https://sync.epi.test/v1/account', route => route.fulfill({ json: { email: 'alice@example.org', ...paid } }));
+    await page.route('https://sync.epi.test/v1/transactions/pending', async route => { await ready; await route.fulfill({ json: { transactions: [{ uuid }] } }); });
+    await page.route('https://sync.epi.test/v1/transactions/acknowledge', async route => { await route.fulfill({ json: { inserted: 1 } }); acknowledge(); });
+  });
+  await choosePage(page, 'Profils');
+  release();
+  await received;
+  assert.equal(new URL(page.url()).hash, '#profiles');
+  assert.equal(await page.locator('#notices .notification-banner').count(), 0);
+  assert.equal(await page.locator('.measurement-details').count(), 0);
+  await page.locator('#account-button .account-connected').waitFor();
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+  await page.locator('.notification-item').getByRole('button', { name: /^Pesée enregistrée/ }).waitFor();
+  await choosePage(page, 'Mesures');
+  await page.getByRole('button', { name: 'Saisir', exact: true }).click();
+  await page.locator('#editor-view').getByLabel('Poids', { exact: true }).fill('73');
+  await page.locator('#editor-actions').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await page.getByRole('heading', { name: 'Détails de la pesée', exact: true }).waitFor();
+  await page.locator('#notices').getByText('Pesée enregistrée', { exact: true }).waitFor();
+});

@@ -50,7 +50,7 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
       if (!saved?.repair) window.dispatchEvent(new CustomEvent('epi:dataset-reset', { detail: { datasetId: context.datasetId, epoch } }));
       credentials = saved;
       const current = () => datasets.epoch === epoch;
-      const stateChanged = state => { if (current()) onState(state); };
+      const stateChanged = (state, context) => { if (current()) onState(state, context); };
       if (context.locked) {
         active = empty();
         onState(await active.load());
@@ -217,7 +217,10 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
       integrateTransactions: transactions => queueReload(async () => {
         if (!datasets.isCurrent(binding)) return [];
         const result = await persistence.integrateTransactions(transactions);
-        if (datasets.isCurrent(binding)) onState(result.state ?? await active.reload());
+        if (datasets.isCurrent(binding)) {
+          if (result.state) onState(result.state, { source: 'sync' });
+          else await active.reload({ source: 'sync' });
+        }
         return result.uuids ?? result;
       }),
     };

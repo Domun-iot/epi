@@ -239,9 +239,9 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing,
       theme: prefs.theme, rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: layoutPrefs.detailSectionsOpen, enrollment, acquisitionError };
   }
 
-  function publish() {
+  function publish(context) {
     const current = view();
-    for (const observer of observers) observer(current);
+    for (const observer of observers) observer(current, context);
     return current;
   }
 
@@ -940,17 +940,17 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing,
       const { uuids, changed } = await storage.integrateTransactions(transactions);
       if (changed) {
         await loadSaved();
-        publish();
+        publish({ source: 'sync' });
       }
       return uuids;
     });
   }
 
-  function reload() {
+  function reload(context) {
     return enqueue(async () => {
       await loadSaved();
       acquisitionError = null;
-      return publish();
+      return publish(context);
     });
   }
 

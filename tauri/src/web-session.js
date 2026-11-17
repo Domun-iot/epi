@@ -27,7 +27,7 @@ export function createWebSession(onState, onTransactions, getToken, getDatasetId
       if (transactionsPending) onTransactions();
       if (action === 'pendingTransactions' || action === 'archiveTransactions') return state;
       if (action === 'integrateTransactions') {
-        if (state.state) onState(state.state);
+        if (state.state) onState(state.state, { source: 'sync' });
         return state.uuids;
       }
       if (action === 'exportFiles') return state.files;
@@ -35,7 +35,7 @@ export function createWebSession(onState, onTransactions, getToken, getDatasetId
         onState(state.state);
         return state.added;
       }
-      onState(state);
+      onState(state, action === 'reload' ? args[0] : undefined);
       return state;
     });
     pending = task.catch(() => {});

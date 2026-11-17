@@ -140,9 +140,9 @@ export function sharedWebAdapter({ storage, versions, domain, getToken, hasSaved
     files: (...args) => selected.files(...args),
     open(options) {
       const adapter = selected;
-      const onState = state => {
+      const onState = (state, context) => {
         if (adapter.remote && options.current()) lastRemote = { accountId: options.binding.datasetId, state };
-        options.onState(state);
+        options.onState(state, context);
       };
       return adapter.open({ ...options, onState });
     },
