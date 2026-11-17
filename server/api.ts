@@ -257,9 +257,10 @@ function accountEntitlement(account: Account, now: number) {
   return { paid: paidUntil !== null && Date.parse(paidUntil) > now, paidUntil };
 }
 
-function accountInfo(account: Account, now: number) {
+function accountInfo(account: Account, now: number, deviceCount: number) {
   return {
     accountId: accountUuid(account.domun_id), email: account.email, googleLinked: Boolean(account.google_sub), hasPassword: Boolean(account.password_hash),
+    deviceCount,
     ...accountLanguages(account),
     ...accountEntitlement(account, now),
     ...(account.created_at && { createdAt: account.created_at }),
@@ -494,7 +495,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
       }
       if (route === 'GET /v1/account') {
         const account = currentAccount(req.headers.authorization);
-        return send(res, 200, { ...accountInfo(account, now()), ...await liveEntitlement(account), domunId: account.domun_id, googleAvailable: Boolean(google) });
+        return send(res, 200, { ...accountInfo(account, now(), store.countDevices(account.id)), ...await liveEntitlement(account), domunId: account.domun_id, googleAvailable: Boolean(google) });
       }
       if (route === 'GET /v1/google/config') {
         return send(res, 200, { enabled: Boolean(google) });
@@ -512,7 +513,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           throw new ApiError(409, 'google_conflict');
         }
         const updated = store.findById(account.id)!;
-        return send(res, 200, { ...accountInfo(updated, now()), ...await liveEntitlement(updated) });
+        return send(res, 200, { ...accountInfo(updated, now(), store.countDevices(updated.id)), ...await liveEntitlement(updated) });
       }
       if (route === 'POST /v1/google/start') {
         if (!google) throw new ApiError(503, 'google_disabled');
@@ -592,7 +593,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
             throw new ApiError(409, 'google_conflict');
           }
           const updated = store.findById(account.id)!;
-          return send(res, 200, { ...accountInfo(updated, now()), ...await liveEntitlement(updated) });
+          return send(res, 200, { ...accountInfo(updated, now(), store.countDevices(updated.id)), ...await liveEntitlement(updated) });
         }
         if (action.kind === 'unlink') {
           const { account } = action;
@@ -600,7 +601,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           if (!store.unlinkGoogle(account.id, identity.sub, account.password_hash, action.newHash)) {
             throw new ApiError(409, 'google_conflict');
           }
-          return send(res, 200, accountInfo(store.findById(account.id)!, now()));
+          return send(res, 200, accountInfo(store.findById(account.id)!, now(), store.countDevices(account.id)));
         }
         let account = store.findGoogle(identity.sub);
         if (!account && action.kind === 'register') {
@@ -614,7 +615,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           store.updateGoogleLocale(account.id, identity.sub, googleLocale);
           account = store.findById(account.id)!;
         }
-        return send(res, 200, { ...accountInfo(account, now()), ...await liveEntitlement(account), token: issueToken(account, action.deviceId) });
+        return send(res, 200, { token: issueToken(account, action.deviceId), ...accountInfo(account, now(), store.countDevices(account.id)), ...await liveEntitlement(account) });
       }
       if (route === 'POST /v1/accounts') {
         const body = await readBody(req);
@@ -633,7 +634,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         await checkPassword(password, account?.password_hash ?? '');
         if (!account) throw new ApiError(401, 'invalid_credentials');
         return send(res, 200, {
-          token: issueToken(account, deviceId), ...accountInfo(account, now()), ...await liveEntitlement(account),
+          token: issueToken(account, deviceId), ...accountInfo(account, now(), store.countDevices(account.id)), ...await liveEntitlement(account),
         });
       }
 

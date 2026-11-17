@@ -1,4 +1,5 @@
 {
+  "multiDeviceSyncPrompt": "Vă conectați de pe mai multe dispozitive. Sincronizați datele cu versiunea PRO",
   "privacyPolicy": "Politica de confidențialitate",
   "requestAccountDeletion": "Solicită ștergerea contului",  "syncPending": "Date în așteptarea sincronizării",
   "syncDelay": "Există date care așteaptă să fie trimise din {date}.",

@@ -338,3 +338,34 @@ test('a failed credential deletion still closes local access, rejects the retain
   await page.waitForTimeout(50);
   assert.equal(revoked,true);
 });
+
+
+test('caches device counts and shows the PRO invitation only for FREE accounts with multiple installations', async t => {
+  const free = { ...info, paid: false, paidUntil: null, deviceCount: 1 };
+  const saved = { email: info.email, accountId, token: 'test-token', info: free };
+  const page = await open(t, { saved, response: free });
+  // This harness loads the account module alone; the measurements route owns the slot.
+  await page.evaluate(() => { document.querySelector('#sync-upgrade-slot').hidden = false; });
+  const notice = page.locator('#sync-upgrade');
+  assert.equal(await notice.isVisible(), false);
+  for (const next of [{ ...free, deviceCount: 2 }, { ...info, deviceCount: 2 }, { ...free, deviceCount: 1 }]) {
+    await page.route(api + '/v1/account', route => route.fulfill({ json: next }));
+    await page.evaluate(() => window.accounts.checkAccountConnection());
+    assert.equal(await notice.isVisible(), !next.paid && next.deviceCount > 1);
+    assert.equal(await page.evaluate(() => window.accounts.getSavedAccount().info.deviceCount), next.deviceCount);
+  }
+  await page.route(api + '/v1/account', route => route.fulfill({ json: { ...free, deviceCount: 2 } }));
+  await page.evaluate(() => window.accounts.checkAccountConnection());
+  assert.equal(await notice.locator('p').innerText(), 'Vous vous connectez depuis plusieurs appareils. Synchronisez vos données avec la version PRO');
+  assert.equal(new URL(await notice.locator('a').getAttribute('href')).origin + new URL(await notice.locator('a').getAttribute('href')).pathname + new URL(await notice.locator('a').getAttribute('href')).hash, 'https://domun.eu/epi/pro#compare');
+  await page.route(api + '/v1/account', route => route.abort());
+  await page.evaluate(() => window.accounts.checkAccountConnection());
+  assert.equal(await notice.isVisible(), true);
+  const offline = await open(t, { saved: { ...saved, info: { ...free, deviceCount: 2 } }, response: null });
+  await offline.evaluate(() => { document.querySelector('#sync-upgrade-slot').hidden = false; });
+  assert.equal(await offline.locator('#sync-upgrade').isVisible(), true);
+  await page.locator('#account-button').click();
+  await page.locator('#account-submit').click();
+  await page.locator('#account-fields').waitFor();
+  assert.equal(await notice.isVisible(), false);
+});

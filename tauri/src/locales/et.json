@@ -1,4 +1,5 @@
 {
+  "multiDeviceSyncPrompt": "Logite sisse mitmest seadmest. Sünkroonige oma andmed PRO versiooniga",
   "privacyPolicy": "Privaatsuspoliitika",
   "requestAccountDeletion": "Taotle konto kustutamist",  "syncPending": "Andmed ootavad sünkroonimist",
   "syncDelay": "Andmed ootavad saatmist alates {date}.",

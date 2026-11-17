@@ -114,7 +114,8 @@ test('Google registration, linking and direct unlinking preserve local accounts'
   assert.equal((await flow('login', 'alice-changed')).email, alice.email);
 
   const password = 'new-alice-password';
-  const { token: aliceToken } = await flow('login', 'alice', 200, { deviceId: 'phone' });
+  const { token: aliceToken, deviceCount } = await flow('login', 'alice', 200, { deviceId: 'phone' });
+  assert.equal(deviceCount, 2);
   const { domunId } = await request('account', undefined, 200, aliceToken);
   paidAccount = domunId;
   await request('google/unlink', { password }, 401);

@@ -1,4 +1,5 @@
 {
+  "multiDeviceSyncPrompt": "Több eszközről jelentkezik be. Szinkronizálja adatait a PRO verzióval",
   "privacyPolicy": "Adatvédelmi tájékoztató",
   "requestAccountDeletion": "Fióktörlés kérése",  "syncPending": "Szinkronizálásra váró adatok",
   "syncDelay": "Az adatok ekkortól várnak elküldésre: {date}.",

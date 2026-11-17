@@ -63,9 +63,16 @@ test('synchronizes batches per account and preserves receipts after token expira
       body: { ...alice, password: 'invalid', deviceId: 'pc' }, status: 401,
     }), { error: 'invalid_credentials' });
 
+    const firstLogin = await request('/device-tokens', { body: { ...alice, deviceId: 'pc' } });
+    assert.equal(firstLogin.deviceCount, 1);
     const pc = await login(alice, 'pc');
-    const phone = await login(alice, 'phone');
+    assert.equal((await request('/account', { token: pc })).deviceCount, 1);
+    const phoneLogin = await request('/device-tokens', { body: { ...alice, deviceId: 'phone' } });
+    assert.equal(phoneLogin.deviceCount, 2);
+    const phone = phoneLogin.token;
+    assert.equal((await request('/account', { token: pc })).deviceCount, 2);
     const other = await login(bob, 'pc');
+    assert.equal((await request('/account', { token: other })).deviceCount, 1);
     const preflight = await fetch(baseUrl + '/device-tokens', {
       method: 'OPTIONS',
       headers: {
@@ -92,6 +99,7 @@ test('synchronizes batches per account and preserves receipts after token expira
     assert.deepEqual(await pending(temporary), []);
     await revoke(temporary);
     await revoke(temporary);
+    assert.equal((await request('/account', { token: pc })).deviceCount, 3);
     await request('/transactions/pending', { token: temporary, status: 401 });
     const first = { uuid: randomUUID(), type: 'create', data: { path: 'profiles/a.json', value: {} } };
     const second = { uuid: randomUUID(), type: 'delete', data: { path: 'profiles/a.json' } };

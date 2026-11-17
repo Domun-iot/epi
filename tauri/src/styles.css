@@ -171,6 +171,7 @@ p { line-height: 1.55; }
 .notice { padding: 14px 16px; margin-bottom: 14px; background: light-dark(#eff5ff, #1c3050); border: 1px solid light-dark(#c4d7fa, #3e5b84); border-radius: 10px; }
 .notice p { margin-bottom: 8px; }
 .notice p:last-child { margin-bottom: 0; }
+#sync-upgrade { margin-top: 18px; }
 .error { color: light-dark(#922422, #ffc1b7); background: light-dark(#fff4f3, #452829); border-color: light-dark(#f7bbaf, #82504d); }
 .settings { padding: 12px 16px; }
 .measurement-settings { position: relative; margin-bottom: 14px; }

@@ -1,4 +1,5 @@
 {
+  "multiDeviceSyncPrompt": "Prijavljate se iz več naprav. Sinhronizirajte svoje podatke z različico PRO",
   "privacyPolicy": "Pravilnik o zasebnosti",
   "requestAccountDeletion": "Zahtevaj izbris računa",  "syncPending": "Podatki čakajo na sinhronizacijo",
   "syncDelay": "Podatki čakajo na pošiljanje od {date}.",

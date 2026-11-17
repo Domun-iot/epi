@@ -1,4 +1,5 @@
 {
+  "multiDeviceSyncPrompt": "Prisijungiate iš kelių įrenginių. Sinchronizuokite duomenis su PRO versija",
   "privacyPolicy": "Privatumo politika",
   "requestAccountDeletion": "Prašyti ištrinti paskyrą",  "syncPending": "Laukiama duomenų sinchronizavimo",
   "syncDelay": "Duomenys laukia išsiuntimo nuo {date}.",

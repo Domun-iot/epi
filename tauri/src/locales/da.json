@@ -1,4 +1,5 @@
 {
+  "multiDeviceSyncPrompt": "Du logger ind fra flere enheder. Synkroniser dine data med PRO",
   "privacyPolicy": "Privatlivspolitik",
   "requestAccountDeletion": "Anmod om sletning af kontoen",  "syncPending": "Data afventer synkronisering",
   "syncDelay": "Der har været data klar til afsendelse siden {date}.",

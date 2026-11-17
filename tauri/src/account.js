@@ -28,7 +28,7 @@ const errorNotice = document.querySelector('#account-error');
 const switchButton = document.querySelector('#account-switch');
 const closeButton = document.querySelector('#account-close');
 const submitButton = document.querySelector('#account-submit');
-const publicPages = dialog.querySelectorAll('[data-account-public-page]');
+const publicPages = document.querySelectorAll('[data-account-public-page]');
 const native = isTauri();
 
 const googleButton = document.querySelector('#account-google');
@@ -216,6 +216,7 @@ function renderPlan() {
   const paid = isPaidAccount();
   freeBadge.hidden = freePlan.hidden = !connected || paid;
   proBadge.hidden = proPlan.hidden = !connected || !paid;
+  document.querySelector('#sync-upgrade').hidden = !connected || paid || !(accountInfo.deviceCount > 1);
 }
 
 function render() {

@@ -86,6 +86,8 @@ Le build `node web/build.mjs --hosted` produit les fichiers du client hébergé.
 
 ## Boucle côté client
 
+Les réponses de compte (connexion par mot de passe ou Google, lecture et mise à jour du compte) incluent `deviceCount`, le nombre d’identifiants d’installation distincts déjà connectés au compte. Les installations déconnectées ou expirées restent comptées ; une reconnexion avec le même identifiant ne l’incrémente pas. Ce compteur ne représente pas des lieux géographiques. Il est conservé dans les informations locales de compte avec l’abonnement. À partir de deux installations, un compte FREE voit sous ses pesées une invitation à découvrir la synchronisation PRO.
+
 Le client télécharge les transactions au démarrage et lors d’un changement de session de compte. Il suit le curseur `next` et accuse les UUID intégrés ou déjà présents localement. Il envoie ensuite la file locale, avec relance en arrière-plan. Un dépôt accepté crée aussi le reçu de l’appareil expéditeur, qui évite de lui renvoyer sa propre transaction. Le [fonctionnement de la synchronisation et ses cas limites](../docs/SYNCHRONISATION.md) détaille le rejeu, les garanties de stockage et les conflits.
 
 La liste privée `GET /v1/domun/accounts` inclut `deletedAt` (horodatage UTC ou `null`) pour rendre les comptes Domun marqués pour suppression visibles dans l’administration avant leur purge.

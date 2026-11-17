@@ -1,4 +1,5 @@
 {
+  "multiDeviceSyncPrompt": "Prihlasujete sa z viacerých zariadení. Synchronizujte svoje údaje s verziou PRO",
   "privacyPolicy": "Zásady ochrany osobných údajov",
   "requestAccountDeletion": "Požiadať o odstránenie účtu",  "syncPending": "Údaje čakajú na synchronizáciu",
   "syncDelay": "Údaje čakajú na odoslanie od {date}.",

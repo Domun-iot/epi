@@ -107,6 +107,7 @@ export function openStore(path: string) {
     `UPDATE accounts SET google_sub = NULL, google_locale = NULL, password_hash = ?, updated_at = ${now}
      WHERE id = ? AND deleted_at IS NULL AND google_sub = ? AND password_hash = ?`
   );
+  const countDevices = db.prepare('SELECT COUNT(*) AS count FROM devices WHERE account_id = ?');
   const issueToken = db.prepare(`
     INSERT INTO devices (account_id, device_id, token_selector, token_hash, last_used_at)
     SELECT id, ?, ?, ?, ? FROM accounts WHERE domun_id = ? AND deleted_at IS NULL
@@ -241,6 +242,7 @@ export function openStore(path: string) {
     updateGoogleLocale: (id: number, sub: string, locale: string) => updateGoogleLocale.run(locale, id, sub),
     unlinkGoogle: (id: number, sub: string, oldHash: string, newHash: string) =>
       unlinkGoogle.run(newHash, id, sub, oldHash).changes === 1,
+    countDevices: (accountId: number) => (countDevices.get(accountId) as { count: number }).count,
     issueToken: (id: string, deviceId: string, selector: string, hash: string, now: number) =>
       issueToken.run(deviceId, selector, hash, now, id).changes === 1,
     useToken: (now: number, selector: string, hash: string, cutoff: number) =>

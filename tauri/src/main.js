@@ -217,6 +217,7 @@ function render() {
   const entry = target?.type === 'pending' ? null : selectedNotice;
   const detail = page === 'measurements' ? reading : null;
   const editing = !editorView.hidden;
+  document.querySelector('#sync-upgrade-slot').hidden = page !== 'measurements' || Boolean(detail) || editing;
   dataActions.hidden = editing || Boolean(detail || entry);
   detailActions.hidden = editing || (!detail && !entry);
   backButton.hidden = detailActions.hidden;

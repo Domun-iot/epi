@@ -1,4 +1,5 @@
 {
+  "multiDeviceSyncPrompt": "Vous vous connectez depuis plusieurs appareils. Synchronisez vos données avec la version PRO",
   "privacyPolicy": "Politique de confidentialité",
   "requestAccountDeletion": "Demander la suppression du compte",  "syncPending": "Données en attente de synchronisation",
   "syncDelay": "Des données sont à envoyer depuis le {date}.",
