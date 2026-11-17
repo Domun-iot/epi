@@ -78,9 +78,9 @@ export function openStore(path: string) {
   `);
   type Account = { id: number; domun_id: string; email: string; password_hash: string; google_sub: string | null; locale: string | null; google_locale: string | null;
     created_at: string | null; updated_at: string | null; paid_until: string | null };
-  type DomunAccount = { id: string; email: string; paidUntil: string | null };
+  type DomunAccount = { id: string; email: string; paidUntil: string | null; deletedAt: string | null };
   const listDomunAccounts = db.prepare(`
-    SELECT domun_id AS id, email, paid_until AS paidUntil
+    SELECT domun_id AS id, email, paid_until AS paidUntil, deleted_at AS deletedAt
     FROM accounts WHERE domun_id > ? ORDER BY domun_id LIMIT ?
   `);
   const updateEntitlement = db.prepare('UPDATE accounts SET paid_until = ? WHERE domun_id = ?');

@@ -87,3 +87,5 @@ Le build `node web/build.mjs --hosted` produit les fichiers du client hébergé.
 ## Boucle côté client
 
 Le client télécharge les transactions au démarrage et lors d’un changement de session de compte. Il suit le curseur `next` et accuse les UUID intégrés ou déjà présents localement. Il envoie ensuite la file locale, avec relance en arrière-plan. Un dépôt accepté crée aussi le reçu de l’appareil expéditeur, qui évite de lui renvoyer sa propre transaction. Le [fonctionnement de la synchronisation et ses cas limites](../docs/SYNCHRONISATION.md) détaille le rejeu, les garanties de stockage et les conflits.
+
+La liste privée `GET /v1/domun/accounts` inclut `deletedAt` (horodatage UTC ou `null`) pour rendre les comptes Domun marqués pour suppression visibles dans l’administration avant leur purge.
