@@ -1,14 +1,17 @@
 import { featureCopy } from './features-copy.js';
 import { calculationMethods, scaleFamilies } from './feature-catalog.js';
 
-const paths = { bluetooth: '/compatible-scales', composition: '/calculation-methods' };
+const compatibilityAnchor = '#bluetooth';
+const paths = { bluetooth: '/compatible-scales', multiscale: compatibilityAnchor, composition: '/calculation-methods' };
 const sourceLines = ['éPI/', '├─ shared/scales/', '├─ tauri/', '├─ cli/', '├─ web/', '└─ docs/'];
+const scale = (lang, weight) => '<div class="scale"><samp>' +
+  new Intl.NumberFormat(lang).format(weight) + ' kg</samp><i></i><i></i></div>';
 const pictures = {
-  bluetooth: (t, base, escape, lang) => '<div class="scale"><samp>' +
-    new Intl.NumberFormat(lang).format(72.4) + ' kg</samp><i></i><i></i></div>' +
+  bluetooth: (t, base, escape, lang) => scale(lang, 72.4) +
     '<div class="signal"><i></i><i></i><i></i><span class="signal-packet"></span></div><span class="received">✓</span>',
   profiles: t => '<ul class="profile-cards">' + t.profiles.map(name =>
     '<li><span class="avatar">' + name[0] + '</span>' + name + '</li>').join('') + '</ul>',
+  multiscale: (t, base, escape, lang) => scale(lang, 72.4) + scale(lang, 72.6),
   composition: () => '<ul class="formula-bars"><li>Mi Fit <i></i><samp>24.1%</samp></li>' +
     '<li>Deurenberg <i></i><samp>22.6%</samp></li><li>CUN-BAE <i></i><samp>25.3%</samp></li></ul>',
   views: (t, base, escape) => '<div class="view-shots"><img class="chart" src="' + base +
@@ -27,7 +30,8 @@ const pictures = {
 export function renderHome(base, intro, locale, escape) {
   const { copy, lang } = featureCopy(locale);
   const scenes = Object.entries(copy.scenes).map(([id, [title, description, label]]) => {
-    const link = label ? '<a class="feature-link" href="' + base + paths[id] + '">' +
+    const path = paths[id];
+    const link = label ? '<a class="feature-link" href="' + (path.startsWith('#') ? path : base + path) + '">' +
       escape(label) + ' <span aria-hidden="true">→</span></a>' : '';
     const decorative = id === 'views' ? '' : ' aria-hidden="true"';
     return '<section class="feature feature-' + id + '" id="' + id + '" aria-labelledby="' + id + '-title">' +
@@ -35,9 +39,11 @@ export function renderHome(base, intro, locale, escape) {
       escape(description.replace('{count}', scaleFamilies.length)) + '</p>' + link + '</div>' +
       '<div class="feature-art"' + decorative + '>' + pictures[id](copy, base, escape, lang) + '</div></section>';
   }).join('');
-  return '<div class="hero"><div><h1>' + intro.headline + '</h1><p>' + intro.intro + '</p>' +
+  const scaleLink = '<sup><a class="scale-note" href="' + compatibilityAnchor + '" lang="' + lang +
+    '" aria-label="' + escape(copy.scaleTitle) + '">*</a></sup>';
+  return '<div class="hero"><div><h1>' + escape(intro.headline) + scaleLink + '</h1><p>' + intro.intro + '</p>' +
     '<div lang="' + lang + '"><p class="motto">' + escape(copy.motto) + '</p>' +
-    '<a class="hero-link" href="#bluetooth"><span class="hero-link-label">' + escape(copy.explore) + '</span><span aria-hidden="true">↓</span></a></div>' +
+    '<a class="hero-link" href="' + compatibilityAnchor + '"><span class="hero-link-label">' + escape(copy.explore) + '</span><span aria-hidden="true">↓</span></a></div>' +
     '</div><img class="chart" src="' + base + '/assets/chart.jpg" alt="" width="824" height="1784"></div>' +
     '<div class="features" lang="' + lang + '">' + scenes + '</div>';
 }

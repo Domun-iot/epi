@@ -67,6 +67,16 @@ const scenes = {
     };
   },
 
+  multiscale(art) {
+    return {
+      animations: [...art.querySelectorAll('.scale')].map((scale, i) =>
+        track(scale, [
+          { opacity: .3, translate: (i ? '30px' : '-30px') + ' 12px' },
+          { opacity: 1, translate: 'none' },
+        ], .08 + i * .18, .63 + i * .18)),
+    };
+  },
+
   composition(art) {
     const rows = [...art.querySelectorAll('.formula-bars li')];
     return {

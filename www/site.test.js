@@ -29,7 +29,8 @@ test('public pages, language selection and deletion requests', async t => {
       assert.equal(response.status, 200);
       assert.equal(response.headers.get('content-language'), locale);
       const html = await response.text();
-      assert.ok(html.includes('<h1>' + catalog[locale][title] + '</h1>'));
+      const afterTitle = route ? '</h1>' : '<sup><a class="scale-note" href="#bluetooth"';
+      assert.ok(html.includes('<h1>' + catalog[locale][title] + afterTitle));
       assert.doesNotMatch(html, /mailto:|support@domun\.eu|↵/);
       assert.match(html, /<details class="languages"><summary>/);
       assert.match(html, /\?lang=en-GB"[^>]*><img class="flag" src="\/epi\/assets\/flags\/gb\.svg"/);
@@ -102,7 +103,7 @@ test('public pages, language selection and deletion requests', async t => {
   assert.match(scriptResponse.headers.get('content-type'), /^text\/javascript/);
   assert.match(home, /Simple au quotidien\. Complet pour les fous de données\./);
   assert.match(home, new RegExp('Pour ' + scaleFamilies.length + ' familles'));
-  for (const id of ['bluetooth', 'profiles', 'composition', 'views', 'sync', 'local', 'source']) {
+  for (const id of ['bluetooth', 'profiles', 'multiscale', 'composition', 'views', 'sync', 'local', 'source']) {
     assert.ok(home.includes('id="' + id + '" aria-labelledby="' + id + '-title"'));
   }
   for (const [path, expected] of [
