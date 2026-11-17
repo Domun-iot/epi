@@ -260,8 +260,10 @@ test('gives domun access to paginated account entitlements without sharing crede
   assert.equal(new Set(accounts.map(account => account.id)).size, 102);
   const previous = accounts.find(account => account.email === 'legacy@example.org');
   assert.match(previous.id, /^[a-f0-9]{32}$/u);
-  assert.deepEqual(previous, { id: previous.id, email: 'legacy@example.org', paidUntil: null, deletedAt: null });
+  assert.deepEqual(previous, { id: previous.id, email: 'legacy@example.org', createdAt: null, paidUntil: null, deletedAt: null });
   const account = accounts.find(account => account.email === credentials.email);
+  assert.equal(account.createdAt, store.findAccount(credentials.email).created_at);
+  assert.equal(new Date(account.createdAt).toISOString(), account.createdAt);
   const update = '/domun/accounts/' + account.id + '/entitlement';
   const status = async () => {
     const response = await fetch(url + '/account', { headers: auth(device.token) });
@@ -337,6 +339,7 @@ test('marks a connected account, blocks its devices and purges only eligible acc
   assert.equal((await mark(token, device)).status, 204);
   const listed = (await (await fetch(url + '/domun/accounts', { headers: auth(token) })).json()).accounts;
   assert.equal(listed.find(row => row.id === account.domun_id).deletedAt, new Date(now).toISOString());
+  assert.equal(listed.find(row => row.id === account.domun_id).createdAt, account.created_at);
   assert.equal(listed.find(row => row.id === active.domun_id).deletedAt, null);
   assert.equal((await mark(token, device)).status, 401);
   assert.equal((await login()).status, 401);
