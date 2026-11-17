@@ -32,11 +32,11 @@ function findSharedData(directory) {
 }
 
 function userDataDirectory() {
-  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', 'fr.epi.balance', 'data');
+  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', 'eu.domun.epi', 'data');
   const base = process.platform === 'win32'
     ? process.env.APPDATA || join(homedir(), 'AppData', 'Roaming')
     : (isAbsolute(process.env.XDG_DATA_HOME || '') ? process.env.XDG_DATA_HOME : join(homedir(), '.local', 'share'));
-  return join(base, 'fr.epi.balance', 'data');
+  return join(base, 'eu.domun.epi', 'data');
 }
 
 function resolveDataDirectory(startDirectory) {

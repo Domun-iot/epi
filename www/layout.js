@@ -1,6 +1,6 @@
 import { catalog, locales } from './locales.js';
 
-export const playUrl = 'https://play.google.com/store/apps/details?id=fr.epi.balance';
+export const playUrl = 'https://play.google.com/store/apps/details?id=eu.domun.epi';
 export const deletionUrl = 'https://domun.eu/account/delete';
 export const playIcon = base => '<img src="' + base + '/assets/google-play.svg" alt="" width="24" height="24">';
 
