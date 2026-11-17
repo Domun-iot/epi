@@ -386,7 +386,7 @@
   "visualisation": "Vizualizácia",
   "waitingForScale": "Čaká sa na zváženie zariadenia „{detail}“. Nastúpte na váhu a odošlite jej údaje.",
   "webMode": "Webová móda",
-  "browserStorageMode": "Web — údaje v tomto prehliadači",
+  "browserStorageMode": "Web — údaje prehliadača",
   "browserStorageUnavailable": "V tomto prehliadači sa nedá ukladať: úložisko je plné alebo nedostupné. Predtým uložené údaje zostali zachované.",
   "weighInDetails": "Podrobnosti o vážení",
   "weighInDiscarded": "Váženie ignorované",

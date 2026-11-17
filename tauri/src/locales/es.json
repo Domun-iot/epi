@@ -386,7 +386,7 @@
   "visualisation": "Visualización",
   "waitingForScale": "Esperando que se pese el dispositivo “{detail}”. Súbete a la báscula para enviar sus datos.",
   "webMode": "moda web",
-  "browserStorageMode": "Web — datos en este navegador",
+  "browserStorageMode": "Web — datos del navegador",
   "browserStorageUnavailable": "No se puede guardar en este navegador: el almacenamiento está lleno o no está disponible. Los datos guardados se conservan.",
   "weighInDetails": "Detalles de pesaje",
   "weighInDiscarded": "Pesaje ignorado",

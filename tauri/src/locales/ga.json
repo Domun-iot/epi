@@ -386,7 +386,7 @@
   "visualisation": "Amharcléiriú",
   "waitingForScale": "Ag fanacht leis an ngléas “{detail}” a mheá. Céim ar an scála chun a chuid sonraí a sheoladh.",
   "webMode": "Faisean gréasáin",
-  "browserStorageMode": "Gréasán — sonraí sa bhrabhsálaí seo",
+  "browserStorageMode": "Gréasán — sonraí brabhsálaí",
   "browserStorageUnavailable": "Ní féidir sábháil sa bhrabhsálaí seo: tá an stóras lán nó níl sé ar fáil. Coinníodh na sonraí a sábháladh roimhe seo.",
   "weighInDetails": "Sonraí meáite",
   "weighInDiscarded": "Rinneadh neamhaird de mheá",

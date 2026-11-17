@@ -386,7 +386,7 @@
   "visualisation": "Visualisering",
   "waitingForScale": "Venter på, at enheden \"{detail}\" bliver vejet. Træd på vægten for at sende dens data.",
   "webMode": "Webmode",
-  "browserStorageMode": "Web — data i denne browser",
+  "browserStorageMode": "Web — browserdata",
   "browserStorageUnavailable": "Kan ikke gemme i denne browser: lageret er fuldt eller utilgængeligt. Tidligere gemte data er bevaret.",
   "weighInDetails": "Vejedetaljer",
   "weighInDiscarded": "Vejning ignoreret",

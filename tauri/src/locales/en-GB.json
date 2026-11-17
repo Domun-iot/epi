@@ -389,7 +389,7 @@
   "visualisation": "Visualisation",
   "waitingForScale": "Waiting for a weigh-in from “{detail}”. Step on the scale to send its data.",
   "webMode": "Web mode",
-  "browserStorageMode": "Web — data in this browser",
+  "browserStorageMode": "Web — browser data",
   "browserStorageUnavailable": "Unable to save in this browser: storage is full or unavailable. Previously saved data has been kept.",
   "weighInDetails": "Weigh-in details",
   "weighInDiscarded": "Weigh-in discarded",

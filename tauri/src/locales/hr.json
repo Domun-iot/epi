@@ -386,7 +386,7 @@
   "visualisation": "Vizualizacija",
   "waitingForScale": "Čeka se vaganje uređaja “{detail}”. Stanite na vagu kako biste poslali podatke.",
   "webMode": "Web moda",
-  "browserStorageMode": "Web — podaci u ovom pregledniku",
+  "browserStorageMode": "Web — podaci preglednika",
   "browserStorageUnavailable": "Spremanje u ovaj preglednik nije moguće: pohrana je puna ili nedostupna. Prethodno spremljeni podaci su sačuvani.",
   "weighInDetails": "Detalji vaganja",
   "weighInDiscarded": "Vaganje zanemareno",

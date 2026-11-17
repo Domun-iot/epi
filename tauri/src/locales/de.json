@@ -386,7 +386,7 @@
   "visualisation": "Visualisierung",
   "waitingForScale": "Warten auf das Wiegen des Geräts „{detail}“. Betreten Sie die Waage, um ihre Daten zu senden.",
   "webMode": "Webmode",
-  "browserStorageMode": "Web — Daten in diesem Browser",
+  "browserStorageMode": "Web — Browserdaten",
   "browserStorageUnavailable": "Speichern in diesem Browser nicht möglich: Speicher voll oder nicht verfügbar. Bereits gespeicherte Daten bleiben erhalten.",
   "weighInDetails": "Wiegedetails",
   "weighInDiscarded": "Wiegen ignoriert",

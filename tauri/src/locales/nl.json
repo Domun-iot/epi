@@ -386,7 +386,7 @@
   "visualisation": "Visualisatie",
   "waitingForScale": "Wachten tot het apparaat “{detail}” is gewogen. Stap op de weegschaal om de gegevens te verzenden.",
   "webMode": "Webmode",
-  "browserStorageMode": "Web — gegevens in deze browser",
+  "browserStorageMode": "Web — browsergegevens",
   "browserStorageUnavailable": "Opslaan in deze browser is niet mogelijk: de opslag is vol of niet beschikbaar. Eerder opgeslagen gegevens blijven behouden.",
   "weighInDetails": "Weegdetails",
   "weighInDiscarded": "Wegen genegeerd",

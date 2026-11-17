@@ -386,7 +386,7 @@
   "visualisation": "Wizualizacja",
   "waitingForScale": "Oczekiwanie na zważenie urządzenia „{detail}”. Wejdź na wagę, aby wysłać dane.",
   "webMode": "Moda internetowa",
-  "browserStorageMode": "WWW — dane w tej przeglądarce",
+  "browserStorageMode": "WWW — dane przeglądarki",
   "browserStorageUnavailable": "Nie można zapisać w tej przeglądarce: pamięć jest pełna lub niedostępna. Wcześniej zapisane dane zostały zachowane.",
   "weighInDetails": "Szczegóły ważenia",
   "weighInDiscarded": "Ważenie zignorowane",

@@ -386,7 +386,7 @@
   "visualisation": "Vizualizācija",
   "waitingForScale": "Gaida ierīces “{detail}” nosvēršanu. Uzkāpiet uz svariem, lai nosūtītu tās datus.",
   "webMode": "Tīmekļa mode",
-  "browserStorageMode": "Tīmeklis — dati šajā pārlūkā",
+  "browserStorageMode": "Tīmeklis — pārlūka dati",
   "browserStorageUnavailable": "Šajā pārlūkā nevar saglabāt: krātuve ir pilna vai nav pieejama. Iepriekš saglabātie dati ir saglabāti.",
   "weighInDetails": "Svēršanas detaļas",
   "weighInDiscarded": "Svēršana ignorēta",

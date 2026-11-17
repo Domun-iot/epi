@@ -386,7 +386,7 @@
   "visualisation": "Vizualizacija",
   "waitingForScale": "Čakanje na tehtanje naprave »{detail}«. Stopite na tehtnico, da pošljete podatke.",
   "webMode": "Spletna moda",
-  "browserStorageMode": "Splet — podatki v tem brskalniku",
+  "browserStorageMode": "Splet — podatki brskalnika",
   "browserStorageUnavailable": "Shranjevanje v tem brskalniku ni mogoče: shramba je polna ali nedostopna. Prej shranjeni podatki so ohranjeni.",
   "weighInDetails": "Podrobnosti o tehtanju",
   "weighInDiscarded": "Tehtanje ignorirano",
