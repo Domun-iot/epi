@@ -5,8 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { formatCatalog, loadPrices, planCopy, planLanguage, renderPro } from './pro.js';
 import { catalog, locales, selectLocale } from './locales.js';
 import { referenceTitle, renderHome, renderReference } from './features.js';
-import { isMailbox, readAccountEmail, saveDeletionMail } from './deletion-mail.js';
-import { flags, playIcon, playUrl, renderFooter, renderHeader } from './layout.js';
+import { deletionUrl, flags, playIcon, playUrl, renderFooter, renderHeader } from './layout.js';
 
 const base = '/epi';
 const homeActionsCopy = {
@@ -20,7 +19,6 @@ const routes = new Map([
   [base + '/pro', 'pro'],
   [base + '/calculation-methods', 'methods'],
   [base + '/privacy-policy', 'privacy'],
-  [base + '/delete-account', 'deletion'],
   [base + '/legal-notice', 'legal'],
 ]);
 const assets = new Map(Object.entries({
@@ -44,16 +42,6 @@ const escape = value => value.replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[character]);
 
-function renderDeletionForm(t, deletion, status) {
-  if (status === 'submitted') return '<p role="status">' + t.submitted + '</p>';
-  return '<p>' + t.request + '</p>' +
-    (status === 'error' ? '<p role="alert">' + t.submissionError + '</p>' : '') +
-    '<form class="deletion-form" method="post" action="' + deletion + '">' +
-    '<label for="account-email">' + t.accountEmail + '</label>' +
-    '<input id="account-email" name="email" type="email" autocomplete="email" maxlength="254" required>' +
-    '<button class="button" type="submit">' + t.send + '</button></form>';
-}
-
 function renderHomeActions(locale) {
   const language = locale.startsWith('fr-') ? 'fr' : 'en';
   const [download, free, pro, benefits] = homeActionsCopy[language];
@@ -66,15 +54,13 @@ function renderHomeActions(locale) {
     '<span class="home-action-arrow" aria-hidden="true">→</span></a></div>';
 }
 
-function render(path, page, locale, retention, status, prices) {
+function render(path, page, locale, retention, prices) {
   const t = catalog[locale];
-  const privacy = base + '/privacy-policy';
-  const deletion = base + '/delete-account';
   const contactLink = '<a href="https://logisan.fr/contact/">Logisan</a>';
   const retentionText = retention[locale] ? '<p>' + escape(retention[locale]) + '</p>' : '';
   const titles = {
     pro: planCopy(locale).title,
-    home: t.headline, privacy: t.privacy, deletion: t.deletion, legal: t.legal, missing: '404',
+    home: t.headline, privacy: t.privacy, legal: t.legal, missing: '404',
     scales: referenceTitle('scales', locale), methods: referenceTitle('methods', locale),
   };
   const content = {
@@ -84,9 +70,7 @@ function render(path, page, locale, retention, status, prices) {
     methods: () => renderReference(base, page, locale, escape),
     privacy: () => '<h1>' + t.privacy + '</h1><p>éPI · Domun by Logisan' +
       '</p><p>' + t.local + '</p><p>' + t.sync + '</p><p>' + t.rights + ' ' + contactLink +
-      '</p>' + retentionText + '<p><a href="' + deletion + '">' + t.deletion + '</a></p>',
-    deletion: () => '<h1>' + t.deletion + '</h1>' + renderDeletionForm(t, deletion, status) +
-      '<p>' + t.erasure + '</p>' + retentionText + '<p><a href="' + privacy + '">' + t.privacy + '</a></p>',
+      '</p>' + retentionText + '<p><a href="' + deletionUrl + '">' + t.deletion + '</a></p>',
     legal: () => '<h1>' + t.legal + '</h1><p><strong>Domun by Logisan</strong></p><address>Logisan SAS · 100 000 €<br>13 Le Pré Robert<br>56460 Val d’Oust, France<br>' +
       '949 547 319 RCS Vannes · FR95949547319</address><p>' + t.director + ' Baptiste Pillot</p>' +
       '<p><a href="https://logisan.fr/mentions-legales/">Logisan</a></p>',
@@ -105,9 +89,8 @@ function render(path, page, locale, retention, status, prices) {
 }
 
 export function createSite({
-  contact = 'support@domun.eu', mailDirectory = './data/emails', retention = {}, secureCookie = false, catalogUrl,
+  retention = {}, secureCookie = false, catalogUrl,
 } = {}) {
-  if (!isMailbox(contact)) throw new Error('Invalid EPI_WWW_CONTACT');
   for (const [locale, value] of Object.entries(retention)) {
     if (!Object.hasOwn(locales, locale) || typeof value !== 'string' || !value.trim()) {
       throw new Error('Invalid retention notice for ' + locale);
@@ -117,9 +100,13 @@ export function createSite({
     const url = new URL('http://localhost' + (req.url?.startsWith('/') ? req.url : '/'));
     const path = url.pathname.replace(/\/$/, '');
     const page = routes.get(path) ?? 'missing';
-    const postDeletion = req.method === 'POST' && page === 'deletion';
-    if (!postDeletion && req.method !== 'GET' && req.method !== 'HEAD') {
-      res.writeHead(405, { Allow: page === 'deletion' ? 'GET, HEAD, POST' : 'GET, HEAD' }).end();
+    if (path === base + '/delete-account' && ['GET', 'HEAD', 'POST'].includes(req.method)) {
+      req.resume();
+      res.writeHead(303, { Location: deletionUrl, 'Cache-Control': 'no-store' }).end();
+      return;
+    }
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(405, { Allow: 'GET, HEAD' }).end();
       return;
     }
     const asset = assets.get(url.pathname);
@@ -145,25 +132,6 @@ export function createSite({
       'Cache-Control': 'private, no-store',
       Vary: 'Accept-Language, Cookie',
     };
-    if (postDeletion) {
-      try {
-        const contentType = req.headers['content-type']?.split(';', 1)[0].trim().toLowerCase();
-        const fetchSite = req.headers['sec-fetch-site'];
-        const email = contentType === 'application/x-www-form-urlencoded' &&
-          (!fetchSite || fetchSite === 'same-origin') && await readAccountEmail(req);
-        if (!email) {
-          req.resume();
-          res.writeHead(400, headers).end(render(path, page, locale, retention, 'error'));
-          return;
-        }
-        await saveDeletionMail(mailDirectory, contact, email, locale);
-        res.writeHead(303, { ...headers, Location: path + '?submitted=1' }).end();
-      } catch (error) {
-        console.error('Unable to record deletion request:', error.code ?? error.name);
-        res.writeHead(503, headers).end(render(path, page, locale, retention, 'error'));
-      }
-      return;
-    }
     if (chosen && page !== 'missing') {
       headers['Set-Cookie'] = 'epi_lang=' + locale + '; Path=/epi; Max-Age=31536000; HttpOnly; SameSite=Lax' +
         (secureCookie ? '; Secure' : '');
@@ -174,20 +142,19 @@ export function createSite({
     }
     const prices = page === 'pro' ? await loadPrices(catalogUrl) : undefined;
     res.writeHead(page === 'missing' ? 404 : page === 'pro' && !formatCatalog(prices, locale) ? 503 : 200, headers);
-    const status = url.searchParams.get('submitted') === '1' ? 'submitted' : undefined;
-    res.end(req.method === 'HEAD' ? undefined : render(page === 'missing' ? base : path, page, locale, retention, status, prices));
+    res.end(req.method === 'HEAD' ? undefined : render(page === 'missing' ? base : path, page, locale, retention, prices));
   });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const {
-    DOMUN_SOFTWARE_CATALOG_URL, EPI_WWW_PORT = '3002', EPI_WWW_CONTACT, EPI_WWW_MAIL_DIRECTORY, EPI_WWW_RETENTION_FILE, EPI_WWW_SECURE_COOKIE,
+    DOMUN_SOFTWARE_CATALOG_URL, EPI_WWW_PORT = '3002', EPI_WWW_RETENTION_FILE, EPI_WWW_SECURE_COOKIE,
   } = process.env;
   const retention = EPI_WWW_RETENTION_FILE
     ? JSON.parse(readFileSync(EPI_WWW_RETENTION_FILE, 'utf8').replace(/^\uFEFF/, ''))
     : undefined;
   createSite({
-    catalogUrl: DOMUN_SOFTWARE_CATALOG_URL, contact: EPI_WWW_CONTACT, mailDirectory: EPI_WWW_MAIL_DIRECTORY, retention, secureCookie: EPI_WWW_SECURE_COOKIE === '1',
+    catalogUrl: DOMUN_SOFTWARE_CATALOG_URL, retention, secureCookie: EPI_WWW_SECURE_COOKIE === '1',
   })
     .listen(Number(EPI_WWW_PORT), '127.0.0.1', () => console.log('http://127.0.0.1:' + EPI_WWW_PORT + base));
 }

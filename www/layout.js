@@ -1,6 +1,7 @@
 import { catalog, locales } from './locales.js';
 
 export const playUrl = 'https://play.google.com/store/apps/details?id=fr.epi.balance';
+export const deletionUrl = 'https://domun.eu/account/delete';
 export const playIcon = base => '<img src="' + base + '/assets/google-play.svg" alt="" width="24" height="24">';
 
 const navigation = {
@@ -129,7 +130,7 @@ export function renderFooter(base, locale) {
   const t = catalog[locale];
   const [, deletion] = navigation[locale.split('-')[0]];
   return '<footer><span class="footer-brand"><a href="https://domun.eu/">Domun</a> by ' +
-    '<a href="https://logisan.fr/">Logisan</a></span><a class="footer-deletion" href="' + base +
-    '/delete-account">' + deletion + '</a><nav><a href="' + base + '/privacy-policy">' + t.privacy +
+    '<a href="https://logisan.fr/">Logisan</a></span><a class="footer-deletion" href="' + deletionUrl +
+    '">' + deletion + '</a><nav><a href="' + base + '/privacy-policy">' + t.privacy +
     '</a><a href="' + base + '/legal-notice">' + t.legal + '</a></nav></footer>';
 }

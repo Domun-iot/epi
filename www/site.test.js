@@ -1,18 +1,12 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { test } from 'node:test';
 import { createSite } from './index.js';
 import { catalog, locales } from './locales.js';
 import { scaleFamilies } from './feature-catalog.js';
 
-test('public pages, language selection and deletion requests', async t => {
-  const mailDirectory = await mkdtemp(join(tmpdir(), 'epi-www-test-'));
-  t.after(() => rm(mailDirectory, { recursive: true, force: true }));
+test('public pages, language selection and account deletion redirects', async t => {
   const server = createSite({
-    mailDirectory,
     retention: { 'fr-FR': 'Conservation & <sauvegardes>' },
     secureCookie: true,
   }).listen(0, '127.0.0.1');
@@ -23,7 +17,7 @@ test('public pages, language selection and deletion requests', async t => {
 
   for (const locale of Object.keys(locales)) {
     for (const [route, title] of [
-      ['', 'headline'], ['/privacy-policy', 'privacy'], ['/delete-account', 'deletion'], ['/legal-notice', 'legal'],
+      ['', 'headline'], ['/privacy-policy', 'privacy'], ['/legal-notice', 'legal'],
     ]) {
       const response = await get('/epi' + route, { headers: { 'Accept-Language': locale } });
       assert.equal(response.status, 200);
@@ -33,6 +27,8 @@ test('public pages, language selection and deletion requests', async t => {
       assert.ok(html.includes('<h1>' + catalog[locale][title] + afterTitle));
       assert.doesNotMatch(html, /mailto:|support@domun\.eu|↵/);
       assert.match(html, /<details class="languages"><summary>/);
+      assert.ok(html.includes('class="footer-deletion" href="https://domun.eu/account/delete"'));
+      assert.doesNotMatch(html, /href="\/epi\/delete-account/);
       assert.match(html, /\?lang=en-GB"[^>]*><img class="flag" src="\/epi\/assets\/flags\/gb\.svg"/);
       assert.match(html, /\?lang=fr-CA"[^>]*><img class="flag" src="\/epi\/assets\/flags\/ca\.svg"/);
     }
@@ -45,47 +41,25 @@ test('public pages, language selection and deletion requests', async t => {
   assert.equal(change.headers.get('location'), '/epi/privacy-policy');
   assert.equal(change.headers.get('set-cookie'), 'epi_lang=fr-FR; Path=/epi; Max-Age=31536000; HttpOnly; SameSite=Lax; Secure');
 
-  const deletion = await get('/epi/delete-account', {
+  const privacy = await get('/epi/privacy-policy', {
     headers: { Cookie: 'epi_lang=fr-FR', 'Accept-Language': 'de' },
   });
-  assert.equal(deletion.headers.get('content-language'), 'fr-FR');
-  const form = await deletion.text();
-  assert.match(form, /method="post" action="\/epi\/delete-account"/);
-  assert.match(form, /name="email" type="email"[^>]*required/);
-  assert.match(form, /Conservation &amp; &lt;sauvegardes&gt;/);
+  assert.equal(privacy.headers.get('content-language'), 'fr-FR');
+  const privacyPage = await privacy.text();
+  assert.match(privacyPage, /Conservation &amp; &lt;sauvegardes&gt;/);
+  assert.ok(privacyPage.includes('<p><a href="https://domun.eu/account/delete">'));
 
-  const postDeletion = (body, headers = {}) => get('/epi/delete-account', {
-    method: 'POST', body, redirect: 'manual', headers: {
-      'Content-Type': 'application/x-www-form-urlencoded', Cookie: 'epi_lang=fr-FR', ...headers,
-    },
-  });
-  for (const invalid of [
-    'email=invalid', 'email=test%40example.org%0D%0ABcc%3Aother%40example.org',
-    'email=test%40example.org&email=other%40example.org', 'email=' + 'x'.repeat(2048),
-  ]) {
-    const response = await postDeletion(invalid);
-    assert.equal(response.status, 400);
-    assert.match(await response.text(), /role="alert"/);
+  for (const path of ['/epi/delete-account', '/epi/delete-account/', '/epi/delete-account?lang=fr&submitted=1']) {
+    for (const method of ['GET', 'HEAD', 'POST']) {
+      const response = await get(path, {
+        method, redirect: 'manual',
+        ...(method === 'POST' && { body: new URLSearchParams({ email: 'account+test@example.org' }) }),
+      });
+      assert.equal(response.status, 303);
+      assert.equal(response.headers.get('location'), 'https://domun.eu/account/delete');
+      assert.equal(await response.text(), '');
+    }
   }
-  assert.equal((await postDeletion('email=test%40example.org', { 'Sec-Fetch-Site': 'cross-site' })).status, 400);
-  assert.deepEqual(await readdir(mailDirectory), []);
-
-  const email = 'account+test@example.org';
-  const success = await postDeletion(new URLSearchParams({ email }));
-  assert.equal(success.status, 303);
-  const confirmation = await get(success.headers.get('location'), { headers: { Cookie: 'epi_lang=fr-FR' } });
-  assert.match(await confirmation.text(), /Votre demande a été enregistrée/);
-  const files = await readdir(mailDirectory);
-  assert.equal(files.length, 1);
-  assert.match(files[0], /^epi-deletion-.*\.eml$/);
-  const mail = await readFile(join(mailDirectory, files[0]), 'utf8');
-  const [mimeHeaders, body] = mail.split('\r\n\r\n');
-  assert.ok(mimeHeaders.split('\r\n').includes('To: support@domun.eu'));
-  assert.ok(mimeHeaders.split('\r\n').includes('Reply-To: ' + email));
-  assert.ok(mimeHeaders.split('\r\n').includes('MIME-Version: 1.0'));
-  assert.ok(mimeHeaders.split('\r\n').includes('Content-Type: text/plain; charset=UTF-8'));
-  assert.ok(Buffer.from(body, 'base64').toString('utf8').includes(email));
-  assert.equal((await get('/epi/assets/' + files[0])).status, 404);
 
   const weighted = await get('/epi?lang=ja', { headers: { 'Accept-Language': 'ja,de;q=0.2,es-MX;q=0.9,fr;q=0' } });
   assert.equal(weighted.headers.get('content-language'), 'es');
@@ -133,7 +107,7 @@ test('public pages, language selection and deletion requests', async t => {
   assert.equal(await image.text(), '');
   assert.equal((await get('/epi/copy.txt')).status, 404);
   assert.equal((await get('/epi', { method: 'POST' })).status, 405);
-  assert.equal((await get('/epi/delete-account', { method: 'PUT' })).headers.get('allow'), 'GET, HEAD, POST');
+  assert.equal((await get('/epi/delete-account', { method: 'PUT' })).headers.get('allow'), 'GET, HEAD');
   const flag = await get('/epi/assets/flags/gb.svg');
   assert.equal(flag.headers.get('content-type'), 'image/svg+xml');
 });
