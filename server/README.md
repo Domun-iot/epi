@@ -24,7 +24,7 @@ Les corps POST sont envoyés en JSON avec `Content-Type: application/json`. Les 
 | Méthode et route | Corps | Réponse |
 | --- | --- | --- |
 | `POST /v1/accounts` | `{"email":"a@example.org","password":"mot-de-passe"}` | `201` et `{"email":"a@example.org"}`. `409 account_exists` si l'adresse existe déjà. |
-| `POST /v1/device-tokens` | `{"email":"a@example.org","password":"mot-de-passe","deviceId":"pc-1"}` | `200` et `{"token":"…"}`. |
+| `POST /v1/device-tokens` | `{"email":"a@example.org","password":"mot-de-passe","deviceId":"pc-1"}` | `200` avec notamment `{"token":"…","paid":false,"paidUntil":null}`. |
 | `DELETE /v1/device-tokens` | En-tête `Authorization: Bearer <token>` | `204`. Révoque ce jeton sans supprimer les accusés de l’appareil. |
 | `POST /v1/transactions` | Objet JSON `{"transactions":[…]}` ou une transaction JSON par ligne (`application/x-ndjson`). | `200` et `{"inserted":1,"uuids":["…"]}` avec les UUID confirmés. |
 | `GET /v1/transactions/pending` | Paramètre facultatif `after` | `200` et `{"transactions":[…],"next":null}`. Les transactions horodatées sont triées par nom de fichier UTC. Si `next` est renseigné, le client le transmet dans `after` pour lire la page suivante. |
@@ -43,7 +43,7 @@ L’API privée accepte le jeton de service défini par `EPI_DOMUN_API_TOKEN` so
 | `GET /v1/domun/accounts` | Aucun. Paramètre `after` facultatif. | `200` avec `{"accounts":[{"id":"…","email":"a@example.org","paidUntil":null}],"next":null}`. Transmettez `next` dans `after` pour lire la page suivante. |
 | `PUT /v1/domun/accounts/<id>/entitlement` | `{"paidUntil":"2027-01-01T00:00:00.000Z"}` ou `{"paidUntil":null}` en JSON. | `204`. `404 account_not_found` si le compte a été supprimé. |
 
-L’identifiant du compte reste stable. Une réinscription reçoit un nouvel identifiant. Les réponses de connexion par mot de passe ou avec Google et `GET /v1/account` renvoient `paid: true` jusqu’à l’échéance UTC. Les comptes sans échéance commencent en accès gratuit.
+L’identifiant du compte reste stable. Une réinscription reçoit un nouvel identifiant. Les réponses de connexion par mot de passe ou avec Google et `GET /v1/account` renvoient `paid` et `paidUntil`. `paidUntil` contient l’échéance UTC, même si elle est passée, ou `null` pour un compte sans échéance. `paid` vaut `true` tant que l’échéance est dans le futur.
 
 ## Comptes dans l’application
 

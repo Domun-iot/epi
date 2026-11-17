@@ -245,6 +245,7 @@ test('gives domun access to paginated account entitlements without sharing crede
   }
   const device = await login();
   assert.equal(device.paid, false);
+  assert.equal(device.paidUntil, null);
   assert.equal((await fetch(url + '/domun/accounts')).status, 401);
   assert.equal((await fetch(url + '/domun/accounts', { headers: auth(device.token) })).status, 401);
   assert.equal((await fetch(url + '/domun/accounts?after=wrong', { headers: auth(token) })).status, 400);
@@ -262,18 +263,25 @@ test('gives domun access to paginated account entitlements without sharing crede
   assert.deepEqual(previous, { id: previous.id, email: 'legacy@example.org', paidUntil: null });
   const account = accounts.find(account => account.email === credentials.email);
   const update = '/domun/accounts/' + account.id + '/entitlement';
-  const status = async () => (await (await fetch(url + '/account', { headers: auth(device.token) })).json()).paid;
+  const status = async () => {
+    const response = await fetch(url + '/account', { headers: auth(device.token) });
+    assert.equal(response.status, 200);
+    const { paid, paidUntil } = await response.json();
+    return { paid, paidUntil };
+  };
   assert.equal((await send(update, token, { paidUntil: '2026-02-30T09:00:00.000Z' }, 'PUT')).status, 400);
   const paidUntil = '2026-11-16T10:00:00.000Z';
   assert.equal((await send(update, device.token, { paidUntil }, 'PUT')).status, 401);
   assert.equal((await send(update, token, { paidUntil }, 'PUT')).status, 204);
-  assert.equal(await status(), true);
+  assert.deepEqual(await status(), { paid: true, paidUntil });
   const renewed = await login();
   assert.equal(renewed.paid, true);
+  assert.equal(renewed.paidUntil, paidUntil);
   device.token = renewed.token;
   now = Date.parse(paidUntil);
-  assert.equal(await status(), false);
+  assert.deepEqual(await status(), { paid: false, paidUntil });
   assert.equal((await send(update, token, { paidUntil: null }, 'PUT')).status, 204);
+  assert.deepEqual(await status(), { paid: false, paidUntil: null });
   store.deleteAccount(store.findAccount(credentials.email).id);
   assert.equal((await send('/accounts', '', credentials)).status, 201);
   assert.equal((await send(update, token, { paidUntil }, 'PUT')).status, 404);

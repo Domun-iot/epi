@@ -233,15 +233,16 @@ function accountLanguages(account: Account) {
   };
 }
 
-function isPaid(account: Account, now: number) {
-  return account.paid_until !== null && Date.parse(account.paid_until) > now;
+function accountEntitlement(account: Account, now: number) {
+  const paidUntil = account.paid_until;
+  return { paid: paidUntil !== null && Date.parse(paidUntil) > now, paidUntil };
 }
 
 function accountInfo(account: Account, now: number) {
   return {
     email: account.email, googleLinked: Boolean(account.google_sub), hasPassword: Boolean(account.password_hash),
     ...accountLanguages(account),
-    paid: isPaid(account, now),
+    ...accountEntitlement(account, now),
     ...(account.created_at && { createdAt: account.created_at }),
     ...(account.updated_at && { updatedAt: account.updated_at }),
   };
@@ -517,7 +518,9 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         const account = store.findAccount(email);
         await checkPassword(password, account?.password_hash ?? '');
         if (!account) throw new ApiError(401, 'invalid_credentials');
-        return send(res, 200, { token: issueToken(account, deviceId), ...accountLanguages(account), paid: isPaid(account, now()) });
+        return send(res, 200, {
+          token: issueToken(account, deviceId), ...accountLanguages(account), ...accountEntitlement(account, now()),
+        });
       }
 
       if (route === 'DELETE /v1/device-tokens') {

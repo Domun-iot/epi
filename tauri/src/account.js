@@ -66,7 +66,9 @@ export function syncToken() {
 }
 
 export function isPaidAccount() {
-  return accountInfo?.paid === true;
+  return accountInfo?.paid === true
+    && typeof accountInfo.paidUntil === 'string'
+    && Date.now() <= Date.parse(accountInfo.paidUntil);
 }
 
 window.addEventListener('storage', event => {
