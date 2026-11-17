@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import config from '#config';
+import { billingFromEnvironment } from './billing.ts';
 import { createApi } from './api.ts';
 import { googleFromEnvironment } from './google.ts';
 import { openStore } from './store.ts';
@@ -12,7 +13,7 @@ mkdirSync(dirname(path), { recursive: true });
 const google = googleFromEnvironment();
 const publicPages = playPublicPages(join(dirname(path), 'play-public.json'));
 const store = openStore(path);
-const server = createApi(store, Date.now, google, publicPages, process.env.EPI_DOMUN_API_TOKEN);
+const server = createApi(store, Date.now, google, publicPages, process.env.EPI_DOMUN_API_TOKEN, billingFromEnvironment());
 server.once('close', () => store.close());
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => server.close());

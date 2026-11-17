@@ -72,7 +72,7 @@ export function openStore(path: string) {
     VALUES (?, ?, ?, ${now}, lower(hex(randomblob(16))))
     ON CONFLICT (email) DO NOTHING
   `);
-  type Account = { id: number; email: string; password_hash: string; google_sub: string | null; locale: string | null; google_locale: string | null;
+  type Account = { id: number; domun_id: string; email: string; password_hash: string; google_sub: string | null; locale: string | null; google_locale: string | null;
     created_at: string | null; updated_at: string | null; paid_until: string | null };
   type DomunAccount = { id: string; email: string; paidUntil: string | null };
   const listDomunAccounts = db.prepare(`

@@ -198,7 +198,7 @@ function stampChanges(draft, previous) {
   }
 }
 
-function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing }) {
+function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing, hasProViews = () => true }) {
   let saved;
   let enrollment = null;
   let acquisitionError = null;
@@ -224,16 +224,22 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
 
   function view() {
     const prefs = preferencesFor(saved);
-    const measurements = layoutFor(saved, prefs, 'measurements');
-    const details = layoutFor(saved, prefs, 'details');
-    const chart = chartPreferences(prefs, measurements);
-    measurements.modified ||= chart.modified;
-    measurements.modifiedInactiveIds = modifiedInactiveViews(saved, prefs, 'measurements', measurements);
-    details.modifiedInactiveIds = modifiedInactiveViews(saved, prefs, 'details', details);
-    return { ...saved, ...measurements.layout, ...details.layout, viewLayouts: { measurements, details },
+    const proViews = hasProViews();
+    const layoutPrefs = viewPreferences(saved, saved.selectedProfile, proViews);
+    const measurements = layoutFor(saved, layoutPrefs, 'measurements');
+    const details = layoutFor(saved, layoutPrefs, 'details');
+    const chart = chartPreferences(layoutPrefs, measurements);
+    if (proViews) {
+      measurements.modified ||= chart.modified;
+      measurements.modifiedInactiveIds = modifiedInactiveViews(saved, layoutPrefs, 'measurements', measurements);
+      details.modifiedInactiveIds = modifiedInactiveViews(saved, layoutPrefs, 'details', details);
+    } else {
+      for (const view of [measurements, details]) Object.assign(view, { presets: [], modified: false, modifiedInactiveIds: [] });
+    }
+    return { ...saved, ...measurements.layout, ...details.layout, viewLayouts: { measurements, details }, proViews,
       measurementDisplay: chart.options.display, chartOptions: chart.options, chartSeries: chart.series,
       chartLastRange: chart.lastRange,
-      theme: prefs.theme, rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: prefs.detailSectionsOpen, enrollment, acquisitionError };
+      theme: prefs.theme, rawOpen: prefs.rawOpen ?? false, detailSectionsOpen: layoutPrefs.detailSectionsOpen, enrollment, acquisitionError };
   }
 
   function publish() {
@@ -287,7 +293,8 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     if (!draft.selectedProfile && draft.profiles.length === 1) {
       draft.selectedProfile = draft.profiles[0].name;
     }
-    const prefs = preferencesFor(draft);
+    const proViews = hasProViews();
+    const prefs = viewPreferences(draft, draft.selectedProfile, proViews);
     const measurements = layoutFor(draft, prefs, 'measurements');
     const { key, stored, options, series } = chartPreferences(prefs, measurements);
     if (!stored && (measurements.preset || options.display === 'chart' || prefs.chartOptionsByView?.[key]
@@ -296,7 +303,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       if (options.display === 'chart' || prefs.chartOptionsByView?.[key] || prefs.chartSeriesByView?.[key]) {
         chart.columns = measurements.layout.columns;
       }
-      savePreferences(draft, draft.selectedProfile, withChartPreferences(prefs, key, chart));
+      saveViewPreferences(draft, draft.selectedProfile, withChartPreferences(prefs, key, chart), proViews);
     }
     const remaining = retainNotifications(draft.notifications);
     if (remaining.length !== draft.notifications.length) draft.notifications = remaining;
@@ -513,7 +520,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       const target = profile == null ? null : findProfile(draft, profile);
       if (profile != null && !target) throw Error('Profil introuvable.');
       const name = target?.name ?? null;
-      const prefs = preferencesFor(draft, name);
+      const prefs = viewPreferences(draft, name);
       const current = layoutFor(draft, prefs, 'measurements');
       if ((current.preset?.id ?? null) !== viewId) return;
       const { key, options, series } = chartPreferences(prefs, current);
@@ -525,7 +532,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
         }
       }
       series[id] = next;
-      savePreferences(draft, name, withChartPreferences(prefs, key, { options, series, columns: current.layout.columns }));
+      saveViewPreferences(draft, name, withChartPreferences(prefs, key, { options, series, columns: current.layout.columns }));
     });
   }
 
@@ -534,7 +541,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       const target = profile == null ? null : findProfile(draft, profile);
       if (profile != null && !target) throw Error('Profil introuvable.');
       const name = target?.name ?? null;
-      const prefs = preferencesFor(draft, name);
+      const prefs = viewPreferences(draft, name);
       const current = layoutFor(draft, prefs, 'measurements');
       if (viewId !== undefined && (current.preset?.id ?? null) !== viewId) return;
       const { key, options: original, series, lastRange } = chartPreferences(prefs, current);
@@ -561,7 +568,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
         }
         next.range = range;
       }
-      savePreferences(draft, name, withChartPreferences(prefs, key,
+      saveViewPreferences(draft, name, withChartPreferences(prefs, key,
         { options: next, series, columns: current.layout.columns, lastRange }));
     });
   }
@@ -585,10 +592,10 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
         const columns = next.columns;
         const { series } = chartPreferences(prefs, { ...current, layout: { ...layout, columns } });
         delete next.columns;
-        savePreferences(draft, target?.name, withChartPreferences(next, key, { options, series, columns }));
+        saveViewPreferences(draft, target?.name, withChartPreferences(next, key, { options, series, columns }));
         return;
       }
-      savePreferences(draft, target?.name, next);
+      saveViewPreferences(draft, target?.name, next);
     });
   }
 
@@ -597,8 +604,17 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     else draft.anonymousPreferences = prefs;
   }
 
+  function viewPreferences(draft, profile, pro = hasProViews()) {
+    return pro ? preferencesFor(draft, profile) : draft.anonymousPreferences?.freeView ?? {};
+  }
+
+  function saveViewPreferences(draft, profile, prefs, pro = hasProViews()) {
+    if (pro) savePreferences(draft, profile, prefs);
+    else draft.anonymousPreferences = { ...draft.anonymousPreferences, freeView: prefs };
+  }
+
   function editableLayout(draft, profile, kind) {
-    const prefs = preferencesFor(draft, profile);
+    const prefs = viewPreferences(draft, profile);
     const current = layoutFor(draft, prefs, kind);
     return { ...current, prefs: prefs.viewPresetIds?.[kind] && !current.preset
       ? selectLayout(prefs, kind, null) : prefs };
@@ -606,6 +622,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
 
   function changeViewPreset(profile, kind, action, { id = null, name } = {}) {
     return mutate(draft => {
+      if (!hasProViews()) return;
       const target = profile == null ? null : findProfile(draft, profile);
       if (profile != null && !target) throw Error('Profil introuvable.');
       if (!Object.hasOwn(viewDefaults, kind)) throw Error('Vue inconnue.');
@@ -682,10 +699,12 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
     return mutate(draft => {
       const target = profile == null ? null : findProfile(draft, profile);
       if (profile != null && !target) throw Error('Profil introuvable.');
-      const prefs = preferencesFor(draft, target?.name ?? null);
-      const updates = section === null ? { rawOpen: open }
-        : { detailSectionsOpen: { ...prefs.detailSectionsOpen, [section]: open } };
-      savePreferences(draft, target?.name, { ...prefs, ...updates });
+      const name = target?.name ?? null;
+      if (section === null) savePreferences(draft, name, { ...preferencesFor(draft, name), rawOpen: open });
+      else {
+        const prefs = viewPreferences(draft, name);
+        saveViewPreferences(draft, name, { ...prefs, detailSectionsOpen: { ...prefs.detailSectionsOpen, [section]: open } });
+      }
     });
   }
 
@@ -710,7 +729,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
       if (fullOrder.length === originalOrder.length && fullOrder.every((id, index) => id === originalOrder[index])) {
         delete next[setting];
       }
-      savePreferences(draft, current?.name, next);
+      saveViewPreferences(draft, current?.name, next);
     });
   }
 
@@ -898,6 +917,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing 
   return {
     load: () => enqueue(async () => { await transact(() => {}); return view(); }),
     reload,
+    refreshView: () => enqueue(publish),
     ...(storage.integrateTransactions && { integrateTransactions }),
     subscribe(observer) {
       observers.add(observer);

@@ -37,6 +37,8 @@ const googleConfirm = form.elements.googlePasswordConfirm;
 const googleStatus = document.querySelector('#account-google-status');
 
 let accountInfo = null;
+let paidUntil = 0;
+let entitlementTimer;
 let managingGoogle = false;
 let waitingForGoogle = false;
 let cancelGoogle = false;
@@ -66,9 +68,31 @@ export function syncToken() {
 }
 
 export function isPaidAccount() {
-  return accountInfo?.paid === true
-    && typeof accountInfo.paidUntil === 'string'
-    && Date.now() <= Date.parse(accountInfo.paidUntil);
+  return Date.now() < paidUntil;
+}
+
+export function transactionSyncToken() {
+  return isPaidAccount() ? syncToken() : undefined;
+}
+
+function setEntitlement(info) {
+  const previous = paidUntil;
+  const wasPaid = isPaidAccount();
+  paidUntil = info?.paid === true ? Date.parse(info.paidUntil) || 0 : 0;
+  if (previous === paidUntil) return;
+  clearTimeout(entitlementTimer);
+  function expire() {
+    const remaining = paidUntil - Date.now();
+    if (remaining > 0) entitlementTimer = setTimeout(expire, Math.min(remaining, 2 ** 31 - 1));
+    else {
+      paidUntil = 0;
+      window.dispatchEvent(new Event('epi:entitlement'));
+    }
+  }
+  if (isPaidAccount()) expire();
+  if (wasPaid !== isPaidAccount() || (!isPaidAccount() && previous > 0)) {
+    window.dispatchEvent(new Event('epi:entitlement'));
+  }
 }
 
 window.addEventListener('storage', event => {
@@ -226,6 +250,7 @@ function setSession(session, info = null) {
   }
   account = session;
   accountInfo = info;
+  setEntitlement(info);
   connectionCheck = undefined;
   managingGoogle = false;
   showConnectionError('');
@@ -278,6 +303,7 @@ async function refreshAccountInfo(token, check) {
     if (connectionCheck !== check || syncToken() !== token) return;
     if (typeof info?.email !== 'string') throw new Error(t('accountServerError'));
     accountInfo = info;
+    setEntitlement(info);
     showConnectionError('');
   } catch (error) {
     if (connectionCheck !== check || syncToken() !== token) return;

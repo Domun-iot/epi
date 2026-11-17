@@ -63,6 +63,10 @@ h1 { font-size: clamp(2rem, 5.8vw, 4.8rem); line-height: 1.04; letter-spacing: -
 .hero p { max-width: 38ch; font-size: clamp(1rem, 2.2vw, 1.35rem); margin: 0; color: #dde9df; }
 .chart { display: block; width: min(100%, 15.5rem); height: auto; margin-inline: auto; border: .35rem solid #f0e2c4; border-radius: 1.3rem; }
 .document { max-width: 46rem; margin-block: clamp(2.5rem, 8vw, 6rem); font-size: 1.1rem; overflow-wrap: anywhere; }
+.plan-table { width: 100%; border-collapse: collapse; margin-block: 1rem 1.5rem; }
+.plan-table th, .plan-table td { padding: .6rem; border-bottom: 1px solid #cbd3c8; text-align: start; }
+.plan-table th[scope='row'] { font-weight: normal; }
+.plan-table th[scope='col'] { background: #e4ece3; }
 .document h1 { font-size: clamp(2rem, 5vw, 3.4rem); }
 address { font-style: normal; }
 .deletion-form { display: grid; gap: .5rem; justify-items: start; }

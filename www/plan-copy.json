@@ -1,0 +1,78 @@
+{
+  "fr": {
+    "title": "Pourquoi passer à éPI PRO ?",
+    "intro": "Gardez vos mesures à portée de main sur plusieurs appareils et retrouvez vos affichages préférés en un clic.",
+    "sync": "Synchronisation multi-appareils par le cloud",
+    "syncDescription": "Retrouvez le même historique de pesées sur vos appareils. L’abonnement contribue au coût du service de synchronisation.",
+    "views": "Vues enregistrées",
+    "viewsDescription": "Enregistrez vos filtres et vos réglages d’affichage pour retrouver rapidement les mesures qui vous intéressent.",
+    "zip": "Archives ZIP",
+    "zipDescription": "Exportez vos données dans une archive ou importez une archive existante.",
+    "prices": "Combien ça coûte ?",
+    "offer": "{month} par mois ou {year} par an.",
+    "promo": "Premier mois de PRO offert.",
+    "compare": "Comparer FREE et PRO",
+    "feature": "Fonctionnalité",
+    "yes": "Inclus",
+    "no": "Non inclus",
+    "subscribe": "Passer en PRO maintenant !",
+    "unavailable": "Les tarifs sont temporairement indisponibles. Réessayez dans un instant.",
+    "rows": [
+      [
+        "Pesées avec une balance Bluetooth compatible",
+        true
+      ],
+      [
+        "Historique, graphiques et réglages de vue communs aux profils",
+        true
+      ],
+      [
+        "Synchronisation multi-appareils par le cloud",
+        false
+      ],
+      [
+        "Vues enregistrées et réglages propres à chaque profil",
+        false
+      ],
+      ["Import et export ZIP", false]
+    ]
+  },
+  "en": {
+    "title": "Why upgrade to éPI PRO?",
+    "intro": "Keep your measurements close at hand across devices and open your favourite views in one click.",
+    "sync": "Cloud sync across devices",
+    "syncDescription": "See the same weigh-in history on your devices. Your subscription helps cover the cost of the sync service.",
+    "views": "Saved views",
+    "viewsDescription": "Save your filters and display settings to get back to the measurements you care about.",
+    "zip": "ZIP archives",
+    "zipDescription": "Export your data to an archive or import an existing archive.",
+    "prices": "How much does it cost?",
+    "offer": "{month} per month or {year} per year.",
+    "promo": "Your first month of PRO is free.",
+    "compare": "Compare FREE and PRO",
+    "feature": "Feature",
+    "yes": "Included",
+    "no": "Not included",
+    "subscribe": "Upgrade to PRO now!",
+    "unavailable": "Pricing is temporarily unavailable. Try again in a moment.",
+    "rows": [
+      [
+        "Weigh-ins with a compatible Bluetooth scale",
+        true
+      ],
+      [
+        "History, charts and view settings shared by all profiles",
+        true
+      ],
+      [
+        "Cloud sync across devices",
+        false
+      ],
+      [
+        "Saved views and per-profile settings",
+        false
+      ],
+      ["ZIP import and export", false]
+    ]
+  }
+}

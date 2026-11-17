@@ -21,6 +21,7 @@ const record = { receivedAt: '2026-01-15T17:23:21Z', profile: { name: 'Alice' },
   measures: { weight: 70, unit: 'kg', impedanceOhms: 475 },
   calculations: { IMC: { bmi: 25.7 }, Mi: { fatPercent: 31.8 }, Deu: { fatPercent: 33.1 } },
 };
+const paid = { paid: true, paidUntil: '2099-01-01T00:00:00.000Z' };
 const frame = 'AABBCCDDEEFF -58 181B 0226e40709060d2605e9015a37 ConnectableUndirected TUlCRlM=';
 const metadata = 'META AABBCCDDEEFF TUlCRlM= 0157';
 
@@ -378,7 +379,7 @@ test('receives transactions on startup and acknowledges only the IDs returned by
       assert.equal(route.request().headers().authorization, 'Bearer test-token');
       startedAccountCheck();
       await accountResponse;
-      await route.fulfill({ json: { email: 'alice@example.org' } }).catch(() => {});
+      await route.fulfill({ json: { email: 'alice@example.org', ...paid } }).catch(() => {});
     });
     await page.route('https://sync.epi.test/v1/transactions/pending', async route => {
       await accountCheckStarted;
@@ -389,11 +390,13 @@ test('receives transactions on startup and acknowledges only the IDs returned by
       await route.fulfill({ json: { inserted: 2 } });
     });
   });
-  assert.deepEqual(await acknowledged, { uuids: [rows[0].uuid, rows[2].uuid] });
-  assert.deepEqual(integrated, rows);
+  await accountCheckStarted;
+  assert.deepEqual(integrated, []);
   const button = page.getByRole('button', { name: 'Compte', exact: true });
   assert.ok(await button.locator('.account-disconnected').isVisible());
   releaseAccount();
+  assert.deepEqual(await acknowledged, { uuids: [rows[0].uuid, rows[2].uuid] });
+  assert.deepEqual(integrated, rows);
   await button.locator('.account-connected').waitFor();
   assert.equal(await button.getAttribute('title'), 'Connecté au compte');
 });
@@ -441,9 +444,8 @@ test('refreshes local data, rechecks the account, then retries upload before dow
       }));
     });
     await page.route('https://sync.epi.test/v1/account', route => {
-      if (!refreshing) return route.abort('connectionrefused');
-      steps.push('account');
-      return route.fulfill({ json: { email: 'alice@example.org' } });
+      if (refreshing) steps.push('account');
+      return route.fulfill({ json: { email: 'alice@example.org', ...paid } });
     });
     await page.route('https://sync.epi.test/v1/transactions', async route => {
       if (!refreshing) {
@@ -467,7 +469,7 @@ test('refreshes local data, rechecks the account, then retries upload before dow
 
   await firstUpload;
   const account = page.locator('#account-button');
-  await account.locator('.account-disconnected').waitFor();
+  await account.locator('.account-connected').waitFor();
   refreshing = true;
   await page.locator('#reload-data').click();
   await reloaded;
@@ -479,6 +481,60 @@ test('refreshes local data, rechecks the account, then retries upload before dow
     ['integrate', [incoming]], ['acknowledge', { uuids: [incomingUuid] }],
   ]);
   assert.deepEqual(pending, []);
+});
+
+test('hides native ZIP and named views while FREE and enables them when PRO returns', async t => {
+  const initial = new Date('2026-11-17T10:00:00Z');
+  const snapshot = { profiles: [alice], selectedProfile: 'Alice', measurements: [record], devices: [device],
+    viewPresets: { measurements: [{ id: 'custom', name: 'Mesures PRO', layout: { columns: ['bmi'] } }], details: [] } };
+  let expires;
+  let downloads = 0;
+  const page = await pageWith(t, undefined, {}, undefined, async page => {
+    await page.clock.install({ time: initial });
+    await page.addInitScript(snapshot => {
+      window.isTauri = true;
+      let saved = snapshot;
+      window.__TAURI_INTERNALS__ = {
+        transformCallback: () => 1,
+        invoke: async (cmd, args) => {
+          if (cmd === 'load_session') return saved;
+          if (cmd === 'save_session') { saved = args.session; return false; }
+          if (cmd === 'pending_transactions') return [];
+          if (cmd === 'plugin:event|listen') return 1;
+        }
+      };
+      localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({ email: 'alice@example.org', token: 'test-token' }));
+    }, snapshot);
+    await page.route('https://sync.epi.test/v1/account', route => route.fulfill({ json: {
+      email: 'alice@example.org', paid: Boolean(expires), paidUntil: expires ?? null,
+    } }));
+    await page.route('https://sync.epi.test/v1/transactions/pending', route => {
+      downloads += 1;
+      return route.fulfill({ json: { transactions: [] } });
+    });
+  });
+  await page.locator('#account-button .account-connected').waitFor();
+  const zip = page.locator('#export-data');
+  const importZip = page.locator('#import-data');
+  const picker = page.locator('.view-preset-picker summary');
+  assert.equal(await zip.isVisible(), false);
+  assert.equal(await importZip.isVisible(), false);
+  assert.equal(await picker.count(), 0);
+  assert.equal(downloads, 0);
+
+  expires = new Date(+initial + 120_000).toISOString();
+  const downloaded = page.waitForResponse('https://sync.epi.test/v1/transactions/pending');
+  await page.clock.fastForward(60_000);
+  await downloaded;
+  await zip.waitFor();
+  await importZip.waitFor();
+  await picker.waitFor();
+  await page.clock.fastForward(61_000);
+  await zip.waitFor({ state: 'hidden' });
+  assert.equal(await importZip.isVisible(), false);
+  assert.equal(await picker.count(), 0);
+  assert.equal(downloads, 1);
+  assert.ok(await page.locator('#account-button .account-connected').isVisible());
 });
 
 test('rechecks the saved account from its button and every minute', async t => {
@@ -613,7 +669,7 @@ test('counts down to automatic sync and can retry immediately', async t => {
         email: 'alice@example.org', token: 'test-token',
       }));
     });
-    await page.route('https://sync.epi.test/v1/account', route => route.fulfill({ json: { email: 'alice@example.org' } }));
+    await page.route('https://sync.epi.test/v1/account', route => route.fulfill({ json: { email: 'alice@example.org', ...paid } }));
     await page.route('https://sync.epi.test/v1/transactions/pending', route => route.fulfill({ json: { transactions: [] } }));
     await page.route('https://sync.epi.test/v1/transactions', async route => {
       uploads.push(route.request().postData().trim().split('\n').map(line => JSON.parse(line).uuid));

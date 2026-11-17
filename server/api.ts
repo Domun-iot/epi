@@ -1,6 +1,7 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { promisify } from 'node:util';
+import type { PaidUntil } from './billing.ts';
 import googleReturn from './google-return.json' with { type: 'json' };
 import { randomSecret, type Google, type GoogleIdentity } from './google.ts';
 import type { openStore } from './store.ts';
@@ -301,7 +302,7 @@ function browserResult(res: ServerResponse, succeeded: boolean, locale: Locale) 
 }
 
 export function createApi(store: Store, now = Date.now, google?: Google,
-  publicPages?: (path: string, res: ServerResponse) => boolean, domunToken?: string) {
+  publicPages?: (path: string, res: ServerResponse) => boolean, domunToken?: string, readPaidUntil?: PaidUntil) {
   if (domunToken && !domunTokenPattern.test(domunToken)) {
     throw new Error('EPI_DOMUN_API_TOKEN must contain 64 lowercase hexadecimal characters');
   }
@@ -350,6 +351,28 @@ export function createApi(store: Store, now = Date.now, google?: Google,
     return account;
   }
 
+  async function authorizeSync(req: IncomingMessage) {
+    const device = authenticate(req, store, now());
+    if (!readPaidUntil) return device;
+    const account = store.findById(device.account_id);
+    if (!account) throw new ApiError(401, 'invalid_token');
+    let expires: string | null;
+    try { expires = await readPaidUntil(account.domun_id); }
+    catch { throw new ApiError(503, 'subscription_unavailable'); }
+    if (!expires || !(Date.parse(expires) > now())) throw new ApiError(403, 'pro_required');
+    return device;
+  }
+
+  async function liveEntitlement(account: Account) {
+    if (!readPaidUntil) return accountEntitlement(account, now());
+    try {
+      const paidUntil = await readPaidUntil(account.domun_id);
+      return { paid: Boolean(paidUntil && Date.parse(paidUntil) > now()), paidUntil };
+    } catch {
+      return accountEntitlement(account, now());
+    }
+  }
+
   function issueToken(account: Account, deviceId: string) {
     const selector = randomBytes(16).toString('hex');
     const secret = randomSecret();
@@ -386,7 +409,8 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         }
       }
       if (route === 'GET /v1/account') {
-        return send(res, 200, { ...accountInfo(currentAccount(req), now()), googleAvailable: Boolean(google) });
+        const account = currentAccount(req);
+        return send(res, 200, { ...accountInfo(account, now()), ...await liveEntitlement(account), domunId: account.domun_id, googleAvailable: Boolean(google) });
       }
       if (route === 'GET /v1/google/config') {
         return send(res, 200, { enabled: Boolean(google) });
@@ -500,7 +524,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           store.updateGoogleLocale(account.id, identity.sub, googleLocale);
           account = store.findById(account.id)!;
         }
-        return send(res, 200, { ...accountInfo(account, now()), token: issueToken(account, action.deviceId) });
+        return send(res, 200, { ...accountInfo(account, now()), ...await liveEntitlement(account), token: issueToken(account, action.deviceId) });
       }
       if (route === 'POST /v1/accounts') {
         const body = await readBody(req);
@@ -519,7 +543,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         await checkPassword(password, account?.password_hash ?? '');
         if (!account) throw new ApiError(401, 'invalid_credentials');
         return send(res, 200, {
-          token: issueToken(account, deviceId), ...accountLanguages(account), ...accountEntitlement(account, now()),
+          token: issueToken(account, deviceId), ...accountLanguages(account), ...await liveEntitlement(account),
         });
       }
 
@@ -531,7 +555,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
       }
 
       if (req.method === 'GET' && path === '/v1/transactions/pending') {
-        const { account_id, device_id } = authenticate(req, store, now());
+        const { account_id, device_id } = await authorizeSync(req);
         const transactions: string[] = [];
         const envelope = '{"transactions":[';
         const after = new URLSearchParams(query).get('after') ?? '';
@@ -555,7 +579,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
       }
 
       if (route === 'POST /v1/transactions') {
-        const { account_id, device_id } = authenticate(req, store, now());
+        const { account_id, device_id } = await authorizeSync(req);
         const contentType = req.headers['content-type']?.split(';')[0].trim().toLowerCase();
         if (contentType === 'application/x-ndjson') {
           return send(res, 200, await uploadStream(req, store, account_id, device_id));
@@ -566,8 +590,8 @@ export function createApi(store: Store, now = Date.now, google?: Google,
       }
 
       if (route === 'POST /v1/transactions/acknowledge') {
+        const { account_id, device_id } = await authorizeSync(req);
         const body = await readBody(req);
-        const { account_id, device_id } = authenticate(req, store, now());
         const uuids = batch(body.uuids);
         if (!uuids.every(isUuid)) throw new ApiError(400, 'invalid_uuid');
         return send(res, 200, { inserted: store.acknowledge(account_id, device_id, uuids) });

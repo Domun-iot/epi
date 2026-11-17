@@ -5,6 +5,7 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { readFile, writeFile } from '@tauri-apps/plugin-fs';
 import { domain } from 'virtual:epi-domain';
 import { createWebSession } from './web-session.js';
+import { isPaidAccount } from './account.js';
 import { snapshotKey } from './preferences.js';
 import composition from 'virtual:epi-composition';
 import { datasetFiles, fileRecords, readArchive, writeArchive } from './legacy-import.js';
@@ -30,7 +31,8 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
     load: () => JSON.parse(localStorage.getItem(snapshotKey) ?? 'null'),
     save: session => localStorage.setItem(snapshotKey, JSON.stringify(session)),
   };
-  const session = web ? createWebSession(onState, onTransactions) : domain.createSession({ storage, onWeighing });
+  const proFeatures = () => !native || isPaidAccount();
+  const session = web ? createWebSession(onState, onTransactions) : domain.createSession({ storage, onWeighing, hasProViews: proFeatures });
   if (!web) {
     session.subscribe(onState);
     onState(await session.load());
@@ -70,13 +72,14 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
 
   async function importBytes(bytes) {
     const files = readArchive(bytes);
-    if (!files.length) return 0;
+    if (!proFeatures() || !files.length) return 0;
     const records = fileRecords(files);
     if (!native && !web) return session.importLegacy(records);
 
     // Validate the core records before merging the original bytes.
     await domain.createSession({ storage: { load: () => null, save: () => {} } }).importLegacy(records);
     return queueReload(async () => {
+      if (!proFeatures()) return 0;
       if (web) return session.importFiles(files);
       const added = await invoke('import_files', { files });
       if (added) onTransactions();
@@ -100,16 +103,19 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
     ...(native && {
       async pickLegacy() {
         const path = await open({ title: t('importAZipArchive'), multiple: false, filters: zipFilters });
-        if (!path) return undefined;
+        if (!path || !proFeatures()) return undefined;
         return importBytes(await readFile(path));
       },
     }),
     async exportData() {
+      if (!proFeatures()) return false;
       const filename = 'epi-data-' + new Date().toISOString().slice(0, 10) + '.zip';
       if (native) {
         const path = await save({ title: t('exportZip'), defaultPath: filename, filters: zipFilters });
-        if (!path) return false;
-        await writeFile(path, writeArchive(await invoke('export_files')));
+        if (!path || !proFeatures()) return false;
+        const files = await invoke('export_files');
+        if (!proFeatures()) return false;
+        await writeFile(path, writeArchive(files));
       } else {
         const files = web ? await session.exportFiles() : datasetFiles(await session.load());
         const url = URL.createObjectURL(new Blob([writeArchive(files)],

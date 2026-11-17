@@ -1,4 +1,4 @@
-import { acknowledgeTransactions, checkAccountConnection, downloadTransactions, syncToken, uploadTransactions } from './account.js';
+import { acknowledgeTransactions, checkAccountConnection, downloadTransactions, transactionSyncToken as syncToken, uploadTransactions } from './account.js';
 import { locale, t } from './i18n.js';
 
 const retryDelay = 60_000;
@@ -45,9 +45,9 @@ function renderSyncDialog() {
 function renderStatus() {
   clearTimeout(statusTimer);
   const elapsed = Date.now() - waitingSince;
-  icon.hidden = !oldest || elapsed < showDelay;
+  icon.hidden = !syncToken() || !oldest || elapsed < showDelay;
   icon.classList.toggle('syncing', !icon.hidden && uploading && elapsed < showDelay + animationDuration);
-  if (!oldest) {
+  if (!syncToken() || !oldest) {
     if (dialog.open) dialog.close();
     return;
   }
@@ -77,9 +77,10 @@ icon.addEventListener('click', () => {
 });
 dialog.addEventListener('close', renderSyncDialog);
 syncNow.addEventListener('click', requestTransactionSync);
-window.addEventListener('epi:account', () => {
+for (const event of ['epi:account', 'epi:entitlement']) window.addEventListener(event, () => {
   receivedForToken = undefined;
   requestTransactionSync();
+  renderStatus();
   renderSyncDialog();
 });
 
@@ -88,8 +89,10 @@ export function startTransactionSync(storage) {
   function syncAccountAndTransactions() {
     nextSyncAt = Date.now() + retryDelay;
     setTimeout(syncAccountAndTransactions, retryDelay);
-    void checkAccountConnection();
-    requestTransactionSync();
+    const before = syncToken();
+    void Promise.resolve(checkAccountConnection()).then(() => {
+      if (syncToken() === before) requestTransactionSync();
+    });
   }
   syncAccountAndTransactions();
 }
@@ -177,9 +180,9 @@ async function sync(mode) {
   running = true;
   renderSyncDialog();
   try {
-    const token = syncToken();
     if (mode === 'full') await checkAccountConnection();
-    else if (receivedForToken !== token) await receiveForToken(token);
+    const token = syncToken();
+    if (mode !== 'full' && receivedForToken !== token) await receiveForToken(token);
 
     await sendPending(token);
     if (mode === 'full') await receiveForToken(token);

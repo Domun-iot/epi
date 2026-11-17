@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { formatCatalog, loadPrices, planCopy, planLanguage, renderPro } from './pro.js';
 import { catalog, locales, selectLocale } from './locales.js';
 import { referenceTitle, renderHome, renderReference } from './features.js';
 import { isMailbox, readAccountEmail, saveDeletionMail } from './deletion-mail.js';
@@ -10,6 +11,7 @@ const base = '/epi';
 const routes = new Map([
   [base, 'home'],
   [base + '/compatible-scales', 'scales'],
+  [base + '/pro', 'pro'],
   [base + '/calculation-methods', 'methods'],
   [base + '/privacy-policy', 'privacy'],
   [base + '/delete-account', 'deletion'],
@@ -58,18 +60,21 @@ function renderDeletionForm(t, deletion, status) {
     '<button class="button" type="submit">' + t.send + '</button></form>';
 }
 
-function render(path, page, locale, retention, status) {
+function render(path, page, locale, retention, status, prices) {
   const t = catalog[locale];
   const privacy = base + '/privacy-policy';
   const deletion = base + '/delete-account';
   const contactLink = '<a href="https://logisan.fr/contact/">Logisan</a>';
   const retentionText = retention[locale] ? '<p>' + escape(retention[locale]) + '</p>' : '';
   const titles = {
+    pro: planCopy(locale).title,
     home: t.headline, privacy: t.privacy, deletion: t.deletion, legal: t.legal, missing: '404',
     scales: referenceTitle('scales', locale), methods: referenceTitle('methods', locale),
   };
   const content = {
-    home: () => renderHome(base, t, locale, escape),
+    home: () => renderHome(base, t, locale, escape) + '<p><a class="button" href="' + base + '/pro">' +
+      escape(planCopy(locale).title) + '</a></p>',
+    pro: () => renderPro(locale, prices, escape),
     scales: () => renderReference(base, page, locale, escape),
     methods: () => renderReference(base, page, locale, escape),
     privacy: () => '<h1>' + t.privacy + '</h1><p>éPI · Domun by Logisan' +
@@ -97,7 +102,7 @@ function render(path, page, locale, retention, status) {
 }
 
 export function createSite({
-  contact = 'support@domun.eu', mailDirectory = './data/emails', retention = {}, secureCookie = false,
+  contact = 'support@domun.eu', mailDirectory = './data/emails', retention = {}, secureCookie = false, catalogUrl,
 } = {}) {
   if (!isMailbox(contact)) throw new Error('Invalid EPI_WWW_CONTACT');
   for (const [locale, value] of Object.entries(retention)) {
@@ -121,6 +126,12 @@ export function createSite({
       return;
     }
     const { locale, chosen } = selectLocale(url.searchParams.get('lang'), req.headers.cookie, req.headers['accept-language']);
+    if (url.pathname === base + '/plan-features.json') {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff' }).end(req.method === 'HEAD' ? undefined :
+          JSON.stringify({ language: planLanguage(locale), ...planCopy(locale) }));
+      return;
+    }
     const headers = {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Language': locale,
@@ -158,21 +169,22 @@ export function createSite({
       res.writeHead(303, headers).end();
       return;
     }
-    res.writeHead(page === 'missing' ? 404 : 200, headers);
+    const prices = page === 'pro' ? await loadPrices(catalogUrl) : undefined;
+    res.writeHead(page === 'missing' ? 404 : page === 'pro' && !formatCatalog(prices, locale) ? 503 : 200, headers);
     const status = url.searchParams.get('submitted') === '1' ? 'submitted' : undefined;
-    res.end(req.method === 'HEAD' ? undefined : render(page === 'missing' ? base : path, page, locale, retention, status));
+    res.end(req.method === 'HEAD' ? undefined : render(page === 'missing' ? base : path, page, locale, retention, status, prices));
   });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const {
-    EPI_WWW_PORT = '3002', EPI_WWW_CONTACT, EPI_WWW_MAIL_DIRECTORY, EPI_WWW_RETENTION_FILE, EPI_WWW_SECURE_COOKIE,
+    DOMUN_SOFTWARE_CATALOG_URL, EPI_WWW_PORT = '3002', EPI_WWW_CONTACT, EPI_WWW_MAIL_DIRECTORY, EPI_WWW_RETENTION_FILE, EPI_WWW_SECURE_COOKIE,
   } = process.env;
   const retention = EPI_WWW_RETENTION_FILE
     ? JSON.parse(readFileSync(EPI_WWW_RETENTION_FILE, 'utf8').replace(/^\uFEFF/, ''))
     : undefined;
   createSite({
-    contact: EPI_WWW_CONTACT, mailDirectory: EPI_WWW_MAIL_DIRECTORY, retention, secureCookie: EPI_WWW_SECURE_COOKIE === '1',
+    catalogUrl: DOMUN_SOFTWARE_CATALOG_URL, contact: EPI_WWW_CONTACT, mailDirectory: EPI_WWW_MAIL_DIRECTORY, retention, secureCookie: EPI_WWW_SECURE_COOKIE === '1',
   })
     .listen(Number(EPI_WWW_PORT), '127.0.0.1', () => console.log('http://127.0.0.1:' + EPI_WWW_PORT + base));
 }

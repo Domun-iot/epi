@@ -43,7 +43,9 @@ L’API privée accepte le jeton de service défini par `EPI_DOMUN_API_TOKEN` so
 | `GET /v1/domun/accounts` | Aucun. Paramètre `after` facultatif. | `200` avec `{"accounts":[{"id":"…","email":"a@example.org","paidUntil":null}],"next":null}`. Transmettez `next` dans `after` pour lire la page suivante. |
 | `PUT /v1/domun/accounts/<id>/entitlement` | `{"paidUntil":"2027-01-01T00:00:00.000Z"}` ou `{"paidUntil":null}` en JSON. | `204`. `404 account_not_found` si le compte a été supprimé. |
 
-L’identifiant du compte reste stable. Une réinscription reçoit un nouvel identifiant. Les réponses de connexion par mot de passe ou avec Google et `GET /v1/account` renvoient `paid` et `paidUntil`. `paidUntil` contient l’échéance UTC, même si elle est passée, ou `null` pour un compte sans échéance. `paid` vaut `true` tant que l’échéance est dans le futur.
+Le serveur vérifie auprès de `EPI_DOMUN_BILLING_URL` (boucle locale, jeton `EPI_DOMUN_API_TOKEN`) les droits de chaque envoi, lecture et acquittement de transactions. Un compte FREE reçoit `403 pro_required`; une panne de l’admin donne `503 subscription_unavailable`. La connexion au compte et les données déjà stockées restent disponibles pour le prochain abonnement.
+
+L’identifiant du compte, `domunId` dans `GET /v1/account`, reste stable. Une réinscription reçoit un nouvel identifiant. Les réponses de connexion par mot de passe ou avec Google et `GET /v1/account` renvoient `paid` et `paidUntil`. `paidUntil` contient l’échéance UTC, même si elle est passée, ou `null` pour un compte sans échéance. `paid` vaut `true` tant que l’échéance est dans le futur.
 
 ## Comptes dans l’application
 

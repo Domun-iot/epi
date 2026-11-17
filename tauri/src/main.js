@@ -134,6 +134,7 @@ function renderEditorView() {
 }
 
 function render() {
+  importButton.hidden = exportButton.hidden = state.proViews === false;
   const page = currentPage();
   renderProfilePicker();
   renderTheme();
@@ -430,6 +431,7 @@ function addProfile(item) {
 }
 
 function changeViewPreset(action, id) {
+  if (state.proViews === false) return;
   const kind = reading ? 'details' : 'measurements';
   const profile = state.selectedProfile;
   const { preset, modified } = state.viewLayouts[kind];
@@ -1003,14 +1005,16 @@ function recoverDataConflict(error) {
 reloadButton.addEventListener('click', () => requestReload());
 
 importButton.addEventListener('click', () => {
+  if (state.proViews === false) return;
   if (session?.pickLegacy) void importArchive(() => session.pickLegacy());
   else importInput.click();
 });
 importInput.addEventListener('change', async () => {
-  if (importInput.files.length) await importArchive(() => session.importLegacy(importInput.files[0]));
+  if (state.proViews !== false && importInput.files.length) await importArchive(() => session.importLegacy(importInput.files[0]));
   importInput.value = '';
 });
 exportButton.addEventListener('click', async () => {
+  if (state.proViews === false) return;
   exportButton.disabled = true;
   try {
     await perform(async () => {
@@ -1027,6 +1031,10 @@ function renderBluetooth() {
   retryButton.hidden = !canRetryBluetooth || !bluetoothUnavailable;
   status.parentElement.classList.toggle('unavailable', bluetoothUnavailable);
 }
+
+window.addEventListener('epi:entitlement', () => {
+  if (session?.native) void perform(() => session.refreshView());
+});
 
 try {
   session = await connect(onState, (message, unavailable = false) => {
