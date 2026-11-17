@@ -95,12 +95,16 @@
     </dialog>
     <dialog id="account-dialog" aria-labelledby="account-title">
       <div class="account-heading">
-        <h2 id="account-title" data-i18n="signInHeading"></h2>
-        <a id="account-badge-free" class="account-plan-badge" href="https://domun.eu/epi/pro" data-account-public-page target="_blank" rel="noopener noreferrer" hidden>Free</a>
-        <span id="account-badge-pro" class="account-plan-badge" hidden>Pro</span>
-        <p id="account-email" hidden></p>
-        <a id="account-plan-free" class="account-plan" href="https://domun.eu/epi/pro" data-account-public-page data-i18n="compareAccountPlans" target="_blank" rel="noopener noreferrer" hidden></a>
-        <a id="account-plan-pro" class="account-plan" href="https://domun.eu/account" data-account-public-page data-i18n="manageAccount" target="_blank" rel="noopener noreferrer" hidden></a>
+        <div class="account-heading-row">
+          <h2 id="account-title" data-i18n="signInHeading"></h2>
+          <a id="account-plan-free" class="account-plan" href="https://domun.eu/epi/pro" data-account-public-page data-i18n="compareAccountPlans" target="_blank" rel="noopener noreferrer" hidden></a>
+          <a id="account-plan-pro" class="account-plan" href="https://domun.eu/account" data-account-public-page data-i18n="manageAccount" target="_blank" rel="noopener noreferrer" hidden></a>
+        </div>
+        <div class="account-heading-row">
+          <p id="account-email" hidden></p>
+          <a id="account-badge-free" class="account-plan-badge" href="https://domun.eu/epi/pro" data-account-public-page target="_blank" rel="noopener noreferrer" hidden>Free</a>
+          <span id="account-badge-pro" class="account-plan-badge" hidden>Pro</span>
+        </div>
       </div>
       <p id="account-access-notice" class="notice" role="status" hidden></p>
       <form id="account-form" class="editor-form">

@@ -381,11 +381,11 @@ test('the web account dialog shows PRO and switches to FREE when it expires', as
     await page.clock.install({ time: initial });
     await page.addInitScript(() => {
       localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({
-        email: 'alice@example.org', token: 'test-token',
+        email: 'prenom.nom.long@example.org', token: 'test-token',
       }));
     });
     await page.route('https://sync.epi.test/v1/account', route => route.fulfill({ json: {
-      accountId, email: 'alice@example.org', paid: true, paidUntil,
+      accountId, email: 'prenom.nom.long@example.org', paid: true, paidUntil,
     } }));
     await page.route('https://sync.epi.test/v1/transactions/pending', route => route.fulfill({ json: { transactions: [] } }));
   });
@@ -411,11 +411,13 @@ test('the web account dialog shows PRO and switches to FREE when it expires', as
     const email = await dialog.locator('#account-email').boundingBox();
     const badge = await dialog.getByRole('link', { name: 'Free', exact: true }).boundingBox();
     const link = await compare.boundingBox();
-    assert.ok(badge.x > heading.x);
-    assert.ok(link.x > email.x);
-    assert.ok(Math.abs(heading.y + heading.height / 2 - badge.y - badge.height / 2) < 1);
-    assert.ok(Math.abs(email.y + email.height / 2 - link.y - link.height / 2) < 1);
+    assert.ok(badge.x > email.x);
+    assert.ok(link.x > heading.x);
+    assert.ok(Math.abs(heading.y + heading.height / 2 - link.y - link.height / 2) < 1);
+    assert.ok(Math.abs(email.y + email.height / 2 - badge.y - badge.height / 2) < 1);
     assert.ok(Math.abs(badge.x + badge.width - link.x - link.width) < 1);
+    assert.ok(email.x + email.width + 15 <= badge.x);
+    assert.ok(email.height < 30, 'the long email fits on one line');
   }
   const [popup] = await Promise.all([page.waitForEvent('popup'), dialog.getByRole('link', { name: 'Free', exact: true }).click()]);
   await popup.waitForURL('https://domun.eu/epi/pro?lang=fr-FR', { timeout: 5000 });

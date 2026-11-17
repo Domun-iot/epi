@@ -420,11 +420,13 @@ dialog .actions { justify-content: flex-end; margin-top: 14px; }
 dialog .notice { margin: 0; }
 .editor-form .notice[hidden] { display: none; }
 #account-fields[hidden], #account-google-fields[hidden] { display: none; }
-.account-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 16px; margin-bottom: 14px; }
-.account-heading h2 { grid-column: 1; grid-row: 1; margin: 0; }
-#account-email { grid-column: 1; grid-row: 2; margin: 0; overflow-wrap: anywhere; }
-.account-plan { grid-column: 2; grid-row: 2; text-align: right; }
-.account-heading .account-plan-badge { grid-column: 2; grid-row: 1; justify-self: end; text-decoration: none; }
+.account-heading { display: grid; gap: 8px; margin-bottom: 14px; }
+.account-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.account-heading-row:has(> #account-email[hidden]) { display: none; }
+.account-heading h2 { margin: 0; }
+#account-email { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.account-plan { text-align: right; }
+.account-heading .account-plan-badge { flex: none; text-decoration: none; }
 .account-plan-badge {
   border-radius: 999px;
   padding: 3px 10px;
