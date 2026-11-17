@@ -62,8 +62,8 @@ export function renderPro(base, locale, catalog, escape) {
   const t = planCopy(locale);
   const features = featureCopy(locale);
   const prices = formatCatalog(catalog, locale);
-  const template = html.replace(/<!--(promo|priced)-->([\s\S]*?)<!--end\1-->/g,
-    (_, section, content) => (section === 'priced' ? prices : prices?.freeProMonth) ? content : '');
+  const template = html.replace(/<!--promo-->([\s\S]*?)<!--endpromo-->/,
+    (_, content) => prices?.freeProMonth ? content : '');
   return fill(template, {
     language: planLanguage(locale), locale: encodeURIComponent(locale),
     ...Object.fromEntries(Object.entries(t).filter(([, value]) => typeof value === 'string')

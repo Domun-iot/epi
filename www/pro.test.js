@@ -20,12 +20,14 @@ test('the PRO page uses live native catalog prices and shares the comparison wit
   await once(site, 'listening');
   t.after(() => { site.close(); admin.close(); });
   const get = path => fetch('http://127.0.0.1:' + site.address().port + path, { headers: { 'Accept-Language': 'fr-CA' } });
+  const subscribeLink = '<a class="button" href="https://domun.eu/account/epi/subscribe?lang=fr-CA">' +
+    'Passer à la version PRO maintenant</a>';
   const first = await get('/epi/pro');
   const page = await first.text();
   assert.equal(first.status, 200);
   assert.match(page, /1,10.+par mois.+5,75.+par an/);
   assert.match(page, /En ce moment, premier mois de PRO offert/);
-  assert.match(page, /href="\/account\/epi\/subscribe\?lang=fr-CA"/);
+  assert.ok(page.includes(subscribeLink));
   assert.doesNotMatch(page, /public-software|127\.0\.0\.1/);
   const features = await (await get('/epi/plan-features.json')).json();
   assert.match(first.headers.get('content-security-policy'), /script-src 'self'/);
@@ -52,5 +54,5 @@ test('the PRO page uses live native catalog prices and shares the comparison wit
   available = false;
   const down = await get('/epi/pro');
   assert.equal(down.status, 503);
-  assert.doesNotMatch(await down.text(), /\/account\/epi\/subscribe/);
+  assert.ok((await down.text()).includes(subscribeLink));
 });
