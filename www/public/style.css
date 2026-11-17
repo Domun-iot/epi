@@ -63,10 +63,6 @@ h1 { font-size: clamp(2rem, 5.8vw, 4.8rem); line-height: 1.04; letter-spacing: -
 .hero p { max-width: 38ch; font-size: clamp(1rem, 2.2vw, 1.35rem); margin: 0; color: #dde9df; }
 .chart { display: block; width: min(100%, 15.5rem); height: auto; margin-inline: auto; border: .35rem solid #f0e2c4; border-radius: 1.3rem; }
 .document { max-width: 46rem; margin-block: clamp(2.5rem, 8vw, 6rem); font-size: 1.1rem; overflow-wrap: anywhere; }
-.plan-table { width: 100%; border-collapse: collapse; margin-block: 1rem 1.5rem; }
-.plan-table th, .plan-table td { padding: .6rem; border-bottom: 1px solid #cbd3c8; text-align: start; }
-.plan-table th[scope='row'] { font-weight: normal; }
-.plan-table th[scope='col'] { background: #e4ece3; }
 .document h1 { font-size: clamp(2rem, 5vw, 3.4rem); }
 address { font-style: normal; }
 .deletion-form { display: grid; gap: .5rem; justify-items: start; }
@@ -88,7 +84,72 @@ footer nav { display: flex; gap: .7rem 1.3rem; flex-wrap: wrap; }
 .hero h1 sup { font-size: .55em; line-height: 0; letter-spacing: 0; }
 .scale-note { display: inline-block; min-width: 1.5rem; line-height: 1.5rem; text-align: center; color: #fff1c9; }
 .hero a:focus-visible { outline-color: #fff1c9; }
+.pro-intro { display: block; min-height: auto; }
+.pro-intro h1 { max-width: 16ch; text-wrap: balance; }
+.pro-compare, .pro-pricing {
+  width: min(100%, 54rem);
+  margin: 0 auto clamp(2rem, 6vw, 5rem);
+}
+.pro-compare { scroll-margin-top: 1rem; }
+.pro-compare h2, .pro-pricing h2 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.6rem, 3.6vw, 2.7rem);
+  line-height: 1.1;
+  letter-spacing: -.035em;
+}
+.plan-table {
+  width: 100%;
+  border: 1px solid #cbd3c8;
+  border-radius: 1.15rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  background: #fffdf7;
+  font-size: clamp(.86rem, 2vw, 1rem);
+}
+.plan-table th, .plan-table td {
+  padding: clamp(.55rem, 2vw, 1rem);
+  border-bottom: 1px solid #cbd3c8;
+}
+.plan-table thead { background: #e4ece3; }
+.plan-table thead th:not(:first-child) { width: 18%; }
+.plan-table th:first-child { text-align: start; }
+.plan-table th[scope='row'] { font-weight: 500; }
+.plan-table td { text-align: center; }
+.plan-table :is(th, td):last-child { background: #e8f1e8; }
+.plan-table thead th:last-child { background: #173c36; color: white; }
+.plan-table tbody tr:last-child > * { border-bottom: 0; }
+.plan-label { display: flex; align-items: center; gap: clamp(.45rem, 2vw, .85rem); }
+.plan-icon, .plan-mark { display: block; border-radius: .5rem; }
+.plan-icon {
+  flex: none;
+  width: clamp(1.65rem, 4vw, 2.35rem);
+  height: auto;
+  padding: clamp(.25rem, .7vw, .45rem);
+  background: #e4ece3;
+  color: #18594c;
+}
+.plan-mark { margin-inline: auto; width: 1.75rem; height: 1.75rem; padding: .18rem; }
+.plan-included { background: #d5eade; color: #18594c; }
+.plan-excluded { background: #f8e4e1; color: #a52a26; }
+.pro-pricing {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  border-radius: 1.15rem;
+  background: #e4ece3;
+}
+.pro-pricing p { margin: .35rem 0 0; }
+.pro-promo { font-weight: 700; }
+.pro-pricing .button { margin: 0; font-weight: 700; text-decoration: none; }
+.pro-pricing .button:hover { background: #173c36; }
 .features { margin-block: clamp(2rem, 6vw, 5rem); }
+.pro-features { margin-block: clamp(1rem, 4vw, 3rem); }
+.pro-features .feature { min-height: auto; }
+.pro-features .feature:first-child { border-top: 0; padding-top: 0; }
 .feature {
   --panel: #dbe9df;
   --ink: #173c36;
@@ -120,6 +181,24 @@ footer nav { display: flex; gap: .7rem 1.3rem; flex-wrap: wrap; }
   text-decoration: none;
 }
 .feature-link:hover { background: #e3ebe0; }
+.feature .feature-pro-note { margin-top: .95rem; }
+.pro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .28rem;
+  margin-inline-end: .2rem;
+  padding: .14em .46em;
+  border: 1px solid #8ba99c;
+  border-radius: .4rem;
+  background: #e4ece3;
+  color: #173c36;
+  font-size: .82em;
+  font-weight: 750;
+  letter-spacing: .035em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.pro-badge:hover { background: #173c36; color: #fff; }
 .feature-art {
   position: relative;
   isolation: isolate;

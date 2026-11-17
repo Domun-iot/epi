@@ -1,18 +1,22 @@
 <article aria-labelledby="pro-title" lang="{{language}}">
-  <h1 id="pro-title">{{title}}</h1>
-  <p>{{intro}}</p>
-  <ul>
-    <li><strong>{{sync}}</strong> — {{syncDescription}}</li>
-    <li><strong>{{views}}</strong> — {{viewsDescription}}</li>
-    <li><strong>{{zip}}</strong> — {{zipDescription}}</li>
-  </ul>
-  <h2>{{prices}}</h2>
-  <p>{{offer}}</p>
-  <!--promo--><p>{{promo}}</p><!--endpromo-->
-  <h2>{{compare}}</h2>
-  <table class="plan-table">
-    <thead><tr><th scope="col">{{feature}}</th><th scope="col">FREE</th><th scope="col">PRO</th></tr></thead>
-    <tbody>{{rows}}</tbody>
-  </table>
-  <!--priced--><p><a class="button" href="/account/epi/subscribe?lang={{locale}}">{{subscribe}}</a></p><!--endpriced-->
+  <div class="hero pro-intro">
+    <h1 id="pro-title">{{title}}</h1>
+    <p>{{intro}}</p>
+  </div>
+  <div class="features pro-features">{{features}}</div>
+  <section class="pro-compare" id="compare" aria-labelledby="compare-title">
+    <h2 id="compare-title">{{compare}}</h2>
+    <table class="plan-table" aria-labelledby="compare-title">
+      <thead><tr><th scope="col">{{feature}}</th><th scope="col">FREE</th><th scope="col">PRO</th></tr></thead>
+      <tbody>{{rows}}</tbody>
+    </table>
+  </section>
+  <section class="pro-pricing" aria-labelledby="prices-title">
+    <div>
+      <h2 id="prices-title">{{prices}}</h2>
+      <p>{{offer}}</p>
+      <!--promo--><p class="pro-promo">{{promo}}</p><!--endpromo-->
+    </div>
+    <!--priced--><a class="button" href="/account/epi/subscribe?lang={{locale}}">{{subscribe}}</a><!--endpriced-->
+  </section>
 </article>

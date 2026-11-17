@@ -28,8 +28,21 @@ test('the PRO page uses live native catalog prices and shares the comparison wit
   assert.match(page, /href="\/account\/epi\/subscribe\?lang=fr-CA"/);
   assert.doesNotMatch(page, /public-software|127\.0\.0\.1/);
   const features = await (await get('/epi/plan-features.json')).json();
-  for (const [label, free] of features.rows) {
-    if (!free) assert.ok(page.includes('<th scope="row">' + label + '</th><td>Non inclus</td><td>Inclus</td>'), label);
+  assert.match(first.headers.get('content-security-policy'), /script-src 'self'/);
+  assert.match(page, /<script defer src="\/epi\/assets\/scenes\.js\?v=[a-f0-9]+"><\/script>/);
+  for (const id of ['sync', 'views', 'local']) {
+    assert.ok(page.includes('id="' + id + '" aria-labelledby="' + id + '-title"'));
+  }
+  assert.match(page, /id="compare" aria-labelledby="compare-title"/);
+  const rows = [...page.matchAll(/<tr><th scope="row">(.*?)<\/tr>/g)].map(match => match[1]);
+  assert.equal(rows.length, features.rows.length);
+  for (const [index, [label, free]] of features.rows.entries()) {
+    const [heading, freeCell, proCell] = rows[index].split('<td>');
+    assert.match(heading, /<svg class="plan-icon" aria-hidden="true"/);
+    assert.ok(heading.includes('<span>' + label + '</span>'), label);
+    assert.ok(freeCell.includes(free ? 'plan-included' : 'plan-excluded'), label);
+    assert.ok(freeCell.includes(free ? '>Inclus</span>' : '>Non inclus</span>'), label);
+    assert.match(proCell, /plan-included.*<span class="sr-only">Inclus<\/span>/);
   }
   price = 840;
   promo = false;

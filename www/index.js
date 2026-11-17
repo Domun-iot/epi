@@ -8,6 +8,7 @@ import { referenceTitle, renderHome, renderReference } from './features.js';
 import { isMailbox, readAccountEmail, saveDeletionMail } from './deletion-mail.js';
 
 const base = '/epi';
+const illustratedPages = new Set(['home', 'pro']);
 const routes = new Map([
   [base, 'home'],
   [base + '/compatible-scales', 'scales'],
@@ -74,7 +75,7 @@ function render(path, page, locale, retention, status, prices) {
   const content = {
     home: () => renderHome(base, t, locale, escape) + '<p><a class="button" href="' + base + '/pro">' +
       escape(planCopy(locale).title) + '</a></p>',
-    pro: () => renderPro(locale, prices, escape),
+    pro: () => renderPro(base, locale, prices, escape),
     scales: () => renderReference(base, page, locale, escape),
     methods: () => renderReference(base, page, locale, escape),
     privacy: () => '<h1>' + t.privacy + '</h1><p>éPI · Domun by Logisan' +
@@ -91,11 +92,11 @@ function render(path, page, locale, retention, status, prices) {
     '<meta name="viewport" content="width=device-width,initial-scale=1"><title>' + titles[page] +
     ' | éPI</title><link rel="icon" href="' + base + '/assets/epi.svg"><link rel="stylesheet" href="' +
     stylePath + '?v=' + styleVersion + '">' +
-    (page === 'home' ? '<script defer src="' + scenesPath + '?v=' + scenesVersion + '"></script>' : '') +
+    (illustratedPages.has(page) ? '<script defer src="' + scenesPath + '?v=' + scenesVersion + '"></script>' : '') +
     '</head><body><header><a class="brand" href="' + base +
     '"><img src="' + base + '/assets/epi.svg" alt="" width="35" height="35">éPI</a>' +
     renderLanguagePicker(path, locale) + '</header>' +
-    '<main' + (page === 'home' ? '' : ' class="document"') + '>' + content[page]() + '</main>' +
+    '<main' + (illustratedPages.has(page) ? '' : ' class="document"') + '>' + content[page]() + '</main>' +
     '<footer><span>Domun by Logisan</span><nav><a href="' + privacy + '">' + t.privacy +
     '</a><a href="' + deletion + '">' + t.deletion + '</a><a href="' + base + '/legal-notice">' + t.legal +
     '</a></nav></footer></body></html>';
@@ -136,7 +137,7 @@ export function createSite({
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Language': locale,
       'Content-Security-Policy': "default-src 'none'; img-src 'self'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" +
-        (page === 'home' ? "; script-src 'self'" : ''),
+        (illustratedPages.has(page) ? "; script-src 'self'" : ''),
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
       'Cache-Control': 'private, no-store',

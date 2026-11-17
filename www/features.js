@@ -27,17 +27,27 @@ const pictures = {
     sourceLines.map(line => '<span>' + line + '</span>').join('') + '</code></pre>',
 };
 
+export function renderFeature(base, id, title, description, { copy, lang }, escape, extra = '') {
+  const decorative = id === 'views' ? '' : ' aria-hidden="true"';
+  return '<section class="feature feature-' + id + '" id="' + id + '" aria-labelledby="' + id + '-title">' +
+    '<div class="feature-copy"><h2 id="' + id + '-title">' + escape(title) + '</h2><p>' +
+    escape(description) + '</p>' + extra + '</div>' +
+    '<div class="feature-art"' + decorative + '>' + pictures[id](copy, base, escape, lang) + '</div></section>';
+}
+
 export function renderHome(base, intro, locale, escape) {
-  const { copy, lang } = featureCopy(locale);
+  const features = featureCopy(locale);
+  const { copy, lang } = features;
   const scenes = Object.entries(copy.scenes).map(([id, [title, description, label]]) => {
     const path = paths[id];
     const link = label ? '<a class="feature-link" href="' + (path.startsWith('#') ? path : base + path) + '">' +
       escape(label) + ' <span aria-hidden="true">→</span></a>' : '';
-    const decorative = id === 'views' ? '' : ' aria-hidden="true"';
-    return '<section class="feature feature-' + id + '" id="' + id + '" aria-labelledby="' + id + '-title">' +
-      '<div class="feature-copy"><h2 id="' + id + '-title">' + escape(title) + '</h2><p>' +
-      escape(description.replace('{count}', scaleFamilies.length)) + '</p>' + link + '</div>' +
-      '<div class="feature-art"' + decorative + '>' + pictures[id](copy, base, escape, lang) + '</div></section>';
+    const proDetail = copy.proDetails[id];
+    const proNote = proDetail ? '<p class="feature-pro-note"><a class="pro-badge" href="' + base +
+      '/pro#compare" aria-label="' + escape(copy.proComparison) + '">PRO <span aria-hidden="true">→</span></a> ' +
+      escape(proDetail) + '</p>' : '';
+    return renderFeature(base, id, title, description.replace('{count}', scaleFamilies.length),
+      features, escape, link + proNote);
   }).join('');
   const scaleLink = '<sup><a class="scale-note" href="' + compatibilityAnchor + '" lang="' + lang +
     '" aria-label="' + escape(copy.scaleTitle) + '">*</a></sup>';

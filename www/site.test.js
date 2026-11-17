@@ -106,6 +106,10 @@ test('public pages, language selection and deletion requests', async t => {
   for (const id of ['bluetooth', 'profiles', 'multiscale', 'composition', 'views', 'sync', 'local', 'source']) {
     assert.ok(home.includes('id="' + id + '" aria-labelledby="' + id + '-title"'));
   }
+  const proBadges = [...home.matchAll(/<section class="feature feature-(\w+)"[^>]*>(.*?)<\/section>/g)]
+    .filter(([, , section]) => section.includes('class="pro-badge"'));
+  assert.deepEqual(proBadges.map(([, id]) => id), ['views', 'sync', 'local']);
+  for (const [, , section] of proBadges) assert.match(section, /href="\/epi\/pro#compare"/);
   for (const [path, expected] of [
     ['compatible-scales', 'XMTZC05HM'],
     ['calculation-methods', 'https://pubmed.ncbi.nlm.nih.gov/12540391/'],
