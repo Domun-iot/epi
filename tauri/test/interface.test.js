@@ -2,6 +2,11 @@ import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { Readable } from 'node:stream';
+import domain from '../domain/session.cjs';
+import transactions from '../../shared/transactions.cjs';
+import { fileStorage } from '../../web/file-storage.js';
+import { createSessionApi } from '../../web/session-api.js';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
 import { build, createServer } from 'vite';
@@ -64,10 +69,14 @@ async function pageWith(t, snapshot, options = {}, mode, setup) {
   });
   t.after(() => page.context().close());
   if (snapshot && mode !== 'web') {
+    await page.route('https://sync.epi.test/v1/**', route => route.fulfill({ json:
+      route.request().url().endsWith('/account') ? { email: 'pro@example.org', ...paid } : { transactions: [] },
+    }));
     await page.addInitScript(state => {
       sessionStorage.seeded ??= '';
       if (!sessionStorage.seeded) {
         localStorage.setItem('epi-session-v1', JSON.stringify(state));
+        localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({ email: 'pro@example.org', token: 'pro-token' }));
         sessionStorage.seeded = 'yes';
       }
     }, snapshot);
@@ -533,6 +542,90 @@ test('refreshes local data, rechecks the account, then retries upload before dow
     ['integrate', [incoming]], ['acknowledge', { uuids: [incomingUuid] }],
   ]);
   assert.deepEqual(pending, []);
+});
+
+
+test('web ZIP and saved views follow FREE, PRO, expiry, renewal and sign-out', async t => {
+  await buildWeb();
+  const root = await mkdtemp(join(tmpdir(), 'epi-web-ui-pro-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const initial = new Date('2026-11-17T10:00:00Z');
+  let time = +initial;
+  let expires = 0;
+  let pageAccount = true;
+  const files = fileStorage(root, transactions);
+  const seed = domain.createSession({ storage: files });
+  await seed.saveProfile(alice);
+  await seed.changeViewPreset('Alice', 'measurements', 'create', { name: 'Mesures PRO' });
+  const presets = (await files.load()).viewPresets;
+  const { handleAction } = await createSessionApi({
+    root, domain, transactions, now: () => time,
+    readPaidUntil: async token => token === 'web-pro-token' ? expires : 0,
+    storage: { dataFolders: ['devices', 'measures', 'profiles'], resolveDataDirectory: () => root },
+  });
+  const page = await pageWith(t, async route => {
+    const req = Readable.from([Buffer.from(route.request().postData())]);
+    req.method = 'POST';
+    req.headers = route.request().headers();
+    const { action } = route.request().postDataJSON();
+    if (action !== 'loadLanguagePreference') {
+      assert.equal(req.headers.authorization, pageAccount ? 'Bearer web-pro-token' : undefined);
+    }
+    let status;
+    await handleAction(req, {
+      setHeader() {},
+      writeHead(code) { status = code; },
+      end(body) { req.result = { status, body, contentType: 'application/json' }; },
+    });
+    await route.fulfill(req.result);
+  }, {}, 'web', async page => {
+    await page.clock.install({ time: initial });
+    await page.addInitScript(() => {
+      localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({
+        email: 'alice@example.org', token: 'web-pro-token',
+      }));
+    });
+    await page.route('https://sync.epi.test/v1/account', route => route.fulfill({ json: {
+      email: 'alice@example.org', paid: time < expires, paidUntil: new Date(expires).toISOString(),
+    } }));
+    await page.route('https://sync.epi.test/v1/transactions/pending', route => route.fulfill({ json: { transactions: [] } }));
+    await page.route('https://sync.epi.test/v1/device-tokens', route => route.fulfill({ status: 204 }));
+  });
+  const zip = page.locator('#export-data');
+  const importZip = page.locator('#import-data');
+  const picker = page.locator('.view-preset-picker summary');
+  await page.locator('#account-button .account-connected').waitFor();
+  assert.equal(await zip.isVisible(), false);
+  assert.equal(await importZip.isVisible(), false);
+  assert.equal(await picker.count(), 0);
+
+  expires = time + 120_000;
+  await page.locator('#account-button').click();
+  await zip.waitFor();
+  await importZip.waitFor();
+  await picker.getByText('Mesures PRO', { exact: true }).waitFor();
+  await page.locator('#account-close').click();
+  const download = page.waitForEvent('download');
+  await zip.click();
+  assert.match((await download).suggestedFilename(), /^epi-data-.*\.zip$/);
+
+  time = expires;
+  await page.clock.fastForward(120_001);
+  await zip.waitFor({ state: 'hidden' });
+  assert.equal(await importZip.isVisible(), false);
+  assert.equal(await picker.count(), 0);
+  assert.deepEqual((await files.load()).viewPresets, presets);
+
+  expires = time + 120_000;
+  await page.locator('#account-button').click();
+  await zip.waitFor();
+  await picker.getByText('Mesures PRO', { exact: true }).waitFor();
+  pageAccount = false;
+  await page.getByRole('button', { name: 'Se déconnecter', exact: true }).click();
+  await zip.waitFor({ state: 'hidden' });
+  assert.equal(await importZip.isVisible(), false);
+  assert.equal(await picker.count(), 0);
+  assert.deepEqual((await files.load()).viewPresets, presets);
 });
 
 test('hides native ZIP and named views while FREE and enables them when PRO returns', async t => {
@@ -2097,7 +2190,7 @@ test('archive ZIP exportée, réimportée et idempotente dans le navigateur', as
   assert.ok(entries.some(path => path.startsWith('data/measures/') && path.endsWith('/' + stamp + '.json')));
 
 
-  const page = await pageWith(t);
+  const page = await pageWith(t, { profiles: [], devices: [], measurements: [] });
   await page.locator('#import-files').setInputFiles(archive);
   await page.getByText('Import terminé.', { exact: true }).waitFor();
   await dismissNotificationBanner(page);
@@ -2306,7 +2399,7 @@ test('le bandeau recouvre la barre sur smartphone et sa fermeture conserve le jo
 });
 
 test('les informations expirent après trois secondes et les erreurs attendent une validation', async t => {
-  const page = await pageWith(t);
+  const page = await pageWith(t, { profiles: [], devices: [], measurements: [] });
   await page.clock.install();
   const reload = page.locator('#reload-data');
   const banner = page.locator('#notices');

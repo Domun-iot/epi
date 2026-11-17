@@ -3,18 +3,23 @@ import { resolve } from 'node:path';
 import { actions } from './actions.js';
 import { fileStorage } from './file-storage.js';
 import { fileRecords } from './file-records.js';
+import { createPaidUntilReader } from './account-api.js';
+
+const proActions = new Set(['changeViewPreset', 'importLegacy', 'importFiles', 'exportFiles']);
 
 export function json(response, status, payload) {
   response.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
   response.end(JSON.stringify(payload));
 }
 
-export async function createSessionApi({ root, domain, storage, transactions }) {
+export async function createSessionApi({ root, domain, storage, transactions, readPaidUntil = createPaidUntilReader(), now = Date.now }) {
   const dataDir = resolve(storage.resolveDataDirectory(root));
   await Promise.all(storage.dataFolders.map(folder => mkdir(resolve(dataDir, folder), { recursive: true })));
   let transactionRevision = 0;
   const files = fileStorage(dataDir, transactions, () => { transactionRevision += 1; });
-  const session = domain.createSession({ storage: files });
+  let paidUntil = 0;
+  const hasProViews = () => now() < paidUntil;
+  const session = domain.createSession({ storage: files, hasProViews });
   let pending = Promise.resolve();
   await session.load();
 
@@ -39,11 +44,14 @@ export async function createSessionApi({ root, domain, storage, transactions }) 
     } catch {
       return json(response, 400, { error: 'JSON invalide.' });
     }
-    if (![...actions, 'loadLanguagePreference', 'exportFiles', 'importFiles', 'pendingTransactions', 'archiveTransactions', 'integrateTransactions'].includes(input?.action) || !Array.isArray(input.args)) {
+    if (![...actions, 'refreshView', 'loadLanguagePreference', 'exportFiles', 'importFiles', 'pendingTransactions', 'archiveTransactions', 'integrateTransactions'].includes(input?.action) || !Array.isArray(input.args)) {
       return json(response, 400, { error: 'Action invalide.' });
     }
     try {
       const task = pending.then(async () => {
+        const token = /^Bearer (\S+)$/.exec(request.headers.authorization ?? '')?.[1];
+        paidUntil = await readPaidUntil(token, input.action === 'refreshView' || input.action === 'reload');
+        requirePro();
         const revision = transactionRevision;
         const result = await performAction();
         if (revision !== transactionRevision) response.setHeader('X-Epi-Transactions', 'pending');
@@ -68,19 +76,30 @@ export async function createSessionApi({ root, domain, storage, transactions }) 
           const { uuids, changed } = files.integrateTransactions(input.args[0]);
           return { uuids, state: changed ? await session.reload() : undefined };
         }
-        if (input.action === 'exportFiles') return { files: await files.exportFiles() };
+        if (input.action === 'exportFiles') {
+          const archive = await files.exportFiles();
+          requirePro();
+          return { files: archive };
+        }
         if (input.action === 'importFiles') {
           if (!Array.isArray(input.args[0])) throw new Error('Liste de fichiers invalide.');
           const archive = input.args[0];
           const validator = domain.createSession({ storage: { load: () => null, save: () => {} } });
           await validator.importLegacy(fileRecords(archive));
+          requirePro();
           const added = await files.importFiles(archive);
           return { added, state: await session.reload() };
         }
         return session[input.action](...input.args);
       }
+
+      function requirePro() {
+        if (proActions.has(input.action) && !hasProViews()) {
+          throw Object.assign(new Error('Cette fonctionnalité nécessite un compte PRO.'), { status: 403 });
+        }
+      }
     } catch (error) {
-      return json(response, 400, { error: error.message });
+      return json(response, error.status ?? 400, { error: error.message });
     }
   }
 

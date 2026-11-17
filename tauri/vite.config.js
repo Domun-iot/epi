@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { createSessionApi, json } from '../web/session-api.js';
+import { accountApi } from '../web/account-api.js';
 
 const appPath = import.meta.url;
 const modules = {
@@ -93,7 +94,7 @@ function webSessionApi() {
 }
 
 export default defineConfig(({ command, mode }) => ({
-  define: { __DEV_ACCOUNT_API__: JSON.stringify('https://epi.domun.eu') },
+  define: { __DEV_ACCOUNT_API__: JSON.stringify(accountApi) },
   clearScreen: false,
   optimizeDeps: { entries: ['index.html'] },
   plugins: [sharedModules(), ...(command === 'serve' && mode === 'web' ? [webSessionApi()] : [])],

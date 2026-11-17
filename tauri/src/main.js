@@ -1033,7 +1033,7 @@ function renderBluetooth() {
 }
 
 window.addEventListener('epi:entitlement', () => {
-  if (session?.native) void perform(() => session.refreshView());
+  if (session) void perform(() => session.refreshView());
 });
 
 try {

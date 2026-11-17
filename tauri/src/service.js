@@ -5,7 +5,7 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { readFile, writeFile } from '@tauri-apps/plugin-fs';
 import { domain } from 'virtual:epi-domain';
 import { createWebSession } from './web-session.js';
-import { isPaidAccount } from './account.js';
+import { isPaidAccount, syncToken } from './account.js';
 import { snapshotKey } from './preferences.js';
 import composition from 'virtual:epi-composition';
 import { datasetFiles, fileRecords, readArchive, writeArchive } from './legacy-import.js';
@@ -31,8 +31,8 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
     load: () => JSON.parse(localStorage.getItem(snapshotKey) ?? 'null'),
     save: session => localStorage.setItem(snapshotKey, JSON.stringify(session)),
   };
-  const proFeatures = () => !native || isPaidAccount();
-  const session = web ? createWebSession(onState, onTransactions) : domain.createSession({ storage, onWeighing, hasProViews: proFeatures });
+  const proFeatures = isPaidAccount;
+  const session = web ? createWebSession(onState, onTransactions, syncToken) : domain.createSession({ storage, onWeighing, hasProViews: proFeatures });
   if (!web) {
     session.subscribe(onState);
     onState(await session.load());
@@ -118,6 +118,7 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
         await writeFile(path, writeArchive(files));
       } else {
         const files = web ? await session.exportFiles() : datasetFiles(await session.load());
+        if (!proFeatures()) return false;
         const url = URL.createObjectURL(new Blob([writeArchive(files)],
           { type: 'application/zip' }));
         const link = Object.assign(document.createElement('a'), { href: url, download: filename });

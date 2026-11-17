@@ -1,9 +1,9 @@
 import { languages, locale, localizeMessage, t, useAccountLanguage, useInterfaceLanguage } from './i18n.js';
 import { isTauri } from '@tauri-apps/api/core';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { accountApi } from '../../web/account-api.js';
 
-const productionApi = 'https://sync.epi.invalid';
-const api = __DEV_ACCOUNT_API__ ?? productionApi;
+const api = __DEV_ACCOUNT_API__ ?? accountApi;
 const configured = !api.endsWith('.invalid');
 const sessionKey = 'epi-account:' + api;
 const deviceKey = 'epi-account-device';
