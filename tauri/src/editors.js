@@ -22,7 +22,7 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
   }
 
   function open(title, content, submit, submitLabel = t('save'), {
-    modal = false, extraActions = '', deleteAction = '', submitChoices = [], subtitle = '', hidePendingWeighIns = false,
+    modal = false, extraActions = '', deleteAction = '', submitChoices = [], subtitle = '', hidePendingWeighIns = false, onCancel,
   } = {}) {
     const epoch = getEpoch();
     const current = () => epoch === getEpoch();
@@ -40,6 +40,7 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
     const form = host.querySelector('form');
     const buttons = new Set([...controls.querySelectorAll('button'), ...form.querySelectorAll('button')]);
     const close = () => modal ? dialog.close() : closeView();
+    const cancel = () => onCancel ? onCancel() : close();
     let submitting = false;
     form.addEventListener('submit', async event => {
       event.preventDefault();
@@ -62,7 +63,7 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
         for (const control of buttons) control.disabled = false;
       }
     });
-    controls.querySelector('[data-action="close-editor"]').addEventListener('click', close);
+    controls.querySelector('[data-action="close-editor"]').addEventListener('click', cancel);
     if (modal) dialog.oncancel = event => {
       if (submitting) event.preventDefault();
     };
@@ -84,7 +85,7 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
     return form;
   }
 
-  function profileEditor(profile, submit, anonymous = false, { restore = false, onDelete } = {}) {
+  function profileEditor(profile, submit, anonymous = false, { restore = false, onDelete, onCancel } = {}) {
     const edit = Boolean(profile) && !restore;
     const ageType = profile?.age != null && !profile?.birthDate ? 'age' : 'birthDate';
     const title = restore ? t('restoreProfile')
@@ -107,6 +108,7 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
       hidePendingWeighIns: !edit && !restore && !anonymous,
       subtitle: restore ? t('thisProfileHasBeenDeleted') : '',
       deleteAction: edit && onDelete ? button(t('delete'), 'delete-profile') : '',
+      onCancel,
     });
     if (edit && onDelete) toolbar.querySelector('[data-action="delete-profile"]').addEventListener('click', onDelete);
     const selector = form.querySelector('[name="ageType"]');
@@ -119,6 +121,32 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
     });
     selector.addEventListener('change', syncAge);
     syncAge();
+  }
+
+  function manualMeasurementEditor(draft, profiles, submit) {
+    const decimal = (value, error) => {
+      const input = String(value).trim();
+      if (!/^(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(input)) throw new Error(t(error));
+      return Number(input.replace(',', '.'));
+    };
+    const chooseProfile = draft.profileUuid == null && profiles.length > 0;
+    return open(t('manualWeighIn'), `
+      ${field(t('weight'), 'weight', `type="text" inputmode="decimal" maxlength="20" value="${e(draft.weight)}" required`)}
+      <label>${htmlText('unit')}<select name="unit" aria-label="${htmlText('unit')}">${option('kg', 'kg', draft.unit !== 'lb')}${option('lb', 'lb', draft.unit === 'lb')}</select></label>
+      ${field(t('fatPercentOptional'), 'fatPercent', `type="text" inputmode="decimal" maxlength="20" value="${e(draft.fatPercent)}"`)}
+      ${field(t('weighInDateTime'), 'receivedAt', `type="datetime-local" step="1" value="${e(draft.receivedAt)}" required`)}
+      ${chooseProfile ? `<label>${htmlText('activeProfile')}<select name="profileUuid" aria-label="${htmlText('activeProfile')}">${option('', t('withoutProfile'), true)}${sortByName(profiles).map(profile => option(profile.uuid, profile.name, false)).join('')}</select></label>` : ''}
+    `, values => {
+      const next = { ...draft, ...values, profileUuid: chooseProfile ? values.profileUuid || null : draft.profileUuid };
+      const weight = decimal(next.weight, 'manualWeightInvalid');
+      if (!(weight > 0)) throw new Error(t('manualWeightInvalid'));
+      const fatPercent = next.fatPercent.trim() ? decimal(next.fatPercent, 'manualFatInvalid') : undefined;
+      if (fatPercent !== undefined && !(fatPercent > 0 && fatPercent < 100)) throw new Error(t('manualFatInvalid'));
+      const date = new Date(next.receivedAt);
+      if (!Number.isFinite(+date)) throw new Error(t('manualDateInvalid'));
+      if (fatPercent !== undefined && !next.profileUuid && profiles.length) throw new Error(t('manualProfileRequired'));
+      return submit(next, { weight, unit: next.unit, fatPercent, receivedAt: date.toISOString(), profileUuid: next.profileUuid });
+    });
   }
 
   function deviceEditor({ address, device, pending, onDelete }, submit) {
@@ -217,6 +245,6 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
     toolbar.replaceChildren();
   }
 
-  return { reset, closeView, profileEditor, deviceEditor, assignmentEditor, filterEditor, viewNameEditor, deleteViewEditor,
+  return { reset, closeView, profileEditor, manualMeasurementEditor, deviceEditor, assignmentEditor, filterEditor, viewNameEditor, deleteViewEditor,
     confirmDeletion, confirmRestoreProfile };
 }

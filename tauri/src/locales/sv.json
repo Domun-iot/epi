@@ -422,5 +422,19 @@
   "heartRateBpm": "Heart rate (bpm)",
   "hostedAccountRequired": "Sign in to access your private data on this server.",
   "localAccountRequired": "Sign in to open a local account dataset. Your data is still stored on this device.",
-  "scaleUserId": "Scale user ID"
+  "scaleUserId": "Scale user ID",
+  "enterMeasurement": "Ange",
+  "manualWeighIn": "Ange en vägning",
+  "manualEntry": "Manuell inmatning",
+  "fatPercentOptional": "Kroppsfett (%) — valfritt",
+  "weighInDateTime": "Vägningens datum och tid",
+  "manualWeightInvalid": "Ange en giltig vikt som är större än noll.",
+  "manualUnitInvalid": "Välj en enhet: kg eller lb.",
+  "manualFatInvalid": "Ange en kroppsfettprocent som är större än 0 och mindre än 100.",
+  "manualDateInvalid": "Ange ett giltigt datum och en giltig tid.",
+  "manualProfileRequired": "Välj eller skapa en profil för att beräkna kroppssammansättningen.",
+  "manualProfileMissing": "Den valda profilen finns inte längre. Välj en annan profil.",
+  "manualDuplicate": "Det finns redan en vägning för den här profilen med detta datum och denna tid.",
+  "manualDateBeforeBirth": "Vägningens datum får inte vara före födelsedatumet.",
+  "estimatedImpedance": "Uppskattad impedans: {0} Ω"
 }

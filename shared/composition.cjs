@@ -1,5 +1,7 @@
 'use strict';
 
+const { estimateImpedance } = require('./estimated-impedance.cjs');
+
 const columns = [
   ['IMC', 'Indice de masse corporelle'],
   ['Mi', 'Mi Fit communautaire (rétro-ingénierie)'],
@@ -90,7 +92,7 @@ function miFit(w, h, age, male, z, h2) {
     metabolicAge: clamp(metabolicAge, 15, 80) };
 }
 
-function calculateComposition(event, { sex, age, heightCm: h }) {
+function compositionAtImpedance(event, { sex, age, heightCm: h }) {
   const w = event.unit === 'lb' ? event.weight * 0.45359237 : event.weight;
   const z = event.impedanceOhms;
   const male = Number(sex === 'H');
@@ -141,6 +143,27 @@ function calculateComposition(event, { sex, age, heightCm: h }) {
   return result;
 }
 
+function calculateComposition(event, profile) {
+  const fatPercent = event.fatPercent ?? event.deviceMetrics?.fatPercent;
+  if (!(Number.isFinite(event.impedanceOhms) && event.impedanceOhms > 0)
+      && Number.isFinite(fatPercent) && fatPercent > 0 && fatPercent < 100) {
+    const estimated = estimateImpedance(event, profile,
+      impedanceOhms => compositionAtImpedance({ ...event, impedanceOhms }, profile).methods);
+    if (estimated != null) return {
+      ...compositionAtImpedance({ ...event, impedanceOhms: estimated }, profile),
+      estimatedImpedanceOhms: estimated,
+    };
+  }
+  return compositionAtImpedance(event, profile);
+}
+
+function impedanceValue(row) {
+  const measured = (row.measures ?? row).impedanceOhms;
+  if (Number.isFinite(measured) && measured > 0) return measured;
+  const calculated = row.calculations?.impedanceOhms;
+  return Number.isFinite(calculated) && calculated > 0 ? calculated : null;
+}
+
 function average(values) {
   const available = values.filter(Number.isFinite);
   return available.length ? available.reduce((sum, value) => sum + value, 0) / available.length : null;
@@ -176,4 +199,4 @@ function formatComposition(event, profile) {
     ...rows.slice(1).map(rowText)].join('\n');
 }
 
-module.exports = { calculateComposition, formatComposition, average, columns, metrics };
+module.exports = { calculateComposition, formatComposition, average, columns, metrics, impedanceValue };

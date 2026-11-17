@@ -422,5 +422,19 @@
   "heartRateBpm": "Heart rate (bpm)",
   "hostedAccountRequired": "Sign in to access your private data on this server.",
   "localAccountRequired": "Sign in to open a local account dataset. Your data is still stored on this device.",
-  "scaleUserId": "Scale user ID"
+  "scaleUserId": "Scale user ID",
+  "enterMeasurement": "Inserisci",
+  "manualWeighIn": "Inserisci una pesata",
+  "manualEntry": "Inserimento manuale",
+  "fatPercentOptional": "Massa grassa (%) — facoltativa",
+  "weighInDateTime": "Data e ora della pesata",
+  "manualWeightInvalid": "Inserisci un peso valido maggiore di zero.",
+  "manualUnitInvalid": "Scegli un’unità: kg o lb.",
+  "manualFatInvalid": "Inserisci una percentuale di massa grassa maggiore di 0 e minore di 100.",
+  "manualDateInvalid": "Inserisci una data e un’ora valide.",
+  "manualProfileRequired": "Scegli o crea un profilo per calcolare la composizione corporea.",
+  "manualProfileMissing": "Il profilo scelto non esiste più. Scegli un altro profilo.",
+  "manualDuplicate": "Esiste già una pesata per questo profilo con questa data e ora.",
+  "manualDateBeforeBirth": "La data della pesata non può precedere la data di nascita.",
+  "estimatedImpedance": "Impedenza stimata: {0} Ω"
 }

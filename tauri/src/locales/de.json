@@ -422,5 +422,19 @@
   "heartRateBpm": "Heart rate (bpm)",
   "hostedAccountRequired": "Sign in to access your private data on this server.",
   "localAccountRequired": "Sign in to open a local account dataset. Your data is still stored on this device.",
-  "scaleUserId": "Scale user ID"
+  "scaleUserId": "Scale user ID",
+  "enterMeasurement": "Eingeben",
+  "manualWeighIn": "Eine Wägung eingeben",
+  "manualEntry": "Manuelle Eingabe",
+  "fatPercentOptional": "Körperfett (%) — optional",
+  "weighInDateTime": "Datum und Uhrzeit der Wägung",
+  "manualWeightInvalid": "Gib ein gültiges Gewicht größer als null ein.",
+  "manualUnitInvalid": "Wähle eine Einheit: kg oder lb.",
+  "manualFatInvalid": "Gib einen Körperfettanteil größer als 0 und kleiner als 100 ein.",
+  "manualDateInvalid": "Gib ein gültiges Datum und eine gültige Uhrzeit ein.",
+  "manualProfileRequired": "Wähle oder erstelle ein Profil, um die Körperzusammensetzung zu berechnen.",
+  "manualProfileMissing": "Das gewählte Profil existiert nicht mehr. Wähle ein anderes Profil.",
+  "manualDuplicate": "Für dieses Profil existiert bereits eine Wägung mit diesem Datum und dieser Uhrzeit.",
+  "manualDateBeforeBirth": "Das Datum der Wägung darf nicht vor dem Geburtsdatum liegen.",
+  "estimatedImpedance": "Geschätzte Impedanz: {0} Ω"
 }

@@ -422,5 +422,19 @@
   "heartRateBpm": "Heart rate (bpm)",
   "hostedAccountRequired": "Sign in to access your private data on this server.",
   "localAccountRequired": "Sign in to open a local account dataset. Your data is still stored on this device.",
-  "scaleUserId": "Scale user ID"
+  "scaleUserId": "Scale user ID",
+  "enterMeasurement": "Bevitel",
+  "manualWeighIn": "Mérés bevitele",
+  "manualEntry": "Kézi bevitel",
+  "fatPercentOptional": "Testzsír (%) — nem kötelező",
+  "weighInDateTime": "A mérés dátuma és időpontja",
+  "manualWeightInvalid": "Adj meg egy érvényes, nullánál nagyobb testsúlyt.",
+  "manualUnitInvalid": "Válassz mértékegységet: kg vagy lb.",
+  "manualFatInvalid": "Adj meg egy 0-nál nagyobb és 100-nál kisebb testzsírszázalékot.",
+  "manualDateInvalid": "Adj meg egy érvényes dátumot és időpontot.",
+  "manualProfileRequired": "A testösszetétel kiszámításához válassz vagy hozz létre egy profilt.",
+  "manualProfileMissing": "A kiválasztott profil már nem létezik. Válassz másik profilt.",
+  "manualDuplicate": "Ehhez a profilhoz már tartozik mérés ezzel a dátummal és időponttal.",
+  "manualDateBeforeBirth": "A mérés dátuma nem előzheti meg a születési dátumot.",
+  "estimatedImpedance": "Becsült impedancia: {0} Ω"
 }

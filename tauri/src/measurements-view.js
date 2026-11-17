@@ -3,7 +3,7 @@ import composition from 'virtual:epi-composition';
 import { kg } from 'virtual:epi-domain';
 import { measurementCharts } from './measurement-charts.js';
 import { METHOD_COLUMNS, METRICS } from './service.js';
-import { deviceFields, escapeHtml as e, formatCalendarDate, formatDate, formatDateMinutes, formatScaleTime, nameKey, number, pairs, pageHeader, weight } from './format.js';
+import { deviceFields, deviceName, escapeHtml as e, formatCalendarDate, formatDate, formatDateMinutes, formatScaleTime, nameKey, number, pairs, pageHeader, weight } from './format.js';
 
 const colors = [
   ['▰','#153873','#dce9ff'], ['●','#882d16','#ffe4d7'], ['◆','#724909','#fef0c5'],
@@ -28,7 +28,7 @@ const methodSources = {
   'Cun*': 'https://doi.org/10.1093/ajcn/33.11.2372',
 };
 const deviceMetricLabels = new Map([
-  ['bmi', 'bmiShort'], ['heightCm', 'heightCm'], ['heartRateBpm', 'heartRateBpm'], ['electrodeContact', 'electrodeContact'],
+  ['bmi', 'bmiShort'], ['heightCm', 'heightCm'], ['heartRateBpm', 'heartRateBpm'], ['electrodeContact', 'electrodeContact'], ['fatPercent', 'metric.fatPercent'],
 ]);
 
 const methodName = id => id === 'IMC' ? t('bmiShort') : id;
@@ -37,9 +37,9 @@ const methods = METHOD_COLUMNS.map(([id, label], index) => {
   return { id, label, icon, style: `--method-ink:${ink};--method-bg:${bg}` };
 });
 const extras = [
-  ['impedanceOhms', t('impedanceOhms'), row => row.measures?.impedanceOhms],
+  ['impedanceOhms', t('impedanceOhms'), composition.impedanceValue],
   ['unit', t('unit'), row => row.measures?.unit],
-  ['device', t('device'), row => row.device?.name],
+  ['device', t('device'), row => deviceName(row.device)],
   ['address', t('bluetoothAddress'), row => row.reception?.bluetooth?.address ?? row.device?.bluetooth?.address],
   ['serviceUuid', t('serviceId'), row => row.reception?.bluetooth?.serviceUuid],
   ['service', t('bluetoothService'), row => row.reception?.bluetooth?.service],
@@ -140,7 +140,7 @@ export function measurementsView(rows, profile, columns, splitColumns, columnOrd
   if (chart) {
     const series = [
       { id: 'weight', label: t('weightKg'), read: kg },
-      { id: 'impedanceOhms', label: t('impedanceOhms'), read: row => row.measures?.impedanceOhms ?? row.impedanceOhms },
+      { id: 'impedanceOhms', label: t('impedanceOhms'), read: composition.impedanceValue },
       ...METRICS.map(([id, label]) => ({ id, label, read: row => averageValue(row, id, sourcesByMetric.get(id)) })),
     ];
     return { header, content: `${summary}${settings}${measurementCharts(rows, series, { ...chartOptions, profileAge: profile?.age })}` };
@@ -212,8 +212,9 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
     ['measures', t('measurements'), pairs([
       [t('weight'), number(measures.weight)],
       [t('unit'), measures.unit],
-      [t('impedanceOhms'), number(measures.impedanceOhms)],
-      ...Object.entries(measures.deviceMetrics ?? {}).filter(([, value]) => Number.isFinite(value))
+      [t('impedanceOhms'), number(composition.impedanceValue(row))],
+      ...(Number.isFinite(measures.fatPercent) ? [[t('metric.fatPercent'), number(measures.fatPercent)]] : []),
+      ...Object.entries(measures.deviceMetrics ?? {}).filter(([key, value]) => Number.isFinite(value) && (key !== 'fatPercent' || !Number.isFinite(measures.fatPercent)))
         .map(([key, value]) => [deviceMetricLabels.has(key) ? t(deviceMetricLabels.get(key)) : key, number(value)]),
     ]), false],
     ['profile', t('profileAtWeighIn'), row.profile && pairs([
@@ -228,7 +229,7 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
       ...(row.reception.bluetooth?.manufacturerId ? [[t('manufacturerIdentifiers'), row.reception.bluetooth.manufacturerId]] : []),
       ...(row.reception.scale?.userId !== undefined ? [[t('scaleUserId'), number(row.reception.scale.userId, 0)]] : []),
     ]), true],
-    ['device', t('scaleAtWeighIn'), row.device && pairs([[t('name'), row.device.name], ...deviceFields(row.device)]), false],
+    ['device', t('scaleAtWeighIn'), row.device && pairs([[t('name'), deviceName(row.device)], ...deviceFields(row.device)]), false],
   ];
   const known = new Set(['uuid', 'profileUuid', 'deviceUuid', 'receivedAt', 'profile', 'device', 'measures', 'calculations', 'reception']);
   if (!row.measures) for (const key of ['weight', 'unit', 'impedanceOhms']) known.add(key);

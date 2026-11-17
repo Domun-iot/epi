@@ -2880,3 +2880,146 @@ test('same-account state refresh updates an open measurement and closes it when 
   await page.locator('.measurement-details').waitFor({state:'hidden'});
   assert.equal(await page.locator('#view-content').getByText('75',{exact:true}).count(),0);
 });
+
+
+test('manual measurement accepts a weight without a profile and preserves local date and units', async t => {
+  const page = await pageWith(t, undefined, { viewport: { width: 390, height: 780 }, timezoneId: 'Europe/Paris' });
+  const enter = page.getByRole('button', { name: 'Saisir', exact: true });
+  const buttonBounds = await enter.boundingBox();
+  assert.ok(buttonBounds.x + buttonBounds.width <= 390);
+  await enter.click();
+  const form = page.locator('#editor-view');
+  if (process.env.EPI_UI_CAPTURE) {
+    await page.screenshot({ path: process.env.EPI_UI_CAPTURE });
+    t.diagnostic('Mobile capture: ' + process.env.EPI_UI_CAPTURE);
+  }
+  await form.getByLabel('Poids', { exact: true }).fill('154,3');
+  await form.getByLabel('Unité', { exact: true }).selectOption('lb');
+  await form.getByLabel('Date et heure de la pesée').fill('2026-01-15T19:23:21');
+  await page.locator('#editor-actions').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await form.waitFor({ state: 'hidden' });
+  await page.locator('.measurement-details').waitFor();
+  assert.equal(await enter.count(), 0);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1')));
+  assert.equal(saved.profiles.length, 0);
+  assert.equal(saved.devices.length, 0);
+  assert.equal(saved.measurements.length, 1);
+  const [reading] = saved.measurements;
+  assert.equal(reading.profile, null);
+  assert.equal(reading.measures.weight, 154.3);
+  assert.equal(reading.measures.unit, 'lb');
+  assert.equal(reading.receivedAt, '2026-01-15T18:23:21.000Z');
+  assert.deepEqual(reading.device, { source: 'manual' });
+  const device = page.locator('[data-detail-section="device"]');
+  await device.locator('summary').click();
+  assert.match(await device.innerText(), /Saisie manuelle/);
+  assert.equal(await device.getByText('Adresse Bluetooth', { exact: true }).count(), 0);
+  await page.getByRole('button', { name: 'Retour', exact: true }).click();
+  await enter.waitFor();
+  await page.reload();
+  await page.getByRole('cell', { name: '154,3 lb', exact: true }).waitFor();
+});
+
+test('manual measurement creates the first profile for body fat and keeps the draft when cancelled', async t => {
+  const page = await pageWith(t);
+  await page.getByRole('button', { name: 'Saisir', exact: true }).click();
+  const editor = page.locator('#editor-view');
+  const save = page.locator('#editor-actions').getByRole('button', { name: 'Enregistrer', exact: true });
+  await editor.getByLabel('Poids', { exact: true }).fill('70,5');
+  await editor.getByLabel('Masse grasse (%) — facultatif', { exact: true }).fill('30,5');
+  await editor.getByLabel('Date et heure de la pesée').fill('2026-01-15T19:23:21');
+  await save.click();
+  await editor.getByRole('heading', { name: 'Créer un profil', exact: true }).waitFor();
+  await page.locator('#editor-actions').getByRole('button', { name: 'Annuler', exact: true }).click();
+  await editor.getByRole('heading', { name: 'Saisir une pesée', exact: true }).waitFor();
+  assert.equal(await editor.getByLabel('Poids', { exact: true }).inputValue(), '70,5');
+  assert.equal(await editor.getByLabel('Masse grasse (%) — facultatif', { exact: true }).inputValue(), '30,5');
+  let saved = await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1')) ?? { measurements: [], profiles: [] });
+  assert.equal(saved.measurements.length, 0);
+  assert.equal(saved.profiles.length, 0);
+  await save.click();
+  await editor.getByLabel('Nom', { exact: true }).fill('Alice');
+  await editor.getByLabel('Sexe utilisé par les formules').selectOption('F');
+  await editor.getByLabel('Date de naissance', { exact: true }).fill('1980-01-15');
+  await editor.getByLabel('Taille (cm)').fill('165');
+  await save.click();
+  await editor.waitFor({ state: 'hidden' });
+  saved = await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1')));
+  assert.equal(saved.profiles.length, 1);
+  assert.equal(saved.measurements.length, 1);
+  assert.equal(saved.measurements[0].profile.uuid, saved.profiles[0].uuid);
+  assert.equal(saved.measurements[0].measures.fatPercent, 30.5);
+  assert.ok(saved.measurements[0].calculations.impedanceOhms > 0);
+  assert.equal(saved.measurements[0].measures.impedanceOhms ?? null, null);
+  await page.locator('[data-detail-section="measures"] > summary').click();
+  await page.locator('[data-detail-section="measures"] dd').getByText('30,5', { exact: true }).waitFor();
+});
+
+test('manual measurement uses the active profile instead of the closest weight', async t => {
+  const prior = { ...record, profile: { name: 'Bob' }, measures: { weight: 80, unit: 'kg' } };
+  const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Alice', measurements: [prior] });
+  await page.getByRole('button', { name: 'Saisir', exact: true }).click();
+  await page.locator('#editor-view').getByLabel('Poids', { exact: true }).fill('80');
+  await page.locator('#editor-actions').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await page.locator('#editor-view').waitFor({ state: 'hidden' });
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a')));
+  assert.equal(saved.measurements.length, 2);
+  assert.equal(saved.measurements.at(-1).profile.name, 'Alice');
+  assert.equal(saved.selectedProfile, 'Alice');
+});
+
+test('manual measurement keeps the table and chart while resolving calculated impedance and manual source', async t => {
+  const manual = { ...record, receivedAt: '2026-01-16T17:23:21Z', device: { source: 'manual' },
+    measures: { weight: 70.5, unit: 'kg', fatPercent: 32.8 },
+    calculations: { ...record.calculations, impedanceOhms: 512.3 } };
+  const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [{ ...record, calculations: { ...record.calculations, impedanceOhms: 999 } }, manual] });
+  await page.getByText('Données', { exact: true }).click();
+  await page.getByLabel('Impédance (Ω)', { exact: true }).check();
+  await page.getByLabel('Appareil', { exact: true }).check();
+  const table = page.getByRole('table', { name: 'Pesées', exact: true });
+  await table.getByRole('cell', { name: '512,3', exact: true }).waitFor();
+  await table.getByRole('cell', { name: '475', exact: true }).waitFor();
+  await table.getByRole('cell', { name: 'Saisie manuelle', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Graphique', exact: true }).click();
+  const points = page.locator('.chart-point[data-series="impedanceOhms"]');
+  await points.first().waitFor();
+  assert.equal(await points.count(), 2);
+  assert.ok((await points.first().getAttribute('aria-label')).includes('475'));
+  assert.match(await points.nth(1).getAttribute('aria-label'), /512,3/);
+  await page.reload();
+  await points.first().waitFor();
+  assert.equal(await points.count(), 2);
+  await page.locator('[data-action="chart-axis"][data-value="impedanceOhms"]').click();
+  await points.nth(1).click();
+  const measures = page.locator('[data-detail-section="measures"]');
+  await measures.locator('summary').click();
+  await measures.getByText('512,3', { exact: true }).waitFor();
+  await measures.getByText('32,8', { exact: true }).waitFor();
+  const comparison = page.getByRole('table', { name: 'Comparaison des méthodes', exact: true });
+  assert.equal(await comparison.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
+});
+
+
+test('manual measurement asks for an existing profile when none is active and abandons a draft on dataset reset', async t => {
+  const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: null });
+  await page.getByRole('button', { name: 'Saisir', exact: true }).click();
+  const editor = page.locator('#editor-view');
+  const save = page.locator('#editor-actions').getByRole('button', { name: 'Enregistrer', exact: true });
+  await editor.getByLabel('Poids', { exact: true }).fill('80');
+  await editor.getByLabel('Masse grasse (%) — facultatif', { exact: true }).fill('25');
+  await save.click();
+  await editor.getByRole('alert').getByText('Choisis ou crée un profil pour calculer la composition corporelle.').waitFor();
+  await editor.getByLabel('Profil actif', { exact: true }).selectOption({ label: 'Bob' });
+  await save.click();
+  await editor.waitFor({ state: 'hidden' });
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a')));
+  assert.equal(saved.measurements.length, 1);
+  assert.equal(saved.measurements[0].profile.name, 'Bob');
+  await page.getByRole('button', { name: 'Retour', exact: true }).click();
+  await page.getByRole('button', { name: 'Saisir', exact: true }).click();
+  await editor.getByLabel('Poids', { exact: true }).fill('81');
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('epi:dataset-reset', { detail: { datasetId: 'local' } })));
+  await editor.waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('#editor-actions button').count(), 0);
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a')).measurements), saved.measurements);
+});

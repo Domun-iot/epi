@@ -670,6 +670,8 @@ fn save_measurements(
         }
         if occupied.insert(path.clone()) {
             save_json(root, &root.join(path), row, false)?;
+        } else if row["device"]["source"].as_str() == Some("manual") {
+            return Err("epi-i18n:diagnostic.aFileHasBeenModifiedReload".into());
         }
     }
     Ok(())
@@ -1897,5 +1899,29 @@ mod tests {
             "measures/élodie/2026-11-14T12-01-03.000Z.json"
         );
         assert_eq!(record(&files[0]).unwrap(), readings[0]);
+    }
+
+    #[test]
+    fn manual_measurements_report_external_timestamp_collisions() {
+        let root = tempfile::tempdir().unwrap();
+        let original = json!({
+            "receivedAt": "2026-11-14T12:01:03.000Z",
+            "profile": { "name": "Élodie" },
+            "measures": { "weight": 61.1, "unit": "kg" }
+        });
+        save_measurements(root.path(), &[original.clone()], &[], &[]).unwrap();
+        let manual = json!({
+            "receivedAt": "2026-11-14T12:01:03.000Z",
+            "profile": { "name": "Élodie" },
+            "device": { "source": "manual" },
+            "measures": { "weight": 62.0, "unit": "kg" }
+        });
+        assert_eq!(
+            save_measurements(root.path(), &[manual], &[], &[]),
+            Err("epi-i18n:diagnostic.aFileHasBeenModifiedReload".into())
+        );
+        let files = dataset_files(root.path()).unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(record(&files[0]).unwrap(), original);
     }
 }

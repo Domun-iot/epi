@@ -422,5 +422,19 @@
   "heartRateBpm": "Heart rate (bpm)",
   "hostedAccountRequired": "Sign in to access your private data on this server.",
   "localAccountRequired": "Sign in to open a local account dataset. Your data is still stored on this device.",
-  "scaleUserId": "Scale user ID"
+  "scaleUserId": "Scale user ID",
+  "enterMeasurement": "Unesi",
+  "manualWeighIn": "Unesi vaganje",
+  "manualEntry": "Ručni unos",
+  "fatPercentOptional": "Tjelesna mast (%) — neobavezno",
+  "weighInDateTime": "Datum i vrijeme vaganja",
+  "manualWeightInvalid": "Unesi valjanu težinu veću od nule.",
+  "manualUnitInvalid": "Odaberi jedinicu: kg ili lb.",
+  "manualFatInvalid": "Unesi postotak tjelesne masti veći od 0 i manji od 100.",
+  "manualDateInvalid": "Unesi valjan datum i vrijeme.",
+  "manualProfileRequired": "Odaberi ili izradi profil za izračun sastava tijela.",
+  "manualProfileMissing": "Odabrani profil više ne postoji. Odaberi drugi profil.",
+  "manualDuplicate": "Za ovaj profil već postoji vaganje s ovim datumom i vremenom.",
+  "manualDateBeforeBirth": "Datum vaganja ne može prethoditi datumu rođenja.",
+  "estimatedImpedance": "Procijenjena impedancija: {0} Ω"
 }

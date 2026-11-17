@@ -82,7 +82,10 @@ export function pageHeader(title, subtitle = '', actions = '') {
   return `<header class="page-header"><div><h1>${escapeHtml(title)}</h1>${subtitle ? `<p class="muted">${escapeHtml(subtitle)}</p>` : ''}</div>${actions}</header>`;
 }
 
+export const deviceName = device => device?.source === 'manual' ? t('manualEntry') : device?.name;
+
 export function deviceFields(device = {}) {
+  if (device.source === 'manual') return [];
   const { bluetooth = {} } = device;
   return [
     [t('bluetoothAddress'), bluetooth.address],

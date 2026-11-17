@@ -3,7 +3,7 @@
 const { buildDevice, deviceFileKey } = require('../../shared/device-fields.cjs');
 const { canonicalAddress } = require('../../shared/scales/adapter.js');
 const { historyRecord, latestWeights, matchWeight } = require('../../shared/history.cjs');
-const { nameKey } = require('../../shared/profile-fields.cjs');
+const { nameKey, profileAt } = require('../../shared/profile-fields.cjs');
 const { metrics } = require('../../shared/composition.cjs');
 const { createAcquisition } = require('./acquisition.cjs');
 const { applyObservation, enrollmentRequest, findDevice } = require('./devices.cjs');
@@ -392,6 +392,46 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing,
     draft.measurements = [...draft.measurements, measurement];
     notify(draft, { type: 'measurement', action: 'saved', record: measurement });
     if (profile?.name) draft.selectedProfile = profile.name;
+  }
+
+  function saveManualMeasurement(input = {}) {
+    return mutate(draft => {
+      const { weight, unit = 'kg', fatPercent, profileUuid, receivedAt = new Date().toISOString() } = input ?? {};
+      const decimal = value => typeof value === 'number' ? value
+        : typeof value === 'string' && /^(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(value.trim())
+          ? Number(value.trim().replace(',', '.')) : NaN;
+      const parsedWeight = decimal(weight);
+      if (!Number.isFinite(parsedWeight) || parsedWeight <= 0) throw Error('epi-i18n:manualWeightInvalid');
+      if (!['kg', 'lb'].includes(unit)) throw Error('epi-i18n:manualUnitInvalid');
+      const hasFat = fatPercent != null && !(typeof fatPercent === 'string' && !fatPercent.trim());
+      const parsedFat = hasFat ? decimal(fatPercent) : null;
+      if (hasFat && (!Number.isFinite(parsedFat) || parsedFat <= 0 || parsedFat >= 100)) {
+        throw Error('epi-i18n:manualFatInvalid');
+      }
+      // Require a zoned timestamp so native and hosted clients record the same instant.
+      const datePattern = /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
+      const date = typeof receivedAt === 'string' && datePattern.test(receivedAt) ? new Date(receivedAt) : null;
+      const calendar = typeof receivedAt === 'string' ? new Date(receivedAt.slice(0, 10) + 'T12:00:00Z') : null;
+      if (!date || !Number.isFinite(+date) || !Number.isFinite(+calendar)
+          || calendar.toISOString().slice(0, 10) !== receivedAt.slice(0, 10)) {
+        throw Error('epi-i18n:manualDateInvalid');
+      }
+      const profile = profileUuid === undefined ? findProfile(draft, draft.selectedProfile)
+        : profileUuid === null ? null : draft.profiles.find(row => row.uuid === profileUuid);
+      if (profileUuid != null && !profile) throw Error('epi-i18n:manualProfileMissing');
+      if (hasFat && !profile) throw Error('epi-i18n:manualProfileRequired');
+      const timestamp = date.toISOString();
+      if (profile?.birthDate && profileAt(profile, timestamp).age < 0) {
+        throw Error('epi-i18n:manualDateBeforeBirth');
+      }
+      const event = { weight: parsedWeight, unit, receivedAt: timestamp, impedanceOhms: null,
+        ...(hasFat && { fatPercent: parsedFat }) };
+      const slot = measurementSlot({ profile, receivedAt: timestamp }, draft.profiles);
+      if (draft.measurements.some(row => measurementSlot(row, draft.profiles) === slot)) {
+        throw Error('epi-i18n:manualDuplicate');
+      }
+      saveMeasurement(draft, event, profile, { source: 'manual' });
+    });
   }
 
   function assign(draft, event, id = uuid(), archivedMetadata = null, requireAttribution = false) {
@@ -923,7 +963,7 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing,
       observers.add(observer);
       return () => observers.delete(observer);
     },
-    selectProfile, saveProfile, setColumnPreference, renameDevice, beginDevice, cancelDevice, confirmProfile,
+    selectProfile, saveProfile, saveManualMeasurement, setColumnPreference, renameDevice, beginDevice, cancelDevice, confirmProfile,
     deleteProfile, deleteDevice, deleteMeasurement, setPanelOpen, changeViewPreset, setTheme, setMeasurementDisplay, cycleChartSeries, setChartOptions,
     moveColumn: (...args) => movePreference('columnOrder', ...args),
     moveMethodColumn: (...args) => movePreference('methodColumnOrder', ...args),

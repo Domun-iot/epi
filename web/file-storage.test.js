@@ -97,3 +97,34 @@ test('shares native dataset files across web restarts and reloads', async t => {
   assert.equal((await get(path)).heightCm, 172);
   assert.equal((await get('session.json')).profiles[0].name, 'Obsolete');
 });
+
+
+test('manual percentages and calculated impedance survive ZIP export and transaction replay', async t => {
+  const roots = await Promise.all(['original', 'zip', 'sync'].map(label => mkdtemp(join(tmpdir(), 'epi-manual-' + label + '-'))));
+  t.after(async () => { for (const root of roots) await rm(root, { recursive: true, force: true }); });
+  const [root, restoredRoot, syncedRoot] = roots;
+  const files = fileStorage(root, transactions);
+  const session = domain.createSession({ storage: files });
+  await session.saveProfile({ name: 'Alice', sex: 'F', age: 40, heightCm: 165 });
+  const state = await session.saveManualMeasurement({ weight: 65, fatPercent: 30.02, receivedAt: '2020-01-02T10:30:00Z' });
+  const row = state.measurements[0];
+  assert.equal(row.measures.fatPercent, 30.02);
+  assert.equal(row.measures.impedanceOhms, null);
+  assert.ok(row.calculations.impedanceOhms > 0);
+  const archive = readArchive(writeArchive(await files.exportFiles()));
+  const restored = fileStorage(restoredRoot, transactions);
+  assert.ok(await restored.importFiles(archive) > 0);
+  const replay = fileStorage(syncedRoot, transactions);
+  const pending = await files.pendingTransactions();
+  await replay.integrateTransactions(pending.map(entry => ({ ...entry.transaction, name: entry.name })));
+  for (const storage of [restored, replay]) {
+    const reloaded = await domain.createSession({ storage }).load();
+    const imported = reloaded.measurements[0];
+    assert.equal(imported.uuid, row.uuid);
+    assert.deepEqual(imported.measures, row.measures);
+    assert.deepEqual(imported.calculations, row.calculations);
+    assert.equal(imported.createdAt, row.createdAt);
+    assert.equal(imported.device.source, 'manual');
+    assert.deepEqual(reloaded.devices, []);
+  }
+});

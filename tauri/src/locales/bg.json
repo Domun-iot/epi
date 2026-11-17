@@ -422,5 +422,19 @@
   "heartRateBpm": "Heart rate (bpm)",
   "hostedAccountRequired": "Sign in to access your private data on this server.",
   "localAccountRequired": "Sign in to open a local account dataset. Your data is still stored on this device.",
-  "scaleUserId": "Scale user ID"
+  "scaleUserId": "Scale user ID",
+  "enterMeasurement": "Въведи",
+  "manualWeighIn": "Въвеждане на тегло",
+  "manualEntry": "Ръчно въвеждане",
+  "fatPercentOptional": "Телесни мазнини (%) — по избор",
+  "weighInDateTime": "Дата и час на претеглянето",
+  "manualWeightInvalid": "Въведи валидно тегло, по-голямо от нула.",
+  "manualUnitInvalid": "Избери мерна единица: kg или lb.",
+  "manualFatInvalid": "Въведи процент телесни мазнини, по-голям от 0 и по-малък от 100.",
+  "manualDateInvalid": "Въведи валидни дата и час.",
+  "manualProfileRequired": "Избери или създай профил, за да изчислиш телесния състав.",
+  "manualProfileMissing": "Избраният профил вече не съществува. Избери друг профил.",
+  "manualDuplicate": "Вече има записано претегляне за този профил на тази дата и в този час.",
+  "manualDateBeforeBirth": "Датата на претеглянето не може да е преди раждането.",
+  "estimatedImpedance": "Изчислен импеданс: {0} Ω"
 }

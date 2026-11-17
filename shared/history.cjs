@@ -27,20 +27,25 @@ function receptionRecord({ hex, address, rssi, stable, removed, scaleTime,
 
 function historyRecord(event, profile, device = null) {
   const { receivedAt, weight, unit, impedanceOhms, deviceMetrics } = event;
+  const fatPercent = event.fatPercent ?? deviceMetrics?.fatPercent;
+  const manual = device?.source === 'manual';
   profile = profileAt(profile, receivedAt);
+  const composition = profile ? calculateComposition(event, profile) : null;
   return {
     uuid: globalThis.crypto.randomUUID(),
     receivedAt,
-    createdAt: receivedAt,
+    createdAt: manual ? new Date().toISOString() : receivedAt,
     profile: profile ? {
       uuid: profile.uuid ?? null, name: profile.user ?? null, sex: profile.sex, age: profile.age,
       ageAtWeighIn: profile.age, heightCm: profile.heightCm,
       ...(profile.birthDate ? { birthDate: profile.birthDate } : {}),
     } : null,
     device,
-    measures: { weight, unit, impedanceOhms, ...(deviceMetrics && { deviceMetrics }) },
-    calculations: profile ? calculateComposition({ weight, unit, impedanceOhms }, profile).methods : null,
-    reception: receptionRecord(event, device?.bluetooth?.model),
+    measures: { weight, unit, impedanceOhms, ...(fatPercent != null && { fatPercent }), ...(deviceMetrics && { deviceMetrics }) },
+    calculations: composition ? { ...composition.methods,
+      ...(composition.estimatedImpedanceOhms != null && { impedanceOhms: composition.estimatedImpedanceOhms }),
+    } : null,
+    reception: manual ? null : receptionRecord(event, device?.bluetooth?.model),
   };
 }
 

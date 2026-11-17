@@ -3,7 +3,7 @@ import { changedFileSummaries, createReloadQueue, isDataConflict } from './data-
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { connect } from './service.js';
 import { bluetoothView, createBluetoothWatch } from './bluetooth-watch.js';
-import { escapeHtml as e, formatDate, nameKey, sortByName, userIcon } from './format.js';
+import { button, escapeHtml as e, formatDate, nameKey, pageHeader, sortByName, userIcon } from './format.js';
 import { createEditor } from './editors.js';
 import { filterColumnOptions, measurementDetails, measurementsView } from './measurements-view.js';
 import { renderChartDates, snapChartRange } from './measurement-charts.js';
@@ -262,7 +262,9 @@ function render() {
     const previousPinnedTable = view.querySelector('.pinned-header');
     if (previousPinnedTable) pinnedHeaderResize.unobserve(previousPinnedTable);
     stopReorder();
-    const header = layout && viewPresetHeader(kind, layout);
+    const manualAction = page === 'measurements' && !detail ? button(t('enterMeasurement'), 'enter-measurement') : '';
+    const header = layout ? viewPresetHeader(kind, layout, manualAction)
+      : manualAction ? pageHeader(t('weighIns'), '', manualAction) : undefined;
     const focusedPresetAction = active?.closest('.view-preset-header') && active.dataset.action;
     const markup = detail ? measurementDetails(detail, state.methodColumnOrder, state.detailSectionOrder, state.detailSectionsOpen, header)
       : page === 'measurements' ? measurementsView(rows, state.selectedProfile, state.columns, state.splitColumns, state.columnOrder,
@@ -511,6 +513,34 @@ function addProfile(item) {
   });
 }
 
+function enterMeasurement(draft) {
+  const epoch = datasetEpoch;
+  if (!draft) {
+    const now = new Date();
+    draft = {
+      weight: '', unit: 'kg', fatPercent: '',
+      receivedAt: new Date(+now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 19),
+      profileUuid: state.profiles.find(profile => profile.name === state.selectedProfile)?.uuid ?? null,
+    };
+  }
+  editor.manualMeasurementEditor(draft, state.profiles, async (nextDraft, measurement) => {
+    if (!sameDataset(epoch)) return false;
+    if (measurement.fatPercent !== undefined && !measurement.profileUuid && !state.profiles.length) {
+      editor.profileEditor(null, async profile => {
+        if (!sameDataset(epoch)) return false;
+        if (!nextDraft.profileUuid) {
+          const saved = await session.saveProfile(profile);
+          if (!sameDataset(epoch)) return false;
+          nextDraft.profileUuid = saved.profiles.find(item => nameKey(item.name) === nameKey(profile.name))?.uuid;
+        }
+        await session.saveManualMeasurement({ ...measurement, profileUuid: nextDraft.profileUuid });
+      }, false, { onCancel: () => { if (sameDataset(epoch)) enterMeasurement(nextDraft); } });
+      return false;
+    }
+    await session.saveManualMeasurement(measurement);
+  });
+}
+
 function changeViewPreset(action, id) {
   if (state.proViews === false) return;
   const kind = reading ? 'details' : 'measurements';
@@ -533,6 +563,7 @@ function changeViewPreset(action, id) {
 }
 
 const actions = {
+  'enter-measurement': () => enterMeasurement(),
   'open-notification': async id => {
     const epoch = datasetEpoch;
     const target = resolveNotification(state, state.notifications.find(item => item.id === id));

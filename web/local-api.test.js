@@ -61,3 +61,31 @@ test('PRO token for another account cannot unlock local features, and old same-a
   assert.equal((await session('load', [], { datasetId: A })).status, 409);
   assert.equal((await session('load', [], after)).status, 200);
 });
+
+test('manual readings remain available in FREE and survive file reloads within their dataset', async t => {
+  const { install, session } = await setup(t);
+  let context = (await install('context')).body;
+  let result = await session('saveManualMeasurement', [{ weight: '72,4', receivedAt: '2020-01-02T10:30:00.000Z', profileUuid: null }], context);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.measurements[0].measures.weight, 72.4);
+  assert.equal(result.body.measurements[0].device.source, 'manual');
+  assert.deepEqual(result.body.devices, []);
+  const id = result.body.measurements[0].uuid;
+  result = await session('reload', [], context);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.measurements[0].uuid, id);
+  assert.equal(result.body.measurements[0].reception, null);
+  context = (await install('activate', [A, 'attach', [], false], { token: 'freeA' })).body;
+  result = await session('saveProfile', [{ name: 'Alice', sex: 'F', age: 40, heightCm: 165 }], context);
+  const profileUuid = result.body.profiles[0].uuid;
+  result = await session('saveManualMeasurement', [{ weight: 65, fatPercent: 30, profileUuid }], context);
+  assert.equal(result.status, 200);
+  const row = result.body.measurements.find(row => row.profile?.uuid === profileUuid);
+  assert.equal(row.measures.fatPercent, 30);
+  assert.equal(row.measures.impedanceOhms, null);
+  assert.ok(row.calculations.impedanceOhms > 0);
+  const before = context;
+  context = (await install('activate', [B, 'attach', [], false], { token: 'freeB' })).body;
+  assert.deepEqual((await session('load', [], context)).body.measurements, []);
+  assert.equal((await session('saveManualMeasurement', [{ weight: 70 }], before)).status, 409);
+});

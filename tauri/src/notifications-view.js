@@ -1,4 +1,5 @@
 import { localizeMessage, messageCode, t, htmlText } from './i18n.js';
+import composition from 'virtual:epi-composition';
 import { deviceCard } from './management-view.js';
 import { deleteButton, escapeHtml as e, formatCalendarDate, formatDate, number, pageHeader, pairs, weight } from './format.js';
 
@@ -23,7 +24,7 @@ export function notificationText(entry, state) {
     const measures = record.measures ?? record;
     const impedance = measures.impedanceOhms > 0
       ? action === 'deleted' ? t('withImpedance') : t('receivedImpedance', [number(measures.impedanceOhms)])
-      : t('withoutImpedance');
+      : composition.impedanceValue(record) > 0 ? t('estimatedImpedance', [number(composition.impedanceValue(record))]) : t('withoutImpedance');
     const method = record.profile?.name
       ? [record.calculations && t('calculationsSaved'), t('selectedProfile', { profile: record.profile.name })].filter(Boolean).join(' · ')
       : record.calculations ? t('calculationWithoutSavedProfile') : t('withoutProfileOrCalculation');

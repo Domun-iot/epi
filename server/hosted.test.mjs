@@ -270,3 +270,27 @@ test('a billing outage does not confirm FREE and cannot open remote storage', as
   await f.action(session, 'load', [], { status: 503 });
   await assert.rejects(access(join(f.root, 'accounts', session.accountId)), { code: 'ENOENT' });
 });
+
+
+test('hosted manual readings persist body fat and calculated impedance in the authenticated dataset', async t => {
+  const f = await fixture(t);
+  const alice = await f.login('manual-alice', 'browser', true);
+  const bob = await f.login('manual-bob', 'browser', true);
+  const state = await f.action(alice, 'saveProfile', [{ name: 'Alice', sex: 'F', age: 40, heightCm: 165 }]);
+  const profileUuid = state.profiles[0].uuid;
+  const saved = await f.action(alice, 'saveManualMeasurement', [{ weight: 65, fatPercent: 30.02,
+    profileUuid, receivedAt: '2020-01-02T10:30:00Z' }]);
+  const row = saved.measurements[0];
+  assert.equal(row.measures.fatPercent, 30.02);
+  assert.equal(row.measures.impedanceOhms, null);
+  assert.ok(row.calculations.impedanceOhms > 0);
+  assert.equal(row.device.source, 'manual');
+  assert.equal(row.reception, null);
+  assert.deepEqual(saved.devices, []);
+  const stored = JSON.parse(await readFile(join(f.root, 'accounts', alice.accountId, 'measures', profileUuid,
+    '2020-01-02T10-30-00.000Z.json'), 'utf8'));
+  assert.deepEqual(stored.measures, row.measures);
+  assert.deepEqual(stored.calculations, row.calculations);
+  assert.equal((await f.action(alice, 'reload')).measurements[0].uuid, row.uuid);
+  assert.deepEqual((await f.action(bob, 'load')).measurements, []);
+});
