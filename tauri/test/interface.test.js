@@ -3003,6 +3003,27 @@ test('manual measurement keeps the table and chart while resolving calculated im
 });
 
 
+test('weigh-in details show calculated impedance below the table only when no measured impedance is available', async t => {
+  for (const [measures, calculated, expected] of [
+    [{ weight: 70, unit: 'kg', fatPercent: 32.8 }, 512.3, true],
+    [{ weight: 70, unit: 'kg', deviceMetrics: { fatPercent: 32.8 } }, 512.3, true],
+    [{ weight: 70, unit: 'kg', impedanceOhms: 475 }, 999, false],
+    [{ weight: 70, unit: 'kg' }, null, false],
+  ]) {
+    const row = { ...record, measures, calculations: { ...record.calculations, impedanceOhms: calculated } };
+    const page = await pageWith(t, { profiles: [alice], selectedProfile: 'Alice', measurements: [row] });
+    await page.locator('.reading-date').click();
+    await page.locator('.measurement-details').waitFor();
+    const note = page.locator('.calculated-impedance');
+    assert.equal(await note.count(), expected ? 1 : 0);
+    if (expected) {
+      assert.equal(await note.textContent(), 'Impédance calculée à partir du pourcentage de masse grasse : 512,3 Ω.');
+      assert.equal(await page.locator('.comparison-scroll + .calculated-impedance + details').count(), 1);
+      assert.equal(await page.locator('.measurement-details details[open]').count(), 0);
+    }
+  }
+});
+
 test('manual measurement asks for an existing profile when none is active and abandons a draft on dataset reset', async t => {
   const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: null });
   await page.getByRole('button', { name: 'Saisir', exact: true }).click();

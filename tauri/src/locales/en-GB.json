@@ -436,5 +436,6 @@
   "manualProfileMissing": "The selected profile no longer exists. Choose another profile.",
   "manualDuplicate": "A weigh-in already exists for this profile at this date and time.",
   "manualDateBeforeBirth": "The weigh-in date cannot be before the date of birth.",
-  "estimatedImpedance": "Estimated impedance: {0} Ω"
+  "estimatedImpedance": "Estimated impedance: {0} Ω",
+  "impedanceCalculatedFromBodyFat": "Impedance calculated from body fat percentage: {0} Ω."
 }

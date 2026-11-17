@@ -200,6 +200,9 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
         ? 'https://doi.org/10.1093/ajcn/46.6.875' : methodSources[method.id],
     }));
   const measures = row.measures ?? row;
+  const calculatedImpedance = !(Number.isFinite(measures.impedanceOhms) && measures.impedanceOhms > 0)
+    && composition.impedanceValue(row) != null
+    ? `<p class="muted calculated-impedance">${htmlText('impedanceCalculatedFromBodyFat', [number(composition.impedanceValue(row))])}</p>` : '';
   const readings = `<p><strong>${weight(measures)}</strong> · ${formatReadingDate(row.receivedAt)}</p>`;
   const comparison = activeMethods.length ? `<div class="panel table-scroll pinned-header comparison-scroll" role="region" aria-label="${htmlText('comparisonOfMethods')}" tabindex="0">
     <table aria-label="${htmlText('comparisonOfMethods')}"${defaultOrder(methodColumnOrder)}><thead><tr><th scope="col">${htmlText('measurementField')}</th><th scope="col">${htmlText('average')}</th>${activeMethods.map(method => methodHeader(method, columnDrag(method.id))).join('')}</tr></thead>
@@ -242,7 +245,7 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
   }
   const bySection = new Map(sections.filter(([, , body]) => body).map(([id, ...section]) => [id, section]));
   const orderedSections = [...new Set([...sectionOrder, ...bySection.keys()])].filter(id => bySection.has(id));
-  const content = `<div class="measurement-details"${defaultOrder(sections.map(([id]) => id))}>${readings}${comparison}${orderedSections.map(id => {
+  const content = `<div class="measurement-details"${defaultOrder(sections.map(([id]) => id))}>${readings}${comparison}${calculatedImpedance}${orderedSections.map(id => {
       const [title, body, defaultOpen] = bySection.get(id);
       const open = sectionsOpen[id] ?? defaultOpen;
       return `<details data-detail-section="${e(id)}"${open ? ' open' : ''}><summary>${e(title)}</summary>${body}</details>`;
