@@ -446,15 +446,15 @@ googleButton.addEventListener('click', async () => {
   }
 
   const action = account ? (accountInfo.googleLinked ? 'unlink' : 'link') : (creating ? 'register' : 'login');
-  const directUnlink = action === 'unlink' && accountInfo.hasPassword;
+  const unlinking = action === 'unlink';
   const value = googlePassword.value;
-  if (account && (!value || (action === 'unlink' && !directUnlink && value !== googleConfirm.value))) {
+  if (account && (!value || (unlinking && !accountInfo.hasPassword && value !== googleConfirm.value))) {
     showError(value ? t('bothPasswordsMustBeTheSame') : t('enterThePassword'));
     googlePassword.focus();
     return;
   }
   let popup;
-  if (!directUnlink && !isTauri()) {
+  if (!unlinking && !isTauri()) {
     popup = window.open('', '_blank');
     if (!popup) {
       showError(t('allowGoogleSignInTab'));
@@ -465,13 +465,13 @@ googleButton.addEventListener('click', async () => {
 
   busy = true;
   cancelGoogle = false;
-  waitingForGoogle = !directUnlink;
+  waitingForGoogle = !unlinking;
   showError('');
   render();
   try {
     const body = account ? { password: value } : { deviceId: getDeviceId(), locale: chosenLocale() };
     const token = account?.token;
-    const result = directUnlink
+    const result = unlinking
       ? await request('google/unlink', { body, token })
       : await finishGoogle(action, body, popup, token);
     if (result) {

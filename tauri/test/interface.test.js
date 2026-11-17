@@ -164,7 +164,7 @@ test('affiche une erreur lorsque la connexion Google ne peut pas démarrer', asy
   await notice.getByText('La connexion Google a échoué ou a été annulée.', { exact: true }).waitFor();
 });
 
-test('crée un compte avec Google et exige un mot de passe pour le délier', async t => {
+test('crée un compte avec Google et le délie dans éPI en confirmant le nouveau mot de passe', async t => {
   const page = await pageWith(t);
   const calls = [];
   const callback = 'https://accounts.google.com/o/oauth2/v2/auth?state=test';
@@ -176,9 +176,8 @@ test('crée un compte avec Google et exige un mot de passe pour le délier', asy
     calls.push({ path, body, token: route.request().headers().authorization });
     const response = {
       '/v1/google/start': { url: callback, state: 'state', secret: 'secret' },
-      '/v1/google/finish': calls.some(call => call.body?.action === 'unlink')
-        ? { ...details, googleLinked: false, hasPassword: true }
-        : { ...details, token: 'device-token' },
+      '/v1/google/finish': { ...details, token: 'device-token' },
+      '/v1/google/unlink': { ...details, googleLinked: false, hasPassword: true },
     };
     return route.fulfill({ json: response[path], headers: { 'Access-Control-Allow-Origin': '*' } });
   });
@@ -197,6 +196,8 @@ test('crée un compte avec Google et exige un mot de passe pour le délier', asy
   const unlink = page.getByRole('button', { name: 'Délier Google' });
   await unlink.waitFor();
   await unlink.locator('img').waitFor({ state: 'hidden' });
+  let popups = 0;
+  page.on('popup', () => popups++);
   await unlink.click();
   await page.getByLabel('Nouveau mot de passe', { exact: true }).fill('secret-password');
   await unlink.click();
@@ -204,7 +205,9 @@ test('crée un compte avec Google et exige un mot de passe pour le délier', asy
   await page.getByLabel('Nouveau mot de passe (confirmation)').fill('secret-password');
   await unlink.click();
   await page.getByRole('button', { name: 'Associer Google' }).locator('img').waitFor();
-  const request = calls.find(call => call.body?.action === 'unlink');
+  assert.equal(popups, 0);
+  assert.equal(calls.filter(call => call.path === '/v1/google/start').length, 1);
+  const request = calls.find(call => call.path === '/v1/google/unlink');
   assert.equal(request.token, 'Bearer device-token');
   assert.equal(request.body.password, 'secret-password');
 });

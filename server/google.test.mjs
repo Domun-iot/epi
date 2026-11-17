@@ -35,7 +35,7 @@ test('the Google provider binds the authorization code to PKCE and verifies the 
   await assert.rejects(google.identify('test-code', 'test-verifier'), /Invalid Google identity/);
 });
 
-test('Google registration, linking and unlinking preserve local accounts and require fresh proof', async t => {
+test('Google registration, linking and direct unlinking preserve local accounts', async t => {
   const store = openStore(':memory:');
   const identities = new Map([
     ['alice', { sub: 'a', email: 'alice@example.org', locale: 'fr-CA' }],
@@ -53,7 +53,10 @@ test('Google registration, linking and unlinking preserve local accounts and req
       return identity;
     },
   };
-  const server = createApi(store, () => time, google);
+  const paidUntil = new Date(time + 24 * 60 * 60 * 1000).toISOString();
+  let paidAccount;
+  const server = createApi(store, () => time, google, undefined, undefined,
+    async id => id === paidAccount ? paidUntil : null);
   t.after(async () => {
     await new Promise(resolve => server.close(resolve));
     store.close();
@@ -112,17 +115,30 @@ test('Google registration, linking and unlinking preserve local accounts and req
 
   const password = 'new-alice-password';
   const { token: aliceToken } = await flow('login', 'alice', 200, { deviceId: 'phone' });
-  await request('google/unlink', { password }, 409, aliceToken);
+  const { domunId } = await request('account', undefined, 200, aliceToken);
+  paidAccount = domunId;
+  await request('google/unlink', { password }, 401);
+  await request('google/unlink', { password: '' }, 400, aliceToken);
+  await request('google/unlink', { password: 'é'.repeat(513) }, 400, aliceToken);
   assert.equal((await flow('unlink', 'bob', 401, { password }, aliceToken)).error, 'google_wrong_account');
-  const updated = await flow('unlink', 'alice', 200, { password }, aliceToken);
+  const updated = await request('google/unlink', { password }, 200, aliceToken);
   assert.equal(updated.googleLinked, false);
   assert.equal(updated.hasPassword, true);
   assert.equal(updated.locale, 'de');
   assert.equal(updated.googleLocale, undefined);
   assert.equal(updated.createdAt, alice.createdAt);
   assert.ok(updated.updatedAt >= alice.createdAt);
+  assert.equal(updated.paid, true);
+  assert.equal(updated.paidUntil, paidUntil);
+  await request('google/unlink', { password: 'another-password' }, 409, aliceToken);
   await flow('login', 'alice', 404);
   await request('device-tokens', { email: alice.email, password, deviceId: 'pc' });
+
+  const relinked = await flow('link', 'alice', 200, { password }, aliceToken);
+  assert.equal(relinked.googleLinked, true);
+  assert.equal(relinked.paidUntil, paidUntil);
+  const { token: linkedToken } = await flow('login', 'alice');
+  assert.equal((await request('account', undefined, 200, linkedToken)).domunId, domunId);
 
   await request('google/start', { action: 'link', password: 'invalid' }, 401, bobToken);
   const linking = await start('link', { password: bob.password }, bobToken);
@@ -131,6 +147,7 @@ test('Google registration, linking and unlinking preserve local accounts and req
   assert.equal((await request('google/finish', linking, 200, bobToken)).googleLinked, true);
   assert.equal((await flow('login', 'bob')).email, bob.email);
   await request('device-tokens', { ...bob, deviceId: 'backup' });
+  await request('google/unlink', { password: 'invalid' }, 401, bobToken);
   assert.equal((await request('google/unlink', { password: bob.password }, 200, bobToken)).googleLinked, false);
   await flow('login', 'bob', 404);
 

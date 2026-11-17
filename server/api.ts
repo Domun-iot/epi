@@ -139,11 +139,14 @@ function deviceIdFrom(value: unknown) {
   return value;
 }
 
+function validPassword(password: unknown): password is string {
+  return typeof password === 'string' && password.length > 0 && Buffer.byteLength(password) <= 1024;
+}
+
 function credentials(body: Record<string, unknown>) {
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const { password } = body;
-  if (!validEmail(email) ||
-      typeof password !== 'string' || !password.length || Buffer.byteLength(password) > 1024) {
+  if (!validEmail(email) || !validPassword(password)) {
     throw new ApiError(400, 'invalid_credentials_format');
   }
   return { email, password };
@@ -250,7 +253,7 @@ function accountInfo(account: Account, now: number) {
 }
 
 async function checkPassword(password: unknown, hash: string) {
-  if (typeof password !== 'string' || !password || Buffer.byteLength(password) > 1024) {
+  if (!validPassword(password)) {
     throw new ApiError(400, 'invalid_credentials_format');
   }
   if (!(await verifyPassword(password, hash || fallbackPasswordHash)) || !hash) {
@@ -419,12 +422,15 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         const account = currentAccount(req);
         const { password } = await readBody(req);
         if (!account.google_sub) throw new ApiError(409, 'google_not_linked');
-        if (!account.password_hash) throw new ApiError(409, 'google_password_required');
-        await checkPassword(password, account.password_hash);
-        if (!store.unlinkGoogle(account.id, account.google_sub, account.password_hash, account.password_hash)) {
+        if (!validPassword(password)) throw new ApiError(400, 'invalid_credentials_format');
+        let passwordHash = account.password_hash;
+        if (passwordHash) await checkPassword(password, passwordHash);
+        else passwordHash = await hashPassword(password);
+        if (!store.unlinkGoogle(account.id, account.google_sub, account.password_hash, passwordHash)) {
           throw new ApiError(409, 'google_conflict');
         }
-        return send(res, 200, accountInfo(store.findById(account.id)!, now()));
+        const updated = store.findById(account.id)!;
+        return send(res, 200, { ...accountInfo(updated, now()), ...await liveEntitlement(updated) });
       }
       if (route === 'POST /v1/google/start') {
         if (!google) throw new ApiError(503, 'google_disabled');
@@ -438,10 +444,11 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           await checkPassword(body.password, account.password_hash);
           action = { kind: 'link', account };
         } else if (body.action === 'unlink') {
+          // Older app builds still start an OAuth flow for accounts without a password.
           const account = currentAccount(req);
           if (!account.google_sub || account.password_hash) throw new ApiError(409, 'google_conflict');
           const { password } = body;
-          if (typeof password !== 'string' || !password || Buffer.byteLength(password) > 1024) {
+          if (!validPassword(password)) {
             throw new ApiError(400, 'invalid_credentials_format');
           }
           action = { kind: 'unlink', account, newHash: await hashPassword(password) };
@@ -502,7 +509,8 @@ export function createApi(store: Store, now = Date.now, google?: Google,
           if (!store.linkGoogle(account.id, identity.sub, account.password_hash, googleLocale)) {
             throw new ApiError(409, 'google_conflict');
           }
-          return send(res, 200, accountInfo(store.findById(account.id)!, now()));
+          const updated = store.findById(account.id)!;
+          return send(res, 200, { ...accountInfo(updated, now()), ...await liveEntitlement(updated) });
         }
         if (action.kind === 'unlink') {
           const { account } = action;
