@@ -91,7 +91,7 @@ footer nav { display: flex; gap: .7rem 1.3rem; flex-wrap: wrap; }
   margin: 0 auto clamp(2rem, 6vw, 5rem);
 }
 .pro-compare { scroll-margin-top: 1rem; }
-.pro-compare h2, .pro-pricing h2 {
+.pro-compare h2 {
   margin: 0 0 1rem;
   font-size: clamp(1.6rem, 3.6vw, 2.7rem);
   line-height: 1.1;
@@ -120,18 +120,17 @@ footer nav { display: flex; gap: .7rem 1.3rem; flex-wrap: wrap; }
 .plan-table thead th:last-child { background: #173c36; color: white; }
 .plan-table tbody tr:last-child > * { border-bottom: 0; }
 .plan-label { display: flex; align-items: center; gap: clamp(.45rem, 2vw, .85rem); }
-.plan-icon, .plan-mark { display: block; border-radius: .5rem; }
+.plan-icon, .plan-mark { display: block; }
 .plan-icon {
   flex: none;
   width: clamp(1.65rem, 4vw, 2.35rem);
   height: auto;
   padding: clamp(.25rem, .7vw, .45rem);
-  background: #e4ece3;
   color: #18594c;
 }
 .plan-mark { margin-inline: auto; width: 1.75rem; height: 1.75rem; padding: .18rem; }
-.plan-included { background: #d5eade; color: #18594c; }
-.plan-excluded { background: #f8e4e1; color: #a52a26; }
+.plan-included { color: #18594c; }
+.plan-excluded { color: #a52a26; }
 .pro-pricing {
   display: flex;
   justify-content: space-between;
