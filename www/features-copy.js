@@ -20,7 +20,7 @@ const french = {
     local: ['Vos données restent à vous.',
       'Utilisez éPI en local sans créer de compte.'],
     source: ['Soulevez le capot.',
-      'Vous développez ? Découvrez comment éPI décode les trames Bluetooth, calcule ses estimations et stocke les mesures. Le dépôt contient les sources et les instructions de compilation.'],
+      'Vous développez ? Découvrez comment éPI décode les trames Bluetooth, calcule ses estimations et stocke les mesures. Le dépôt contient les sources et les instructions de compilation. Le code source d’éPI PRO est intégralement open source.'],
   },
   proComparison: 'PRO – Comparer les offres FREE et PRO',
   proDetails: {
@@ -68,7 +68,7 @@ const english = {
     local: ['Keep your data yours.',
       'Use éPI locally without an account.'],
     source: ['Look under the hood.',
-      'Curious about the code? See how éPI reads Bluetooth packets, calculates estimates and stores weigh-ins. The repository contains the source code and build instructions.'],
+      'Curious about the code? See how éPI reads Bluetooth packets, calculates estimates and stores weigh-ins. The repository contains the source code and build instructions. The entire éPI PRO codebase is open source.'],
   },
   proComparison: 'PRO – Compare the FREE and PRO plans',
   proDetails: {
