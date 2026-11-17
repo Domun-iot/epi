@@ -153,7 +153,8 @@ window.addEventListener('epi:dataset-reset', event => {
   detailActions.hidden = true;
   importInput.value = '';
   importButton.disabled = exportButton.disabled = themeToggle.disabled = false;
-  status.textContent = t(session?.web ? 'webMode' : session?.native ? 'bluetoothMonitor' : 'simulationMode');
+  status.textContent = t(session?.storageMode === 'browser-local' ? 'browserStorageMode'
+    : session?.web ? 'webMode' : session?.native ? 'bluetoothMonitor' : 'simulationMode');
 });
 
 function changed(previous, next) {

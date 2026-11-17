@@ -104,6 +104,7 @@ export function createHostedApi({ dataRoot, store, now = Date.now }) {
       readPaidUntil: async () => created.current.paidUntil,
       beforeAction(request, input) {
         created.current.checkActive();
+        if (!(created.current.paidUntil > now())) throw failure(403, 'pro_required');
         if (input.datasetId !== undefined && input.datasetId !== created.current.accountId) {
           throw failure(409, 'dataset_changed');
         }
@@ -131,6 +132,7 @@ export function createHostedApi({ dataRoot, store, now = Date.now }) {
     const entry = await entryPromise;
     const task = entry.queue.then(async () => {
       context.checkActive();
+      if (!(context.paidUntil > now())) throw failure(403, 'pro_required');
       entry.current = context;
       await ensureDatasetTree(entry.dataDir);
       await synchronize(entry, context, allowDeferred);

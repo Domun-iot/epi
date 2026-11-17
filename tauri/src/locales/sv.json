@@ -386,6 +386,8 @@
   "visualisation": "Visualisering",
   "waitingForScale": "Väntar på att enheten \"{detail}\" ska vägas. Stig på vågen för att skicka dess data.",
   "webMode": "Webmode",
+  "browserStorageMode": "Webb — data i den här webbläsaren",
+  "browserStorageUnavailable": "Det går inte att spara i den här webbläsaren: lagringen är full eller otillgänglig. Tidigare sparade data har behållits.",
   "weighInDetails": "Vägningsdetaljer",
   "weighInDiscarded": "Vägning ignoreras",
   "weighInDisplay": "Titta på vägningar",

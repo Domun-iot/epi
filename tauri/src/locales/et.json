@@ -386,6 +386,8 @@
   "visualisation": "Visualiseerimine",
   "waitingForScale": "Seadme “{detail}” kaalumise ootel. Astuge kaalule, et selle andmed saata.",
   "webMode": "Veebi mood",
+  "browserStorageMode": "Veeb — andmed selles brauseris",
+  "browserStorageUnavailable": "Selles brauseris ei saa salvestada: salvestusruum on täis või pole saadaval. Varem salvestatud andmed säilivad.",
   "weighInDetails": "Kaalumise üksikasjad",
   "weighInDiscarded": "Kaalumist eirati",
   "weighInDisplay": "Kaalude vaatamine",

@@ -386,6 +386,8 @@
   "visualisation": "Visualização",
   "waitingForScale": "Aguarda-se a pesagem do dispositivo “{detail}”. Suba para a balança para enviar os seus dados.",
   "webMode": "Moda na web",
+  "browserStorageMode": "Web — dados neste navegador",
+  "browserStorageUnavailable": "Não é possível guardar neste navegador: armazenamento cheio ou indisponível. Os dados já guardados foram mantidos.",
   "weighInDetails": "Detalhes de pesagem",
   "weighInDiscarded": "Pesagem ignorada",
   "weighInDisplay": "Visualizando pesagens",

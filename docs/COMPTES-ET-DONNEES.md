@@ -1,6 +1,6 @@
 # Comptes et jeux de données
 
-Les applications installées et le web personnel fonctionnent sans compte. Le web hébergé exige une connexion vérifiée par le serveur avant toute lecture ou écriture. Les vues PRO et les imports/exports suivent les mêmes droits partout. La synchronisation entre installations est exclusivement PRO.
+Les applications installées et le web personnel fonctionnent sans compte. Le web partagé permet l’usage anonyme et FREE dans le navigateur ; son stockage distant exige une connexion PRO vérifiée par le serveur avant toute lecture ou écriture. Les vues PRO et les imports/exports suivent les mêmes droits partout. La synchronisation entre installations ou navigateurs est exclusivement PRO. Voir les [ports et adapters de stockage](ARCHITECTURE-STOCKAGE.md) pour les règles de sélection propres au web partagé.
 
 ## Organisation locale
 

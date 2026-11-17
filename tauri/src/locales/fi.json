@@ -386,6 +386,8 @@
   "visualisation": "Visualisointi",
   "waitingForScale": "Odotetaan laitteen “{detail}” punnitusta. Astu vaakalle lähettääksesi sen tiedot.",
   "webMode": "Verkkomuoti",
+  "browserStorageMode": "Verkko — tiedot tässä selaimessa",
+  "browserStorageUnavailable": "Tähän selaimeen ei voi tallentaa: tallennustila on täynnä tai ei ole käytettävissä. Aiemmin tallennetut tiedot säilyvät.",
   "weighInDetails": "Punnitustiedot",
   "weighInDiscarded": "Punnitus huomioimatta",
   "weighInDisplay": "Punnitusten katselu",

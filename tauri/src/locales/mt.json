@@ -386,6 +386,8 @@
   "visualisation": "Viżwalizzazzjoni",
   "waitingForScale": "Tistenna l-apparat “{detail}” biex jintiżen. Pass fuq l-iskala biex tibgħat id-dejta tagħha.",
   "webMode": "Web moda",
+  "browserStorageMode": "Web — data f’dan il-browser",
+  "browserStorageUnavailable": "Ma tistax tissejvja f’dan il-browser: il-ħażna hija mimlija jew mhix disponibbli. Id-data li kienet issejvjata nżammet.",
   "weighInDetails": "Dettalji tal-użin",
   "weighInDiscarded": "Użin injorat",
   "weighInDisplay": "Viewings użin",

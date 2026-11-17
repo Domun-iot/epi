@@ -424,12 +424,12 @@ export function createApi(store: Store, now = Date.now, google?: Google,
   }
 
   async function liveEntitlement(account: Account) {
-    if (!readPaidUntil) return accountEntitlement(account, now());
+    if (!readPaidUntil) return { ...accountEntitlement(account, now()), entitlementVerified: true };
     try {
       const paidUntil = await readPaidUntil(account.domun_id);
-      return { paid: Boolean(paidUntil && Date.parse(paidUntil) > now()), paidUntil };
+      return { paid: Boolean(paidUntil && Date.parse(paidUntil) > now()), paidUntil, entitlementVerified: true };
     } catch {
-      return accountEntitlement(account, now());
+      return { ...accountEntitlement(account, now()), entitlementVerified: false };
     }
   }
 
@@ -481,9 +481,10 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         let paidUntil = Date.parse(account.paid_until ?? '') || 0;
         if (readPaidUntil) {
           try { paidUntil = Date.parse(await readPaidUntil(account.domun_id) ?? '') || 0; }
-          catch { paidUntil = 0; }
+          catch { throw new ApiError(503, 'subscription_unavailable'); }
         }
         checkActive();
+        if (!(paidUntil > now())) throw new ApiError(403, 'pro_required');
         return await hosted.session(req, res, { accountId: accountUuid(account.domun_id), accountNumber: account.id,
           deviceId: device.device_id, paidUntil, checkActive });
       }

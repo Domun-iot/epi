@@ -8,6 +8,7 @@ const conflicts = [
 ].map(key => 'diagnostic.' + key);
 
 export function isDataConflict(error) {
+  if (error?.code === 'dataset_changed' || error?.message === 'dataset_changed') return true;
   const message = localizeMessage(error?.message ?? String(error));
   return conflicts.some(id => message === t(id));
 }

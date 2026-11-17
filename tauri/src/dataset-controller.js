@@ -12,10 +12,10 @@ export function createDatasetController({ backend, readRemote, chooseData, chang
   let finishTransition = () => {};
   function begin() { idle = new Promise(resolve => { finishTransition = resolve; }); transition = true; }
   function finish() { const repaired = repairing; transition = false; repairing = false; finishTransition(); publish(repaired); }
-  const hosted = backend.hosted === true;
+  const hosted = () => backend.hosted === true;
   const empty = { count: 0, from: null, to: null, hasData: false };
   const locked = () => !context || context.locked || transition || invalidated;
-  const publish = (repaired = false) => access({ locked: locked(), hosted, pending: transition, repairing, repaired });
+  const publish = (repaired = false) => access({ locked: locked(), hosted: hosted(), pending: transition, repairing, repaired });
 
   async function use(next, credentials) {
     context = next;
@@ -43,10 +43,10 @@ export function createDatasetController({ backend, readRemote, chooseData, chang
     isCurrent(binding) {
       return !locked() && binding?.epoch === epoch && binding.datasetId === context.datasetId;
     },
-    invalidate() { intent += 1; epoch += 1; invalidated = true; access({ locked: true, hosted, pending: true, repairing: false }); },
+    invalidate() { intent += 1; epoch += 1; invalidated = true; access({ locked: true, hosted: hosted(), pending: true, repairing: false }); },
     waitIdle() { return idle; },
     async initialize() {
-      context = hosted ? { locked: true, activeAccountId: null, datasetId: null,
+      context = hosted() ? { locked: true, activeAccountId: null, datasetId: null,
         accountModeEnabled: true, localSummary: empty } : await backend.context();
       revision = context.syncRevision;
       await use(context);
@@ -62,7 +62,9 @@ export function createDatasetController({ backend, readRemote, chooseData, chang
       begin();
       publish();
       try {
-        if (hosted) {
+        await backend.select?.(info);
+        if (attempt !== intent) return false;
+        if (hosted()) {
           await use({ activeAccountId: accountId, datasetId: accountId, accountModeEnabled: true,
             locked: false, localSummary: empty }, { info, token });
         } else {
@@ -101,16 +103,16 @@ export function createDatasetController({ backend, readRemote, chooseData, chang
       publish();
       try {
         revision = undefined;
-        await use(hosted ? { locked: true, activeAccountId: null, datasetId: null,
-          accountModeEnabled: true, localSummary: empty } : await backend.logout());
+        await use(backend.logout ? await backend.logout() : { locked: true, activeAccountId: null, datasetId: null,
+          accountModeEnabled: true, localSummary: empty });
       } finally { finish(); }
     },
     async expire() {
-      if (hosted) { this.invalidate(); await idle; await this.signOut(); }
+      if (hosted()) { this.invalidate(); await idle; await this.signOut(); }
       // An expired online token never deselects a native/local dataset.
     },
     async refresh() {
-      if (hosted) return;
+      if (hosted()) return;
       begin();
       publish();
       try {

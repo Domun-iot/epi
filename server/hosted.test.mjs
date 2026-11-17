@@ -17,7 +17,7 @@ async function fixture(t, { now = Date.now } = {}) {
   const rights = new Map();
   const hosted = createHostedApi({ dataRoot: root, store, now });
   const server = createApi(store, now, undefined, undefined, domunToken,
-    async id => rights.get(id) ?? null, hosted).listen(0, '127.0.0.1');
+    async id => { if (rights.fail) throw new Error('Billing unavailable'); return rights.get(id) ?? null; }, hosted).listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(async () => { await new Promise(resolve => server.close(resolve)); store.close(); await rm(root, { recursive: true, force: true }); });
   const origin = 'http://127.0.0.1:' + server.address().port;
@@ -47,11 +47,11 @@ function transaction(type, path, value, stamp = '2026-11-17T12-00-00.000001Z') {
   return { uuid, name: stamp + '-' + uuid + '.json', type, data: { path, ...(type !== 'delete' && { value }) } };
 }
 
-test('hosted requests require a valid token and isolate account datasets, including FREE accounts', async t => {
+test('hosted requests require a valid PRO token and isolate account datasets', async t => {
   const f = await fixture(t);
   await f.call('/api/session', { body: { action: 'load', args: [] }, status: 401 });
-  const alice = await f.login('alice');
-  const bob = await f.login('bob');
+  const alice = await f.login('alice', 'browser', true);
+  const bob = await f.login('bob', 'browser', true);
   assert.match(alice.accountId, /^[a-f0-9-]{36}$/);
   assert.notEqual(alice.accountId, bob.accountId);
   assert.equal((await f.call('/v1/account', { token: alice.token })).accountId, alice.accountId);
@@ -62,12 +62,6 @@ test('hosted requests require a valid token and isolate account datasets, includ
   for (const action of ['pendingTransactions', 'archiveTransactions', 'integrateTransactions']) {
     await f.action(alice, action, [], { status: 403 });
   }
-  for (const action of ['exportFiles', 'importFiles', 'changeViewPreset']) await f.action(alice, action, [], { status: 403 });
-  for (const path of ['/v1/dataset', '/v1/dataset/summary', '/v1/transactions/pending']) {
-    await f.call(path, { token: alice.token, status: 403 });
-  }
-  await f.call('/v1/transactions', { token: alice.token, body: { transactions: [] }, status: 403 });
-  assert.deepEqual(f.store.allTransactions(f.store.findAccount('alice@example.org').id), []);
   const localProfile = (await f.action(alice, 'load')).profiles[0];
   assert.equal(JSON.parse(await readFile(join(f.root, 'accounts', alice.accountId, 'profiles', localProfile.uuid + '.json'), 'utf8')).name, 'Alice');
   await f.call('/v1/device-tokens', { token: alice.token, method: 'DELETE', status: 204 });
@@ -119,24 +113,27 @@ test('materialization recovers already acknowledged legacy transactions and reje
   assert.equal(f.store.allTransactions(account.id).some(row => JSON.parse(row.payload).uuid === stale.uuid), false);
 });
 
-test('subscription expiry blocks transfer while preserving hosted FREE data and queued changes', async t => {
+test('FREE cannot read or mutate hosted data; expiry preserves existing PRO files until renewal', async t => {
   const f = await fixture(t);
   const browser = await f.login('alice', 'browser');
-  await f.action(browser, 'saveProfile', [{ name: 'Offline free', sex: 'H', age: 33, heightCm: 175 }]);
+  for (const action of ['load', 'saveProfile', 'exportFiles', 'importFiles', 'changeViewPreset']) {
+    await f.action(browser, action, action === 'saveProfile' ? [{ name: 'Forbidden' }] : [], { status: 403 });
+  }
+  await assert.rejects(access(join(f.root, 'accounts', browser.accountId)), { code: 'ENOENT' });
   const account = f.store.findAccount('alice@example.org');
   assert.equal(f.store.allTransactions(account.id).length, 0);
   f.rights.set(account.domun_id, expires);
+  await f.action(browser, 'saveProfile', [{ name: 'PRO data', sex: 'H', age: 33, heightCm: 175 }]);
   const phone = await f.login('alice', 'phone');
-  const initial = await f.call('/v1/dataset', { token: phone.token });
-  assert.equal(initial.summary.hasData, true);
-  // Rendering/materializing on the server must not mark a native caller as having received anything.
-  assert.ok((await f.call('/v1/transactions/pending', { token: phone.token })).transactions.length);
-  await f.action(browser, 'load');
+  assert.equal((await f.call('/v1/dataset', { token: phone.token })).summary.hasData, true);
   f.rights.delete(account.domun_id);
-  await f.action(browser, 'saveProfile', [{ name: 'Second free', sex: 'F', age: 34, heightCm: 165 }]);
-  assert.equal((await f.action(browser, 'load')).profiles.length, 2);
+  await f.action(browser, 'saveProfile', [{ name: 'Forbidden free' }], { status: 403 });
+  await f.action(browser, 'load', [], { status: 403 });
   await f.call('/v1/dataset', { token: phone.token, status: 403 });
   await f.call('/v1/transactions/pending', { token: phone.token, status: 403 });
+  await f.call('/v1/transactions', { token: phone.token, body: { transactions: [] }, status: 403 });
+  f.rights.set(account.domun_id, expires);
+  assert.deepEqual((await f.action(browser, 'load')).profiles.map(row => row.name), ['PRO data']);
 });
 
 
@@ -160,8 +157,8 @@ test('invalid hosted uploads do not poison the log, and late changes cannot resu
 
 test('final account purge removes its hosted files and leaves the other account intact', async t => {
   const f = await fixture(t);
-  const alice = await f.login('alice');
-  const bob = await f.login('bob');
+  const alice = await f.login('alice', 'browser', true);
+  const bob = await f.login('bob', 'browser', true);
   await f.action(alice, 'saveProfile', [{ name: 'Alice', sex: 'F', age: 40, heightCm: 165 }]);
   await f.action(bob, 'saveProfile', [{ name: 'Bob', sex: 'H', age: 40, heightCm: 175 }]);
   const account = f.store.findAccount('alice@example.org');
@@ -250,7 +247,7 @@ test('canonical recovery remains available after the same device acknowledged al
 
 test('hosted account data rejects a nested directory link before reading another directory', async t => {
   const f = await fixture(t);
-  const browser = await f.login('alice');
+  const browser = await f.login('alice', 'browser', true);
   await f.action(browser, 'load');
   const external = join(f.root, 'external');
   await mkdir(external);
@@ -260,4 +257,16 @@ test('hosted account data rejects a nested directory link before reading another
   catch (error) { if (['EPERM', 'EACCES'].includes(error.code)) return t.skip('Directory links are unavailable on this host.'); throw error; }
   const result = await f.action(browser, 'load', [], { status: 409 });
   assert.equal(result.error, 'invalid_dataset_path');
+});
+
+
+test('a billing outage does not confirm FREE and cannot open remote storage', async t => {
+  const f = await fixture(t);
+  const session = await f.login('alice');
+  f.rights.fail = true;
+  const info = await f.call('/v1/account', { token: session.token });
+  assert.equal(info.entitlementVerified, false);
+  assert.equal(info.paid, false);
+  await f.action(session, 'load', [], { status: 503 });
+  await assert.rejects(access(join(f.root, 'accounts', session.accountId)), { code: 'ENOENT' });
 });

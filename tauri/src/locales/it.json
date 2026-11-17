@@ -386,6 +386,8 @@
   "visualisation": "Visualizzazione",
   "waitingForScale": "In attesa che il dispositivo “{detail}” venga pesato. Salire sulla bilancia per inviare i suoi dati.",
   "webMode": "La moda sul web",
+  "browserStorageMode": "Web — dati in questo browser",
+  "browserStorageUnavailable": "Impossibile salvare in questo browser: spazio esaurito o archiviazione non disponibile. I dati già salvati vengono conservati.",
   "weighInDetails": "Dettagli sulla pesatura",
   "weighInDiscarded": "Pesatura ignorata",
   "weighInDisplay": "Visualizzazione delle pesate",

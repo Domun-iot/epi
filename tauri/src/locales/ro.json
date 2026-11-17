@@ -386,6 +386,8 @@
   "visualisation": "Vizualizarea",
   "waitingForScale": "Se așteaptă cântărirea dispozitivului „{detail}”. Pășește-te pe cântar pentru a-și trimite datele.",
   "webMode": "Moda web",
+  "browserStorageMode": "Web — date în acest browser",
+  "browserStorageUnavailable": "Nu se poate salva în acest browser: spațiul este plin sau indisponibil. Datele salvate anterior au fost păstrate.",
   "weighInDetails": "Detalii de cântărire",
   "weighInDiscarded": "Cântărirea ignorată",
   "weighInDisplay": "Vizualizarea cântăririlor",

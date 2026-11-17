@@ -386,6 +386,8 @@
   "visualisation": "Vizualizacija",
   "waitingForScale": "Laukiama, kol prietaisas „{detail}“ bus pasvertas. Užlipkite ant svarstyklių, kad išsiųstumėte jos duomenis.",
   "webMode": "Interneto mada",
+  "browserStorageMode": "Žiniatinklis — duomenys šioje naršyklėje",
+  "browserStorageUnavailable": "Šioje naršyklėje išsaugoti nepavyko: saugykla pilna arba nepasiekiama. Anksčiau išsaugoti duomenys išliko.",
   "weighInDetails": "Svėrimo detalės",
   "weighInDiscarded": "Svėrimas ignoruojamas",
   "weighInDisplay": "Svėrimų peržiūra",

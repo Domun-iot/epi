@@ -386,6 +386,8 @@
   "visualisation": "Vizualizáció",
   "waitingForScale": "Várakozás a „{detail}” készülék lemérésére. Lépjen rá a mérlegre az adatok elküldéséhez.",
   "webMode": "Web divat",
+  "browserStorageMode": "Web — adatok ebben a böngészőben",
+  "browserStorageUnavailable": "Nem lehet menteni ebben a böngészőben: a tárhely megtelt vagy nem érhető el. A korábban mentett adatok megmaradtak.",
   "weighInDetails": "Mérési részletek",
   "weighInDiscarded": "A mérlegelés figyelmen kívül hagyása",
   "weighInDisplay": "Mérlegek megtekintése",

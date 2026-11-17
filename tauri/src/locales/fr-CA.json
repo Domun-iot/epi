@@ -386,6 +386,8 @@
   "visualisation": "Visualisation",
   "waitingForScale": "En attente d’une pesée de l’appareil « {detail} ». Montez sur la balance pour envoyer ses données.",
   "webMode": "Mode web",
+  "browserStorageMode": "Web — données dans ce navigateur",
+  "browserStorageUnavailable": "Impossible d’enregistrer dans ce navigateur : stockage plein ou indisponible. Les données déjà enregistrées sont conservées.",
   "weighInDetails": "Détails de la pesée",
   "weighInDiscarded": "Pesée ignorée",
   "weighInDisplay": "Visualisation des pesées",
