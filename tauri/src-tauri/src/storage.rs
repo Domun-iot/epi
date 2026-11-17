@@ -310,34 +310,6 @@ fn read_global_preferences(root: &Path) -> Result<Value, String> {
     })
 }
 
-#[cfg(desktop)]
-pub(crate) fn read_window_preferences(root: &Path) -> Result<Value, String> {
-    Ok(read_global_preferences(root)?["window"].clone())
-}
-
-#[cfg(desktop)]
-pub(crate) fn save_window_preferences(root: &Path, window: Value) -> Result<(), String> {
-    update_global_preferences(root, |global| {
-        if global.get("window") != Some(&window) {
-            let previous = version_time(&Value::Object(global.clone()));
-            global.insert("window".into(), window);
-            let now = chrono::DateTime::<chrono::Utc>::from(std::time::SystemTime::now());
-            let instant = previous
-                .and_then(|time| chrono::DateTime::from_timestamp_millis(time.saturating_add(1)))
-                .filter(|time| *time > now)
-                .unwrap_or(now)
-                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-            let key = if global.contains_key("createdAt") {
-                "updatedAt"
-            } else {
-                "createdAt"
-            };
-            global.insert(key.into(), json!(instant));
-        }
-        Ok(())
-    })
-}
-
 fn update_global_preferences(
     root: &Path,
     update: impl FnOnce(&mut serde_json::Map<String, Value>) -> Result<(), String>,
@@ -1638,12 +1610,19 @@ mod tests {
     #[test]
     fn window_and_session_updates_preserve_each_others_preferences() {
         let directory = tempfile::tempdir().unwrap();
-        let root = directory.path();
-        let legacy = json!({ "selectedProfile": "Alice", "pending": true });
-        json_write(&root.join(LEGACY_PREFS), &legacy, true).unwrap();
+        let installation = directory.path();
+        let old_window = json!({ "position": { "x": 100, "y": 100 } });
+        let legacy = json!({ "selectedProfile": "Alice", "pending": true, "window": old_window });
+        json_write(&installation.join(LEGACY_PREFS), &legacy, true).unwrap();
+        assert_eq!(
+            crate::account_storage::read_window(installation).unwrap(),
+            old_window
+        );
+        let dataset = installation.join("local");
+        let root = dataset.as_path();
 
         let window = json!({ "position": { "x": -300, "y": 100 }, "maximized": true });
-        save_window_preferences(root, window.clone()).unwrap();
+        crate::account_storage::save_window(installation, window.clone()).unwrap();
         assert_eq!(
             read_global_preferences(root).unwrap()["selectedProfile"],
             "Alice"
@@ -1655,7 +1634,10 @@ mod tests {
             "updatedAt": "2099-01-01T00:00:00.000Z",
         });
         save_preferences(root, &session, &legacy).unwrap();
-        assert_eq!(read_window_preferences(root).unwrap(), window);
+        assert_eq!(
+            crate::account_storage::read_window(installation).unwrap(),
+            window
+        );
         assert_eq!(
             read_global_preferences(root).unwrap()["languagePreference"],
             "fr-CA"
@@ -1664,7 +1646,12 @@ mod tests {
         let stale_session = json!({ "selectedProfile": "Bob" });
         save_preferences(root, &stale_session, &legacy).unwrap();
 
-        save_window_preferences(root, json!({ "minimized": true })).unwrap();
+        let minimized = json!({ "minimized": true });
+        crate::account_storage::save_window(installation, minimized.clone()).unwrap();
+        assert_eq!(
+            crate::account_storage::read_window(installation).unwrap(),
+            minimized
+        );
         assert_eq!(
             read_global_preferences(root).unwrap()["selectedProfile"],
             "Bob"
