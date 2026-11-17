@@ -97,7 +97,7 @@ function render(path, page, locale, retention, status, prices) {
     '"><img src="' + base + '/assets/epi.svg" alt="" width="35" height="35">éPI</a>' +
     renderLanguagePicker(path, locale) + '</header>' +
     '<main' + (illustratedPages.has(page) ? '' : ' class="document"') + '>' + content[page]() + '</main>' +
-    '<footer><span>Domun by Logisan</span><nav><a href="' + privacy + '">' + t.privacy +
+    '<footer><span><a href="https://domun.eu/">Domun</a> by <a href="https://logisan.fr/">Logisan</a></span><nav><a href="' + privacy + '">' + t.privacy +
     '</a><a href="' + deletion + '">' + t.deletion + '</a><a href="' + base + '/legal-notice">' + t.legal +
     '</a></nav></footer></body></html>';
 }
