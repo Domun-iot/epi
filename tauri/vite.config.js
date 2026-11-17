@@ -3,7 +3,8 @@ import { build } from 'esbuild';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { createSessionApi, json } from '../web/session-api.js';
+import { json } from '../web/session-api.js';
+import { createLocalApi } from '../web/local-api.js';
 import { accountApi } from '../web/account-api.js';
 
 const appPath = import.meta.url;
@@ -71,18 +72,17 @@ function webSessionApi() {
         sessionApi = undefined;
       });
       // Let Vite listen and open the browser before reading the data directory.
-      server.middlewares.use('/api/session', async (request, response, next) => {
+      server.middlewares.use(async (request, response, next) => {
+        const pathname = request.url?.split('?')[0];
+        if (!['/api/session', '/api/installation'].includes(pathname)) return next();
         try {
           if (!sessionApi) {
             const domain = require('./domain/session.cjs');
             const storage = require('../shared/data-directory.cjs');
             const transactions = require('../shared/transactions.cjs');
-            const loading = createSessionApi({ root, domain, storage, transactions });
-            sessionApi = loading;
-            loading.catch(() => { if (sessionApi === loading) sessionApi = undefined; });
+            sessionApi = createLocalApi({ root, domain, storage, transactions });
           }
-          const { handleAction } = await sessionApi;
-          await handleAction(request, response);
+          await sessionApi.handle(request, response, pathname);
         } catch (error) {
           if (response.headersSent) return next(error);
           server.config.logger.error(error.stack ?? String(error));

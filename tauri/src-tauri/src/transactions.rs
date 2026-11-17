@@ -6,7 +6,7 @@ use chrono::{DateTime, SecondsFormat, Utc};
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs,
     io::ErrorKind,
     path::{Path, PathBuf},
@@ -96,16 +96,33 @@ fn read_pending(root: &Path) -> Result<Vec<PendingTransaction>, String> {
 }
 
 #[tauri::command]
-pub async fn pending_transactions(app: AppHandle) -> Result<Vec<PendingTransaction>, String> {
-    tauri::async_runtime::spawn_blocking(move || read_pending(&crate::storage::data_root(&app)?))
-        .await
-        .map_err(message)?
+pub async fn pending_transactions(
+    app: AppHandle,
+    dataset_id: Option<String>,
+    dataset_generation: Option<u64>,
+) -> Result<Vec<PendingTransaction>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = crate::account_storage::lock_for_app(&app)?;
+        read_pending(&crate::storage::data_root_for(
+            &app,
+            dataset_id.as_deref(),
+            dataset_generation,
+        )?)
+    })
+    .await
+    .map_err(message)?
 }
 
 #[tauri::command]
-pub async fn archive_transactions(app: AppHandle, names: Vec<String>) -> Result<(), String> {
+pub async fn archive_transactions(
+    app: AppHandle,
+    names: Vec<String>,
+    dataset_id: Option<String>,
+    dataset_generation: Option<u64>,
+) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let root = crate::storage::data_root(&app)?;
+        let _guard = crate::account_storage::lock_for_app(&app)?;
+        let root = crate::storage::data_root_for(&app, dataset_id.as_deref(), dataset_generation)?;
         let pending = root.join("transactions");
         let sent = root.join("transactions.sent");
         check_directory(&pending)?;
@@ -136,8 +153,8 @@ pub async fn archive_transactions(app: AppHandle, names: Vec<String>) -> Result<
 
 #[derive(Serialize)]
 pub struct IntegratedTransactions {
-    uuids: Vec<Uuid>,
-    changed: bool,
+    pub(crate) uuids: Vec<Uuid>,
+    pub(crate) changed: bool,
 }
 
 fn local_ids(root: &Path) -> Result<HashSet<Uuid>, String> {
@@ -170,10 +187,71 @@ struct FileChange {
     after: Option<Vec<u8>>,
 }
 
+fn transaction_time(name: &str) -> Option<i64> {
+    name.get(..27)
+        .and_then(|stamp| {
+            chrono::NaiveDateTime::parse_from_str(stamp, "%Y-%m-%dT%H-%M-%S%.fZ").ok()
+        })
+        .map(|stamp| stamp.and_utc().timestamp_millis())
+}
+fn remember_deletes(tombstones: &mut HashMap<String, i64>, value: &Value, name: &str) {
+    let Some(time) = transaction_time(name) else {
+        return;
+    };
+    let kind = value["type"].as_str();
+    let mut remember = |path: &str| {
+        let current = tombstones.entry(path.to_lowercase()).or_insert(time);
+        *current = (*current).max(time);
+    };
+    if kind == Some("batch") {
+        if let Some(rows) = value["data"].as_array() {
+            for row in rows {
+                if row["type"] == "delete" {
+                    if let Some(path) = row["path"].as_str() {
+                        remember(path);
+                    }
+                }
+            }
+        }
+    } else if kind == Some("delete") {
+        if let Some(path) = value["data"]["path"].as_str() {
+            remember(path);
+        }
+    }
+}
+fn transaction_tombstones(root: &Path) -> Result<HashMap<String, i64>, String> {
+    let mut tombstones = HashMap::new();
+    for folder in ["transactions", "transactions.sent"] {
+        let directory = root.join(folder);
+        check_directory(&directory)?;
+        let entries = match fs::read_dir(&directory) {
+            Ok(entries) => entries,
+            Err(e) if e.kind() == ErrorKind::NotFound => continue,
+            Err(e) => return Err(message(e)),
+        };
+        for entry in entries {
+            let entry = entry.map_err(message)?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !entry.file_type().map_err(message)?.is_file() || filename_uuid(&name).is_none() {
+                continue;
+            }
+            let value: Value = serde_json::from_str(
+                fs::read_to_string(entry.path())
+                    .map_err(message)?
+                    .trim_start_matches('\u{feff}'),
+            )
+            .map_err(message)?;
+            remember_deletes(&mut tombstones, &value, &name);
+        }
+    }
+    Ok(tombstones)
+}
+
 fn transaction_changes(
     root: &Path,
     transaction: &Value,
     name: &str,
+    tombstones: &HashMap<String, i64>,
 ) -> Result<Vec<FileChange>, String> {
     let invalid = || "epi-i18n:diagnostic.invalidDataPath".to_owned();
     let kind = transaction["type"].as_str().ok_or_else(invalid)?;
@@ -220,6 +298,16 @@ fn transaction_changes(
                 _ => return Err(invalid()),
             };
             let before = read_bytes(&path)?;
+            if before.is_none() && after.is_some() {
+                let candidate =
+                    version_time(&operation["value"]).or_else(|| transaction_time(name));
+                if tombstones
+                    .get(&relative.to_lowercase())
+                    .is_some_and(|deleted| candidate.is_none_or(|time| time <= *deleted))
+                {
+                    after = None;
+                }
+            }
             if let Some(bytes) = &before {
                 let text = std::str::from_utf8(bytes).map_err(message)?;
                 let current: Value =
@@ -259,6 +347,7 @@ fn apply_received(
     uuid: Uuid,
     name: &str,
     transaction: &Value,
+    tombstones: &HashMap<String, i64>,
 ) -> Result<bool, String> {
     let mut archive = transaction.clone();
     archive
@@ -268,7 +357,7 @@ fn apply_received(
     let mut bytes = serde_json::to_vec_pretty(&archive).map_err(message)?;
     bytes.push(b'\n');
     let destination = root.join("transactions.sent").join(name);
-    let mut changes = transaction_changes(root, transaction, name)?;
+    let mut changes = transaction_changes(root, transaction, name, tombstones)?;
     let changed = changes.iter().any(|change| change.before != change.after);
     changes.push(FileChange {
         path: destination,
@@ -306,8 +395,9 @@ fn apply_received(
     result.map(|()| changed)
 }
 
-fn integrate(root: &Path, rows: Vec<Value>) -> Result<IntegratedTransactions, String> {
+pub(crate) fn integrate(root: &Path, rows: Vec<Value>) -> Result<IntegratedTransactions, String> {
     let mut ids = local_ids(root)?;
+    let mut tombstones = transaction_tombstones(root)?;
     let mut acknowledged = HashSet::new();
     let mut result = IntegratedTransactions {
         uuids: Vec::new(),
@@ -328,10 +418,11 @@ fn integrate(root: &Path, rows: Vec<Value>) -> Result<IntegratedTransactions, St
             else {
                 continue;
             };
-            let Ok(changed) = apply_received(root, uuid, name, &transaction) else {
+            let Ok(changed) = apply_received(root, uuid, name, &transaction, &tombstones) else {
                 continue;
             };
             ids.insert(uuid);
+            remember_deletes(&mut tombstones, &transaction, name);
             result.changed |= changed;
         }
         if acknowledged.insert(uuid) {
@@ -345,9 +436,15 @@ fn integrate(root: &Path, rows: Vec<Value>) -> Result<IntegratedTransactions, St
 pub async fn integrate_transactions(
     app: AppHandle,
     transactions: Vec<Value>,
+    dataset_id: Option<String>,
+    dataset_generation: Option<u64>,
 ) -> Result<IntegratedTransactions, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        integrate(&crate::storage::data_root(&app)?, transactions)
+        let _guard = crate::account_storage::lock_for_app(&app)?;
+        integrate(
+            &crate::storage::data_root_for(&app, dataset_id.as_deref(), dataset_generation)?,
+            transactions,
+        )
     })
     .await
     .map_err(message)?

@@ -26,7 +26,8 @@ const record = { receivedAt: '2026-01-15T17:23:21Z', profile: { name: 'Alice' },
   measures: { weight: 70, unit: 'kg', impedanceOhms: 475 },
   calculations: { IMC: { bmi: 25.7 }, Mi: { fatPercent: 31.8 }, Deu: { fatPercent: 33.1 } },
 };
-const paid = { paid: true, paidUntil: '2099-01-01T00:00:00.000Z' };
+const accountId = '00000000-0000-4000-8000-00000000000a';
+const paid = { accountId, paid: true, paidUntil: '2099-01-01T00:00:00.000Z' };
 const frame = 'AABBCCDDEEFF -58 181B 0226e40709060d2605e9015a37 ConnectableUndirected TUlCRlM=';
 const metadata = 'META AABBCCDDEEFF TUlCRlM= 0157';
 
@@ -52,8 +53,17 @@ async function dismissNotificationBanner(page) {
 async function pageWith(t, snapshot, options = {}, mode, setup) {
   const page = await browser.newPage({ locale: 'fr-FR', ...options });
   page.setDefaultTimeout(10000);
+  let installation = { activeAccountId: null, accountModeEnabled: false, locked: false,
+    datasetId: 'local', syncReady: true, localSummary: { count: 0, from: null, to: null, hasData: false } };
   await page.route(url + '**', async route => {
     const path = new URL(route.request().url()).pathname;
+    if (mode === 'web' && path === '/api/installation') {
+      const { action, args = [] } = route.request().postDataJSON();
+      if (action === 'prepare') return route.fulfill({json:{...installation,accountExists:true}});
+      if (action === 'activate') installation = {...installation,activeAccountId:args[0],datasetId:args[0],accountModeEnabled:true,locked:false};
+      if (action === 'logout') installation = {...installation,activeAccountId:null,datasetId:null,accountModeEnabled:true,locked:true};
+      return route.fulfill({json:installation});
+    }
     if (mode === 'web' && path === '/api/session') {
       if (typeof snapshot === 'function') return snapshot(route);
       const { action } = route.request().postDataJSON();
@@ -75,7 +85,8 @@ async function pageWith(t, snapshot, options = {}, mode, setup) {
     await page.addInitScript(state => {
       sessionStorage.seeded ??= '';
       if (!sessionStorage.seeded) {
-        localStorage.setItem('epi-session-v1', JSON.stringify(state));
+        localStorage.setItem('epi-session-v1:00000000-0000-4000-8000-00000000000a', JSON.stringify(state));
+        localStorage.setItem('epi-installation-v1',JSON.stringify({activeAccountId:'00000000-0000-4000-8000-00000000000a',accountModeEnabled:true}));
         localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({ email: 'pro@example.org', token: 'pro-token' }));
         sessionStorage.seeded = 'yes';
       }
@@ -112,7 +123,8 @@ test('loads the French catalogue in Vite dev and falls back to English on failur
         return route.fulfill({ body: module.code, contentType: 'application/javascript' });
       });
       await page.goto(url);
-      await page.getByRole('button', { name: label, exact: true }).waitFor({ timeout: 10000 });
+      // Vite's first development transform can initialize dependency scanning.
+      await page.getByRole('button', { name: label, exact: true }).waitFor({ timeout: 30000 });
       assert.equal(await page.locator('html').getAttribute('lang'), language);
     } finally {
       await page.context().close();
@@ -177,7 +189,7 @@ test('crée un compte avec Google et le délie dans éPI en confirmant le nouvea
   const page = await pageWith(t);
   const calls = [];
   const callback = 'https://accounts.google.com/o/oauth2/v2/auth?state=test';
-  const details = { email: 'alice@example.org', googleLinked: true, hasPassword: false, googleAvailable: true };
+  const details = { accountId, email: 'alice@example.org', googleLinked: true, hasPassword: false, googleAvailable: true };
   await page.context().route(callback, route => route.fulfill({ body: 'Google', contentType: 'text/html' }));
   await page.route('https://sync.epi.test/v1/**', route => {
     const path = new URL(route.request().url()).pathname;
@@ -371,7 +383,7 @@ test('the web account dialog shows PRO and switches to FREE when it expires', as
       }));
     });
     await page.route('https://sync.epi.test/v1/account', route => route.fulfill({ json: {
-      email: 'alice@example.org', paid: true, paidUntil,
+      accountId, email: 'alice@example.org', paid: true, paidUntil,
     } }));
     await page.route('https://sync.epi.test/v1/transactions/pending', route => route.fulfill({ json: { transactions: [] } }));
   });
@@ -586,7 +598,7 @@ test('web ZIP and saved views follow FREE, PRO, expiry, renewal and sign-out', a
       }));
     });
     await page.route('https://sync.epi.test/v1/account', route => route.fulfill({ json: {
-      email: 'alice@example.org', paid: time < expires, paidUntil: new Date(expires).toISOString(),
+      accountId, email: 'alice@example.org', paid: time < expires, paidUntil: new Date(expires).toISOString(),
     } }));
     await page.route('https://sync.epi.test/v1/transactions/pending', route => route.fulfill({ json: { transactions: [] } }));
     await page.route('https://sync.epi.test/v1/device-tokens', route => route.fulfill({ status: 204 }));
@@ -622,6 +634,7 @@ test('web ZIP and saved views follow FREE, PRO, expiry, renewal and sign-out', a
   await picker.getByText('Mesures PRO', { exact: true }).waitFor();
   pageAccount = false;
   await page.getByRole('button', { name: 'Se déconnecter', exact: true }).click();
+  await page.locator('#account-fields').waitFor();
   await zip.waitFor({ state: 'hidden' });
   assert.equal(await importZip.isVisible(), false);
   assert.equal(await picker.count(), 0);
@@ -643,6 +656,12 @@ test('hides native ZIP and named views while FREE and enables them when PRO retu
       window.__TAURI_INTERNALS__ = {
         transformCallback: () => 1,
         invoke: async (cmd, args) => {
+          const accountId = '00000000-0000-4000-8000-00000000000a';
+          const context = {activeAccountId:accountId,accountModeEnabled:true,locked:false,datasetId:accountId,syncReady:true,
+            localSummary:{count:0,from:null,to:null,hasData:false}};
+          if (cmd === 'get_dataset_context' || cmd === 'activate_account_dataset') return context;
+          if (cmd === 'prepare_account_dataset') return {...context,accountExists:true};
+          if (cmd === 'logout_dataset') return {...context,activeAccountId:null,datasetId:null,locked:true};
           if (cmd === 'load_session') return saved;
           if (cmd === 'save_session') { saved = args.session; return false; }
           if (cmd === 'pending_transactions') return [];
@@ -653,7 +672,7 @@ test('hides native ZIP and named views while FREE and enables them when PRO retu
       localStorage.setItem('epi-account:https://sync.epi.test', JSON.stringify({ email: 'alice@example.org', token: 'test-token' }));
     }, snapshot);
     await page.route('https://sync.epi.test/v1/account', route => route.fulfill({ json: {
-      email: 'alice@example.org', paid: Boolean(expires), paidUntil: expires ?? null,
+      accountId, email: 'alice@example.org', paid: Boolean(expires), paidUntil: expires ?? null,
     } }));
     await page.route('https://sync.epi.test/v1/transactions/pending', route => {
       downloads += 1;
@@ -723,7 +742,7 @@ test('rechecks the saved account from its button and every minute', async t => {
       checks++;
       return offline
         ? route.abort('connectionrefused')
-        : route.fulfill({ json: { email: 'alice@example.org' } });
+        : route.fulfill({ json: { accountId, email: 'alice@example.org' } });
     });
   });
   await page.waitForFunction(() => document.querySelector('#account-button').title === 'Compte déconnecté');
@@ -794,7 +813,7 @@ test('opens the sign-in form when the saved token has expired', async t => {
   await button.click();
   const dialog = page.getByRole('dialog', { name: 'Connexion' });
   await dialog.getByText('Ta session a expiré. Reconnecte-toi.').waitFor();
-  assert.equal(await dialog.locator('button:last-child').innerText(), 'Fermer');
+  assert.equal(await dialog.locator('#account-close').innerText(), 'Fermer');
   assert.equal(await dialog.locator('button.primary').innerText(), 'Se connecter');
   assert.ok(await dialog.getByRole('button', { name: 'Créer un compte', exact: true }).isVisible());
   await page.clock.runFor(60_000);
@@ -1178,7 +1197,8 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   assert.equal((await title.textContent()).trim(), 'Détails de la pesée');
   assert.equal(await saveButton.count(), 0);
   const sections = page.locator('[data-detail-section] > summary');
-  await sections.last().dragTo(sections.first());
+  const deviceSection = sections.filter({ hasText: 'Fiche de la balance à la pesée' });
+  await deviceSection.dragTo(sections.first());
   assert.equal((await title.textContent()).trim(), 'Détails de la pesée *');
   await save('Compact');
   await title.click();
@@ -1186,7 +1206,6 @@ test('les configurations de vue sont partagées et leur sélection persiste par 
   assert.equal((await title.textContent()).trim(), 'Détails de la pesée');
   await title.click();
   await options.getByRole('button', { name: 'Compact', exact: true }).click();
-  const deviceSection = sections.filter({ hasText: 'Fiche de la balance à la pesée' });
   assert.equal(await sections.first().textContent(), 'Fiche de la balance à la pesée');
   await deviceSection.dragTo(sections.last());
   assert.equal((await title.textContent()).trim(), 'Compact *');
@@ -1304,7 +1323,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   const sectionOrder = () => sectionHeaders.evaluateAll(nodes => nodes.map(node => node.parentElement.dataset.detailSection));
   await sectionHeaders.filter({ hasText: 'Fiche de la balance à la pesée' })
     .dragTo(sectionHeaders.filter({ hasText: 'Méthodes de calcul' }));
-  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
+  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile', 'extra:createdAt']);
   assert.equal(await legend.first().isVisible(), true);
   const fatRow = comparison.getByRole('row').filter({ hasText: 'Masse grasse (%)' });
   assert.equal(await fatRow.getByRole('cell').first().textContent(), '32,5');
@@ -1332,7 +1351,7 @@ test('sélection et mise à jour du profil, persistance des colonnes et comparai
   await table.getByRole('columnheader', { name: 'Deu', exact: true }).waitFor();
   await table.getByRole('button', { name: /^Voir la pesée du/ }).click();
   assert.deepEqual(await methodHeaders.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['Deu', 'IMC', 'Mi']);
-  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
+  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile', 'extra:createdAt']);
   await page.getByRole('button', { name: 'Retour' }).click();
   assert.deepEqual(await columnOrder(), ['date', 'fatPercent', 'weight', 'bmi']);
   assert.equal(await table.getByRole('columnheader', { name: 'Impédance (Ω)', exact: true }).count(), 0);
@@ -1531,7 +1550,7 @@ test('le plein écran du graphique reste temporaire', async t => {
   const reference = chart.locator('.chart-bmi-reference');
   await reference.waitFor();
   const fullscreen = chart.getByRole('button', { name: 'Plein écran', exact: true });
-  const stored = () => page.evaluate(() => localStorage.getItem('epi-session-v1'));
+  const stored = () => page.evaluate(() => localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a'));
   const before = await stored();
 
   await fullscreen.click();
@@ -1861,14 +1880,14 @@ test('le toucher réordonne l’historique, les méthodes et les sections du dé
   await section('methods').click();
   await touchDrag(client, section('device'), section('methods'));
   const sectionOrder = () => page.locator('[data-detail-section]').evaluateAll(nodes => nodes.map(node => node.dataset.detailSection));
-  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
+  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile', 'extra:createdAt']);
   assert.equal(await section('device').evaluate(summary => summary.parentElement.open), false);
   await section('device').click();
   assert.equal(await section('device').evaluate(summary => summary.parentElement.open), true);
   await page.reload();
   await openReading.tap();
   assert.deepEqual(await headers.evaluateAll(nodes => nodes.map(node => node.dataset.dragColumn)), ['Deu', 'IMC', 'Mi']);
-  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile']);
+  assert.deepEqual(await sectionOrder(), ['device', 'methods', 'measures', 'profile', 'extra:createdAt']);
 });
 
 test('les volets du flux brut et des détails sont mémorisés par profil', async t => {
@@ -1882,7 +1901,7 @@ test('les volets du flux brut et des détails sont mémorisés par profil', asyn
   const weighedProfile = page.locator('details[data-detail-section="profile"]');
   await choosePage(page, 'Appareils');
   await raw.locator('summary').click();
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('epi-session-v1')).profilePreferences?.Alice?.rawOpen === true);
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a')).profilePreferences?.Alice?.rawOpen === true);
   await profile.selectOption('Bob');
   await raw.and(page.locator('[open]')).waitFor({ state: 'hidden' });
   await profile.selectOption('Alice');
@@ -1892,7 +1911,7 @@ test('les volets du flux brut et des détails sont mémorisés par profil', asyn
   await details.click();
   await measures.locator('summary').click();
   await weighedProfile.locator('summary').click();
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('epi-session-v1')).profilePreferences?.Alice?.detailSectionsOpen?.profile === false);
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a')).profilePreferences?.Alice?.detailSectionsOpen?.profile === false);
   await profile.selectOption('Bob');
   await details.click();
   assert.equal(await measures.getAttribute('open'), null);
@@ -2005,7 +2024,7 @@ test('une trame reçue pendant la saisie prépare l’enregistrement de la balan
   await editor.getByText('XMTZC05HM', { exact: true }).waitFor();
   assert.equal(await name.inputValue(), 'Balance en cours');
   assert.equal(await name.evaluate(input => input === document.activeElement), true);
-  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1')).devices.length), 0);
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a')).devices.length), 0);
   await name.fill('Balance capturée');
   await save.click();
   await editor.waitFor({ state: 'hidden' });
@@ -2025,7 +2044,7 @@ test('les suppressions demandent confirmation et persistent après rechargement'
   const dialog = page.getByRole('dialog');
   const confirm = () => dialog.getByRole('button', { name: 'Supprimer', exact: true }).click();
   const cancel = () => dialog.getByRole('button', { name: 'Annuler' }).click();
-  const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1')));
+  const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a')));
   const notices = page.locator('#notices');
 
   const initial = await stored();
@@ -2651,7 +2670,7 @@ test('the account dialog keeps the interface language across sign-in and sign-ou
     if (route.request().method() === 'DELETE') return route.fulfill({ status: 204 });
     const responses = {
       '/v1/device-tokens': { token: 'device-token', locale: 'de', googleLocale: 'it' },
-      '/v1/account': { email: 'user@example.org', locale: 'de' },
+      '/v1/account': { accountId, email: 'user@example.org', locale: 'de' },
       '/v1/transactions/pending': { transactions: [], next: null },
     };
     return route.fulfill({ json: responses[path] });
@@ -2682,7 +2701,8 @@ test('the account dialog keeps the interface language across sign-in and sign-ou
   await dialog.locator('[name=email]').waitFor();
   await page.reload();
   await page.locator('html[lang="fr-FR"]').waitFor({ state: 'attached' });
-  await page.getByRole('button', { name: 'Compte', exact: true }).click();
+  await dialog.waitFor();
+  assert.equal(await page.locator('.shell').isVisible(), false);
   assert.equal(await language.inputValue(), 'fr-FR');
 });
 
@@ -2696,7 +2716,7 @@ test('account registration suggests the detected language and saves Canadian Fre
       '/v1/google/config': { enabled: false },
       '/v1/accounts': { email: 'user@example.org' },
       '/v1/device-tokens': { token: 'device-token', locale: 'fr-CA', googleLocale: 'de' },
-      '/v1/account': { email: 'user@example.org', locale: 'fr-CA', googleAvailable: false },
+      '/v1/account': { accountId, email: 'user@example.org', locale: 'fr-CA', googleAvailable: false },
     };
     return route.fulfill({ json: responses[path], headers: { 'Access-Control-Allow-Origin': '*' } });
   });
@@ -2717,4 +2737,124 @@ test('account registration suggests the detected language and saves Canadian Fre
   await page.getByRole('button', { name: 'Compte', exact: true }).click();
   await page.getByText('user@example.org', { exact: true }).waitFor();
   assert.equal(requests[0].locale, 'fr-CA');
+});
+
+
+test('account switching clears private banners, open details and Bluetooth history', async t => {
+  const otherId = '00000000-0000-4000-8000-00000000000b';
+  const snapshot = {profiles:[alice],selectedProfile:'Alice',devices:[device],measurements:[record]};
+  const page = await pageWith(t,snapshot,{},undefined,async page => {
+    await page.clock.install();
+    await page.route('https://sync.epi.test/v1/account',route => route.fulfill({json:
+      route.request().headers().authorization === 'Bearer bob-token'
+        ? {accountId:otherId,email:'bob@example.org',paid:false,paidUntil:null}
+        : {accountId,email:'pro@example.org',...paid}}));
+    await page.route('https://sync.epi.test/v1/device-tokens',route => route.request().method() === 'DELETE'
+      ? route.fulfill({status:204}) : route.fulfill({json:{accountId:otherId,email:'bob@example.org',token:'bob-token',paid:false,paidUntil:null}}));
+  });
+  await page.evaluate(id => localStorage.setItem('epi-bluetooth-log-v1:' + id,JSON.stringify([
+    {at:Date.now(),address:'AA:BB:CC:DD:EE:FF',text:'Alice private Bluetooth history'}])),accountId);
+  await page.getByRole('link',{name:'Mode simulation',exact:true}).click();
+  await page.locator('#bluetooth-log').getByText('Alice private Bluetooth history',{exact:false}).waitFor();
+  await choosePage(page,'Mesures');
+  await page.locator('#profile-icon').click();
+  await page.locator('#editor-view').getByLabel('Taille (cm)').fill('166');
+  await page.locator('#editor-actions').getByRole('button',{name:'Enregistrer',exact:true}).click();
+  await page.locator('#editor-view').waitFor({state:'hidden'});
+  await page.locator('#notices .notification-summary').getByText('Profil enregistré',{exact:true}).waitFor();
+  await page.getByRole('button',{name:/Voir la pesée du/}).first().click();
+  await page.locator('.measurement-details').waitFor();
+  // Leave the old dismissal animation pending across the account switch.
+  await page.locator('#notices [data-action="dismiss-banner"]').click();
+  await page.locator('#account-button').click();
+  await page.locator('#account-submit').click();
+  await page.locator('#account-fields').waitFor();
+  await page.locator('#account-form [name=email]').fill('bob@example.org');
+  await page.locator('#account-form [name=password]').fill('password');
+  await page.locator('#account-submit').click();
+  await page.locator('#account-email').getByText('bob@example.org',{exact:true}).waitFor();
+  await page.locator('#account-close').click();
+  assert.equal(await page.locator('#notices').innerText(),'');
+  assert.equal(await page.locator('.measurement-details').count(),0);
+  assert.equal(await page.locator('#editor-view').innerText(),'');
+  assert.equal(await page.getByText('Alice',{exact:true}).count(),0);
+  await page.getByRole('link',{name:'Mode simulation',exact:true}).click();
+  assert.equal(await page.locator('#bluetooth-log').innerText(),'');
+  assert.equal(await page.evaluate(id => localStorage.getItem('epi-bluetooth-log-v1:' + id),otherId),null);
+  assert.match(await page.evaluate(id => localStorage.getItem('epi-bluetooth-log-v1:' + id),accountId),/Alice private/);
+  await choosePage(page,'Mesures');
+  await page.locator('#profile-icon').click();
+  const form=page.locator('#editor-view');
+  await form.getByLabel('Nom',{exact:true}).fill('Bob');
+  await form.getByLabel('Sexe utilisé par les formules').selectOption('H');
+  await form.getByLabel('Date de naissance',{exact:true}).fill('1990-01-01');
+  await form.getByLabel('Taille (cm)').fill('180');
+  await page.locator('#editor-actions').getByRole('button',{name:'Enregistrer',exact:true}).click();
+  await page.locator('#notices .notification-summary').getByText('Profil enregistré',{exact:true}).waitFor();
+  await page.clock.runFor(200);
+  await page.locator('#notices .notification-summary').getByText('Profil enregistré',{exact:true}).waitFor();
+});
+
+test('an old native form completion cannot select or save a profile in the next account', async t => {
+  const otherId = '00000000-0000-4000-8000-00000000000b';
+  const page = await pageWith(t,undefined,{},undefined,async page => {
+    await page.addInitScript(({accountId,otherId,paid}) => {
+      window.isTauri=true;
+      const states = {[accountId]:{profiles:[],devices:[],measurements:[],pending:[],notifications:[]},
+        [otherId]:{profiles:[],devices:[],measurements:[],pending:[],notifications:[]}};
+      let active=accountId;
+      window.saves=[];
+      window.releaseOldSave=undefined;
+      const context=()=>({activeAccountId:active,datasetId:active,accountModeEnabled:true,locked:!active,
+        syncReady:true,localSummary:{count:0,from:null,to:null,hasData:false}});
+      window.__TAURI_INTERNALS__={transformCallback:()=>1,invoke:async(cmd,args)=>{
+        if(cmd==='get_dataset_context')return context();
+        if(cmd==='prepare_account_dataset')return {...context(),accountExists:true,syncReady:true};
+        if(cmd==='activate_account_dataset'){active=args.accountId;return context();}
+        if(cmd==='logout_dataset'){active=null;return context();}
+        if(cmd==='load_session')return structuredClone(states[args.datasetId]);
+        if(cmd==='save_session'){
+          window.saves.push({datasetId:args.datasetId,state:structuredClone(args.session)});
+          if(args.datasetId===accountId && !window.oldSaveHeld){
+            window.oldSaveHeld=true;
+            await new Promise(resolve=>{window.releaseOldSave=resolve;});
+          }
+          states[args.datasetId]=structuredClone(args.session);
+          return true;
+        }
+        if(cmd==='pending_transactions')return [];
+        if(cmd==='plugin:event|listen')return 1;
+      }};
+      localStorage.setItem('epi-account:https://sync.epi.test',JSON.stringify({accountId,email:'alice@example.org',token:'alice-token',info:{accountId,email:'alice@example.org',...paid}}));
+    },{accountId,otherId,paid});
+    await page.route('https://sync.epi.test/v1/account',route=>route.fulfill({json:
+      route.request().headers().authorization==='Bearer bob-token'
+        ?{accountId:otherId,email:'bob@example.org',paid:false,paidUntil:null}
+        :{accountId,email:'alice@example.org',...paid}}));
+    await page.route('https://sync.epi.test/v1/transactions/pending',route=>route.fulfill({json:{transactions:[],next:null}}));
+    await page.route('https://sync.epi.test/v1/device-tokens',route=>route.request().method()==='DELETE'
+      ?route.fulfill({status:204}):route.fulfill({json:{accountId:otherId,email:'bob@example.org',token:'bob-token',paid:false,paidUntil:null}}));
+  });
+  await page.locator('#profile-icon').click();
+  const form=page.locator('#editor-view');
+  await form.getByLabel('Nom',{exact:true}).fill('Alice private');
+  await form.getByLabel('Sexe utilisé par les formules').selectOption('F');
+  await form.getByLabel('Date de naissance',{exact:true}).fill('1990-01-01');
+  await form.getByLabel('Taille (cm)').fill('165');
+  await page.locator('#editor-actions').getByRole('button',{name:'Enregistrer',exact:true}).click();
+  await page.waitForFunction(()=>Boolean(window.releaseOldSave));
+  await page.locator('#account-button').click();
+  await page.locator('#account-submit').click();
+  await page.locator('#account-fields').waitFor();
+  await page.locator('#account-form [name=email]').fill('bob@example.org');
+  await page.locator('#account-form [name=password]').fill('password');
+  await page.locator('#account-submit').click();
+  await page.locator('#account-email').getByText('bob@example.org',{exact:true}).waitFor();
+  await page.locator('#account-close').click();
+  await page.evaluate(()=>window.releaseOldSave());
+  await page.waitForTimeout(50);
+  assert.equal(await page.locator('#notices').innerText(),'');
+  assert.equal(await page.locator('#editor-view').innerText(),'');
+  assert.equal(await page.getByText('Alice private',{exact:true}).count(),0);
+  assert.equal(await page.evaluate(id=>window.saves.filter(save=>save.datasetId===id).length,otherId),0);
 });

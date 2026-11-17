@@ -407,5 +407,18 @@
   "yes": "Oui",
   "zipArchive": "Archive ZIP",
   "zipExported": "Archive ZIP exportée.",
-  "zipWithoutEpiData": "Le ZIP ne contient aucune donnée éPI."
+  "zipWithoutEpiData": "Le ZIP ne contient aucune donnée éPI.",
+  "accountDataCount": "{count} pesées",
+  "accountDataDescription": "Ce compte contient déjà des données en ligne. Choisissez comment les associer aux données présentes sur cet appareil.",
+  "accountDataEmpty": "Aucune pesée",
+  "accountDataLocal": "Sur cet appareil",
+  "accountDataMerge": "Fusionner les deux jeux",
+  "accountDataPeriod": "Du {from} au {to}",
+  "accountDataRecovery": "Une copie de récupération des données locales sera conservée.",
+  "accountDataRemote": "Dans ce compte",
+  "accountDataTitle": "Choisir les données à utiliser",
+  "accountDataUnknownDates": "Dates indisponibles",
+  "accountDataUseRemote": "Utiliser les données en ligne",
+  "hostedAccountRequired": "Connectez-vous pour accéder à vos données privées hébergées sur ce serveur.",
+  "localAccountRequired": "Connectez-vous pour ouvrir les données locales d’un compte. Elles restent enregistrées sur cet appareil."
 }

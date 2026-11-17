@@ -6,7 +6,7 @@ const { relative } = require('node:path');
 const { readOptional, saveChanges, serialize } = require('../shared/transactions.cjs');
 const { listProfileFiles } = require('../cli/record-files.cjs');
 const { listDevices, registerDevice } = require('../cli/devices.cjs');
-const { dataDirectory, initializeDataDirectory, profileDirectory, readMeasurements, writeMeasurement } = require('../cli/storage.cjs');
+const { dataDirectory, initializeDataDirectory, profileDirectory, readMeasurements, writeMeasurement, withActiveDataset } = require('../cli/storage.cjs');
 const { historyRecord } = require('../shared/history.cjs');
 const { nameKey } = require('../shared/profile-fields.cjs');
 
@@ -115,7 +115,7 @@ function main() {
 }
 
 try {
-  main();
+  withActiveDataset(main);
 } catch (error) {
   console.error(error.message);
   process.exitCode = 1;

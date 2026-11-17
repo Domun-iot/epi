@@ -102,6 +102,7 @@
         <a id="account-plan-free" class="account-plan" href="https://domun.eu/epi/pro" data-account-public-page data-i18n="compareAccountPlans" target="_blank" rel="noopener noreferrer" hidden></a>
         <a id="account-plan-pro" class="account-plan" href="https://domun.eu/account" data-account-public-page data-i18n="manageAccount" target="_blank" rel="noopener noreferrer" hidden></a>
       </div>
+      <p id="account-access-notice" class="notice" role="status" hidden></p>
       <form id="account-form" class="editor-form">
         <div id="account-fields" class="editor-form">
           <label><span data-i18n="emailAddress"></span> <input name="email" type="email" autocomplete="username" maxlength="254" required></label>
@@ -136,6 +137,28 @@
           <button type="button" class="button" id="account-close" data-i18n="close"></button>
         </div>
       </div>
+    </dialog>
+    <dialog id="account-data-dialog" aria-labelledby="account-data-title" aria-describedby="account-data-description account-data-recovery">
+      <h2 id="account-data-title" data-i18n="accountDataTitle"></h2>
+      <p id="account-data-description" data-i18n="accountDataDescription"></p>
+      <div class="account-data-summary">
+        <section aria-labelledby="account-data-local-title">
+          <h3 id="account-data-local-title" data-i18n="accountDataLocal"></h3>
+          <p id="account-data-local-count"></p>
+          <p id="account-data-local-period"></p>
+        </section>
+        <section aria-labelledby="account-data-remote-title">
+          <h3 id="account-data-remote-title" data-i18n="accountDataRemote"></h3>
+          <p id="account-data-remote-count"></p>
+          <p id="account-data-remote-period"></p>
+        </section>
+      </div>
+      <p id="account-data-recovery" class="muted" data-i18n="accountDataRecovery"></p>
+      <form method="dialog" class="actions account-data-actions">
+        <button class="button" value="cancel" data-i18n="cancel"></button>
+        <button class="button" value="remote" data-i18n="accountDataUseRemote"></button>
+        <button class="button primary" value="merge" data-i18n="accountDataMerge"></button>
+      </form>
     </dialog>
     <script type="module" src="/src/bootstrap.js"></script>
   </body>

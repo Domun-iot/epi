@@ -12,10 +12,11 @@ const { normalizeName, deviceFileKey, parseDeviceMetadata, mergeDeviceMetadata, 
 const devicePaths = new WeakMap();
 const services = require('../shared/bluetooth-services.json');
 
-const { dataDirectory } = require('./storage.cjs');
+const { dataDirectory, assertActiveDataset, withActiveDataset } = require('./storage.cjs');
 const directory = join(dataDirectory, 'devices');
 
 function listDevices(root = directory) {
+  if (root === directory) assertActiveDataset();
   return listRecordFiles(root, /\.json$/u, (record, file) => {
     if (!record.name || !/^([A-F0-9]{2}:){5}[A-F0-9]{2}$|^[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}$/i.test(record.bluetooth?.address)) {
       throw Error('Fiche appareil invalide : ' + file);
@@ -75,9 +76,10 @@ function updateDeviceMetadata(record, metadata) {
     const { file, contents } = source;
     const root = dirname(file);
     const after = serialize(updated);
-    saveChanges(dirname(root), [{
+    const write = () => saveChanges(dirname(root), [{
       path: basename(root) + '/' + basename(file), before: contents, after,
     }]);
+    if (root === directory) withActiveDataset(write); else write();
     source.contents = after;
   }
   Object.assign(record, updated);
@@ -88,9 +90,12 @@ function registerDevice(name, event, root = directory, metadata = {}) {
   const nameOnDisk = record.uuid + '.json';
   const file = join(root, nameOnDisk);
   const contents = serialize(record);
-  saveChanges(dirname(root), [{ path: basename(root) + '/' + nameOnDisk, after: contents }]);
+  const write = () => saveChanges(dirname(root), [{ path: basename(root) + '/' + nameOnDisk, after: contents }]);
+  if (root === directory) withActiveDataset(write); else write();
   devicePaths.set(record, { file, contents });
   return record;
 }
 
-module.exports = { listDevices, selectDevice, findDevice, askDeviceName, registerDevice, parseDeviceMetadata, updateDeviceMetadata };
+module.exports = { listDevices: (root = directory) => root === directory
+  ? withActiveDataset(() => listDevices(root)) : listDevices(root),
+  selectDevice, findDevice, askDeviceName, registerDevice, parseDeviceMetadata, updateDeviceMetadata };

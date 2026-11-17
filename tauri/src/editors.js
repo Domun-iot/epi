@@ -7,7 +7,7 @@ const { buildDevice } = domain;
 const field = (label, name, attributes) => `<label>${e(label)}<input name="${name}" ${attributes}></label>`;
 const option = (value, label, selected) => `<option value="${e(value)}"${selected ? ' selected' : ''}>${e(label)}</option>`;
 
-export function createEditor(dialog, view, toolbar, onViewChange, recoverDataConflict) {
+export function createEditor(dialog, view, toolbar, onViewChange, recoverDataConflict, getEpoch = () => 0) {
   let previousFocus;
 
   function closeView() {
@@ -24,6 +24,8 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
   function open(title, content, submit, submitLabel = t('save'), {
     modal = false, extraActions = '', deleteAction = '', submitChoices = [], subtitle = '', hidePendingWeighIns = false,
   } = {}) {
+    const epoch = getEpoch();
+    const current = () => epoch === getEpoch();
     const host = modal ? dialog : view;
     const formId = modal ? 'modal-editor-form' : 'view-editor-form';
     const submitButton = submitLabel ? `<button class="button primary" type="submit" form="${formId}">${e(submitLabel)}</button>` : '';
@@ -41,7 +43,7 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
     let submitting = false;
     form.addEventListener('submit', async event => {
       event.preventDefault();
-      if (submitting) return;
+      if (submitting || !current()) return;
       const values = new FormData(form, event.submitter);
       submitting = true;
       const error = form.querySelector('[role="alert"]');
@@ -49,8 +51,9 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
       error.hidden = true;
       try {
         const result = await submit(Object.fromEntries(values));
-        if (result !== false && form.isConnected) close();
+        if (current() && result !== false && form.isConnected) close();
       } catch (exception) {
+        if (!current()) return;
         error.textContent = recoverDataConflict(exception) ? t('saveInterruptedByDataChange')
           : localizeMessage(exception?.message || String(exception));
         error.hidden = false;
@@ -204,6 +207,16 @@ export function createEditor(dialog, view, toolbar, onViewChange, recoverDataCon
       });
   }
 
-  return { closeView, profileEditor, deviceEditor, assignmentEditor, filterEditor, viewNameEditor, deleteViewEditor,
+  function reset() {
+    previousFocus = null;
+    dialog.close();
+    dialog.replaceChildren();
+    view.hidden = true;
+    toolbar.hidden = true;
+    view.replaceChildren();
+    toolbar.replaceChildren();
+  }
+
+  return { reset, closeView, profileEditor, deviceEditor, assignmentEditor, filterEditor, viewNameEditor, deleteViewEditor,
     confirmDeletion, confirmRestoreProfile };
 }

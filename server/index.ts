@@ -13,7 +13,13 @@ mkdirSync(dirname(path), { recursive: true });
 const google = googleFromEnvironment();
 const publicPages = playPublicPages(join(dirname(path), 'play-public.json'));
 const store = openStore(path);
-const server = createApi(store, Date.now, google, publicPages, process.env.EPI_DOMUN_API_TOKEN, billingFromEnvironment());
+// The hosted adapter stays in the repository: its shared domain modules are also used by local releases.
+const hostedModule = new URL('../web/hosted-api.js', import.meta.resolve('#config')).href;
+const { createHostedApi } = await import(hostedModule);
+const hosted = createHostedApi({ dataRoot: dirname(path), store });
+const proxyModule = new URL('../web/hosted-proxy.js', import.meta.resolve('#config')).href;
+const { createHostedProxy } = await import(proxyModule);
+const server = createApi(store, Date.now, google, publicPages, process.env.EPI_DOMUN_API_TOKEN, billingFromEnvironment(), hosted, createHostedProxy());
 server.once('close', () => store.close());
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => server.close());

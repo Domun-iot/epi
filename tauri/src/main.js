@@ -68,7 +68,7 @@ const desktopSearchFocus = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent
   && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 const panelStates = new WeakMap();
 const editorView = document.querySelector('#editor-view');
-const editor = createEditor(dialog, editorView, document.querySelector('#editor-actions'), renderEditorView, recoverDataConflict);
+const editor = createEditor(dialog, editorView, document.querySelector('#editor-actions'), renderEditorView, recoverDataConflict, () => datasetEpoch);
 const pages = { measurements: t('measurements'), profiles: t('profiles'), devices: t('devices'), notifications: t('notifications'), bluetooth: t('bluetoothMonitor') };
 
 let session;
@@ -93,6 +93,68 @@ let lastBanner = [];
 let lastProfiles = [];
 let scrollBeforeEditor;
 let previewDeviceCapture;
+let datasetEpoch = 0;
+let dismissalTimeout;
+const sameDataset = epoch => epoch === datasetEpoch;
+
+
+window.addEventListener('epi:dataset-reset', event => {
+  datasetEpoch += 1;
+  // A failed next load must not leave the preceding account available to render.
+  state = { profiles: [], devices: [], measurements: [], pending: [], notifications: [],
+    selectedProfile: null, profilePreferences: {}, viewPresets: { measurements: [], details: [] },
+    columns: [], splitColumns: [], columnOrder: [], methodColumnOrder: [], detailSectionOrder: [],
+    detailSectionsOpen: {}, proViews: false };
+  window.clearTimeout(bannerTimeout);
+  window.clearTimeout(dismissalTimeout);
+  window.clearTimeout(notificationDeadline);
+  bannerTimeout = dismissalTimeout = notificationDeadline = undefined;
+  activeNotice = null;
+  noticeQueue = [];
+  closingNotice = false;
+  initializedNotifications = false;
+  previousAcquisitionError = undefined;
+  notificationId = null;
+  reading = null;
+  rows = [];
+  historyScroll = undefined;
+  scrollBeforeEditor = undefined;
+  previewDeviceCapture = undefined;
+  columnsOpen = false;
+  columnQuery = '';
+  frames = [];
+  lastMain = [];
+  lastNotices = [];
+  lastBanner = [];
+  lastProfiles = [];
+  pendingReload = undefined;
+  stopChartSelection();
+  stopReorder();
+  tablePan = undefined;
+  suppressReorderClick = false;
+  editor.reset();
+  bluetoothWatch.reset(event.detail?.datasetId);
+  chartDatesResize.disconnect();
+  chartHeightResize.disconnect();
+  chartHeadingResize.disconnect();
+  notices.replaceChildren();
+  notices.classList.remove('is-open');
+  notices.inert = true;
+  pendingActions.replaceChildren();
+  pendingActions.hidden = true;
+  pendingActions.inert = false;
+  viewHeader.replaceChildren();
+  viewContent.replaceChildren();
+  viewHeader.hidden = viewContent.hidden = false;
+  profilePicker.replaceChildren();
+  profileName.textContent = '';
+  profileName.hidden = true;
+  notificationIcon.hidden = true;
+  detailActions.hidden = true;
+  importInput.value = '';
+  importButton.disabled = exportButton.disabled = themeToggle.disabled = false;
+  status.textContent = t(session?.web ? 'webMode' : session?.native ? 'bluetoothMonitor' : 'simulationMode');
+});
 
 function changed(previous, next) {
   return next.some((value, index) => value !== previous[index]);
@@ -302,7 +364,8 @@ function enqueueBanners(entries) {
   notices.getBoundingClientRect();
   notices.classList.add('is-open');
   const duration = bannerDuration(activeNotice);
-  if (duration) bannerTimeout = window.setTimeout(dismissBanner, duration);
+  const epoch = datasetEpoch;
+  if (duration) bannerTimeout = window.setTimeout(() => { if (sameDataset(epoch)) dismissBanner(); }, duration);
 }
 
 function dismissBanner() {
@@ -312,7 +375,9 @@ function dismissBanner() {
   if (notices.contains(document.activeElement)) notificationIcon.focus({ preventScroll: true });
   notices.inert = true;
   notices.classList.remove('is-open');
-  window.setTimeout(() => {
+  const epoch = datasetEpoch;
+  dismissalTimeout = window.setTimeout(() => {
+    if (!sameDataset(epoch)) return;
     notices.replaceChildren();
     activeNotice = null;
     closingNotice = false;
@@ -327,7 +392,10 @@ function showError(error) {
 
 function showNoticeError(error) {
   const entry = { type: 'error', text: error?.message || String(error), banner: true };
-  if (session) void session.recordNotice(entry).catch(() => enqueueBanners([entry]));
+  const epoch = datasetEpoch;
+  if (session) void Promise.resolve().then(() => {
+    if (sameDataset(epoch)) return session.recordNotice(entry);
+  }).catch(() => { if (sameDataset(epoch)) enqueueBanners([entry]); });
   else enqueueBanners([entry]);
 }
 
@@ -336,8 +404,10 @@ function scheduleNotificationExpiry() {
   const first = state.notifications.length > 20
     ? state.notifications.reduce((earliest, item) => item.date < earliest.date ? item : earliest)
     : null;
+  const epoch = datasetEpoch;
   if (first && session) notificationDeadline = window.setTimeout(() => {
-    void session.pruneNotifications().catch(showError);
+    if (!sameDataset(epoch)) return;
+    void session.pruneNotifications().catch(error => { if (sameDataset(epoch)) showError(error); });
   }, Math.max(100, Date.parse(first.date) + 7 * 86400_000 - Date.now()));
 }
 
@@ -370,11 +440,12 @@ function onState(next) {
 
 async function perform(action) {
   if (!session) return;
+  const epoch = datasetEpoch;
   try {
     await action();
-    render();
+    if (sameDataset(epoch)) render();
   } catch (error) {
-    showError(error);
+    if (sameDataset(epoch)) showError(error);
   }
 }
 
@@ -416,15 +487,18 @@ function editProfile(profile) {
     onDelete: () => editor.confirmDeletion(t('deleteProfile'),
       t('confirmDeleteProfile', [profile.name]),
       async () => {
+        const epoch = datasetEpoch;
         await session.deleteProfile(profile.name);
-        editor.closeView();
+        if (sameDataset(epoch)) editor.closeView();
       }),
   });
 }
 
 function addProfile(item) {
   editor.profileEditor(null, async profile => {
+    const epoch = datasetEpoch;
     await session.saveProfile(profile);
+    if (!sameDataset(epoch)) return false;
     if (item) await session.confirmProfile({ id: item.id, name: profile.name });
     else await session.selectProfile(profile.name);
   });
@@ -453,9 +527,11 @@ function changeViewPreset(action, id) {
 
 const actions = {
   'open-notification': async id => {
+    const epoch = datasetEpoch;
     const target = resolveNotification(state, state.notifications.find(item => item.id === id));
     if (target?.type === 'pending') {
       await session.replayReceipt(id);
+      if (!sameDataset(epoch)) return;
       go('measurements');
       const receipt = pendingActions.querySelector(`[data-pending-id="${CSS.escape(String(target.pendingId))}"]`);
       receipt?.scrollIntoView({ block: 'nearest' });
@@ -468,6 +544,7 @@ const actions = {
       editor.profileEditor(target.record, profile => {
         editor.confirmRestoreProfile(target.measurements.length, async include => {
           await session.restoreNotification(target.id, include, profile);
+          if (!sameDataset(epoch)) return;
           editor.closeView();
           go('profiles', target.record.uuid);
         });
@@ -483,20 +560,26 @@ const actions = {
   'delete-notification': id => editor.confirmDeletion(t('deleteNotification'),
     t('confirmDeleteNotification'),
     async () => {
+      const epoch = datasetEpoch;
       await session.deleteNotification(id);
+      if (!sameDataset(epoch)) return;
       noticeQueue = noticeQueue.filter(item => item.id !== id);
       if (activeNotice?.id === id) dismissBanner();
     }),
   'delete-all-notifications': () => editor.confirmDeletion(t('clearAllNotifications'),
     t('confirmDeleteAllNotifications'),
     async () => {
+      const epoch = datasetEpoch;
       await session.deleteAllNotifications();
+      if (!sameDataset(epoch)) return;
       noticeQueue = [];
       dismissBanner();
     }),
   'restore-notification': async id => {
+    const epoch = datasetEpoch;
     const entry = state.notifications.find(item => item.id === id);
     await session.restoreNotification(id);
+    if (!sameDataset(epoch)) return;
     if (entry?.type === 'device') go('devices', entry.record.uuid);
   },
   'select-view-preset': id => changeViewPreset('select', id),
@@ -512,7 +595,9 @@ const actions = {
     const row = reading ?? (target?.live ? target.record : null);
     if (!row) return;
     editor.confirmDeletion(t('deleteWeighIn'), t('confirmDeleteWeighIn', [formatDate(row.receivedAt)]), async () => {
+      const epoch = datasetEpoch;
       await session.deleteMeasurement(row);
+      if (!sameDataset(epoch)) return;
       if (reading === row) actions['back-to-measurements']();
     });
   },
@@ -534,8 +619,9 @@ const actions = {
       address, device,
       onDelete: () => editor.confirmDeletion(t('deleteDevice'),
         t('confirmDeleteDevice', [device.name]), async () => {
+          const epoch = datasetEpoch;
           await session.deleteDevice(address);
-          editor.closeView();
+          if (sameDataset(epoch)) editor.closeView();
         }),
     }, request => session.renameDevice(request));
   },
@@ -914,13 +1000,14 @@ function renderTheme() {
 renderTheme();
 preferredTheme.addEventListener('change', renderTheme);
 themeToggle.addEventListener('click', async () => {
+  const epoch = datasetEpoch;
   const profile = state.selectedProfile ?? null;
   const theme = isDarkTheme() ? 'light' : 'dark';
   themeToggle.disabled = true;
   try {
     await perform(() => session.setTheme(profile, theme));
   } finally {
-    themeToggle.disabled = false;
+    if (sameDataset(epoch)) themeToggle.disabled = false;
   }
 });
 
@@ -944,14 +1031,15 @@ function renderPageChange() {
 window.addEventListener('hashchange', renderPageChange);
 
 async function importArchive(importer) {
+  const epoch = datasetEpoch;
   importButton.disabled = true;
   try {
     await perform(async () => {
       const imported = await importer();
-      if (imported !== undefined) await session.recordNotice({ type: 'info', text: messageCode('importCompleted'), banner: true });
+      if (sameDataset(epoch) && imported !== undefined) await session.recordNotice({ type: 'info', text: messageCode('importCompleted'), banner: true });
     });
   } finally {
-    importButton.disabled = false;
+    if (sameDataset(epoch)) importButton.disabled = false;
   }
 }
 
@@ -986,14 +1074,17 @@ function requestReload(automatic = false) {
     pendingReload.manual ||= !automatic;
     return;
   }
+  const epoch = datasetEpoch;
   const request = pendingReload = { automatic, manual: !automatic };
   void queueReload(async () => {
-    pendingReload = null;
+    if (!sameDataset(epoch)) return;
+    if (pendingReload === request) pendingReload = null;
     const before = state;
     const after = await session.reload();
+    if (!sameDataset(epoch)) return;
     if (request.manual) requestFullTransactionSync();
     await announceReload(before, after, !request.automatic);
-  }).catch(showNoticeError);
+  }).catch(error => { if (sameDataset(epoch)) showNoticeError(error); });
 }
 
 function recoverDataConflict(error) {
@@ -1015,15 +1106,16 @@ importInput.addEventListener('change', async () => {
 });
 exportButton.addEventListener('click', async () => {
   if (state.proViews === false) return;
+  const epoch = datasetEpoch;
   exportButton.disabled = true;
   try {
     await perform(async () => {
-      if (await session.exportData()) {
+      if (await session.exportData() && sameDataset(epoch)) {
         await session.recordNotice({ type: 'info', text: messageCode('zipExported'), banner: true });
       }
     });
   }
-  finally { exportButton.disabled = false; }
+  finally { if (sameDataset(epoch)) exportButton.disabled = false; }
 });
 retryButton.addEventListener('click', () => void perform(() => session.retryBluetooth?.()));
 

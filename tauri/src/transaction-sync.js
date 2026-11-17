@@ -14,7 +14,6 @@ const countdown = document.querySelector('#sync-countdown');
 const syncNow = document.querySelector('#sync-now');
 
 let files;
-let receivedForToken;
 let running = false;
 let uploading = false;
 let queuedSync;
@@ -75,7 +74,6 @@ icon.addEventListener('click', () => {
 dialog.addEventListener('close', renderSyncDialog);
 syncNow.addEventListener('click', requestTransactionSync);
 for (const event of ['epi:account', 'epi:entitlement']) window.addEventListener(event, () => {
-  receivedForToken = undefined;
   requestTransactionSync();
   renderStatus();
   renderSyncDialog();
@@ -103,7 +101,7 @@ export function requestFullTransactionSync() {
 }
 
 function requestSync(mode) {
-  if (!files?.pendingTransactions) return;
+  if (!files?.getSyncContext) return;
   if (running) {
     if (queuedSync !== 'full') queuedSync = mode;
     return;
@@ -111,42 +109,43 @@ function requestSync(mode) {
   void sync(mode);
 }
 
-async function receive(token) {
+async function receive(context) {
+  const { token } = context;
   let after;
   do {
     const { transactions, next } = await downloadTransactions(token, after);
-    if (syncToken() !== token || !Array.isArray(transactions)) return false;
+    if (!context.isCurrent() || !Array.isArray(transactions)) return false;
     if (transactions.length) {
       transactions.sort((left, right) => {
         const a = typeof left?.name === 'string' ? left.name : '~';
         const b = typeof right?.name === 'string' ? right.name : '~';
         return a < b ? -1 : Number(a > b);
       });
-      const uuids = await files.integrateTransactions(transactions);
-      if (syncToken() !== token) return false;
+      const uuids = await context.integrateTransactions(transactions);
+      if (!context.isCurrent()) return false;
       if (uuids.length) await acknowledgeTransactions(token, uuids);
     }
     if (typeof next !== 'string') return true;
     if (next === after) return false;
     after = next;
-  } while (syncToken() === token);
+  } while (context.isCurrent());
   return false;
 }
 
-async function receiveForToken(token) {
-  if (!token || syncToken() !== token) return;
-  try {
-    if (await receive(token)) receivedForToken = token;
-  } catch {
-    // A later sync can retry reading the server queue.
-  }
+async function receiveSafely(context) {
+  if (!context.isCurrent()) return;
+  try { await receive(context); }
+  catch { /* Retry the same account-bound queue on the next pass. */ }
 }
 
-async function sendPending(token) {
+async function sendPending(context, manual = false) {
+  const { token } = context;
   try {
-    const pending = await files.pendingTransactions();
+    if (!context.isCurrent()) return;
+    const pending = await context.pendingTransactions();
+    if (!context.isCurrent()) return;
     updatePending(pending);
-    if (!token || token !== syncToken() || !pending.length) return;
+    if (!pending.length) { context.clearRevision(); return; }
 
     const encoder = new TextEncoder();
     const batch = [];
@@ -158,15 +157,19 @@ async function sendPending(token) {
     if (!batch.length) return;
     uploading = true;
     renderStatus();
-    const result = await uploadTransactions(batch.map(({ line }) => line).join('\n') + '\n', token);
-    if (syncToken() !== token || !Array.isArray(result?.uuids)) return;
+    const result = await uploadTransactions(batch.map(({ line }) => line).join('\n') + '\n', token, context.revision);
+    if (!context.isCurrent() || !Array.isArray(result?.uuids)) return;
+    context.clearRevision();
     const confirmed = new Set(result.uuids);
     const names = batch.filter(({ uuid }) => confirmed.has(uuid)).map(({ name }) => name);
     if (!names.length) return;
-    await files.archiveTransactions(names);
-    updatePending(await files.pendingTransactions());
-  } catch {
-    // Keep the files queued after network, server or local storage errors.
+    await context.archiveTransactions(names);
+    if (context.isCurrent()) updatePending(await context.pendingTransactions());
+  } catch (error) {
+    // Keep the original account queue intact after a conflict or interruption.
+    if (error.code === 'dataset_changed' && context.isCurrent()) {
+      window.dispatchEvent(new CustomEvent('epi:dataset-conflict', { detail: { accountId: context.datasetId, manual } }));
+    }
   } finally {
     uploading = false;
     renderStatus();
@@ -177,12 +180,18 @@ async function sync(mode) {
   running = true;
   renderSyncDialog();
   try {
-    if (mode === 'full') await checkAccountConnection();
-    const token = syncToken();
-    if (mode !== 'full' && receivedForToken !== token) await receiveForToken(token);
-
-    await sendPending(token);
-    if (mode === 'full') await receiveForToken(token);
+    if (mode === 'full') { await checkAccountConnection(); await files.prepareSync?.(); }
+    const context = files.getSyncContext();
+    if (!context) { updatePending([]); return; }
+    // Initial attachment is conditional on the reviewed server revision.
+    if (context.revision !== undefined) await sendPending(context, mode === 'full');
+    else if (mode === 'full') {
+      await sendPending(context, true);
+      await receiveSafely(context);
+    } else {
+      await receiveSafely(context);
+      await sendPending(context);
+    }
   } finally {
     running = false;
     if (queuedSync) {

@@ -19,8 +19,8 @@ const VIEW_PRESET_FOLDERS: [(&str, &str); 2] = [
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct DataFile {
-    path: String,
-    contents: String,
+    pub(crate) path: String,
+    pub(crate) contents: String,
 }
 
 #[cfg(desktop)]
@@ -28,14 +28,10 @@ fn shared_data(executable_dir: &Path) -> Option<PathBuf> {
     executable_dir
         .ancestors()
         .map(|parent| parent.join("data"))
-        .find(|data| {
-            ["devices", "measures", "profiles"]
-                .iter()
-                .all(|folder| data.join(folder).is_dir())
-        })
+        .find(|data| crate::account_storage::is_data_root(data))
 }
 
-pub(crate) fn data_root(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn installation_root(app: &AppHandle) -> Result<PathBuf, String> {
     #[cfg(desktop)]
     {
         // An AppImage runs its ELF from a temporary mount. APPIMAGE points to the original file.
@@ -58,13 +54,23 @@ pub(crate) fn data_root(app: &AppHandle) -> Result<PathBuf, String> {
             } else {
                 app.path().app_data_dir().map_err(message)?.join("data")
             };
-        for folder in ["devices", "measures", "profiles"] {
-            fs::create_dir_all(root.join(folder)).map_err(message)?;
-        }
         Ok(root)
     }
     #[cfg(not(desktop))]
     Ok(app.path().app_data_dir().map_err(message)?.join("data"))
+}
+
+pub(crate) fn data_root_for(
+    app: &AppHandle,
+    dataset_id: Option<&str>,
+    dataset_generation: Option<u64>,
+) -> Result<PathBuf, String> {
+    crate::account_storage::resolve_active(
+        &installation_root(app)?,
+        dataset_id,
+        true,
+        dataset_generation,
+    )
 }
 
 fn message(error: impl std::fmt::Display) -> String {
@@ -385,13 +391,16 @@ pub(crate) fn atomic_write(path: &Path, data: &[u8], replace: bool) -> Result<bo
         .parent()
         .ok_or("epi-i18n:diagnostic.dataFolderNotFound")?;
     fs::create_dir_all(root).map_err(message)?;
-    let mut temp = tempfile::NamedTempFile::new_in(root).map_err(message)?;
+    // Account UUIDs add a directory level; use the canonical Windows long path for persist.
+    let root = fs::canonicalize(root).map_err(message)?;
+    let path = root.join(path.file_name().ok_or("Invalid data filename.")?);
+    let mut temp = tempfile::NamedTempFile::new_in(&root).map_err(message)?;
     temp.write_all(data).map_err(message)?;
     temp.as_file().sync_all().map_err(message)?;
     let result = if replace {
-        temp.persist(path)
+        temp.persist(&path)
     } else {
-        temp.persist_noclobber(path)
+        temp.persist_noclobber(&path)
     };
     match result {
         Ok(_) => Ok(true),
@@ -936,14 +945,28 @@ fn with_notifications(
 }
 
 #[tauri::command]
-pub fn load_language_preference(app: AppHandle) -> Result<Option<String>, String> {
-    let global = read_global_preferences(&data_root(&app)?)?;
+pub fn load_language_preference(
+    app: AppHandle,
+    dataset_id: Option<String>,
+    dataset_generation: Option<u64>,
+) -> Result<Option<String>, String> {
+    let _guard = crate::account_storage::lock_for_app(&app)?;
+    let global = read_global_preferences(&data_root_for(
+        &app,
+        dataset_id.as_deref(),
+        dataset_generation,
+    )?)?;
     Ok(global["languagePreference"].as_str().map(str::to_owned))
 }
 
 #[tauri::command]
-pub fn load_session(app: AppHandle) -> Result<Value, String> {
-    let root = data_root(&app)?;
+pub fn load_session(
+    app: AppHandle,
+    dataset_id: Option<String>,
+    dataset_generation: Option<u64>,
+) -> Result<Value, String> {
+    let _guard = crate::account_storage::lock_for_app(&app)?;
+    let root = data_root_for(&app, dataset_id.as_deref(), dataset_generation)?;
     let session = read_session(&root)?;
     // UUIDs from older versions may already be present in name-based files.
     for (key, identity) in [
@@ -961,8 +984,15 @@ pub fn load_session(app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn save_session(app: AppHandle, session: Value, previous: Value) -> Result<bool, String> {
-    let root = data_root(&app)?;
+pub fn save_session(
+    app: AppHandle,
+    session: Value,
+    previous: Value,
+    dataset_id: Option<String>,
+    dataset_generation: Option<u64>,
+) -> Result<bool, String> {
+    let _guard = crate::account_storage::lock_for_app(&app)?;
+    let root = data_root_for(&app, dataset_id.as_deref(), dataset_generation)?;
     let revision = transactions::record_revision();
     with_notifications(&root, &session, &previous, || {
         if [
@@ -1169,7 +1199,7 @@ pub(crate) fn valid_transaction_path(path: &str) -> bool {
         && !path.starts_with("transactions")
 }
 
-fn snapshot_files(root: &Path) -> Result<Vec<DataFile>, String> {
+pub(crate) fn snapshot_files(root: &Path) -> Result<Vec<DataFile>, String> {
     let mut files = dataset_files(root)?;
     for folder in [
         "",
@@ -1205,11 +1235,20 @@ fn snapshot_files(root: &Path) -> Result<Vec<DataFile>, String> {
 }
 
 #[tauri::command]
-pub fn export_files(app: AppHandle) -> Result<Vec<DataFile>, String> {
-    snapshot_files(&data_root(&app)?)
+pub fn export_files(
+    app: AppHandle,
+    dataset_id: Option<String>,
+    dataset_generation: Option<u64>,
+) -> Result<Vec<DataFile>, String> {
+    let _guard = crate::account_storage::lock_for_app(&app)?;
+    snapshot_files(&data_root_for(
+        &app,
+        dataset_id.as_deref(),
+        dataset_generation,
+    )?)
 }
 
-fn merge_snapshot(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
+pub(crate) fn merge_snapshot(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
     let mut dataset = Vec::new();
     let mut extras = Vec::new();
     let mut history = Vec::new();
@@ -1413,8 +1452,17 @@ fn merge_files(root: &Path, files: Vec<DataFile>) -> Result<usize, String> {
 }
 
 #[tauri::command]
-pub fn import_files(app: AppHandle, files: Vec<DataFile>) -> Result<usize, String> {
-    merge_snapshot(&data_root(&app)?, files)
+pub fn import_files(
+    app: AppHandle,
+    files: Vec<DataFile>,
+    dataset_id: Option<String>,
+    dataset_generation: Option<u64>,
+) -> Result<usize, String> {
+    let _guard = crate::account_storage::lock_for_app(&app)?;
+    merge_snapshot(
+        &data_root_for(&app, dataset_id.as_deref(), dataset_generation)?,
+        files,
+    )
 }
 
 #[cfg(test)]

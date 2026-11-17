@@ -5,15 +5,17 @@ import { fileStorage } from './file-storage.js';
 import { fileRecords } from './file-records.js';
 import { createPaidUntilReader } from './account-api.js';
 
-const proActions = new Set(['changeViewPreset', 'importLegacy', 'importFiles', 'exportFiles']);
+const proActions = new Set(['changeViewPreset', 'importLegacy', 'importFiles', 'exportFiles',
+  'pendingTransactions', 'archiveTransactions', 'integrateTransactions']);
 
 export function json(response, status, payload) {
   response.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
   response.end(JSON.stringify(payload));
 }
 
-export async function createSessionApi({ root, domain, storage, transactions, readPaidUntil = createPaidUntilReader(), now = Date.now }) {
-  const dataDir = resolve(storage.resolveDataDirectory(root));
+export async function createSessionApi({ root, dataDir: explicitDataDir, domain, storage, transactions,
+  readPaidUntil = createPaidUntilReader(), now = Date.now, afterAction, beforeAction }) {
+  const dataDir = resolve(explicitDataDir ?? storage.resolveDataDirectory(root));
   await Promise.all(storage.dataFolders.map(folder => mkdir(resolve(dataDir, folder), { recursive: true })));
   let transactionRevision = 0;
   const files = fileStorage(dataDir, transactions, () => { transactionRevision += 1; });
@@ -49,11 +51,13 @@ export async function createSessionApi({ root, domain, storage, transactions, re
     }
     try {
       const task = pending.then(async () => {
+        await beforeAction?.(request, input);
         const token = /^Bearer (\S+)$/.exec(request.headers.authorization ?? '')?.[1];
         paidUntil = await readPaidUntil(token, input.action === 'refreshView' || input.action === 'reload');
         requirePro();
         const revision = transactionRevision;
         const result = await performAction();
+        await afterAction?.(request, input, result);
         if (revision !== transactionRevision) response.setHeader('X-Epi-Transactions', 'pending');
         return result;
       });
@@ -103,5 +107,5 @@ export async function createSessionApi({ root, domain, storage, transactions, re
     }
   }
 
-  return { dataDir, handleAction };
+  return { dataDir, handleAction, files, session };
 }

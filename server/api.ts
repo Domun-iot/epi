@@ -7,6 +7,18 @@ import { randomSecret, type Google, type GoogleIdentity } from './google.ts';
 import type { openStore } from './store.ts';
 
 type Store = ReturnType<typeof openStore>;
+export type DatasetContext = {
+  accountId: string; accountNumber: number; deviceId: string; paidUntil: number; checkActive: () => void;
+};
+export type HostedApi = {
+  session: (req: IncomingMessage, res: ServerResponse, context: DatasetContext) => Promise<void>;
+  snapshot: (context: DatasetContext, summaryOnly?: boolean) => Promise<object>;
+  upload: (context: DatasetContext, rows: { uuid: string; payload: string }[], revision?: string) => Promise<ReturnType<Store['upload']>>;
+  purge: (ids: string[]) => Promise<void>;
+};
+function accountUuid(id: string) {
+  return id.slice(0, 8) + '-' + id.slice(8, 12) + '-' + id.slice(12, 16) + '-' + id.slice(16, 20) + '-' + id.slice(20);
+}
 
 const deriveKey = promisify(scrypt);
 const fallbackPasswordHash = '0'.repeat(32) + ':' + '0'.repeat(128);
@@ -78,7 +90,7 @@ function transactionRow(value: unknown) {
 }
 
 async function uploadStream(req: IncomingMessage, upload: (rows: ReturnType<typeof transactionRow>[]) =>
-  ReturnType<Store['upload']>) {
+  Promise<ReturnType<Store['upload']>>) {
   const uuids = new Set<string>();
   let inserted = 0;
   const rows: ReturnType<typeof transactionRow>[] = [];
@@ -92,26 +104,26 @@ async function uploadStream(req: IncomingMessage, upload: (rows: ReturnType<type
     parts.push(part);
   }
 
-  function flush() {
+  async function flush() {
     if (!rows.length) return;
-    const result = upload(rows);
+    const result = await upload(rows);
     inserted += result.inserted;
     for (const uuid of result.uuids) uuids.add(uuid);
     rows.length = 0;
     batchBytes = 0;
   }
 
-  function save() {
+  async function save() {
     let value: unknown;
     try {
       value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(parts, bytes)));
     } catch {
       throw new ApiError(400, 'invalid_json');
     }
-    if (batchBytes + bytes > maxBodyBytes) flush();
+    if (batchBytes + bytes > maxBodyBytes) await flush();
     rows.push(transactionRow(value));
     batchBytes += bytes;
-    if (rows.length === maxBatchSize) flush();
+    if (rows.length === maxBatchSize) await flush();
     parts = [];
     bytes = 0;
   }
@@ -120,13 +132,13 @@ async function uploadStream(req: IncomingMessage, upload: (rows: ReturnType<type
     let start = 0;
     for (let end = chunk.indexOf(10); end !== -1; end = chunk.indexOf(10, start)) {
       append(chunk.subarray(start, end));
-      save();
+      await save();
       start = end + 1;
     }
     if (start < chunk.length) append(chunk.subarray(start));
   }
-  if (bytes) save();
-  flush();
+  if (bytes) await save();
+  await flush();
   return { inserted, uuids: [...uuids] };
 }
 
@@ -246,7 +258,7 @@ function accountEntitlement(account: Account, now: number) {
 
 function accountInfo(account: Account, now: number) {
   return {
-    email: account.email, googleLinked: Boolean(account.google_sub), hasPassword: Boolean(account.password_hash),
+    accountId: accountUuid(account.domun_id), email: account.email, googleLinked: Boolean(account.google_sub), hasPassword: Boolean(account.password_hash),
     ...accountLanguages(account),
     ...accountEntitlement(account, now),
     ...(account.created_at && { createdAt: account.created_at }),
@@ -318,7 +330,8 @@ function purgeCutoff(now: number) {
 }
 
 export function createApi(store: Store, now = Date.now, google?: Google,
-  publicPages?: (path: string, res: ServerResponse) => boolean, domunToken?: string, readPaidUntil?: PaidUntil) {
+  publicPages?: (path: string, res: ServerResponse) => boolean, domunToken?: string, readPaidUntil?: PaidUntil, hosted?: HostedApi,
+  frontend?: (req: IncomingMessage, res: ServerResponse) => Promise<boolean>) {
   if (domunToken && !domunTokenPattern.test(domunToken)) {
     throw new Error('EPI_DOMUN_API_TOKEN must contain 64 lowercase hexadecimal characters');
   }
@@ -342,7 +355,9 @@ export function createApi(store: Store, now = Date.now, google?: Google,
       if (!Array.isArray(ids) || !ids.length || !ids.every(id => typeof id === 'string' && domunAccountId.test(id))) {
         throw new ApiError(400, 'invalid_account_ids');
       }
-      return send(res, 200, { purged: store.purgeAccounts(ids, purgeCutoff(now())) });
+      const purged = store.purgeAccounts(ids, purgeCutoff(now()));
+      await hosted?.purge(ids);
+      return send(res, 200, { purged });
     }
     if (req.method === 'GET' && (path === '/v1/domun/accounts' || path === domunPurgePath)) {
       const after = new URLSearchParams(query).get('after') ?? '';
@@ -388,16 +403,20 @@ export function createApi(store: Store, now = Date.now, google?: Google,
     const account = store.findById(device.account_id);
     if (!account) throw new ApiError(401, 'invalid_token');
     const checkActive = () => {
-      if (store.findById(account.id)?.domun_id !== account.domun_id) throw new ApiError(401, 'invalid_token');
+      if (authenticate(req.headers.authorization, store, now()).account_id !== account.id ||
+          store.findById(account.id)?.domun_id !== account.domun_id) throw new ApiError(401, 'invalid_token');
     };
+    let paidUntil = Date.parse(account.paid_until ?? '') || 0;
     if (readPaidUntil) {
       let expires: string | null;
       try { expires = await readPaidUntil(account.domun_id); }
       catch { throw new ApiError(503, 'subscription_unavailable'); }
       checkActive();
-      if (!expires || !(Date.parse(expires) > now())) throw new ApiError(403, 'pro_required');
-    }
-    return { ...device, checkActive };
+      paidUntil = Date.parse(expires ?? '') || 0;
+      if (!(paidUntil > now())) throw new ApiError(403, 'pro_required');
+    } else if (hosted && !(paidUntil > now())) throw new ApiError(403, 'pro_required');
+    return { ...device, checkActive, context: { accountId: accountUuid(account.domun_id), accountNumber: account.id,
+      deviceId: device.device_id, paidUntil, checkActive } };
   }
 
   async function liveEntitlement(account: Account) {
@@ -437,15 +456,36 @@ export function createApi(store: Store, now = Date.now, google?: Google,
       if (req.method === 'GET' && publicPages?.(path, res)) return;
       if (path === '/v1/accounts' || path === '/v1/device-tokens' ||
           path === '/v1/account' || path === '/v1/transactions' || path === '/v1/transactions/pending' ||
-          path === '/v1/transactions/acknowledge' || path.startsWith('/v1/google/')) {
+          path === '/v1/transactions/acknowledge' || path === '/v1/dataset' || path === '/v1/dataset/summary' || path.startsWith('/v1/google/')) {
         res.setHeader('Access-Control-Allow-Origin', '*');
         if (req.method === 'OPTIONS') {
           res.writeHead(204, {
             'Access-Control-Allow-Methods': 'GET, POST, DELETE',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, If-Match',
           });
           return res.end();
         }
+      }
+      if (path === '/api/session' && hosted) {
+        const device = authenticate(req.headers.authorization, store, now());
+        const account = store.findById(device.account_id);
+        if (!account) throw new ApiError(401, 'invalid_token');
+        const checkActive = () => {
+          if (authenticate(req.headers.authorization, store, now()).account_id !== account.id ||
+              store.findById(account.id)?.domun_id !== account.domun_id) throw new ApiError(401, 'invalid_token');
+        };
+        let paidUntil = Date.parse(account.paid_until ?? '') || 0;
+        if (readPaidUntil) {
+          try { paidUntil = Date.parse(await readPaidUntil(account.domun_id) ?? '') || 0; }
+          catch { paidUntil = 0; }
+        }
+        checkActive();
+        return await hosted.session(req, res, { accountId: accountUuid(account.domun_id), accountNumber: account.id,
+          deviceId: device.device_id, paidUntil, checkActive });
+      }
+      if (req.method === 'GET' && (path === '/v1/dataset' || path === '/v1/dataset/summary') && hosted) {
+        const { context } = await authorizeSync(req);
+        return send(res, 200, await hosted.snapshot(context, path.endsWith('/summary')));
       }
       if (route === 'GET /v1/account') {
         const account = currentAccount(req.headers.authorization);
@@ -588,7 +628,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         await checkPassword(password, account?.password_hash ?? '');
         if (!account) throw new ApiError(401, 'invalid_credentials');
         return send(res, 200, {
-          token: issueToken(account, deviceId), ...accountLanguages(account), ...await liveEntitlement(account),
+          token: issueToken(account, deviceId), ...accountInfo(account, now()), ...await liveEntitlement(account),
         });
       }
 
@@ -625,10 +665,13 @@ export function createApi(store: Store, now = Date.now, google?: Google,
       }
 
       if (route === 'POST /v1/transactions') {
-        const { account_id, device_id, checkActive } = await authorizeSync(req);
-        const upload = (rows: ReturnType<typeof transactionRow>[]) => {
+        const { account_id, device_id, checkActive, context } = await authorizeSync(req);
+        let expectedRevision = typeof req.headers['if-match'] === 'string' ? req.headers['if-match'] : undefined;
+        const upload = async (rows: ReturnType<typeof transactionRow>[]) => {
           checkActive();
-          return store.upload(account_id, device_id, rows);
+          const result = hosted ? await hosted.upload(context, rows, expectedRevision) : store.upload(account_id, device_id, rows);
+          expectedRevision = undefined;
+          return result;
         };
         const contentType = req.headers['content-type']?.split(';')[0].trim().toLowerCase();
         if (contentType === 'application/x-ndjson') {
@@ -636,7 +679,7 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         }
         const body = await readBody(req);
         const rows = batch(body.transactions).map(transactionRow);
-        return send(res, 200, upload(rows));
+        return send(res, 200, await upload(rows));
       }
 
       if (route === 'POST /v1/transactions/acknowledge') {
@@ -648,10 +691,15 @@ export function createApi(store: Store, now = Date.now, google?: Google,
         return send(res, 200, { inserted: store.acknowledge(account_id, device_id, uuids) });
       }
 
+      if (!path.startsWith('/v1/') && !path.startsWith('/api/') && frontend && await frontend(req, res)) return;
       throw new ApiError(404, 'not_found');
     } catch (error) {
       if (!req.complete) res.setHeader('Connection', 'close');
       if (error instanceof ApiError) return send(res, error.status, { error: error.code });
+      if (error instanceof Error && 'status' in error && 'code' in error &&
+          typeof error.status === 'number' && [400, 401, 403, 409, 503].includes(error.status) && typeof error.code === 'string') {
+        return send(res, error.status, { error: error.code });
+      }
       console.error(error);
       send(res, 500, { error: 'internal_error' });
     }

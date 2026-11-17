@@ -1,0 +1,183 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { once } from 'node:events';
+import { mkdtemp, readFile, access, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { test } from 'node:test';
+import { createApi } from './dist/api.js';
+import { openStore } from './dist/store.js';
+import { createHostedApi } from '../web/hosted-api.js';
+
+const expires = '2099-01-01T00:00:00.000Z';
+const domunToken = 'a'.repeat(64);
+async function fixture(t) {
+  const root = await mkdtemp(join(tmpdir(), 'epi-hosted-'));
+  const store = openStore(join(root, 'epi.sqlite'));
+  const rights = new Map();
+  const hosted = createHostedApi({ dataRoot: root, store });
+  const server = createApi(store, Date.now, undefined, undefined, domunToken,
+    async id => rights.get(id) ?? null, hosted).listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(async () => { await new Promise(resolve => server.close(resolve)); store.close(); await rm(root, { recursive: true, force: true }); });
+  const origin = 'http://127.0.0.1:' + server.address().port;
+  async function call(path, { token, body, method, headers, status = 200 } = {}) {
+    const response = await fetch(origin + path, { method: method ?? (body ? 'POST' : 'GET'),
+      headers: { ...(token && { Authorization: 'Bearer ' + token }), ...(body && { 'Content-Type': 'application/json' }), ...headers },
+      body: body && JSON.stringify(body) });
+    const result = response.status === 204 ? undefined : await response.json();
+    assert.equal(response.status, status, JSON.stringify(result));
+    return result;
+  }
+  async function login(name, deviceId = 'browser', pro = false) {
+    const credentials = { email: name + '@example.org', password: name + '-password' };
+    if (!store.findAccount(credentials.email)) await call('/v1/accounts', { body: credentials, status: 201 });
+    const record = store.findAccount(credentials.email);
+    if (pro) rights.set(record.domun_id, expires);
+    return call('/v1/device-tokens', { body: { ...credentials, deviceId } });
+  }
+  const action = (session, action, args = [], options = {}) => call('/api/session', { token: session.token,
+    body: { action, args, datasetId: session.accountId }, ...options });
+  return { root, store, rights, call, login, action, hosted };
+}
+
+function transaction(type, path, value, stamp = '2026-11-17T12-00-00.000001Z') {
+  const uuid = randomUUID();
+  return { uuid, name: stamp + '-' + uuid + '.json', type, data: { path, ...(type !== 'delete' && { value }) } };
+}
+
+test('hosted requests require a valid token and isolate account datasets, including FREE accounts', async t => {
+  const f = await fixture(t);
+  await f.call('/api/session', { body: { action: 'load', args: [] }, status: 401 });
+  const alice = await f.login('alice');
+  const bob = await f.login('bob');
+  assert.match(alice.accountId, /^[a-f0-9-]{36}$/);
+  assert.notEqual(alice.accountId, bob.accountId);
+  assert.equal((await f.call('/v1/account', { token: alice.token })).accountId, alice.accountId);
+  await f.action(alice, 'saveProfile', [{ name: 'Alice', sex: 'F', age: 40, heightCm: 165 }]);
+  assert.equal((await f.action(alice, 'load')).profiles[0].name, 'Alice');
+  assert.deepEqual((await f.action(bob, 'load')).profiles, []);
+  await f.action(alice, 'load', [], { body: { action: 'load', args: [], datasetId: bob.accountId }, status: 409 });
+  for (const action of ['pendingTransactions', 'archiveTransactions', 'integrateTransactions']) {
+    await f.action(alice, action, [], { status: 403 });
+  }
+  for (const action of ['exportFiles', 'importFiles', 'changeViewPreset']) await f.action(alice, action, [], { status: 403 });
+  for (const path of ['/v1/dataset', '/v1/dataset/summary', '/v1/transactions/pending']) {
+    await f.call(path, { token: alice.token, status: 403 });
+  }
+  await f.call('/v1/transactions', { token: alice.token, body: { transactions: [] }, status: 403 });
+  assert.deepEqual(f.store.allTransactions(f.store.findAccount('alice@example.org').id), []);
+  const localProfile = (await f.action(alice, 'load')).profiles[0];
+  assert.equal(JSON.parse(await readFile(join(f.root, 'accounts', alice.accountId, 'profiles', localProfile.uuid + '.json'), 'utf8')).name, 'Alice');
+  await f.call('/v1/device-tokens', { token: alice.token, method: 'DELETE', status: 204 });
+  await f.action(alice, 'load', [], { status: 401 });
+  assert.deepEqual((await f.action(bob, 'load')).profiles, []);
+});
+
+test('PRO hosted mutations join the durable account log and uploaded data is visible in the web session', async t => {
+  const f = await fixture(t);
+  const browser = await f.login('alice', 'browser', true);
+  const phone = await f.login('alice', 'phone');
+  await f.action(browser, 'saveProfile', [{ name: 'Alice', sex: 'F', age: 40, heightCm: 165 }]);
+  const pending = await f.call('/v1/transactions/pending', { token: phone.token });
+  assert.ok(pending.transactions.length);
+  assert.ok(pending.transactions.some(row => row.type === 'batch' || row.data?.path?.startsWith('profiles/')));
+  const id = randomUUID();
+  const entry = transaction('create', 'measures/' + randomUUID() + '/2026-01-02T03-04-05.000Z.json', {
+    uuid: id, receivedAt: '2026-01-02T03:04:05.000Z', profile: { name: 'Alice' }, measures: { weight: 70, unit: 'kg' },
+  });
+  await f.call('/v1/transactions', { token: phone.token, body: { transactions: [entry] } });
+  assert.equal((await f.action(browser, 'load')).measurements[0].uuid, id);
+  const snapshot = await f.call('/v1/dataset', { token: phone.token });
+  assert.equal(snapshot.accountId, phone.accountId);
+  assert.deepEqual(snapshot.summary, { count: 1, from: '2026-01-02T03:04:05.000Z', to: '2026-01-02T03:04:05.000Z', hasData: true });
+  assert.ok(snapshot.files.some(file => file.path === 'transactions.index'));
+  assert.ok(snapshot.files.some(file => file.path.startsWith('transactions.sent/')));
+  const brief = await f.call('/v1/dataset/summary', { token: phone.token });
+  assert.deepEqual(brief.summary, snapshot.summary);
+  assert.equal(brief.revision, snapshot.revision);
+  assert.equal(brief.files, undefined);
+});
+
+test('materialization recovers already acknowledged legacy transactions and rejects stale merge revisions', async t => {
+  const f = await fixture(t);
+  const pc = await f.login('alice', 'pc', true);
+  const account = f.store.findAccount('alice@example.org');
+  const id = randomUUID();
+  const entry = transaction('create', 'profiles/' + id + '.json', { uuid: id, name: 'Recover', sex: 'F', age: 30, heightCm: 160 });
+  f.store.upload(account.id, 'pc', [{ uuid: entry.uuid, payload: JSON.stringify(entry) }]);
+  assert.deepEqual((await f.call('/v1/transactions/pending', { token: pc.token })).transactions, []);
+  const snapshot = await f.call('/v1/dataset', { token: pc.token });
+  assert.ok(snapshot.files.some(file => file.path === 'profiles/' + id + '.json'));
+  const fresh = transaction('update', 'profiles/' + id + '.json', { uuid: id, name: 'Updated', sex: 'F', age: 31, heightCm: 160,
+    updatedAt: '2026-11-17T12:00:01.000Z' }, '2026-11-17T12-00-01.000001Z');
+  await f.call('/v1/transactions', { token: pc.token, body: { transactions: [fresh] }, headers: { 'If-Match': snapshot.revision } });
+  const stale = transaction('delete', 'profiles/' + id + '.json', undefined, '2026-11-17T12-00-02.000001Z');
+  await f.call('/v1/transactions', { token: pc.token, body: { transactions: [stale] }, headers: { 'If-Match': snapshot.revision }, status: 409 });
+  assert.equal(f.store.allTransactions(account.id).some(row => JSON.parse(row.payload).uuid === stale.uuid), false);
+});
+
+test('subscription expiry blocks transfer while preserving hosted FREE data and queued changes', async t => {
+  const f = await fixture(t);
+  const browser = await f.login('alice', 'browser');
+  await f.action(browser, 'saveProfile', [{ name: 'Offline free', sex: 'H', age: 33, heightCm: 175 }]);
+  const account = f.store.findAccount('alice@example.org');
+  assert.equal(f.store.allTransactions(account.id).length, 0);
+  f.rights.set(account.domun_id, expires);
+  const phone = await f.login('alice', 'phone');
+  const initial = await f.call('/v1/dataset', { token: phone.token });
+  assert.equal(initial.summary.hasData, true);
+  // Rendering/materializing on the server must not mark a native caller as having received anything.
+  assert.ok((await f.call('/v1/transactions/pending', { token: phone.token })).transactions.length);
+  await f.action(browser, 'load');
+  f.rights.delete(account.domun_id);
+  await f.action(browser, 'saveProfile', [{ name: 'Second free', sex: 'F', age: 34, heightCm: 165 }]);
+  assert.equal((await f.action(browser, 'load')).profiles.length, 2);
+  await f.call('/v1/dataset', { token: phone.token, status: 403 });
+  await f.call('/v1/transactions/pending', { token: phone.token, status: 403 });
+});
+
+
+test('invalid hosted uploads do not poison the log, and late changes cannot resurrect deleted data', async t => {
+  const f = await fixture(t);
+  const pc = await f.login('alice', 'pc', true);
+  const account = f.store.findAccount('alice@example.org');
+  const bad = transaction('create', '../escape.json', {});
+  await f.call('/v1/transactions', { token: pc.token, body: { transactions: [bad] }, status: 400 });
+  assert.equal(f.store.allTransactions(account.id).length, 0);
+  const id = randomUUID();
+  const path = 'profiles/' + id + '.json';
+  const create = transaction('create', path, { uuid: id, name: 'Alice', sex: 'F', age: 40, heightCm: 165, createdAt: '2026-01-01T00:00:00.000Z' });
+  await f.call('/v1/transactions', { token: pc.token, body: { transactions: [create] } });
+  const remove = transaction('delete', path, undefined, '2026-11-17T12-00-01.000001Z');
+  await f.call('/v1/transactions', { token: pc.token, body: { transactions: [remove] } });
+  const late = transaction('create', path, { ...create.data.value, updatedAt: '2026-02-01T00:00:00.000Z' }, '2026-11-17T12-00-02.000001Z');
+  await f.call('/v1/transactions', { token: pc.token, body: { transactions: [late] } });
+  assert.equal((await f.call('/v1/dataset', { token: pc.token })).files.some(file => file.path === path), false);
+});
+
+test('final account purge removes its hosted files and leaves the other account intact', async t => {
+  const f = await fixture(t);
+  const alice = await f.login('alice');
+  const bob = await f.login('bob');
+  await f.action(alice, 'saveProfile', [{ name: 'Alice', sex: 'F', age: 40, heightCm: 165 }]);
+  await f.action(bob, 'saveProfile', [{ name: 'Bob', sex: 'H', age: 40, heightCm: 175 }]);
+  const account = f.store.findAccount('alice@example.org');
+  f.store.markDeleted(account.domun_id, '2020-01-01T00:00:00.000Z');
+  const result = await f.call('/v1/domun/accounts/purge', { token: domunToken, body: { ids: [account.domun_id] } });
+  assert.equal(result.purged, 1);
+  await assert.rejects(access(join(f.root, 'accounts', alice.accountId)), { code: 'ENOENT' });
+  await f.action(alice, 'load', [], { status: 401 });
+  assert.equal((await f.action(bob, 'load')).profiles[0].name, 'Bob');
+});
+
+
+test('legacy deletions without timestamps require explicit recovery instead of recreating data', async t => {
+  const f = await fixture(t);
+  const pc = await f.login('alice', 'pc', true);
+  const account = f.store.findAccount('alice@example.org');
+  const entry = { uuid: randomUUID(), type: 'delete', data: { path: 'profiles/' + randomUUID() + '.json' } };
+  f.store.upload(account.id, 'pc', [{ uuid: entry.uuid, payload: JSON.stringify(entry) }]);
+  const result = await f.call('/v1/dataset', { token: pc.token, status: 503 });
+  assert.equal(result.error, 'dataset_recovery_required');
+});

@@ -171,10 +171,7 @@ function stampChanges(draft, previous) {
   draft.profiles = versionRows(previous.profiles, draft.profiles, row => row.uuid ?? nameKey(row.name));
   draft.devices = versionRows(previous.devices, draft.devices, row => row.uuid ?? row.bluetooth.address);
   draft.measurements = versionRows(previous.measurements, draft.measurements, row => row.uuid ?? measurementSlot(row, draft.profiles),
-    row => {
-      const { updatedAt, ...record } = row;
-      return { ...record, createdAt: creationDate(row) ?? now };
-    });
+    row => stampRecord(row, undefined, now));
   draft.notifications = versionRows(previous.notifications, draft.notifications, row => row.id);
   if (draft.viewPresets !== previous.viewPresets) {
     draft.viewPresets = Object.fromEntries(Object.keys(viewDefaults).map(kind =>
@@ -335,7 +332,10 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing,
     return mutate(draft => {
       const entry = draft.notifications.find(item => item.id === id && item.action === 'deleted');
       if (!entry) throw Error('Notification de suppression introuvable.');
-      const { record, type } = entry;
+      const { type } = entry;
+      // Explicit restoration is a new write, newer than the deletion tombstone.
+      const restoredTime = Math.max(Date.now() + 1, Date.parse(entry.date) + 1, Date.parse(entry.record.updatedAt ?? entry.record.createdAt) + 1 || 0);
+      const record = { ...entry.record, updatedAt: new Date(restoredTime).toISOString() };
       const measurementExists = type === 'measurement' && draft.measurements.some(row =>
         measurementSlot(row, draft.profiles) === measurementSlot(record, draft.profiles));
       const profileExists = type === 'profile' && draft.profiles.some(profile => profile.uuid === record.uuid);
@@ -346,12 +346,12 @@ function createSession({ storage, waitMs = 15_000, dedupMs = 30_000, onWeighing,
         const profile = profileFieldsOverride ? {
           ...profileFields(profileFieldsOverride), uuid: record.uuid,
           ...(record.createdAt && { createdAt: record.createdAt }),
-          updatedAt: new Date().toISOString(),
+          updatedAt: record.updatedAt,
         } : record;
         if (findProfile(draft, profile.name)) throw Error('Un profil porte déjà ce nom.');
         draft.profiles = [...draft.profiles, profile];
         if (entry.preferences) draft.profilePreferences = { ...draft.profilePreferences, [profile.name]: entry.preferences };
-        if (withMeasurements) draft.measurements = [...draft.measurements, ...entry.measurements];
+        if (withMeasurements) draft.measurements = [...draft.measurements, ...entry.measurements.map(row => ({ ...row, updatedAt: record.updatedAt }))];
         notify(draft, { type, action: 'restored', record: profile });
       } else if (type === 'device') {
         enrollmentRequest(draft, { address: record.bluetooth.address, name: record.name });

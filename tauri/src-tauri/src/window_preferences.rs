@@ -61,8 +61,8 @@ pub(crate) fn setup(app: &AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window("main")
         .ok_or("Fenêtre introuvable.")?;
-    let saved = storage::data_root(app).and_then(|root| {
-        let saved = storage::read_window_preferences(&root)?;
+    let saved = storage::installation_root(app).and_then(|root| {
+        let saved = crate::account_storage::read_window(&root)?;
         let preferences: Preferences = serde_json::from_value(saved).unwrap_or_default();
         if let Err(error) = preferences.restore(&window) {
             eprintln!("Restauration de la fenêtre : {error}");
@@ -92,7 +92,7 @@ pub(crate) fn setup(app: &AppHandle) -> Result<(), String> {
         }
         let result = serde_json::to_value(next)
             .map_err(|error| error.to_string())
-            .and_then(|value| storage::save_window_preferences(&root, value));
+            .and_then(|value| crate::account_storage::save_window(&root, value));
         match result {
             Ok(()) => *current = next,
             Err(error) => eprintln!("Enregistrement de la fenêtre : {error}"),

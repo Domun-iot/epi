@@ -163,7 +163,42 @@ function importHistory(root, { ids, archives }) {
   return added;
 }
 
-function transactionChanges(root, { type, data }, name) {
+function transactionTime(name) {
+  return versionDate({ updatedAt: name.slice(0, 27).replace(/T(\d\d)-(\d\d)-(\d\d)/u, 'T$1:$2:$3') });
+}
+
+function rememberDeletions(root, tombstones, { type, data }, name) {
+  const time = transactionTime(name);
+  if (!time) return;
+  const operations = type === 'batch' ? data : [{ ...data, type }];
+  if (!Array.isArray(operations)) return;
+  for (const operation of operations) {
+    if (operation?.type !== 'delete') continue;
+    try { validateChange(root, operation); } catch { continue; }
+    const key = operation.path.toLowerCase();
+    if (!tombstones.has(key) || time > tombstones.get(key)) tombstones.set(key, time);
+  }
+}
+
+// The durable journal is the deletion index; snapshots already carry these archives.
+function transactionTombstones(root) {
+  const tombstones = new Map();
+  for (const folder of ['transactions', 'transactions.sent']) {
+    ensureNoSymlinks(root, folder);
+    const directory = join(root, folder);
+    if (!fs.existsSync(directory)) continue;
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (!entry.isFile() || !filename.test(entry.name)) continue;
+      try {
+        const contents = readOptional(join(directory, entry.name));
+        if (contents !== undefined) rememberDeletions(root, tombstones, parse(contents), entry.name);
+      } catch { /* An unreadable archive must not block recovery of the other entries. */ }
+    }
+  }
+  return tombstones;
+}
+
+function transactionChanges(root, { type, data }, name, tombstones = transactionTombstones(root)) {
   const operations = type === 'batch' ? data : [{ ...data, type }];
   if (!Array.isArray(operations) || !operations.length) throw new Error('Transaction vide ou invalide · ' + name);
   const paths = new Set();
@@ -173,12 +208,13 @@ function transactionChanges(root, { type, data }, name) {
     if (paths.has(key)) throw new Error('Chemin répété dans la transaction · ' + name);
     paths.add(key);
     const before = readOptional(join(root, change.path));
+    const time = change.type === 'delete' ? transactionTime(name) : versionDate(change.value) ?? transactionTime(name);
+    const deletion = tombstones.get(key);
+    if (change.type !== 'delete' && deletion && (!time || time <= deletion)) return null;
     if (before !== undefined) {
       const current = parse(before);
-      const candidate = change.type === 'delete'
-        ? { updatedAt: name.slice(0, 27).replace(/T(\d\d)-(\d\d)-(\d\d)/u, 'T$1:$2:$3') }
-        : change.value;
-      if (sameContent(candidate, current) || (versionDate(current) && !isNewer(candidate, current))) {
+      const candidate = change.type === 'delete' ? undefined : change.value;
+      if (sameContent(candidate, current) || (versionDate(current) && !isNewer({ updatedAt: time }, current))) {
         return null;
       }
     }
@@ -186,7 +222,19 @@ function transactionChanges(root, { type, data }, name) {
   }).filter(change => change && (change.before !== undefined || change.after !== undefined));
 }
 
+function validateTransaction(root, row) {
+  if (typeof row?.uuid !== 'string' || !uuidPattern.test(row.uuid) || typeof row.name !== 'string' ||
+      !filename.test(row.name) || !row.name.endsWith('-' + row.uuid + '.json')) throw new Error('Transaction invalide.');
+  const operations = row.type === 'batch' ? row.data : [{ ...row.data, type: row.type }];
+  if (!Array.isArray(operations) || operations.some(operation => operation?.type !== 'delete' &&
+      (!operation?.value || typeof operation.value !== 'object' || Array.isArray(operation.value)))) {
+    throw new Error('Valeur de transaction invalide.');
+  }
+  transactionChanges(root, row, row.name, new Map());
+}
+
 function integrateTransactions(root, rows) {
+  const tombstones = transactionTombstones(root);
   const ids = new Set();
   for (const folder of ['transactions', 'transactions.sent']) {
     ensureNoSymlinks(root, folder);
@@ -209,13 +257,14 @@ function integrateTransactions(root, rows) {
     }
     try {
       if (typeof name !== 'string' || !filename.test(name) || !name.endsWith('-' + row.uuid + '.json')) continue;
-      const changes = transactionChanges(root, transaction, name);
+      const changes = transactionChanges(root, transaction, name, tombstones);
       const destination = join(root, 'transactions.sent', name);
       applyChanges(root, changes, () => {
         write(destination, serialize(transaction), false);
         try { index.add(row.uuid); }
         catch (error) { fs.unlinkSync(destination); throw error; }
       });
+      rememberDeletions(root, tombstones, transaction, name);
       ids.add(row.uuid);
       acknowledged.add(row.uuid);
       changed ||= changes.length > 0;
@@ -242,6 +291,7 @@ function replayTransactions(root) {
 function replayIncoming(root, incoming) {
   const entries = fs.readdirSync(incoming, { withFileTypes: true });
   const index = transactionIndex(root);
+  const tombstones = transactionTombstones(root);
   let count = 0;
   for (const name of entries.filter(entry => entry.isFile() && filename.test(entry.name)).map(entry => entry.name).sort()) {
     const source = join(incoming, name);
@@ -251,13 +301,14 @@ function replayIncoming(root, incoming) {
       const destination = join(root, 'transactions', name);
       const archived = readOptional(destination) ?? readOptional(join(root, 'transactions.sent', name));
       if (archived === undefined) {
-        const changes = transactionChanges(root, parse(contents), name);
+        const changes = transactionChanges(root, parse(contents), name, tombstones);
         // Keep the incoming file until the archive and the index are both written.
         applyChanges(root, changes, () => write(destination, contents, false));
       } else if (archived !== contents) {
         throw new Error('Transaction archivée différente · ' + name);
       }
       index.add(uuid);
+      rememberDeletions(root, tombstones, parse(contents), name);
       count++;
     }
     fs.unlinkSync(source);
@@ -265,4 +316,4 @@ function replayIncoming(root, incoming) {
   return count;
 }
 
-module.exports = { ensureNoSymlinks, integrateTransactions, importHistory, prepareHistory, readOptional, recordTransaction, replayTransactions, saveChanges, serialize };
+module.exports = { validateTransaction, transactionTombstones, ensureNoSymlinks, integrateTransactions, importHistory, prepareHistory, readOptional, recordTransaction, replayTransactions, saveChanges, serialize };

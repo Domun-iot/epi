@@ -398,10 +398,12 @@ test('stores deletion snapshots and restores profiles, measurements and devices 
 
   const removedDevice = (await reopened.deleteDevice(address)).notifications.at(-1);
   const restoredDevice = await reopened.restoreNotification(removedDevice.id);
-  assert.deepEqual(restoredDevice.devices, initial.devices);
+  assert.deepEqual(restoredDevice.devices.map(({ updatedAt, ...row }) => row), initial.devices);
+  assert.ok(restoredDevice.devices[0].updatedAt > removedDevice.date);
   const removedMeasurement = (await reopened.deleteMeasurement(restoredDevice.measurements[0])).notifications.at(-1);
   const restoredMeasurement = await reopened.restoreNotification(removedMeasurement.id);
-  assert.deepEqual(restoredMeasurement.measurements, [initial.measurements[1]]);
+  assert.deepEqual(restoredMeasurement.measurements.map(({ updatedAt, ...row }) => row), [initial.measurements[1]]);
+  assert.ok(restoredMeasurement.measurements[0].updatedAt > removedMeasurement.date);
 });
 
 test('links one complete receipt through enrollment, attribution, deletion and replay', async () => {

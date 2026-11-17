@@ -54,8 +54,42 @@ let creating = false;
 let registrationLanguage;
 let saveLanguage;
 let busy = false;
+let datasetHooks;
+let datasetAccess = { locked: false, hosted: false };
+let onlineVerified = false;
+let loginEpoch = 0;
 
 const chosenLocale = () => creating ? registrationLanguage : undefined;
+
+// Complete dataset selection before exposing a new token to synchronisation.
+// Expiry preserves a native offline dataset; explicit logout deselects it.
+export function configureAccountDatasets(hooks) { datasetHooks = hooks; }
+export function getSavedAccount() {
+  try { return configured ? readAccount() : null; }
+  catch { return null; }
+}
+export function getAccountInfo() { return accountInfo; }
+export function getAccountId() { return accountInfo?.accountId ?? account?.accountId; }
+export function isOnlineAccountVerified() { return onlineVerified; }
+
+export function setDatasetAccess(access) {
+  datasetAccess = { ...datasetAccess, pending: false, ...access };
+  const shell = document.querySelector('.shell');
+  shell.inert = datasetAccess.locked;
+  shell.hidden = datasetAccess.locked;
+  document.body.classList.toggle('dataset-locked', datasetAccess.locked);
+  const notice = document.querySelector('#account-access-notice');
+  notice.hidden = !datasetAccess.locked;
+  notice.textContent = t(datasetAccess.hosted ? 'hostedAccountRequired' : 'localAccountRequired');
+  if (datasetAccess.locked) {
+    for (const modal of document.querySelectorAll('dialog[open]')) {
+      if (modal !== dialog && modal.id !== 'account-data-dialog') modal.close();
+    }
+    if (!datasetAccess.pending && !dialog.open) dialog.showModal();
+  }
+  render();
+  window.dispatchEvent(new CustomEvent('epi:dataset-access', { detail: { ...datasetAccess } }));
+}
 
 export function enableLanguageSelection(save) {
   saveLanguage = save;
@@ -78,6 +112,22 @@ export function isPaidAccount() {
 
 export function transactionSyncToken() {
   return isPaidAccount() ? syncToken() : undefined;
+}
+
+window.addEventListener('epi:session-expired', event => {
+  const token = event.detail?.token;
+  if (!token || token !== syncToken()) return;
+  void expireSession(token).catch(error => showConnectionError(error.message));
+});
+
+async function expireSession(token) {
+  if (token !== syncToken()) return;
+  const previousEmail = account?.email;
+  // Hosted responses must stop showing the prior dataset immediately.
+  if (datasetAccess.hosted) setDatasetAccess({ locked: true });
+  clearSession('expired');
+  await datasetHooks?.onExpired?.();
+  if (dialog.open && previousEmail) email.value = previousEmail;
 }
 
 function setEntitlement(info) {
@@ -105,8 +155,13 @@ window.addEventListener('storage', event => {
   const token = account?.token;
   loadSavedSession();
   if (account?.token !== token) {
+    loginEpoch += 1;
+    const choosing = document.querySelector('#account-data-dialog');
+    if (choosing.open) { choosing.returnValue = 'cancel'; choosing.close(); }
+    // A second tab must stop displaying the previous account immediately.
+    if (datasetHooks) setDatasetAccess({ locked: true });
     void checkAccountConnection();
-    window.dispatchEvent(new Event('epi:account'));
+    window.dispatchEvent(new CustomEvent('epi:account', { detail: { reason: 'storage' } }));
   }
 });
 
@@ -137,15 +192,15 @@ function render() {
     url.searchParams.set('lang', locale);
     link.href = url.href;
   }
-  openButton.dataset.connected = String(Boolean(accountInfo));
-  connectionStatus.textContent = t(accountInfo ? 'accountConnected' : 'accountDisconnected');
+  openButton.dataset.connected = String(onlineVerified);
+  connectionStatus.textContent = t(onlineVerified ? 'accountConnected' : 'accountDisconnected');
   openButton.title = connectionStatus.textContent;
   title.textContent = account ? t('account') : creating ? t('createAccount') : t('signInHeading');
   accountEmail.hidden = !account;
   accountEmail.textContent = account?.email ?? '';
   renderPlan();
   fields.hidden = Boolean(account);
-  language.disabled = busy || !(saveLanguage || creating);
+  language.disabled = busy || !(saveLanguage || creating || datasetAccess.locked);
   email.disabled = password.disabled = busy || Boolean(account);
   password.autocomplete = creating ? 'new-password' : 'current-password';
   switchButton.hidden = Boolean(account) || !configured;
@@ -170,6 +225,7 @@ function render() {
   googleStatus.textContent = waitingForGoogle ? t('completeGoogleSignIn') : '';
   const closingAccount = !waitingForGoogle && !managingGoogle;
   closeButton.disabled = busy && !waitingForGoogle;
+  closeButton.hidden = datasetAccess.locked && closingAccount;
   closeButton.textContent = closingAccount ? t('close') : t('cancel');
   closeButton.classList.toggle('primary', closingAccount && Boolean(accountInfo));
   submitButton.disabled = busy || !configured;
@@ -206,8 +262,8 @@ const errors = {
   invalid_credentials_format: t('checkCredentials'),
 };
 
-async function request(path, { method = 'POST', body, token, contentType = 'application/json' } = {}) {
-  const headers = {};
+async function request(path, { method = 'POST', body, token, contentType = 'application/json', extraHeaders = {} } = {}) {
+  const headers = { ...extraHeaders };
   if (body) headers['Content-Type'] = contentType;
   if (token) headers.Authorization = 'Bearer ' + token;
   const controller = new AbortController();
@@ -239,8 +295,9 @@ async function request(path, { method = 'POST', body, token, contentType = 'appl
   return result;
 }
 
-export function uploadTransactions(body, token) {
-  return request('transactions', { body, token, contentType: 'application/x-ndjson' });
+export function uploadTransactions(body, token, revision) {
+  return request('transactions', { body, token, contentType: 'application/x-ndjson',
+    extraHeaders: typeof revision === 'string' && revision ? { 'If-Match': revision } : {} });
 }
 
 export function downloadTransactions(token, after) {
@@ -257,13 +314,14 @@ function showConnectionError(message) {
   connectionError = message;
 }
 
-function setSession(session, info = null) {
+function setSession(session, info = session?.info ?? null, verified = false) {
   if (session && creating) {
     creating = false;
     language.value = locale;
   }
   account = session;
   accountInfo = info;
+  onlineVerified = verified;
   setEntitlement(info);
   connectionCheck = undefined;
   managingGoogle = false;
@@ -283,21 +341,38 @@ function loadSavedSession() {
   return error;
 }
 
-function clearSession() {
+function clearSession(reason) {
   localStorage.removeItem(sessionKey);
   setSession(null);
-  window.dispatchEvent(new Event('epi:account'));
+  window.dispatchEvent(new CustomEvent('epi:account', { detail: { reason } }));
 }
 
-function saveSession(email, token, info) {
+async function saveSession(email, token, info, attempt = loginEpoch) {
   if (typeof email !== 'string' || typeof token !== 'string' || !token) {
     throw new Error(t('invalidServerSession'));
   }
-  const session = { email, token };
+  const previousToken = syncToken();
+  const abandon = () => {
+    if (token !== syncToken()) void request('device-tokens', { method: 'DELETE', token }).catch(() => {});
+    return false;
+  };
+  if (attempt !== loginEpoch) return abandon();
+  if (!info?.accountId || typeof info.email !== 'string') {
+    info = await request('account', { method: 'GET', token });
+  }
+  if (attempt !== loginEpoch || previousToken !== syncToken()) return abandon();
+  const accepted = !datasetHooks || await datasetHooks.beforeSignIn?.(info, token) !== false;
+  if (attempt !== loginEpoch || previousToken !== syncToken()) {
+    if (datasetHooks) setDatasetAccess({ locked: true });
+    return abandon();
+  }
+  if (!accepted) return abandon();
+  const session = { email, token, accountId: info.accountId, info };
   localStorage.setItem(sessionKey, JSON.stringify(session));
-  setSession(session, info);
-  window.dispatchEvent(new Event('epi:account'));
+  setSession(session, info, true);
+  window.dispatchEvent(new CustomEvent('epi:account', { detail: { reason: 'signin' } }));
   form.reset();
+  return true;
 }
 
 export function checkAccountConnection() {
@@ -316,19 +391,24 @@ async function refreshAccountInfo(token, check) {
     const info = await request('account', { method: 'GET', token });
     if (connectionCheck !== check || syncToken() !== token) return;
     if (typeof info?.email !== 'string') throw new Error(t('accountServerError'));
+    if (account.accountId && info.accountId !== account.accountId) {
+      throw Object.assign(new Error(t('sessionExpired')), { code: 'invalid_token' });
+    }
     accountInfo = info;
+    onlineVerified = true;
+    account = { ...account, accountId: info.accountId, info };
+    localStorage.setItem(sessionKey, JSON.stringify(account));
     setEntitlement(info);
     showConnectionError('');
+    return info;
   } catch (error) {
     if (connectionCheck !== check || syncToken() !== token) return;
-    accountInfo = null;
+    onlineVerified = false;
     managingGoogle = false;
     let message = error.message;
     if (['invalid_token', 'token_expired'].includes(error.code)) {
-      const previousEmail = account.email;
       try {
-        clearSession();
-        if (dialog.open) email.value = previousEmail;
+        await expireSession(token);
       } catch {
         message = t('accountStorageUnavailable');
       }
@@ -364,7 +444,7 @@ function closeAccount() {
     render();
     return;
   }
-  if (!busy) dialog.close();
+  if (!busy && !datasetAccess.locked) dialog.close();
 }
 
 language.addEventListener('change', async () => {
@@ -374,11 +454,11 @@ language.addEventListener('change', async () => {
     registrationLanguage = preference;
     return;
   }
-  if (!saveLanguage) return;
+  if (!saveLanguage && !datasetAccess.locked) return;
   busy = true;
   render();
   try {
-    await saveLanguage(preference);
+    if (!datasetAccess.locked) await saveLanguage(preference);
     useInterfaceLanguage(preference);
   } catch (error) {
     language.value = locale;
@@ -455,6 +535,7 @@ googleButton.addEventListener('click', async () => {
     googlePassword.focus();
     return;
   }
+  const attempt = loginEpoch;
   let popup;
   if (!unlinking && !isTauri()) {
     popup = window.open('', '_blank');
@@ -477,8 +558,8 @@ googleButton.addEventListener('click', async () => {
       ? await request('google/unlink', { body, token })
       : await finishGoogle(action, body, popup, token);
     if (result) {
-      if (!token) saveSession(result.email, result.token, result);
-      else if (token === syncToken()) setSession(account, result);
+      if (!token && !await saveSession(result.email, result.token, result, attempt)) return;
+      else if (token === syncToken()) setSession(account, result, true);
       useAccountLanguage(result.locale ?? body.locale, result.googleLocale);
       managingGoogle = false;
     }
@@ -502,14 +583,19 @@ form.addEventListener('submit', async event => {
     googleButton.click();
     return;
   }
+  const attempt = loginEpoch;
   const credentials = { email: email.value.trim().toLowerCase(), password: password.value };
   busy = true;
   showError('');
   render();
   try {
     if (account) {
-      await request('device-tokens', { method: 'DELETE', token: account.token });
-      clearSession();
+      const token = account.token;
+      loginEpoch += 1;
+      await datasetHooks?.beforeSignOut?.();
+      clearSession('signout');
+      // Offline logout closes local access even when revocation cannot reach the API.
+      void request('device-tokens', { method: 'DELETE', token }).catch(() => {});
       form.reset();
       useAccountLanguage();
     } else {
@@ -521,7 +607,7 @@ form.addEventListener('submit', async event => {
         language.value = locale;
       }
       const result = await request('device-tokens', { body: { ...credentials, deviceId } });
-      saveSession(credentials.email, result.token);
+      if (!await saveSession(credentials.email, result.token, result, attempt)) return;
       useAccountLanguage(result.locale ?? preference, result.googleLocale);
     }
     await checkAccountConnection();

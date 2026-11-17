@@ -3,13 +3,14 @@ import { readFile } from 'node:fs/promises';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import config from './config.js';
-import { createSessionApi, json } from './session-api.js';
+import { json } from './session-api.js';
+import { createLocalApi } from './local-api.js';
 import domain from './tauri/domain/session.cjs';
 import storage from './shared/data-directory.cjs';
 import transactions from './shared/transactions.cjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
-const { dataDir, handleAction } = await createSessionApi({ root, domain, storage, transactions });
+const localApi = createLocalApi({ root, domain, storage, transactions });
 const types = new Map([
   ['.html', 'text/html; charset=utf-8'],
   ['.js', 'text/javascript; charset=utf-8'],
@@ -26,7 +27,7 @@ async function handle(request, response) {
     return json(response, 403, { error: 'Hôte non autorisé.' });
   }
   const { pathname } = new URL(request.url, 'http://localhost');
-  if (pathname === '/api/session') return handleAction(request, response);
+  if (pathname === '/api/session' || pathname === '/api/installation') return localApi.handle(request, response, pathname);
   const file = pathname === '/' ? '/index.html' : pathname;
   const type = types.get(extname(file));
   if (!['GET', 'HEAD'].includes(request.method) || !type
@@ -57,5 +58,5 @@ const server = createServer((request, response) => {
 server.listen(config.port, config.host, () => {
   const { address, port, family } = server.address();
   console.log(`éPI Web · http://${family === 'IPv6' ? '[' + address + ']' : address}:${port}`);
-  console.log(`Stockage · ${dataDir}`);
+  console.log(`Stockage · ${localApi.installationRoot}`);
 });

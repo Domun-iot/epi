@@ -136,6 +136,8 @@ export function openStore(path: string) {
     ON CONFLICT (account_id, uuid) DO NOTHING
   `);
   const storedTransaction = db.prepare('SELECT payload FROM transactions WHERE account_id = ? AND uuid = ?');
+  const allTransactions = db.prepare('SELECT sequence, payload FROM transactions WHERE account_id = ? ORDER BY sequence');
+  const hasAccountIdentity = db.prepare('SELECT 1 FROM accounts WHERE domun_id = ?');
   const updateTransactionPayload = db.prepare('UPDATE transactions SET payload = ? WHERE account_id = ? AND uuid = ?');
   const pending = db.prepare(`
     SELECT t.payload, COALESCE(json_extract(t.payload, '$.name'), printf('~%020d', t.sequence)) AS position
@@ -174,6 +176,36 @@ export function openStore(path: string) {
     return removeAccountRow.run(id);
   }
 
+  function writeTransactions(accountId: number, deviceId: string | undefined, rows: { uuid: string; payload: string }[]) {
+    const uuids = new Set<string>();
+    const inserted = writeBatch(rows, ({ uuid, payload }) => {
+      const result = insertTransaction.run(accountId, uuid, payload);
+      const stored = result.changes ? undefined : storedTransaction.get(accountId, uuid)?.payload;
+      let accepted = Boolean(result.changes) || stored === payload;
+      if (!accepted && typeof stored === 'string') {
+        const previous = JSON.parse(stored);
+        const current = JSON.parse(payload);
+        if (isDeepStrictEqual(previous, current)) {
+          accepted = true;
+        } else {
+          const { name: previousName, ...previousTransaction } = previous;
+          const { name: currentName, ...currentTransaction } = current;
+          if ((previousName === undefined || currentName === undefined) &&
+            isDeepStrictEqual(previousTransaction, currentTransaction)) {
+            if (currentName !== undefined) updateTransactionPayload.run(payload, accountId, uuid);
+            accepted = true;
+          }
+        }
+      }
+      if (accepted) {
+        if (deviceId !== undefined) acknowledge.run(deviceId, accountId, uuid);
+        uuids.add(uuid);
+      }
+      return result;
+    });
+    return { inserted, uuids: [...uuids] };
+  }
+
   return {
     deleteAccount(id: number) {
       writeBatch([id], removeAccount);
@@ -199,6 +231,8 @@ export function openStore(path: string) {
       updateEntitlement.run(paidUntil, id).changes === 1,
     findAccount: (email: string) => findAccount.get(email) as Account | undefined,
     findById: (id: number) => findById.get(id) as Account | undefined,
+    hasAccountIdentity: (id: string) => Boolean(hasAccountIdentity.get(id)),
+    allTransactions: (id: number) => allTransactions.all(id) as { sequence: number; payload: string }[],
     findGoogle: (sub: string) => findGoogle.get(sub) as Account | undefined,
     createGoogle: (email: string, sub: string, locale: string | null, googleLocale: string | null) =>
       createGoogle.get(email, sub, locale, googleLocale) as Account | undefined,
@@ -214,35 +248,8 @@ export function openStore(path: string) {
     expireToken: (selector: string, hash: string, cutoff: number) => expireToken.get(selector, hash, cutoff),
     expireTokens: (cutoff: number) => expireTokens.run(cutoff),
     revokeToken: (selector: string, hash: string) => revokeToken.run(selector, hash),
-    upload(accountId: number, deviceId: string, rows: { uuid: string; payload: string }[]) {
-      const uuids = new Set<string>();
-      const inserted = writeBatch(rows, ({ uuid, payload }) => {
-        const result = insertTransaction.run(accountId, uuid, payload);
-        const stored = result.changes ? undefined : storedTransaction.get(accountId, uuid)?.payload;
-        let accepted = Boolean(result.changes) || stored === payload;
-        if (!accepted && typeof stored === 'string') {
-          const previous = JSON.parse(stored);
-          const current = JSON.parse(payload);
-          if (isDeepStrictEqual(previous, current)) {
-            accepted = true;
-          } else {
-            const { name: previousName, ...previousTransaction } = previous;
-            const { name: currentName, ...currentTransaction } = current;
-            if ((previousName === undefined || currentName === undefined) &&
-              isDeepStrictEqual(previousTransaction, currentTransaction)) {
-              if (currentName !== undefined) updateTransactionPayload.run(payload, accountId, uuid);
-              accepted = true;
-            }
-          }
-        }
-        if (accepted) {
-          acknowledge.run(deviceId, accountId, uuid);
-          uuids.add(uuid);
-        }
-        return result;
-      });
-      return { inserted, uuids: [...uuids] };
-    },
+    upload: writeTransactions,
+    uploadServer: (accountId: number, rows: { uuid: string; payload: string }[]) => writeTransactions(accountId, undefined, rows),
     pending: (accountId: number, deviceId: string, after: string, limit: number) =>
       pending.iterate(accountId, deviceId, after, limit) as IterableIterator<{ payload: string; position: string }>,
     acknowledge: (accountId: number, deviceId: string, uuids: string[]) => writeBatch(uuids, uuid =>

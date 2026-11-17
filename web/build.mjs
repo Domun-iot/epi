@@ -6,20 +6,25 @@ import { fileURLToPath } from 'node:url';
 
 const source = fileURLToPath(new URL('.', import.meta.url));
 const tauri = fileURLToPath(new URL('../tauri/', import.meta.url));
-const output = fileURLToPath(new URL('../release/web/', import.meta.url));
-const marker = join(output, 'build.ok');
+const output = process.env.EPI_WEB_OUTPUT || fileURLToPath(new URL('../release/web/', import.meta.url));
+const hosted = process.argv.includes('--hosted');
+const marker = join(output, hosted ? 'hosted.ok' : 'build.ok');
 
 await mkdir(output, { recursive: true });
-await rm(marker, { force: true });
+await Promise.all(['build.ok', 'hosted.ok'].map(name => rm(join(output, name), { force: true })));
 const result = spawnSync(process.execPath, [
-  join(tauri, 'node_modules/vite/bin/vite.js'), 'build', '--mode', 'web',
+  join(tauri, 'node_modules/vite/bin/vite.js'), 'build', '--mode', hosted ? 'hosted' : 'web',
   '--outDir', join(output, 'public'), '--emptyOutDir',
 ], { cwd: tauri, stdio: 'inherit' });
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status ?? 1);
 
-for (const file of ['package.json', 'server.js', 'actions.js', 'account-api.js', 'session-api.js', 'file-records.js', 'file-storage.js']) {
-  await copyFile(join(source, file), join(output, file));
+for (const file of ['package.json', 'server.js', 'local-api.js', 'hosted-server.js', 'actions.js', 'account-api.js', 'session-api.js', 'file-records.js', 'file-storage.js']) {
+  const contents = await (await import('node:fs/promises')).readFile(join(source, file), 'utf8');
+  await writeFile(join(output, file), file.endsWith('.js')
+    ? contents.replaceAll("'../shared/", "'./shared/")
+    : file === 'package.json' && hosted
+      ? JSON.stringify({ ...JSON.parse(contents), scripts: { start: 'node hosted-server.js' } }, null, 2) + '\n' : contents);
 }
 await copyFile(join(source, 'config.js'), join(output, 'config.js'), constants.COPYFILE_EXCL)
   .catch(error => {

@@ -10,9 +10,9 @@ function recentFrames(frames) {
   return frames.filter(frame => frame.at >= cutoff);
 }
 
-function readFrames() {
+function readFrames(key) {
   try {
-    const frames = JSON.parse(localStorage.getItem(logKey) ?? '[]');
+    const frames = JSON.parse(localStorage.getItem(key) ?? '[]');
     return Array.isArray(frames) ? recentFrames(frames.filter(frame =>
       Number.isFinite(frame?.at) && typeof frame.address === 'string' && (typeof frame.text === 'string' || typeof frame.decoded?.label === 'string'))) : [];
   } catch {
@@ -20,12 +20,13 @@ function readFrames() {
   }
 }
 
-function saveFrames(frames) {
+function saveFrames(frames, key) {
+  if (!key) return;
   let recent = recentFrames(frames);
   for (;;) {
     try {
-      if (recent.length) localStorage.setItem(logKey, JSON.stringify(recent));
-      else localStorage.removeItem(logKey);
+      if (recent.length) localStorage.setItem(key, JSON.stringify(recent));
+      else localStorage.removeItem(key);
       return;
     } catch (error) {
       if (error.name !== 'QuotaExceededError' || recent.length === 0) return;
@@ -100,7 +101,8 @@ function formatFrame(frame) {
 }
 
 export function createBluetoothWatch() {
-  const decode = bluetooth.createWatchDecoder();
+  let decode = bluetooth.createWatchDecoder();
+  let storageKey = logKey;
   let frames = [];
   let output;
   let filter;
@@ -112,7 +114,7 @@ export function createBluetoothWatch() {
     if (saveTimer == null) return;
     clearTimeout(saveTimer);
     saveTimer = undefined;
-    saveFrames(frames);
+    saveFrames(frames, storageKey);
   }
 
   window.addEventListener('pagehide', flush);
@@ -149,11 +151,23 @@ export function createBluetoothWatch() {
   }
 
   return {
+    reset(datasetId) {
+      flush();
+      if (repaint != null) cancelAnimationFrame(repaint);
+      repaint = undefined;
+      output?.replaceChildren();
+      output = undefined;
+      frames = [];
+      filter = undefined;
+      rendered = 0;
+      decode = bluetooth.createWatchDecoder();
+      storageKey = datasetId === 'local' ? logKey : datasetId ? logKey + ':' + datasetId : undefined;
+    },
     attach(element, address) {
       if (element === output) return;
       if (element && !output) {
-        frames = readFrames();
-        saveFrames(frames);
+        frames = storageKey ? readFrames(storageKey) : [];
+        saveFrames(frames, storageKey);
       } else if (!element) {
         flush();
         frames = [];

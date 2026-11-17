@@ -404,5 +404,21 @@
   "yes": "Kyllä",
   "zipArchive": "ZIP-arkisto",
   "zipExported": "ZIP-arkisto viety.",
-  "zipWithoutEpiData": "ZIP ei sisällä éPI-tietoja."
+  "zipWithoutEpiData": "ZIP ei sisällä éPI-tietoja.",
+  "accountDataCount": "{count} weigh-ins",
+  "accountDataDescription": "This account already has online data. Choose how to combine it with the data on this device.",
+  "accountDataEmpty": "No weigh-ins",
+  "accountDataLocal": "On this device",
+  "accountDataMerge": "Merge both datasets",
+  "accountDataPeriod": "From {from} to {to}",
+  "accountDataRecovery": "A recovery copy of your local data will be kept.",
+  "accountDataRemote": "In this account",
+  "accountDataTitle": "Choose the data to use",
+  "accountDataUnknownDates": "Dates unavailable",
+  "accountDataUseRemote": "Use online data",
+  "electrodeContact": "Electrode contact (0/1)",
+  "heartRateBpm": "Heart rate (bpm)",
+  "hostedAccountRequired": "Sign in to access your private data on this server.",
+  "localAccountRequired": "Sign in to open a local account dataset. Your data is still stored on this device.",
+  "scaleUserId": "Scale user ID"
 }

@@ -6,6 +6,7 @@ export { languages };
 
 const fallback = 'en-GB';
 const storageKey = 'epi-account-language';
+const interfaceStorageKey = 'epi-interface-language';
 const regional = { en: 'en-GB', fr: 'fr-FR', pt: 'pt-PT' };
 
 export function supportedLocale(tag) {
@@ -33,8 +34,13 @@ export function chooseLocale({ preference, google, browser = [], system } = {}) 
   return [preference, google, ...browser, system].map(supportedLocale).find(Boolean) ?? fallback;
 }
 
+function savedInterfaceLanguage() {
+  try { return supportedLocale(globalThis.localStorage?.getItem(interfaceStorageKey)); }
+  catch { return undefined; }
+}
+
 let systemLocale;
-let interfaceLanguage;
+let interfaceLanguage = savedInterfaceLanguage();
 function detectLocale() {
   const account = accountLanguage();
   const browser = globalThis.navigator;
@@ -52,7 +58,7 @@ let messages = english;
 
 export async function initialiseLanguage(system, preference) {
   systemLocale = system;
-  interfaceLanguage = supportedLocale(preference);
+  interfaceLanguage = supportedLocale(preference) ?? savedInterfaceLanguage();
   locale = detectLocale();
   messages = english;
   if (locale !== fallback) {
@@ -77,6 +83,9 @@ export async function initialiseLanguage(system, preference) {
 
 export function useInterfaceLanguage(preference) {
   interfaceLanguage = supportedLocale(preference);
+  // The login screen keeps the last UI language without opening a locked dataset.
+  if (interfaceLanguage) localStorage.setItem(interfaceStorageKey, interfaceLanguage);
+  else localStorage.removeItem(interfaceStorageKey);
   reloadForLanguageChange();
 }
 

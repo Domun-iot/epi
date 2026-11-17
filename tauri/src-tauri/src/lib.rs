@@ -1,3 +1,5 @@
+mod account_storage;
+mod installation_lock;
 mod bluetooth;
 mod storage;
 mod system_locale;
@@ -53,6 +55,11 @@ pub fn run() {
     builder
         .invoke_handler(tauri::generate_handler![
             start_bluetooth,
+            account_storage::get_dataset_context,
+            account_storage::prepare_account_dataset,
+            account_storage::activate_account_dataset,
+            account_storage::logout_dataset,
+            account_storage::mark_dataset_sync_ready,
             system_locale::system_locale,
             storage::load_language_preference,
             storage::load_session,

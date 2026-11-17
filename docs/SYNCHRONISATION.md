@@ -1,5 +1,13 @@
 # Synchronisation des données éPI
 
+## Fonctionnement multi-comptes depuis le 17 novembre 2026
+
+Le [guide des comptes et jeux de données](COMPTES-ET-DONNEES.md) décrit le fonctionnement actuel : dossiers locaux par UUID, accès hors ligne au dernier jeu, verrouillage après déconnexion volontaire, rattachement et première synchronisation PRO avec choix de fusion, sessions web authentifiées, contrôle des générations et mémoire des suppressions. La synchronisation reste interdite en FREE. Le client reçoit les nouvelles transactions à chaque passage périodique ; le rechargement manuel émet puis reçoit.
+
+Les sections suivantes conservent l’étude historique du 15 novembre. Leurs constats de défauts, notamment le dossier commun entre comptes et l’absence de tombstones, décrivent la version étudiée à cette date et sont remplacés par les mécanismes ci-dessus. Les horloges des appareils, la granularité par fichier et la croissance des journaux restent des limites du protocole.
+
+## Étude historique
+
 État du dépôt au 15 novembre 2026, commit `cbc2fb4`. L’étude couvre Tauri, le serveur web de session, le journal du CLI et l’API de synchronisation. La version effectivement déployée en production reste à vérifier.
 
 ## Compte et périmètre de la synchronisation

@@ -5,7 +5,7 @@ const { stampRecord } = require('../shared/record-version.cjs');
 const { randomUUID } = require('node:crypto');
 const { basename, dirname, join } = require('node:path');
 const { listProfileFiles } = require('./record-files.cjs');
-const { profileDirectory } = require('./storage.cjs');
+const { profileDirectory, withActiveDataset } = require('./storage.cjs');
 const { createInterface } = require('node:readline/promises');
 
 const { normalize, normalizeBirth, profileAt, normalizeProfileName, nameKey } = require('../shared/profile-fields.cjs');
@@ -72,9 +72,10 @@ async function prepareProfile(values, {
 
   if (file && (!stored?.uuid || hasFields || missing.length)) {
     const record = stampRecord({ ...profile, name: user, uuid }, stored);
-    saveChanges(dirname(directory), [{
+    const write = () => saveChanges(dirname(directory), [{
       path: basename(directory) + '/' + basename(file), before: entry?.contents, after: serialize(record),
     }]);
+    if (directory === profileDirectory) withActiveDataset(write); else write();
     output.write(`Profil « ${user} » enregistré.\n`);
   }
   return profileAt({ ...profile, user, uuid });

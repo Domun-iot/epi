@@ -6,13 +6,24 @@ const { dirname, isAbsolute, join } = require('node:path');
 
 const dataFolders = ['devices', 'measures', 'profiles'];
 
+function isDataRoot(data) {
+  const directory = path => {
+    try { return statSync(path).isDirectory(); }
+    catch { return false; }
+  };
+  const file = path => {
+    try { return statSync(path).isFile(); }
+    catch { return false; }
+  };
+  return dataFolders.every(name => directory(join(data, name)))
+    || directory(join(data, 'local')) || directory(join(data, 'accounts'))
+    || file(join(data, 'installation.json')) || file(join(data, 'migration.json'));
+}
+
 function findSharedData(directory) {
   while (true) {
     const data = join(directory, 'data');
-    if (dataFolders.every(name => {
-      try { return statSync(join(data, name)).isDirectory(); }
-      catch { return false; }
-    })) return data;
+    if (isDataRoot(data)) return data;
 
     const parent = dirname(directory);
     if (parent === directory) return undefined;
@@ -32,4 +43,4 @@ function resolveDataDirectory(startDirectory) {
   return process.env.EPI_DATA_DIR || findSharedData(startDirectory) || userDataDirectory();
 }
 
-module.exports = { dataFolders, resolveDataDirectory };
+module.exports = { dataFolders, resolveDataDirectory, findSharedData, isDataRoot };

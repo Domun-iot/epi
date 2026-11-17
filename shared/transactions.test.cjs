@@ -131,3 +131,44 @@ test('rejects a path outside the data folders and retains the incoming file', t 
   assert.deepEqual(fs.readdirSync(incoming), [name]);
   assert.equal(fs.existsSync(join(root, 'transactions.index')), false);
 });
+
+
+test('deleted rows stay deleted across late delivery and process reload, while a newer explicit restore succeeds', t => {
+  const root = directory(t);
+  const path = 'profiles/profil-alice.json';
+  const target = join(root, path);
+  const row = (position, time, type, value) => {
+    const uuid = '00000000-0000-4000-8000-00000000000' + position;
+    return { uuid, name: time.replaceAll(':', '-') + '-' + uuid + '.json', type,
+      data: { path, ...(type !== 'delete' && { value }) } };
+  };
+  const create = row(1, '2026-01-01T00:00:00.000000Z', 'create', { name: 'Alice', createdAt: '2026-01-01T00:00:00.000Z' });
+  const remove = row(2, '2026-03-01T00:00:00.000000Z', 'delete');
+  const late = row(3, '2026-04-01T00:00:00.000000Z', 'update', { name: 'Old Alice', updatedAt: '2026-02-01T00:00:00.000Z' });
+  assert.equal(integrateTransactions(root, [create, remove]).changed, true);
+  assert.equal(fs.existsSync(target), false);
+  assert.deepEqual(integrateTransactions(root, [late]), { uuids: [late.uuid], changed: false });
+  assert.equal(fs.existsSync(target), false);
+  // A second call reconstructs deletion versions from the durable sent archives.
+  const same = row(4, '2026-03-01T00:00:00.000000Z', 'create', { name: 'Same time', updatedAt: '2026-03-01T00:00:00.000Z' });
+  assert.equal(integrateTransactions(root, [same]).changed, false);
+  const restore = row(5, '2026-04-01T00:00:00.000000Z', 'create', { name: 'Restored', updatedAt: '2026-04-01T00:00:00.000Z' });
+  assert.equal(integrateTransactions(root, [restore]).changed, true);
+  assert.equal(JSON.parse(fs.readFileSync(target)).name, 'Restored');
+});
+
+test('pending batch deletions also protect against replayed unversioned old rows', t => {
+  const root = directory(t);
+  const path = 'prefs/global.json';
+  const deletionUuid = '00000000-0000-4000-8000-000000000001';
+  const deletionName = '2026-03-01T00-00-00.000000Z-' + deletionUuid + '.json';
+  fs.mkdirSync(join(root, 'transactions'));
+  fs.writeFileSync(join(root, 'transactions', deletionName), serialize({ uuid: deletionUuid, type: 'batch', data: [{ type: 'delete', path }] }));
+  const incomingUuid = '00000000-0000-4000-8000-000000000002';
+  const incomingName = '2026-02-01T00-00-00.000000Z-' + incomingUuid + '.json';
+  fs.mkdirSync(join(root, 'transactions.incoming'));
+  fs.writeFileSync(join(root, 'transactions.incoming', incomingName), serialize({ uuid: incomingUuid, type: 'create', data: { path, value: { selectedProfile: 'Alice' } } }));
+  assert.equal(replayTransactions(root), 1);
+  assert.equal(fs.existsSync(join(root, path)), false);
+  assert.deepEqual(fs.readdirSync(join(root, 'transactions.incoming')), []);
+});
