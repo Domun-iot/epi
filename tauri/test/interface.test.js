@@ -1897,7 +1897,7 @@ test('le toucher réordonne l’historique, les méthodes et les sections du dé
 
 test('les volets du flux brut et des détails sont mémorisés par profil', async t => {
   const page = await pageWith(t, { profiles: [alice, bob], selectedProfile: 'Alice', measurements: [
-    record, { ...record, profile: { name: 'Bob' } },
+    { ...record, reception: { source: 'bluetooth' } }, { ...record, profile: { name: 'Bob' } },
   ] });
   const profile = page.getByRole('combobox', { name: 'Profil actif' });
   const raw = page.locator('details[data-expand="raw"]');
@@ -1914,17 +1914,19 @@ test('les volets du flux brut et des détails sont mémorisés par profil', asyn
 
   await choosePage(page, 'Mesures');
   await details.click();
+  assert.ok(await page.locator('[data-detail-section="reception"]').count());
+  assert.equal(await page.locator('[data-detail-section][open]').count(), 0);
   await measures.locator('summary').click();
   await weighedProfile.locator('summary').click();
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a')).profilePreferences?.Alice?.detailSectionsOpen?.profile === false);
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('epi-session-v1:00000000-0000-4000-8000-00000000000a')).profilePreferences?.Alice?.detailSectionsOpen?.profile === true);
   await profile.selectOption('Bob');
   await details.click();
   assert.equal(await measures.getAttribute('open'), null);
-  assert.equal(await weighedProfile.getAttribute('open'), '');
+  assert.equal(await weighedProfile.getAttribute('open'), null);
   await profile.selectOption('Alice');
   await details.click();
   assert.equal(await measures.getAttribute('open'), '');
-  assert.equal(await weighedProfile.getAttribute('open'), null);
+  assert.equal(await weighedProfile.getAttribute('open'), '');
 
   await choosePage(page, 'Appareils');
   await page.reload();
@@ -1932,7 +1934,7 @@ test('les volets du flux brut et des détails sont mémorisés par profil', asyn
   await choosePage(page, 'Mesures');
   await details.click();
   assert.equal(await measures.getAttribute('open'), '');
-  assert.equal(await weighedProfile.getAttribute('open'), null);
+  assert.equal(await weighedProfile.getAttribute('open'), '');
 });
 
 test('dates selon la locale active et conservation de la date de naissance et de l’horloge de la balance', async t => {

@@ -223,12 +223,12 @@ export function measurementDetails(row, methodOrder = [], sectionOrder = [], sec
       [t('ageAtWeighIn'), number(row.profile.ageAtWeighIn ?? row.profile.age)],
       [t('heightUsedCm'), number(row.profile.heightCm)],
       [t('profileDateOfBirth'), formatCalendarDate(row.profile.birthDate)],
-    ]), true],
+    ]), false],
     ['reception', t('receptionDetails'), row.reception && pairs([
       ...extras.slice(3, 11).map(([, label, read]) => [label, textValue(read(row))]),
       ...(row.reception.bluetooth?.manufacturerId ? [[t('manufacturerIdentifiers'), row.reception.bluetooth.manufacturerId]] : []),
       ...(row.reception.scale?.userId !== undefined ? [[t('scaleUserId'), number(row.reception.scale.userId, 0)]] : []),
-    ]), true],
+    ]), false],
     ['device', t('scaleAtWeighIn'), row.device && pairs([[t('name'), deviceName(row.device)], ...deviceFields(row.device)]), false],
   ];
   const known = new Set(['uuid', 'profileUuid', 'deviceUuid', 'receivedAt', 'profile', 'device', 'measures', 'calculations', 'reception']);
