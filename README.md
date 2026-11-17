@@ -103,7 +103,7 @@ Sous Windows, active le [Mode développeur](https://learn.microsoft.com/windows/
 
 Le build Android Windows place le cache Rust dans `%LOCALAPPDATA%\epi-dev\cargo-target\android\<identifiant-du-dépôt>`, pour éviter les erreurs du linker NDK lorsque le chemin du dépôt contient un accent, comme `éPI`. Chaque emplacement du dépôt possède son propre cache. Le lanceur autorise également ce chemin dans Gradle avec `android.overridePathCheck=true`. Tu peux choisir un autre dossier avec `CARGO_TARGET_DIR` ; son chemin absolu doit contenir uniquement des caractères ASCII.
 
-L’APK est signé avec la clé de débogage Gradle pour l’installation directe sur un téléphone. Le module Bluetooth requiert Android 8.0 ou plus récent.
+Sans option, l’APK est signé avec la clé de débogage Gradle. Pour un APK de production, utiliser `run\build\android.bat --release` (ou `sh run/build/android.sh --release`), puis `run\build\sign-android.ps1` sous Windows : le fichier installable est `release/android/epi-release.apk`. La création des artefacts et la signature locale sont décrites dans le [guide de build](docs/BUILD.md). Le module Bluetooth requiert Android 8.0 ou plus récent.
 
 Les lanceurs de bureau acceptent `--portable` pour compiler uniquement le binaire et un ou plusieurs noms de formats, par exemple `sh run/build/linux.sh rpm`.
 

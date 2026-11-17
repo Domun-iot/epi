@@ -73,7 +73,9 @@ function openRelease() {
   child.unref();
 }
 
-function buildAndroid(play) {
+function buildAndroid(mode) {
+  const play = mode === '--play';
+  const production = play || mode === '--release';
   const tools = windows ? join(process.env.LOCALAPPDATA, 'epi-dev')
     : join(homedir(), '.local', 'share', 'epi-dev');
   const androidHome = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || join(tools, 'android-sdk');
@@ -111,17 +113,20 @@ function buildAndroid(play) {
   }
 
   updateAndroidIcons(project);
-  const buildArgs = play ? ['--aab', '--target', 'aarch64', 'x86_64'] : ['--apk', '--debug'];
+  const buildArgs = production
+    ? [play ? '--aab' : '--apk', '--target', 'aarch64', 'x86_64']
+    : ['--apk', '--debug'];
   // Tauri uses the npm invocation to generate Gradle’s callback to the CLI.
   if (!run(npm, tauriArgs(['android', 'build', ...buildArgs, '--ci']), androidEnv)) {
     throw new Error('La compilation Android a échoué.');
   }
   const artifact = join(project, 'app', 'build', 'outputs', ...(play
     ? ['bundle', 'universalRelease', 'app-universal-release.aab']
+    : production ? ['apk', 'universal', 'release', 'app-universal-release-unsigned.apk']
     : ['apk', 'universal', 'debug', 'app-universal-debug.apk']));
   const destination = resolve(app, '..', 'release', 'android');
   mkdirSync(destination, { recursive: true });
-  const output = join(destination, play ? 'epi-play.aab' : 'epi-debug.apk');
+  const output = join(destination, play ? 'epi-play.aab' : production ? 'epi-release-unsigned.apk' : 'epi-debug.apk');
   copyFileSync(artifact, output + '.tmp');
   renameSync(output + '.tmp', output);
   console.log(`Android ${output}`);
@@ -161,7 +166,7 @@ async function buildDesktop(selected) {
 try {
   if (!['windows', 'linux'].includes(platform)) throw new Error('Utilise ces scripts sur Windows ou Linux.');
   const [, , mode, ...args] = process.argv;
-  if (mode === 'android' && (!args.length || args.length === 1 && args[0] === '--play')) buildAndroid(args.length > 0);
+  if (mode === 'android' && (!args.length || args.length === 1 && ['--play', '--release'].includes(args[0]))) buildAndroid(args[0]);
   else if (mode === 'build' && windows) await buildDesktop(args.length ? args : Object.keys(formats));
   else if (mode === 'linux' && !windows) await buildDesktop(args.length ? args : ['appimage']);
   else if (mode === 'ubuntu' && !windows) await buildDesktop(args.length ? args : ['deb']);
