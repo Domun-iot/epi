@@ -421,6 +421,9 @@ dialog .notice { margin: 0; }
 #account-fields[hidden], #account-google-fields[hidden] { display: none; }
 #account-email { overflow-wrap: anywhere; }
 .account-plan:not([hidden]) { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+#account-plan-free { justify-content: flex-end; text-align: right; }
+#account-plan-free > a { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-decoration: none; }
+#account-plan-free [data-i18n] { text-decoration: underline; }
 .account-plan-badge {
   border-radius: 999px;
   padding: 3px 10px;

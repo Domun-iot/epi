@@ -382,7 +382,7 @@ test('the web account dialog shows PRO and switches to FREE when it expires', as
   assert.equal(await manage.count(), 0);
   assert.equal(await compare.getAttribute('href'), 'https://domun.eu/epi/pro?lang=fr-FR');
   await page.context().route('https://domun.eu/epi/pro?lang=fr-FR', route => route.fulfill({ body: 'éPI PRO' }));
-  const [popup] = await Promise.all([page.waitForEvent('popup'), compare.click()]);
+  const [popup] = await Promise.all([page.waitForEvent('popup'), compare.getByText('Free', { exact: true }).click()]);
   await popup.waitForURL('https://domun.eu/epi/pro?lang=fr-FR', { timeout: 5000 });
 });
 
