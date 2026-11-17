@@ -73,6 +73,8 @@ function updateAssets() {
       copyFileSync(join(temp, '512x512.png'), join(brand, `${name}.png`));
       if (name === 'logo') copyFileSync(join(temp, '120x120.png'), join(brand, 'logo-oauth-120.png'));
     }
+    // Web icons use the transparent master, independently of native app badges.
+    render(join(brand, 'logo.svg'), temp, [180, 192, 512]);
     for (const [size, name] of [[180, 'apple-touch-icon'], [192, 'epi-192'], [512, 'epi-512']]) {
       copyFileSync(join(temp, `${size}x${size}.png`), join(appIcons, `${name}.png`));
     }
@@ -85,6 +87,7 @@ function updateAssets() {
     for (const [from, to] of [['32x32.png', '32.png'], ['128x128.png', '128.png'], ['icon.png', 'icon.png'], ['icon.ico', 'icon.ico']]) {
       copyFileSync(join(temp, from), join(desktop, to));
     }
+    render(join(brand, 'logo.svg'), temp);
     copyFileSync(join(temp, 'icon.ico'), join(app, 'public', 'favicon.ico'));
   });
 }
