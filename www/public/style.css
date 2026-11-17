@@ -15,6 +15,8 @@ header { padding-block: 1.1rem; border-bottom: 1px solid #cbd3c8; }
 .brand { flex: none; display: inline-flex; align-items: center; gap: .65rem; font-size: 1.45rem; font-weight: 750; text-decoration: none; }
 .brand img { background: #173c36; padding: .2rem; border-radius: .65rem; }
 .header-actions { display: flex; align-items: center; gap: .55rem; min-width: 0; }
+.header-account { flex: none; padding: .4rem .65rem; border: 1px solid #879b91; border-radius: .4rem; text-decoration: none; }
+.header-account:hover { background: #173c360a; }
 .header-play { display: grid; flex: none; place-items: center; width: 2.75rem; height: 2.75rem; border: 1px solid transparent; border-radius: .65rem; background: transparent; }
 .header-play:hover { border-color: #879b91; background: #173c360a; }
 body > :is(header, footer) {
@@ -500,11 +502,11 @@ footer nav { display: flex; gap: .7rem 1.3rem; flex-wrap: wrap; }
   body > footer { font-size: .82rem; }
 }
 @media (max-width: 34rem) {
-  html { scroll-padding-top: 6rem; }
-  body > header { flex-wrap: nowrap; gap: .5rem; padding-inline: .75rem; }
+  html { scroll-padding-top: 8rem; }
+  body > header { flex-wrap: wrap; gap: .5rem; padding-inline: .75rem; }
   .header-brand { gap: .65rem; }
   .back-link { max-width: 9rem; font-size: .85rem; }
-  .header-actions { flex: none; }
+  .header-actions { flex: none; margin-inline-start: auto; }
   .header-actions .languages summary { gap: .35rem; padding-inline: .45rem; }
   .header-actions summary > span[lang] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }

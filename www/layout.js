@@ -102,6 +102,13 @@ const navigation = {
     "Radera konto"
   ]
 };
+const accountLabels = {
+  bg: 'Моят акаунт', cs: 'Můj účet', da: 'Min konto', de: 'Mein Konto', el: 'Ο λογαριασμός μου',
+  en: 'My account', es: 'Mi cuenta', et: 'Minu konto', fi: 'Oma tili', fr: 'Mon compte',
+  ga: 'Mo chuntas', hr: 'Moj račun', hu: 'Fiókom', it: 'Il mio account', lt: 'Mano paskyra',
+  lv: 'Mans konts', mt: 'Il-kont tiegħi', nl: 'Mijn account', pl: 'Moje konto', pt: 'A minha conta',
+  ro: 'Contul meu', sk: 'Môj účet', sl: 'Moj račun', sv: 'Mitt konto',
+};
 const flagOverrides = { cs: 'cz', da: 'dk', el: 'gr', et: 'ee', ga: 'ie', sl: 'si', sv: 'se' };
 export const flags = Object.fromEntries(Object.keys(locales).map(locale =>
   [locale, flagOverrides[locale] ?? locale.split('-').at(-1).toLowerCase()],
@@ -121,7 +128,8 @@ export function renderHeader(base, path, locale, home) {
   return '<header><div class="header-brand"><a class="brand" href="' + base +
     '"><img src="' + base + '/assets/epi.svg" alt="" width="35" height="35">éPI</a>' +
     (home ? '' : '<a class="back-link" href="' + base + '"><span aria-hidden="true">← </span>' + back + '</a>') +
-    '</div><div class="header-actions"><a class="header-play" href="' + playUrl +
+    '</div><div class="header-actions"><a class="header-account" href="https://domun.eu/account?lang=' + locale +
+    '">' + accountLabels[locale.split('-')[0]] + '</a><a class="header-play" href="' + playUrl +
     '" aria-label="éPI · Google Play" title="Google Play">' + playIcon(base) + '</a>' +
     renderLanguagePicker(base, path, locale) + '</div></header>';
 }
