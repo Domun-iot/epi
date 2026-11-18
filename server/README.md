@@ -15,6 +15,10 @@ Depuis la racine du dépôt, utilisez les scripts suivants (extension `.bat` sou
 
 Modifiez `server/config.js` pour changer le port (8787 par défaut), l'adresse d'écoute ou le fichier SQLite. Le serveur écoute par défaut sur `127.0.0.1`. Redémarrez le serveur après une modification de la configuration. HTTP transmet les mots de passe, les jetons et les données en clair. Pour un accès distant, terminez HTTPS devant le serveur.
 
+Le relais vers le client web hébergé utilise `EPI_WEB_PORT` (3001 par défaut).
+Le processus de l'API et le serveur des fichiers hébergés doivent utiliser la même
+valeur. Le site de présentation indépendant utilise `EPI_WWW_PORT` (3002 par défaut).
+
 Vérification locale avec `npm --prefix server test`.
 
 ## API

@@ -46,6 +46,15 @@ catalogue par des doublures. Les clients applicatifs configurent le service de
 compte dans `tauri/src/service.js` ; vérifier cette configuration avant un essai
 manuel. Utiliser uniquement des profils fictifs et un dossier temporaire pour les essais.
 
+## Configuration locale des services
+
+Les valeurs par défaut sont destinées au développement : API sur 8787 (dans
+`server/config.js`), web personnel sur 3000 (`web/config.js`), fichiers du client
+hébergé sur 3001 (`EPI_WEB_PORT`) et site de présentation sur 3002 (`EPI_WWW_PORT`).
+Pour le client hébergé, fournir la même valeur de `EPI_WEB_PORT` au processus API
+et au serveur des fichiers statiques. Les paramètres propres à une installation
+et les outils d'exploitation sont conservés hors de ce dépôt public.
+
 ## Artefacts par cible
 
 | Cible | Commande | Sortie |

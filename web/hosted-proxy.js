@@ -1,7 +1,8 @@
 import { request as httpRequest } from 'node:http';
 import { pipeline } from 'node:stream';
 
-export function createHostedProxy({ port = 3001 } = {}) {
+export function createHostedProxy({ port = Number(process.env.EPI_WEB_PORT ?? 3001) } = {}) {
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid EPI_WEB_PORT.');
   return async (request, response) => {
     if (!['GET', 'HEAD'].includes(request.method)) return false;
     const pathname = request.url?.split('?')[0] ?? '/';
