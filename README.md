@@ -125,3 +125,5 @@ Voir le [guide de build toutes cibles](docs/BUILD.md).
 
 Le code original éPI est sous [GNU LGPL version 3](LICENSE) (`LGPL-3.0-only`).
 Les ressources tierces conservent leurs licences et attributions.
+Les [crédits et sources tierces](THIRD_PARTY.md) distinguent les adaptations de
+code, les références de protocoles, les formules scientifiques et les dépendances.

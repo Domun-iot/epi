@@ -1,5 +1,8 @@
 'use strict';
 
+// Mi Fit formulas and thresholds adapted from lolouk44/xiaomi_mi_scale.
+// MIT notice: ../licenses/xiaomi_mi_scale-MIT.txt; provenance: ../THIRD_PARTY.md.
+
 const { estimateImpedance } = require('./estimated-impedance.cjs');
 
 const columns = [
