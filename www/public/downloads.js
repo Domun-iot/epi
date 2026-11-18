@@ -1,13 +1,16 @@
 import { renderInstallationGuide } from './pwa-install.mjs';
 
 const fr = document.querySelector('.download-section')?.lang === 'fr';
+const feedbackTimers = new WeakMap();
 for (const control of document.querySelectorAll('[data-sha256]')) {
   control.addEventListener('click', async () => {
     const feedback = control.closest('.download-file').querySelector('.checksum-feedback');
+    clearTimeout(feedbackTimers.get(feedback));
     feedback.textContent = '';
     try {
       await navigator.clipboard.writeText(control.dataset.sha256);
       feedback.textContent = fr ? 'Copié' : 'Copied';
+      feedbackTimers.set(feedback, setTimeout(() => { feedback.textContent = ''; }, 5000));
     } catch {
       feedback.textContent = fr ? 'Copie indisponible' : 'Copy unavailable';
     }

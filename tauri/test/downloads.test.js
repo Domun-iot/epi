@@ -64,15 +64,24 @@ test('download actions share the same baseline across each row at desktop and ta
 
 test('opening SHA copies the exact checksum and the hash button can copy it again using the keyboard', async t => {
   const page = await pageFor(t, '/epi/download', { permissions: ['clipboard-read', 'clipboard-write'] });
+  await page.clock.install();
   const details = page.locator('.download-file details').first();
   await details.locator('summary').click();
   await details.locator('.checksum-feedback').filter({ hasText: /^Copié$/ }).waitFor();
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), checksum);
+  await page.clock.fastForward(4000);
+  assert.equal(await details.locator('.checksum-feedback').innerText(), 'Copié');
   await page.evaluate(() => navigator.clipboard.writeText('replaced'));
   await details.locator('.checksum-copy').focus();
   await details.locator('.checksum-copy').press('Enter');
   await page.waitForFunction(expected => navigator.clipboard.readText().then(value => value === expected), checksum);
   assert.equal(await details.locator('.checksum-copy code').innerText(), checksum);
+  await page.clock.fastForward(1000);
+  assert.equal(await details.locator('.checksum-feedback').innerText(), 'Copié');
+  await page.clock.fastForward(3999);
+  assert.equal(await details.locator('.checksum-feedback').innerText(), 'Copié');
+  await page.clock.fastForward(1);
+  assert.equal(await details.locator('.checksum-feedback').innerText(), '');
 });
 
 test('a refused clipboard write keeps the checksum visible with an honest error message', async t => {

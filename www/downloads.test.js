@@ -55,7 +55,23 @@ test('public/developer separation, historical browsing, HEAD, stable symlinks an
   assert.match(dev, /epi.AppImage/);
   assert.match(dev, /href="\/epi\/downloads\/"/);
   assert.match(dev, /BlueZ/);
-  assert.equal((await get('/epi/developers/guide')).status, 200);
+  assert.match(dev, /class="download-card"[^]*logos\/github.svg[^]*href="https:\/\/github.com\/domun-iot\/epi"/);
+  assert.doesNotMatch(dev, /developers\/guide|Build and release publication|git@crafter/);
+  assert.equal((await get('/epi/assets/logos/github.svg')).status, 200);
+  assert.equal((await get('/epi/developers/guide')).status, 404);
+  for (const locale of ['fr-FR', 'en-GB']) {
+    const response = await get('/epi/license', { headers: { 'Accept-Language': locale } });
+    assert.equal(response.status, 200);
+    const license = await response.text();
+    assert.match(license, /LGPL-3.0-only/);
+    for (const file of ['LICENSE', 'COPYING', 'COPYING.LESSER']) {
+      assert.ok(license.includes('href="/epi/licenses/' + file + '"'));
+      const notice = await get('/epi/licenses/' + file);
+      assert.equal(notice.status, 200);
+      assert.match(notice.headers.get('content-type'), /^text\/plain/);
+      assert.match(await notice.text(), /GNU/);
+    }
+  }
   assert.match(await (await get('/epi/downloads/')).text(), /1.0.0/);
   assert.match(await (await get('/epi/downloads/linux/')).text(), /epi.deb/);
   const head = await get('/epi/downloads/linux/epi.deb', { method: 'HEAD' });

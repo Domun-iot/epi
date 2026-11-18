@@ -22,7 +22,7 @@ const routes = new Map([
   [base + '/pro', 'pro'],
   [base + '/developers', 'developers'],
   [base + '/download', 'download'],
-  [base + '/developers/guide', 'guide'],
+  [base + '/license', 'license'],
   [base + '/calculation-methods', 'methods'],
   [base + '/privacy-policy', 'privacy'],
   [base + '/legal-notice', 'legal'],
@@ -45,6 +45,11 @@ assets.set(base + '/assets/weigh-ins.jpg', {
 assets.set(base + '/assets/pwa-install.mjs', {
   type: 'text/javascript; charset=utf-8', body: readFileSync(new URL('../shared/pwa-install.mjs', import.meta.url)), cacheControl: 'no-cache',
 });
+for (const name of ['LICENSE', 'COPYING', 'COPYING.LESSER']) {
+  assets.set(base + '/licenses/' + name, {
+    type: 'text/plain; charset=utf-8', body: readFileSync(new URL('../' + name, import.meta.url)),
+  });
+}
 const stylePath = base + '/assets/style.css';
 const styleVersion = createHash('sha256').update(assets.get(stylePath).body).digest('hex').slice(0, 12);
 const scenesPath = base + '/assets/scenes.js';
@@ -69,12 +74,14 @@ function renderHomeActions(locale) {
 
 function render(path, page, locale, retention, prices, releases, browser, userAgent) {
   const t = catalog[locale];
+  const text = (fr, en) => locale.startsWith('fr') ? fr : en;
   const contactLink = '<a href="https://logisan.fr/contact/">Logisan</a>';
   const retentionText = retention[locale] ? '<p>' + escape(retention[locale]) + '</p>' : '';
   const titles = {
     pro: planCopy(locale).title,
     download: locale.startsWith('fr') ? 'Téléchargements' : 'Downloads',
-    developers: locale.startsWith('fr') ? 'Open source / Développeurs' : 'Open source / Developers', guide: 'Build & release guide',
+    developers: locale.startsWith('fr') ? 'Open source / Développeurs' : 'Open source / Developers',
+    license: text('Licence des logiciels et du site éPI', 'éPI software and website license'),
     home: t.headline, privacy: t.privacy, legal: t.legal, missing: '404',
     scales: referenceTitle('scales', locale), methods: referenceTitle('methods', locale),
   };
@@ -82,7 +89,15 @@ function render(path, page, locale, retention, prices, releases, browser, userAg
     home: () => renderHome(base, t, locale, escape) + renderHomeActions(locale) + developerTile(locale),
     download: () => renderDownloads(locale, releases, false, browser, userAgent),
     developers: () => renderDownloads(locale, releases, true, browser, userAgent),
-    guide: () => '<h1>Build & release guide</h1><p><a href="/epi/developers">← Developers</a></p><pre class="release-guide">' + escape(readFileSync(new URL('../docs/BUILD.md', import.meta.url), 'utf8')) + '</pre>',
+    license: () => '<div lang="' + text('fr', 'en') + '"><h1>' + titles.license + '</h1>' +
+      '<p>éPI — Copyright © 2026 Baptiste Pillot</p><p>' +
+      text('Le code original des logiciels et du site éPI est sous licence GNU LGPL version 3 (LGPL-3.0-only).',
+        'The original code of the éPI software and website is licensed under the GNU LGPL version 3 (LGPL-3.0-only).') + '</p><p>' +
+      text('Les composants, données, illustrations et marques tiers conservent leurs propres conditions et mentions.',
+        'Third-party components, data, artwork and trademarks retain their own terms and notices.') + '</p><ul>' +
+      '<li><a href="/epi/licenses/LICENSE">' + text('Notice de licence éPI', 'éPI license notice') + '</a></li>' +
+      '<li><a href="/epi/licenses/COPYING.LESSER">GNU LGPL v3</a></li>' +
+      '<li><a href="/epi/licenses/COPYING">GNU GPL v3</a></li></ul></div>',
     pro: () => renderPro(base, locale, prices, escape),
     scales: () => renderReference(base, page, locale, escape),
     methods: () => renderReference(base, page, locale, escape),
@@ -103,7 +118,7 @@ function render(path, page, locale, retention, prices, releases, browser, userAg
     (illustratedPages.has(page) ? '<script defer src="' + scenesPath + '?v=' + scenesVersion + '"></script>' : '') +
     (['download', 'developers'].includes(page) ? '<script type="module" src="' + downloadsPath + '?v=' + downloadsVersion + '"></script>' : '') +
     '</head><body>' + renderHeader(base, path, locale, home) +
-    '<main' + (['download', 'developers', 'guide'].includes(page) ? ' class="downloads-page"' : illustratedPages.has(page) ? '' : ' class="document"') + '>' + content[page]() + '</main>' +
+    '<main' + (['download', 'developers'].includes(page) ? ' class="downloads-page"' : illustratedPages.has(page) ? '' : ' class="document"') + '>' + content[page]() + '</main>' +
     renderFooter(base, locale) + '</body></html>';
 }
 

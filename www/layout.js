@@ -145,5 +145,6 @@ export function renderFooter(base, locale) {
   return '<footer><span class="footer-brand"><a href="https://domun.eu/">Domun</a> by ' +
     '<a href="https://logisan.fr/">Logisan</a></span><a class="footer-deletion" href="' + deletionUrl +
     '">' + deletion + '</a><nav><a href="' + base + '/privacy-policy">' + t.privacy +
-    '</a><a href="' + base + '/legal-notice">' + t.legal + '</a></nav></footer>';
+    '</a><a href="' + base + '/legal-notice">' + t.legal + '</a><a href="' + base + '/license">' +
+    (locale.startsWith('fr') ? 'Licence' : 'License') + '</a></nav></footer>';
 }

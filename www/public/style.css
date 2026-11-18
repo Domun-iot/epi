@@ -574,14 +574,12 @@ summary:focus-visible { outline: 2px solid #18594c; outline-offset: 3px; }
 .pwa-help-actions .button { display: inline-flex; align-items: center; text-decoration: none; font-weight: 650; }
 .pwa-help-actions button { background: transparent; color: #18594c; border: 1px solid #c6d7cd; }
 .download-pending { color: #63756d; font-size: .9rem; }
-.release-guide { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; }
 .developer-tile { display: flex; align-items: center; gap: 1.2rem; margin-block: 1.5rem; padding: 1.4rem 1.6rem; border: 1px solid #a3bfae; border-radius: 1rem; background: #e5eee2; text-decoration: none; }
 .developer-tile:hover { background: #d8e7d4; border-color: #18594c; }
 .developer-tile > span:not(.tile-arrow) { display: grid; gap: .2rem; }
 .developer-tile strong { font-size: 1.2rem; }
 .developer-tile span span { font-size: .95rem; color: #3e5c50; }
 .tile-arrow { margin-inline-start: auto; font-size: 1.5rem; }
-.resource-links { display: flex; gap: 1rem; }
 .header-download { display: inline-flex; align-items: center; gap: .4rem; padding: .45rem .7rem; border-radius: .5rem; background: #18594c; color: white; font-weight: 700; text-decoration: none; }
 .header-download:hover, .header-download[aria-current] { background: #103f35; }
 .header-download .platform-logo { width: 1.1rem; height: 1.1rem; filter: brightness(0) invert(1); }

@@ -22,8 +22,11 @@ Le lien de suppression et l'ancienne route `/epi/delete-account` dirigent vers l
 
 ## Pages développeurs et ressources
 
-`/epi/developers`, `/epi/developers/guide` et `/epi/download` décrivent les versions disponibles.
-Le guide public lit uniquement [BUILD.md](../docs/BUILD.md).
+`/epi/developers` et `/epi/download` décrivent les versions disponibles.
+L’encart des sources mène au dépôt public `https://github.com/domun-iot/epi`.
+Le guide de compilation n’est plus exposé sur le site ; il reste dans le dépôt.
+`/epi/license` présente la licence des logiciels et du site éPI, avec les textes
+du dépôt disponibles sous `/epi/licenses/`.
 Les tests de téléchargements utilisent des fichiers temporaires et ne modifient aucune release réelle.
 La capture `public/weigh-ins.jpg` représente des données fictives en mode simulation.
 
@@ -36,7 +39,7 @@ en repli. Aucun service tiers n'est chargé pour ces logos.
 
 Les tests d’interface des téléchargements utilisent les dépendances Playwright de `tauri` : depuis ce dossier, lancer `node --test test/downloads.test.js`.
 
-Les encarts d’une même rangée partagent leurs lignes de grille pour aligner en bas les boutons et leurs informations de téléchargement. Un clic sur « SHA-256 » affiche et copie la somme ; un clic sur la somme la recopie. Une confirmation apparaît après la copie, ou un message si le navigateur refuse l’accès au presse-papier.
+Les encarts d’une même rangée partagent leurs lignes de grille pour aligner en bas les boutons et leurs informations de téléchargement. Un clic sur « SHA-256 » affiche et copie la somme ; un clic sur la somme la recopie. La confirmation de copie disparaît après cinq secondes ; une nouvelle copie relance ce délai. Un message apparaît si le navigateur refuse l’accès au presse-papier.
 
 Le volet PWA ouvre une fenêtre avec une liste numérotée adaptée au navigateur et au système courants ; sans JavaScript, il reste déroulant. Le script affine aussi la détection des iPad utilisant un User-Agent de Mac. « Installer éPI » ouvre `https://epi.domun.eu/?install=1` : l’application affiche une fenêtre d’installation avant le démarrage du compte, puis un bouton natif dès réception de `beforeinstallprompt`. Sans cet événement (Safari, Firefox ou installation indisponible), les étapes manuelles restent accessibles. Une application déjà ouverte en mode installé affiche une confirmation. La page de téléchargements ne peut pas déclencher directement l’installation de l’autre domaine. Les instructions communes sont dans `shared/pwa-install.mjs`.
 

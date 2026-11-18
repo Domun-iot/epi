@@ -77,10 +77,12 @@ export function renderDownloads(locale, list, developer = false, browser = 'brow
       card('Android APK', text('APK de production signé. Android 8 ou ultérieur. Autorisez l’installation depuis le gestionnaire de fichiers.', 'Signed production APK. Android 8 or later. Allow installation from your file manager.'), files('android', ['apk']), 'android') +
       card('CLI Windows / Linux', text('Node.js embarqué. Scan Bluetooth sous Windows uniquement.', 'Node.js included. Bluetooth scanning on Windows only.'), files('cli-windows', ['cli']) + files('cli-linux', ['cli']), 'terminal windows linux') +
       card(text('Web personnel', 'Personal web server'), text('Node.js 20.19 ou ultérieur et npm requis. Démarrer avec npm start. Sans réception Bluetooth. Ne pas exposer directement sur Internet.', 'Requires Node.js 20.19 or later and npm. Start with npm start. No Bluetooth reception. Do not expose directly to the Internet.'), files('web', ['web']), 'server') + '</div>' +
-      '<h2>' + text('Sources et documentation', 'Source and documentation') + '</h2><div class="resource-links">' + logo('code') + logo('archive') + '</div><p>' +
-      '<a href="/epi/developers/guide">' + text('Compilation et publication des releases', 'Build and release publication') + '</a> · ' +
-      '<a href="/epi/downloads/">' + text('Parcourir les téléchargements et l’historique', 'Browse downloads and version history') + '</a></p>' +
-      '<p>' + text('Dépôt source :', 'Source repository:') + ' <code>git clone https://github.com/domun-iot/epi.git</code></p>';
+      '<h2>' + text('Sources et documentation', 'Source and documentation') + '</h2>' +
+      card(text('Dépôt GitHub', 'GitHub repository'),
+        text('Code source et documentation technique d’éPI.', 'éPI source code and technical documentation.'),
+        link('https://github.com/domun-iot/epi', text('Voir sur GitHub', 'View on GitHub')), 'github') +
+      '<p><a href="/epi/license">' + text('Licence des logiciels et du site éPI', 'éPI software and website license') + '</a></p>' +
+      '<p><a href="/epi/downloads/">' + text('Parcourir les téléchargements et l’historique', 'Browse downloads and version history') + '</a></p>';
   } else body += developerTile(locale);
   return body + '</section>';
 }
