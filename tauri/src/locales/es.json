@@ -1,4 +1,5 @@
 {
+  "technicalDetails": "Información técnica",
   "multiDeviceSyncPrompt": "Te conectas desde varios dispositivos. Sincroniza tus datos con la versión PRO",
   "privacyPolicy": "Política de privacidad",
   "requestAccountDeletion": "Solicitar la eliminación de la cuenta",  "syncPending": "Datos pendientes de sincronizar",

@@ -181,7 +181,7 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
     const binding = datasets.capture();
     active.ingest(line).catch(error => {
       if (datasets.isCurrent(binding) && !recoverDataConflict(error)) {
-        onStatus?.(t('bluetoothProcessingError', { detail: localizeMessage(error?.message ?? String(error)) }), true);
+        onStatus?.(t('bluetoothProcessingError', { detail: localizeMessage(error?.message ?? String(error)) }), true, String(error));
       }
     });
   }
@@ -191,10 +191,10 @@ export async function connect(onState, onStatus, onRaw, onWeighing, onTransactio
   if (native) {
     await listen('ble-frame', event => receive(event.payload));
     await listen('ble-status', ({ payload }) => onStatus?.(localizeMessage(payload),
-      !['epi-i18n:bluetoothStarting', 'epi-i18n:diagnostic.startingBluetoothListening', 'epi-i18n:diagnostic.activeBluetoothListening'].includes(payload)));
+      !['epi-i18n:bluetoothStarting', 'epi-i18n:diagnostic.startingBluetoothListening', 'epi-i18n:diagnostic.activeBluetoothListening'].includes(payload), payload));
     onStatus?.(t('bluetoothStarting'));
     try { await retryBluetooth(); }
-    catch (error) { onStatus?.(t('bluetoothUnavailable', { detail: localizeMessage(String(error)) }), true); }
+    catch (error) { onStatus?.(t('bluetoothUnavailable', { detail: localizeMessage(String(error)) }), true, String(error)); }
   } else if (web) onStatus?.(t(adapter.kind === 'browser-local' ? 'browserStorageMode' : 'webMode'));
   else {
     onStatus?.(t('simulationMode'), true);

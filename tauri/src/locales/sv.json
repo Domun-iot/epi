@@ -1,4 +1,5 @@
 {
+  "technicalDetails": "Teknisk information",
   "multiDeviceSyncPrompt": "Du loggar in från flera enheter. Synkronisera dina data med PRO",
   "privacyPolicy": "Integritetspolicy",
   "requestAccountDeletion": "Begär att kontot raderas",  "syncPending": "Data väntar på synkronisering",

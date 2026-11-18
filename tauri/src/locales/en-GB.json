@@ -1,4 +1,5 @@
 {
+  "technicalDetails": "Technical information",
   "multiDeviceSyncPrompt": "You sign in from multiple devices. Sync your data with PRO",
   "privacyPolicy": "Privacy policy",
   "requestAccountDeletion": "Request account deletion",  "syncPending": "Transactions awaiting sync",

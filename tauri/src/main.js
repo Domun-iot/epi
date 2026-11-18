@@ -63,6 +63,20 @@ const exportButton = document.querySelector('#export-data');
 const retryButton = document.querySelector('#retry-bluetooth');
 let canRetryBluetooth = false;
 let bluetoothUnavailable = false;
+let bluetoothError = '';
+let bluetoothTechnical = '';
+let hasBluetoothError = false;
+const bluetoothErrorDialog = document.querySelector('#bluetooth-error-dialog');
+const compactBluetoothError = () => t('bluetoothUnavailable', { detail: '' }).replace(/[\s·]+$/, '');
+statusLink.addEventListener('click', event => {
+  if (!hasBluetoothError) return;
+  event.preventDefault();
+  document.querySelector('#bluetooth-error-title').textContent = compactBluetoothError();
+  document.querySelector('#bluetooth-error-message').textContent = bluetoothError;
+  document.querySelector('#bluetooth-error-technical').textContent = bluetoothTechnical;
+  bluetoothErrorDialog.querySelector('details').open = false;
+  bluetoothErrorDialog.showModal();
+});
 let columnsOpen = false;
 const desktopSearchFocus = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
@@ -1196,6 +1210,9 @@ retryButton.addEventListener('click', () => void perform(() => session.retryBlue
 function renderBluetooth() {
   retryButton.hidden = !canRetryBluetooth || !bluetoothUnavailable;
   status.parentElement.classList.toggle('unavailable', bluetoothUnavailable);
+  statusLink.setAttribute('aria-controls', hasBluetoothError ? 'bluetooth-error-dialog' : 'view');
+  if (hasBluetoothError) statusLink.setAttribute('aria-haspopup', 'dialog');
+  else statusLink.removeAttribute('aria-haspopup');
 }
 
 window.addEventListener('epi:entitlement', () => {
@@ -1203,8 +1220,11 @@ window.addEventListener('epi:entitlement', () => {
 });
 
 try {
-  session = await connect(onState, (message, unavailable = false) => {
-    status.textContent = message;
+  session = await connect(onState, (message, unavailable = false, technical) => {
+    hasBluetoothError = unavailable && technical !== undefined;
+    status.textContent = hasBluetoothError ? compactBluetoothError() : message;
+    bluetoothError = message;
+    bluetoothTechnical = String(technical);
     bluetoothUnavailable = unavailable;
     renderBluetooth();
   }, line => {

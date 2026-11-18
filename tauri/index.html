@@ -90,6 +90,17 @@
       </div>
     </div>
     <dialog id="editor" aria-labelledby="dialog-title"></dialog>
+    <dialog id="bluetooth-error-dialog" aria-labelledby="bluetooth-error-title">
+      <h2 id="bluetooth-error-title"></h2>
+      <p id="bluetooth-error-message"></p>
+      <details>
+        <summary data-i18n="technicalDetails"></summary>
+        <pre id="bluetooth-error-technical"></pre>
+      </details>
+      <form method="dialog" class="actions">
+        <button class="button" type="submit" data-i18n="close"></button>
+      </form>
+    </dialog>
     <dialog id="sync-dialog" aria-labelledby="sync-title" aria-describedby="sync-message sync-countdown">
       <h2 id="sync-title" data-i18n="syncPending"></h2>
       <p id="sync-message"></p>

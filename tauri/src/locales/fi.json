@@ -1,4 +1,5 @@
 {
+  "technicalDetails": "Tekniset tiedot",
   "multiDeviceSyncPrompt": "Kirjaudut sisään useilla laitteilla. Synkronoi tietosi PRO-versiolla",
   "privacyPolicy": "Tietosuojakäytäntö",
   "requestAccountDeletion": "Pyydä tilin poistamista",  "syncPending": "Tiedot odottavat synkronointia",

@@ -1,4 +1,5 @@
 {
+  "technicalDetails": "Műszaki információk",
   "multiDeviceSyncPrompt": "Több eszközről jelentkezik be. Szinkronizálja adatait a PRO verzióval",
   "privacyPolicy": "Adatvédelmi tájékoztató",
   "requestAccountDeletion": "Fióktörlés kérése",  "syncPending": "Szinkronizálásra váró adatok",

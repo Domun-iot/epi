@@ -18,17 +18,30 @@ use super::{status, Source, COMPOSITION, RETRY, WEIGHT, WEIGHT_MEASUREMENT};
 type ScanError = Box<dyn std::error::Error + Send + Sync>;
 
 pub(super) async fn run(app: &AppHandle) {
+    // On Linux, btleplug starts a detached D-Bus task for each Manager.
+    // Dropping the Manager does not stop that task: reuse it across scan errors
+    // (in particular when the adapter is powered off) to avoid exhausting D-Bus.
+    let mut manager = None;
     loop {
         status(app, "epi-i18n:diagnostic.startingBluetoothListening");
-        if let Err(error) = scan(app).await {
+        let result = match manager.as_ref() {
+            Some(manager) => scan(app, manager).await,
+            None => match Manager::new().await {
+                Ok(created) => {
+                    manager = Some(created);
+                    scan(app, manager.as_ref().unwrap()).await
+                }
+                Err(error) => Err(error.into()),
+            },
+        };
+        if let Err(error) = result {
             status(app, &format!("epi-i18n:bluetoothUnavailable · {error}"));
         }
         tokio::time::sleep(RETRY).await;
     }
 }
 
-async fn scan(app: &AppHandle) -> Result<(), ScanError> {
-    let manager = Manager::new().await?;
+async fn scan(app: &AppHandle, manager: &Manager) -> Result<(), ScanError> {
     let mut adapters = manager.adapters().await?;
     let mut adapter = None;
     for candidate in adapters.drain(..) {
