@@ -40,7 +40,7 @@ const assets = new Map(Object.entries({
   type, body: readFileSync(new URL('./public/' + name, import.meta.url)),
 }]));
 assets.set(base + '/assets/weigh-ins.jpg', {
-  type: 'image/jpeg', body: readFileSync(new URL('../docs/google-play/pesees.jpg', import.meta.url)),
+  type: 'image/jpeg', body: readFileSync(new URL('./public/weigh-ins.jpg', import.meta.url)),
 });
 assets.set(base + '/assets/pwa-install.mjs', {
   type: 'text/javascript; charset=utf-8', body: readFileSync(new URL('../shared/pwa-install.mjs', import.meta.url)), cacheControl: 'no-cache',
@@ -82,7 +82,7 @@ function render(path, page, locale, retention, prices, releases, browser, userAg
     home: () => renderHome(base, t, locale, escape) + renderHomeActions(locale) + developerTile(locale),
     download: () => renderDownloads(locale, releases, false, browser, userAgent),
     developers: () => renderDownloads(locale, releases, true, browser, userAgent),
-    guide: () => '<h1>Build & release guide</h1><p><a href="/epi/developers">← Developers</a></p><pre class="release-guide">' + escape(readFileSync(new URL('../docs/PUBLICATION-RELEASES.md', import.meta.url), 'utf8')) + '</pre>',
+    guide: () => '<h1>Build & release guide</h1><p><a href="/epi/developers">← Developers</a></p><pre class="release-guide">' + escape(readFileSync(new URL('../docs/BUILD.md', import.meta.url), 'utf8')) + '</pre>',
     pro: () => renderPro(base, locale, prices, escape),
     scales: () => renderReference(base, page, locale, escape),
     methods: () => renderReference(base, page, locale, escape),

@@ -120,3 +120,8 @@ La [documentation détaillée du CLI](cli/README.md) décrit les mesures, la ré
 ## Builds
 
 Voir le [guide de build toutes cibles](docs/BUILD.md).
+
+## Licence
+
+Le code original éPI est sous [GNU LGPL version 3](LICENSE) (`LGPL-3.0-only`).
+Les ressources tierces conservent leurs licences et attributions.
