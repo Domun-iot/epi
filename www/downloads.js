@@ -46,14 +46,15 @@ export function renderDownloads(locale, list, developer = false, browser = 'brow
   const link = (url, label) => '<a class="button" href="' + esc(url) + '">' + esc(label) + '</a>';
   const webNote = text('Saisie, consultation et synchronisation (version PRO). Sans connexion aux balances connectées.', 'Manual entry, viewing and synchronisation (PRO version). No connection to smart scales.');
   const noScale = text('Sans connexion aux balances connectées.', 'No connection to smart scales.');
-  const card = (title, note, body, icons = 'browser') => '<article class="download-card"><div class="platform-logos">' + icons.split(' ').map(name => logo(name)).join('') + '</div><h3>' + title + '</h3><p>' + note + '</p>' + body + '</article>';
+  const card = (title, note, body, icons = 'browser') => '<article class="download-card"><div class="platform-logos">' + icons.split(' ').map(name => logo(name)).join('') + '</div><h3>' + title + '</h3><p>' + note + '</p><div class="download-actions">' + body + '</div></article>';
   function files(group, kinds) {
     const release = list.find(m => m.group === group);
     const selected = release?.files.filter(f => kinds.includes(f.kind)) ?? [];
     if (!selected.length) return '<p class="download-pending">' + text('Téléchargement à venir', 'Download coming soon') + '</p>';
     return selected.map(f => '<div class="download-file">' + link(base + '/' + group + '/' + f.name, f.label) +
       '<small>v' + esc(release.version) + ' · ' + (f.size / 1000000).toFixed(1) + ' MB</small>' +
-      '<details><summary>SHA-256</summary><code>' + esc(f.sha256) + '</code></details></div>').join('');
+      '<details><summary data-sha256="' + esc(f.sha256) + '" title="' + text('Afficher et copier le SHA-256', 'Show and copy SHA-256') + '">SHA-256 <span class="checksum-feedback" role="status"></span></summary>' +
+      '<button type="button" class="checksum-copy" data-sha256="' + esc(f.sha256) + '" title="' + text('Copier le SHA-256', 'Copy SHA-256') + '" aria-label="' + text('Copier le SHA-256', 'Copy SHA-256') + '"><code>' + esc(f.sha256) + '</code><span aria-hidden="true">⧉</span></button></details></div>').join('');
   }
   let body = '<section class="download-section" lang="' + (fr ? 'fr' : 'en') + '">' +
     '<div class="download-heading">' + logo(developer ? 'opensource' : 'download') + '<h1>' + (developer ? text('Open source / Développeurs', 'Open source / Developers') : text('Téléchargements', 'Downloads')) + '</h1></div>' +
