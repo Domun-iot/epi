@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { createSite } from './index.js';
+import { installationGuide } from '../shared/pwa-install.mjs';
 
 test('public/developer separation, historical browsing, HEAD, stable symlinks and traversal protection', async t => {
   const root = await mkdtemp(path.join(tmpdir(), 'epi-downloads-'));
@@ -36,6 +37,20 @@ test('public/developer separation, historical browsing, HEAD, stable symlinks an
   assert.match(edge, /logos\/edge.svg/);
   assert.match(home, /logos\/ubuntu.svg/);
   assert.match(home, /logos\/mint.svg/);
+  assert.match(home, /logos\/debian.svg/);
+  assert.equal((await get('/epi/assets/logos/debian.svg')).status, 200);
+  assert.match(home, /href="https:\/\/epi.domun.eu\/\?install=1"/);
+  assert.match(home, /<ol class="pwa-steps"><li>/);
+  assert.doesNotMatch(firefox, /Chrome\/Edge|Add to Dock|Sur l’écran d’accueil/);
+  assert.match(edge, /Apps.*Install this site as an app/);
+  assert.doesNotMatch(edge, /Add to Dock|Cast, save/);
+  const downloadResponse = await get('/epi/download');
+  assert.match(downloadResponse.headers.get('content-security-policy'), /script-src 'self'/);
+  for (const asset of ['downloads.js', 'pwa-install.mjs']) {
+    const response = await get('/epi/assets/' + asset);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /javascript/);
+  }
   const dev = await (await get('/epi/developers')).text();
   assert.match(dev, /epi.AppImage/);
   assert.match(dev, /href="\/epi\/downloads\/"/);
@@ -50,4 +65,19 @@ test('public/developer separation, historical browsing, HEAD, stable symlinks an
   assert.equal(await (await get('/epi/downloads/linux/epi.deb')).text(), 'test');
   for (const file of ['outside', '%2e%2e%2fREADME.md', '.hidden', 'missing']) assert.equal((await get('/epi/downloads/' + file)).status, 404);
   assert.equal((await get('/epi/downloads/', { method: 'POST' })).status, 405);
+});
+
+test('installation steps follow the current browser and device, including desktop-mode iPads', () => {
+  const guide = (userAgent, extra = {}) => installationGuide('fr-FR', { userAgent, ...extra });
+  assert.match(guide('Chrome/140.0 Safari/537.36').steps.join(' '), /Caster, enregistrer/);
+  assert.match(guide('Android Chrome/140.0 Safari/537.36').steps.join(' '), /écran d’accueil/);
+  assert.doesNotMatch(guide('Android Chrome/140.0 Safari/537.36').steps.join(' '), /Caster, enregistrer/);
+  assert.match(guide('iPhone CriOS/140.0 Safari/604.1').steps.join(' '), /Partager/);
+  assert.match(guide('Macintosh Version/18.0 Safari/605.1', { platform: 'MacIntel', maxTouchPoints: 5 }).steps.join(' '), /écran d’accueil/);
+  assert.match(guide('Macintosh Version/18.0 Safari/605.1').steps.join(' '), /Ajouter au Dock/);
+  assert.match(guide('Windows NT 10.0 Firefox/145.0').steps.join(' '), /barre des tâches/);
+  assert.match(guide('Linux Firefox/145.0').steps.join(' '), /ne propose pas/);
+  assert.match(guide('Android Firefox/145.0').steps.join(' '), /écran d’accueil/);
+  assert.match(guide('Chrome/140.0 Safari/537.36 OPR/125.0').heading, /Opera/);
+  assert.match(installationGuide('en-GB').steps.join(' '), /if available/);
 });

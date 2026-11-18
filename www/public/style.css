@@ -543,6 +543,21 @@ footer nav { display: flex; gap: .7rem 1.3rem; flex-wrap: wrap; }
 .download-file small { display: block; margin: .6rem 0; }
 .download-file code { overflow-wrap: anywhere; font-size: .8rem; }
 .download-file details { font-size: .85rem; }
+summary { cursor: pointer; }
+.pwa-help { margin-top: 1rem; }
+.pwa-help summary { font-weight: 650; color: #18594c; padding-block: .35rem; }
+.pwa-help summary:hover { text-decoration: underline; }
+.pwa-help .pwa-browser { margin: .75rem 0 .5rem; font-weight: 650; }
+.pwa-steps { padding-left: 1.4rem; margin: .5rem 0 0; line-height: 1.6; }
+.pwa-steps li { padding-left: .2rem; margin-bottom: .75rem; }
+.pwa-steps li::marker { color: #18594c; font-weight: 700; }
+.pwa-help-dialog { width: min(36rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); padding: clamp(1.2rem, 4vw, 2rem); color: #173c36; background: #fcfdf9; border: 1px solid #c6d7cd; border-radius: 1rem; }
+.pwa-help-dialog::backdrop { background: rgb(15 36 30 / 55%); }
+.pwa-help-dialog h2 { margin: 0 0 .75rem; font-size: 1.5rem; }
+.pwa-help-dialog .pwa-browser { color: #63756d; font-weight: 650; }
+.pwa-help-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .7rem; margin-top: 1.2rem; }
+.pwa-help-actions .button { display: inline-flex; align-items: center; text-decoration: none; font-weight: 650; }
+.pwa-help-actions button { background: transparent; color: #18594c; border: 1px solid #c6d7cd; }
 .download-pending { color: #63756d; font-size: .9rem; }
 .release-guide { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; }
 .developer-tile { display: flex; align-items: center; gap: 1.2rem; margin-block: 1.5rem; padding: 1.4rem 1.6rem; border: 1px solid #a3bfae; border-radius: 1rem; background: #e5eee2; text-decoration: none; }

@@ -1,6 +1,6 @@
-export const logoNames = ['android', 'windows', 'linux', 'ubuntu', 'mint', 'chrome', 'firefox', 'safari', 'edge', 'opera', 'opensource', 'browser', 'download', 'terminal', 'server', 'code', 'archive'];
+export const logoNames = ['android', 'windows', 'linux', 'debian', 'ubuntu', 'mint', 'chrome', 'firefox', 'safari', 'edge', 'opera', 'opensource', 'browser', 'download', 'terminal', 'server', 'code', 'archive'];
 export function logo(name, extra = '') {
-  const labels = { android: 'Android', windows: 'Windows', linux: 'Linux', ubuntu: 'Ubuntu', mint: 'Linux Mint', chrome: 'Google Chrome', firefox: 'Firefox', safari: 'Safari', edge: 'Microsoft Edge', opera: 'Opera', opensource: 'Open source' };
+  const labels = { android: 'Android', windows: 'Windows', linux: 'Linux', debian: 'Debian', ubuntu: 'Ubuntu', mint: 'Linux Mint', chrome: 'Google Chrome', firefox: 'Firefox', safari: 'Safari', edge: 'Microsoft Edge', opera: 'Opera', opensource: 'Open source' };
   return '<img class="platform-logo ' + extra + '" src="/epi/assets/logos/' + name + '.svg" alt="' + (labels[name] || '') + '" width="48" height="48">';
 }
 export function browserLogo(userAgent = '') {

@@ -1,6 +1,10 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import { initialiseLanguage, t } from './i18n.js';
+import { initialiseLanguage, locale, t } from './i18n.js';
 import { loadLanguagePreference } from './preferences.js';
+import { createPwaInstaller } from './pwa-install.js';
+
+const installationRequested = !isTauri() && new URL(window.location.href).searchParams.get('install') === '1';
+const installer = installationRequested ? createPwaInstaller(window) : null;
 
 const [systemLocale, languagePreference] = await Promise.all([
   isTauri() ? invoke('system_locale').catch(() => undefined) : undefined,
@@ -25,4 +29,10 @@ document.addEventListener('reset', ({ target }) => {
   for (const control of target.elements) control.setCustomValidity?.('');
 });
 
-await import('./main.js');
+if (installer) {
+  // Let the page finish loading so the browser can announce installability.
+  // Account startup follows dismissal; installation needs no login.
+  void installer.show(locale).then(() => import('./main.js'));
+} else {
+  await import('./main.js');
+}

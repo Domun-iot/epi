@@ -406,6 +406,11 @@ thead [data-drag-column] { touch-action: pan-y; }
 .comparison-scroll thead th:first-child { z-index: 3; }
 dialog { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; color: var(--ink); padding: 20px; max-width: min(540px, calc(100vw - 28px)); max-height: calc(100dvh - 28px); width: 100%; }
 dialog::backdrop { background: rgb(15 29 49 / 54%); }
+.pwa-install-dialog .pwa-browser { color: var(--muted); font-weight: 620; }
+.pwa-install-dialog .pwa-steps { padding-left: 1.5rem; line-height: 1.6; }
+.pwa-install-dialog .pwa-steps li { padding-left: .25rem; margin-bottom: .8rem; }
+.pwa-install-dialog .pwa-steps li::marker { color: var(--blue); font-weight: 700; }
+.pwa-install-dialog [hidden] { display: none; }
 #bluetooth-error-dialog p, #bluetooth-error-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 dialog h2 { font-size: 1.3rem; }
 .editor-form { display: grid; gap: 14px; }

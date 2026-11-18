@@ -31,3 +31,8 @@ Les logos SVG viennent de `public/logos/` (Devicon, licence MIT ; Simple Icons, 
 voir les licences jointes). Les marques restent celles de leurs propriétaires.
 Le logo PWA suit le navigateur identifié par User-Agent, avec une icône web générique
 en repli. Aucun service tiers n'est chargé pour ces logos.
+
+## Comportements et tests du site
+
+Le volet PWA ouvre une fenêtre avec une liste numérotée adaptée au navigateur et au système courants ; sans JavaScript, il reste déroulant. Le script affine aussi la détection des iPad utilisant un User-Agent de Mac. « Installer éPI » ouvre `https://epi.domun.eu/?install=1` : l’application affiche une fenêtre d’installation avant le démarrage du compte, puis un bouton natif dès réception de `beforeinstallprompt`. Sans cet événement (Safari, Firefox ou installation indisponible), les étapes manuelles restent accessibles. Une application déjà ouverte en mode installé affiche une confirmation. La page de téléchargements ne peut pas déclencher directement l’installation de l’autre domaine. Les instructions communes sont dans `shared/pwa-install.mjs`.
+

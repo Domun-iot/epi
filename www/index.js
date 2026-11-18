@@ -32,6 +32,7 @@ const assets = new Map(Object.entries({
   ...Object.fromEntries(Object.values(flags).map(code => ['flags/' + code + '.svg', 'image/svg+xml'])),
   'style.css': 'text/css; charset=utf-8',
   'scenes.js': 'text/javascript; charset=utf-8',
+  'downloads.js': 'text/javascript; charset=utf-8',
   'epi.svg': 'image/svg+xml',
   'google-play.svg': 'image/svg+xml',
   'chart.jpg': 'image/jpeg',
@@ -41,10 +42,15 @@ const assets = new Map(Object.entries({
 assets.set(base + '/assets/weigh-ins.jpg', {
   type: 'image/jpeg', body: readFileSync(new URL('../docs/google-play/pesees.jpg', import.meta.url)),
 });
+assets.set(base + '/assets/pwa-install.mjs', {
+  type: 'text/javascript; charset=utf-8', body: readFileSync(new URL('../shared/pwa-install.mjs', import.meta.url)), cacheControl: 'no-cache',
+});
 const stylePath = base + '/assets/style.css';
 const styleVersion = createHash('sha256').update(assets.get(stylePath).body).digest('hex').slice(0, 12);
 const scenesPath = base + '/assets/scenes.js';
 const scenesVersion = createHash('sha256').update(assets.get(scenesPath).body).digest('hex').slice(0, 12);
+const downloadsPath = base + '/assets/downloads.js';
+const downloadsVersion = createHash('sha256').update(assets.get(downloadsPath).body).update(assets.get(base + '/assets/pwa-install.mjs').body).digest('hex').slice(0, 12);
 const escape = value => value.replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[character]);
@@ -61,7 +67,7 @@ function renderHomeActions(locale) {
     '<span class="home-action-arrow" aria-hidden="true">→</span></a></div>';
 }
 
-function render(path, page, locale, retention, prices, releases, browser) {
+function render(path, page, locale, retention, prices, releases, browser, userAgent) {
   const t = catalog[locale];
   const contactLink = '<a href="https://logisan.fr/contact/">Logisan</a>';
   const retentionText = retention[locale] ? '<p>' + escape(retention[locale]) + '</p>' : '';
@@ -74,8 +80,8 @@ function render(path, page, locale, retention, prices, releases, browser) {
   };
   const content = {
     home: () => renderHome(base, t, locale, escape) + renderHomeActions(locale) + developerTile(locale),
-    download: () => renderDownloads(locale, releases, false, browser),
-    developers: () => renderDownloads(locale, releases, true, browser),
+    download: () => renderDownloads(locale, releases, false, browser, userAgent),
+    developers: () => renderDownloads(locale, releases, true, browser, userAgent),
     guide: () => '<h1>Build & release guide</h1><p><a href="/epi/developers">← Developers</a></p><pre class="release-guide">' + escape(readFileSync(new URL('../docs/PUBLICATION-RELEASES.md', import.meta.url), 'utf8')) + '</pre>',
     pro: () => renderPro(base, locale, prices, escape),
     scales: () => renderReference(base, page, locale, escape),
@@ -95,6 +101,7 @@ function render(path, page, locale, retention, prices, releases, browser) {
     ' | éPI</title><link rel="icon" href="' + base + '/assets/epi.svg"><link rel="stylesheet" href="' +
     stylePath + '?v=' + styleVersion + '">' +
     (illustratedPages.has(page) ? '<script defer src="' + scenesPath + '?v=' + scenesVersion + '"></script>' : '') +
+    (['download', 'developers'].includes(page) ? '<script type="module" src="' + downloadsPath + '?v=' + downloadsVersion + '"></script>' : '') +
     '</head><body>' + renderHeader(base, path, locale, home) +
     '<main' + (['download', 'developers', 'guide'].includes(page) ? ' class="downloads-page"' : illustratedPages.has(page) ? '' : ' class="document"') + '>' + content[page]() + '</main>' +
     renderFooter(base, locale) + '</body></html>';
@@ -124,7 +131,7 @@ export function createSite({
     if (await serveDownload(req, res, url.pathname, downloadsDir)) return;
     const asset = assets.get(url.pathname);
     if (asset) {
-      res.writeHead(200, { 'Content-Type': asset.type, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'public, max-age=3600' });
+      res.writeHead(200, { 'Content-Type': asset.type, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': asset.cacheControl ?? 'public, max-age=3600' });
       res.end(req.method === 'HEAD' ? undefined : asset.body);
       return;
     }
@@ -139,7 +146,7 @@ export function createSite({
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Language': locale,
       'Content-Security-Policy': "default-src 'none'; img-src 'self'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" +
-        (illustratedPages.has(page) ? "; script-src 'self'" : ''),
+        (illustratedPages.has(page) || ['download', 'developers'].includes(page) ? "; script-src 'self'" : ''),
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
       'Cache-Control': 'private, no-store',
@@ -155,7 +162,7 @@ export function createSite({
     }
     const prices = page === 'pro' ? await loadPrices(catalogUrl) : undefined;
     res.writeHead(page === 'missing' ? 404 : page === 'pro' && !formatCatalog(prices, locale) ? 503 : 200, headers);
-    res.end(req.method === 'HEAD' ? undefined : render(page === 'missing' ? base : path, page, locale, retention, prices, await manifests(downloadsDir), browserLogo(req.headers['user-agent'])));
+    res.end(req.method === 'HEAD' ? undefined : render(page === 'missing' ? base : path, page, locale, retention, prices, await manifests(downloadsDir), browserLogo(req.headers['user-agent']), req.headers['user-agent']));
   });
 }
 

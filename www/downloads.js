@@ -1,4 +1,5 @@
 import { logo, developerTile } from './platform-icons.js';
+import { renderInstallationGuide } from '../shared/pwa-install.mjs';
 import { createReadStream } from 'node:fs';
 import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -39,7 +40,7 @@ export async function serveDownload(req, res, pathname, root = downloadsRoot) {
   } catch { res.writeHead(404, headers).end(); }
   return true;
 }
-export function renderDownloads(locale, list, developer = false, browser = 'browser') {
+export function renderDownloads(locale, list, developer = false, browser = 'browser', userAgent = '') {
   const fr = locale.startsWith('fr');
   const text = (a, b) => fr ? a : b;
   const link = (url, label) => '<a class="button" href="' + esc(url) + '">' + esc(label) + '</a>';
@@ -61,11 +62,11 @@ export function renderDownloads(locale, list, developer = false, browser = 'brow
     '<h2>' + text('Installer', 'Install') + '</h2><div class="download-grid">' +
     card('Android', text('Lancez l’app, puis pesez-vous : c’est enregistré.', 'Launch the app, then weigh yourself: it’s saved.'), link('https://play.google.com/store/apps/details?id=eu.domun.epi', 'Google Play'), 'android') +
     card('Windows', text('Reliez votre PC à votre balance connectée.', 'Connect your PC to your smart scale.'), files('windows', ['public']), 'windows') +
-    card('Linux', text('Linux Debian/Ubuntu/Mint compatibles. Reliez votre PC à votre balance connectée.', 'Compatible Debian/Ubuntu/Mint Linux. Connect your PC to your smart scale.'), files('linux', ['public']), 'linux ubuntu mint') +
+    card('Linux', text('Linux Debian/Ubuntu/Mint compatibles. Reliez votre PC à votre balance connectée.', 'Compatible Debian/Ubuntu/Mint Linux. Connect your PC to your smart scale.'), files('linux', ['public']), 'linux debian ubuntu mint') +
     card(text('Application web installée (PWA)', 'Installed web application (PWA)'), noScale,
-      '<details><summary>' + text('Comment l’installer', 'How to install') + '</summary><p>' +
-      text('Ouvrez éPI dans votre navigateur. Chrome/Edge : menu → Installer l’application. iPhone/iPad : Safari → Partager → Sur l’écran d’accueil. Mac : Safari → Fichier → Ajouter au Dock.',
-        'Open éPI in your browser. Chrome/Edge: menu → Install app. iPhone/iPad: Safari → Share → Add to Home Screen. Mac: Safari → File → Add to Dock.') + '</p></details>', browser) + '</div>';
+      link('https://epi.domun.eu/?install=1', text('Installer éPI', 'Install éPI')) +
+      '<details class="pwa-help"><summary>' + text('Les étapes pour ce navigateur', 'Steps for this browser') + '</summary><div data-pwa-guide>' +
+      renderInstallationGuide(locale, { userAgent }, true) + '</div></details>', browser) + '</div>';
   if (developer) {
     body += '<h2>' + text('Autres formats', 'Other formats') + '</h2><div class="download-grid">' +
       card('Windows MSI', text('Déploiements administrés. WebView2 installé si nécessaire (connexion Internet requise).', 'Managed deployments. Installs WebView2 when needed (Internet required).'), files('windows', ['msi']), 'windows') +
