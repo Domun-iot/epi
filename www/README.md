@@ -1,45 +1,30 @@
-# Site public éPI
+# éPI public website
 
-Lancer avec `npm --prefix www start`, puis ouvrir http://127.0.0.1:3002/epi.
-Node.js 22.13 ou supérieur suffit ; Node.js 24 est utilisé pour la vérification du projet.
-Les tests HTTP se lancent avec `npm --prefix www test`.
+Run `npm --prefix www start`, then open http://127.0.0.1:3002/epi.
+Node.js 22.13 or later is sufficient; Node.js 24 is used for project verification.
+Run HTTP tests with `npm --prefix www test`.
 
-La langue suit cet ordre : paramètre `?lang=fr`, cookie, préférences du navigateur,
-anglais britannique. Les URL restent identiques dans toutes les langues.
+Language selection follows this order: `?lang=fr` parameter, cookie, browser preferences, British English. URLs remain identical across languages.
 
-## Configuration et interfaces
+## Configuration and interfaces
 
-- `EPI_WWW_PORT` change le port local.
-- `DOMUN_SOFTWARE_CATALOG_URL` fournit le catalogue JSON utilisé par la page Pro.
-  Les tests injectent un serveur local : aucun paiement n'est nécessaire pour développer le site.
-- `EPI_WWW_SECURE_COOKIE=1` active l'attribut Secure du cookie de langue.
-- `EPI_WWW_RETENTION_FILE` désigne un JSON de textes de confidentialité, indexé
-  par les codes de langue de `locales.js`. Ce fichier local reste hors Git.
+- `EPI_WWW_PORT` changes the local port.
+- `DOMUN_SOFTWARE_CATALOG_URL` supplies the JSON catalogue used by the Pro page. Tests inject a local server: no payment is needed to develop the site.
+- `EPI_WWW_SECURE_COOKIE=1` enables the language cookie's Secure attribute.
+- `EPI_WWW_RETENTION_FILE` points to a JSON file of privacy texts, indexed by language codes from `locales.js`. This local file remains outside Git.
 
-Le site affiche les offres et dirige vers le service de compte externe. Il ne réalise
-pas les encaissements. `/epi/plan-features.json` expose la grille de fonctionnalités.
-Le lien de suppression et l'ancienne route `/epi/delete-account` dirigent vers le service de compte.
+The site displays plans and links to the external account service. It does not collect payments. `/epi/plan-features.json` exposes the feature matrix. The deletion link and legacy `/epi/delete-account` route lead to the account service.
 
-## Pages développeurs et ressources
+## Developer pages and assets
 
-`/epi/developers` et `/epi/download` décrivent les versions disponibles.
-L’encart des sources mène au dépôt public `https://github.com/domun-iot/epi`.
-Le guide de compilation n’est plus exposé sur le site ; il reste dans le dépôt.
-`/epi/license` présente la licence des logiciels et du site éPI, avec les textes
-du dépôt disponibles sous `/epi/licenses/`.
-Les tests de téléchargements utilisent des fichiers temporaires et ne modifient aucune release réelle.
-La capture `public/weigh-ins.jpg` représente des données fictives en mode simulation.
+`/epi/developers` and `/epi/download` describe available versions. The source panel links to the public repository, `https://github.com/domun-iot/epi`. The build guide is no longer exposed on the site; it remains in the repository. `/epi/license` presents the éPI software and website licence, with repository texts available under `/epi/licenses/`. Download tests use temporary files and do not alter real releases. The `public/weigh-ins.jpg` screenshot shows fictional data in simulation mode.
 
-Les logos SVG viennent de `public/logos/` (Devicon, licence MIT ; Simple Icons, CC0 ;
-voir les licences jointes). Les marques restent celles de leurs propriétaires.
-Le logo PWA suit le navigateur identifié par User-Agent, avec une icône web générique
-en repli. Aucun service tiers n'est chargé pour ces logos.
+SVG logos come from `public/logos/` (Devicon, MIT licence; Simple Icons, CC0; see accompanying licences). Trademarks remain with their owners. The PWA logo follows the browser identified by User-Agent, falling back to a generic web icon. No third-party service is loaded for these logos.
 
-## Comportements et tests du site
+## Website behaviour and tests
 
-Les tests d’interface des téléchargements utilisent les dépendances Playwright de `tauri` : depuis ce dossier, lancer `node --test test/downloads.test.js`.
+Download interface tests use the Playwright dependencies in `tauri`: from that directory, run `node --test test/downloads.test.js`.
 
-Les encarts d’une même rangée partagent leurs lignes de grille pour aligner en bas les boutons et leurs informations de téléchargement. Un clic sur « SHA-256 » affiche et copie la somme ; un clic sur la somme la recopie. La confirmation de copie disparaît après cinq secondes ; une nouvelle copie relance ce délai. Un message apparaît si le navigateur refuse l’accès au presse-papier.
+Cards in the same row share grid tracks to align buttons and download information at the bottom. Clicking “SHA-256” displays and copies the checksum; clicking the checksum copies it again. Copy confirmation disappears after five seconds; another copy restarts the timer. A message appears if the browser denies clipboard access.
 
-Le volet PWA ouvre une fenêtre avec une liste numérotée adaptée au navigateur et au système courants ; sans JavaScript, il reste déroulant. Le script affine aussi la détection des iPad utilisant un User-Agent de Mac. « Installer éPI » ouvre `https://epi.domun.eu/?install=1` : l’application affiche une fenêtre d’installation avant le démarrage du compte, puis un bouton natif dès réception de `beforeinstallprompt`. Sans cet événement (Safari, Firefox ou installation indisponible), les étapes manuelles restent accessibles. Une application déjà ouverte en mode installé affiche une confirmation. La page de téléchargements ne peut pas déclencher directement l’installation de l’autre domaine. Les instructions communes sont dans `shared/pwa-install.mjs`.
-
+The PWA panel opens a window with numbered steps tailored to the current browser and system; without JavaScript, it remains expandable. The script also refines detection of iPads using a Mac User-Agent. “Install éPI” opens `https://epi.domun.eu/?install=1`: the application shows an installation window before account startup, then a native button when `beforeinstallprompt` arrives. Without this event (Safari, Firefox or installation unavailable), manual steps remain accessible. An application already open in installed mode shows confirmation. The download page cannot directly trigger installation on another domain. Shared instructions are in `shared/pwa-install.mjs`.

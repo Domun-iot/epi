@@ -1,46 +1,46 @@
-# Comptes et jeux de données
+# Accounts and datasets
 
-Les applications installées et le web personnel fonctionnent sans compte. Le web partagé permet l’usage anonyme et FREE dans le navigateur ; son stockage distant exige une connexion PRO vérifiée par le serveur avant toute lecture ou écriture. Les vues PRO et les imports/exports suivent les mêmes droits partout. La synchronisation entre installations ou navigateurs est exclusivement PRO. Voir les [ports et adapters de stockage](ARCHITECTURE-STOCKAGE.md) pour les règles de sélection propres au web partagé.
+Installed applications and personal web work without an account. Shared web supports anonymous and FREE use in the browser; remote storage requires a PRO login checked by the server before any read or write. PRO views and imports/exports use the same permissions everywhere. Synchronisation between installations or browsers is exclusively PRO. See [storage ports and adapters](ARCHITECTURE-STOCKAGE.md) for shared web selection rules.
 
-## Organisation locale
+## Local organisation
 
-La racine reste déterminée par EPI_DATA_DIR, le dossier data trouvé en remontant depuis le programme, ou le dossier utilisateur. La détection reconnaît l'ancien trio devices/measures/profiles, local, accounts et les marqueurs d'installation. Un dossier de base SQLite du serveur seul n'est pas un dossier de données client.
+The root is still determined by EPI_DATA_DIR, a data directory found by searching upwards from the program, or the user directory. Detection recognises the old devices/measures/profiles trio, local, accounts and installation markers. A directory containing only the server's SQLite database is not a client data directory.
 
-- local/ contient le jeu anonyme.
-- accounts/<UUID>/ contient les fichiers, préférences, notifications et journaux du seul compte concerné.
-- installation.json contient le compte actif, le verrouillage permanent du mode compte, la génération du jeu sélectionné, les comptes dont la première synchronisation a été validée et les préférences de fenêtre. Ces informations ne sont ni exportées ni synchronisées.
-- backups/ contient les copies de récupération des migrations, rattachements et remplacements.
+- local/ contains the anonymous dataset.
+- accounts/<UUID>/ contains files, preferences, notifications and journals for that account alone.
+- installation.json contains the active account, permanent account-mode lock, selected dataset generation, accounts whose first synchronisation has been validated, and window preferences. This information is neither exported nor synchronised.
+- backups/ contains recovery copies from migrations, linking and replacements.
 
-L'UUID provient de l'identifiant stable du serveur ; une adresse e-mail n'est jamais un nom de dossier. L'ancien contenu de data migre vers local avec sauvegarde et journal de reprise. Utiliser des applications reconstruites avec cette organisation après migration ; une ancienne version ne connaît pas ces sous-dossiers.
+The UUID comes from the stable server identifier; an email address is never a directory name. Old data contents migrate to local with a backup and recovery journal. Use applications rebuilt for this organisation after migration; older versions do not recognise these subdirectories.
 
-## Connexion et fonctionnement hors ligne
+## Login and offline operation
 
-Le jeu sélectionné et le jeton en ligne sont indépendants. Au démarrage, le dernier compte actif ouvre son jeu local même sans réseau. Un jeton expiré empêche les échanges mais ne désélectionne pas ces données. Les droits PRO déjà vérifiés restent utilisables localement jusqu'à leur échéance.
+The selected dataset and online token are independent. At startup, the last active account opens its local dataset even without a network connection. An expired token prevents exchanges but does not deselect the data. Previously verified PRO entitlements remain available locally until expiry.
 
-Une déconnexion volontaire retire le jeton et la sélection active, sans effacer les fichiers. Dès qu'un compte a été rattaché à l'installation, l'application exige une nouvelle connexion : elle ne recrée jamais un jeu anonyme par défaut, même si les dossiers de comptes ont été retirés. Changer de compte ouvre uniquement son propre dossier.
+Explicit logout removes the token and active selection without deleting files. Once an account has been linked to the installation, the application requires a new login: it never recreates an anonymous dataset by default, even if account directories have been removed. Switching accounts opens only the corresponding directory.
 
-Le verrouillage de l'interface ne chiffre pas les fichiers. L'utilisateur du système peut lire les sauvegardes et les dossiers s'il en possède les permissions.
+The interface lock does not encrypt files. An operating system user with sufficient permissions can read backups and directories.
 
-## Premier rattachement et passage à PRO
+## First linking and upgrading to PRO
 
-En FREE, le premier rattachement transfère le jeu anonyme dans le dossier du compte, sans consulter ni télécharger les données de synchronisation. Les écritures restent locales ; la file ne part pas vers le serveur.
+On FREE, initial linking transfers the anonymous dataset into the account directory without consulting or downloading synchronisation data. Writes remain local; the queue is not sent to the server.
 
-Au premier rattachement PRO, ou lors du premier passage de FREE à PRO, le client lit un instantané authentifié du compte. Si les deux côtés contiennent des données, il présente le nombre de pesées et les dates extrêmes, puis propose de fusionner, de choisir les données distantes ou d'annuler. Un compte distant vide permet le rattachement automatique. Les données d'un autre compte ne participent jamais à cette opération.
+On first PRO linking, or the first FREE to PRO upgrade, the client reads an authenticated account snapshot. If both sides contain data, it presents weigh-in counts and date ranges, then offers to merge, use remote data or cancel. An empty remote account allows automatic linking. Another account's data never takes part.
 
-La préparation se fait dans un dossier temporaire. Une fusion part de l'instantané distant, puis intègre les écritures locales et leur état courant selon leurs versions. Les suppressions sont conservées dans le journal afin d'empêcher le retour d'une ancienne écriture. Une restauration volontaire porte une nouvelle date de modification. Une sauvegarde du jeu remplacé reste disponible. Un journal de remplacement permet de terminer une bascule interrompue.
+Preparation uses a temporary directory. A merge starts from the remote snapshot, then integrates local writes and their current state according to their versions. Deletions remain in the journal to prevent an old write from returning. An intentional restoration receives a new modification date. A backup of the replaced dataset remains available. A replacement journal allows an interrupted switch to finish.
 
-La première émission est conditionnée à la révision distante présentée, conservée dans la configuration même après redémarrage. Si le serveur a changé, les fichiers restent en attente et le choix est proposé à nouveau. Annuler ne publie rien. Les confirmations de réception ne déplacent que les transactions confirmées dans l'archive du même compte.
+The first upload depends on the remote revision presented, retained in configuration even after restart. If the server has changed, files remain pending and the choice is offered again. Cancelling publishes nothing. Acknowledgements move only confirmed transactions into the same account's archive.
 
-## Isolation des opérations
+## Operation isolation
 
-Un verrou interprocessus partagé par Node, le CLI et Tauri protège les migrations, bascules et écritures. Un propriétaire actif fait refuser l’opération concurrente ; un verrou abandonné est récupéré après vérification du processus propriétaire. Le service web personnel conserve ce verrou pendant ses opérations de fichiers asynchrones.
+An interprocess lock shared by Node, the CLI and Tauri protects migrations, switches and writes. An active owner causes concurrent operations to be refused; an abandoned lock is recovered after checking the owning process. The personal web service retains this lock during asynchronous file operations.
 
-Chaque travail asynchrone conserve le compte et la génération du jeu qui l'a lancé. Une réponse ancienne ne met pas à jour le nouveau compte ; les commandes de fichiers refusent une génération devenue périmée, y compris un remplacement du même compte. Les données temporaires de l'interface et les journaux Bluetooth sont séparés lors d'une bascule.
+Each asynchronous task retains the account and dataset generation that started it. An old response cannot update the new account; file commands reject a stale generation, including replacement within the same account. Temporary interface data and Bluetooth logs are separated during a switch.
 
-Sur le web hébergé, le serveur vérifie le jeton sur chaque requête et choisit lui-même accounts/<UUID>. Aucun identifiant fourni par le navigateur ne permet de choisir un autre dossier. Les écritures web PRO rejoignent le même journal que les autres clients. Les appels de synchronisation sont refusés en FREE. Les fichiers hébergés sont supprimés lors de la purge définitive du compte.
+On hosted web, the server checks the token on every request and selects accounts/<UUID> itself. No browser-supplied identifier can select another directory. PRO web writes join the same journal as other clients. Synchronisation calls are refused on FREE. Hosted files are removed when the account is permanently purged.
 
-Un rechargement/synchronisation manuel PRO et la fin d'un import ZIP peuvent réparer le cache depuis l'instantané complet du même compte, indépendamment des anciens accusés. La fusion garde les modifications locales plus récentes et les suppressions. Cette réparation ne redemande pas le choix du premier rattachement et conserve les dialogues du compte courant.
+A manual PRO reload/synchronisation and completion of a ZIP import can repair the cache from the same account's complete snapshot, independently of old acknowledgements. Merging retains newer local changes and deletions. This repair does not repeat the initial linking choice and preserves the current account's dialogues.
 
-## Vérifications
+## Verification
 
-Les suites de tests couvrent migration et reprise, recherche de data, rattachement FREE, première synchronisation PRO, fusion et remplacement, isolation de deux comptes, expiration, déconnexion hors ligne, génération périmée, suppressions et restauration, accès web sans jeton, droits FREE/PRO et interactions Chrome. Les essais avec une balance physique et les nouveaux paquets installés restent distincts de ces tests automatisés.
+Test suites cover migration and recovery, data discovery, FREE linking, initial PRO synchronisation, merging and replacement, two-account isolation, expiry, offline logout, stale generations, deletions and restoration, web access without a token, FREE/PRO entitlements and Chrome interactions. Physical scale tests and newly installed packages remain separate from automated tests.

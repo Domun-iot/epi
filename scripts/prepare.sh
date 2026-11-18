@@ -42,7 +42,7 @@ for package in "$@"; do
 done
 if [ -n "$missing" ]; then
     printf 'Paquets système manquants :%s\n' "$missing" >&2
-    # Les noms proviennent uniquement de la liste de paquets ci-dessus.
+    # Names come only from the package list above.
     set -- $missing
     if [ "$(id -u)" -ne 0 ]; then
         if [ ! -t 0 ] && ! sudo -n true 2>/dev/null; then

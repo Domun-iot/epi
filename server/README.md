@@ -1,99 +1,97 @@
-# Serveur de synchronisation éPI
+# éPI synchronisation server
 
-API HTTP autonome, développée en TypeScript. Node.js 22.13 ou supérieur suffit pour exécuter le serveur compilé. Le serveur utilise SQLite via `node:sqlite` et crée son schéma au démarrage dans `server/data/epi.sqlite`.
+Standalone HTTP API written in TypeScript. Node.js 22.13 or later is sufficient to run the compiled server. It uses SQLite through `node:sqlite` and creates its schema at startup in `server/data/epi.sqlite`.
 
-## Lancer le serveur
+## Running the server
 
-Depuis la racine du dépôt, utilisez les scripts suivants (extension `.bat` sous Windows).
+From the repository root, use these scripts (`.bat` extension on Windows).
 
 | Script | Action |
 | --- | --- |
-| `run/prep/server.sh` | Installe les dépendances de compilation verrouillées. |
-| `run/build/server.sh` | Vérifie et compile le TypeScript dans `server/dist/`. |
-| `run/dev/server.sh` | Lance le TypeScript et redémarre à chaque changement de source. |
-| `run/server.sh` | Lance le serveur compilé et le construit au premier démarrage si nécessaire. |
+| `run/prep/server.sh` | Installs locked build dependencies. |
+| `run/build/server.sh` | Checks and compiles TypeScript into `server/dist/`. |
+| `run/dev/server.sh` | Runs TypeScript and restarts on source changes. |
+| `run/server.sh` | Runs the compiled server, building it on first launch if necessary. |
 
-Modifiez `server/config.js` pour changer le port (8787 par défaut), l'adresse d'écoute ou le fichier SQLite. Le serveur écoute par défaut sur `127.0.0.1`. Redémarrez le serveur après une modification de la configuration. HTTP transmet les mots de passe, les jetons et les données en clair. Pour un accès distant, terminez HTTPS devant le serveur.
+Edit `server/config.js` to change the port (default 8787), listening address or SQLite file. The default address is `127.0.0.1`. Restart after configuration changes. HTTP transmits passwords, tokens and data in plain text. For remote access, terminate HTTPS in front of the server.
 
-Le relais vers le client web hébergé utilise `EPI_WEB_PORT` (3001 par défaut).
-Le processus de l'API et le serveur des fichiers hébergés doivent utiliser la même
-valeur. Le site de présentation indépendant utilise `EPI_WWW_PORT` (3002 par défaut).
+The hosted web client relay uses `EPI_WEB_PORT` (default 3001). The API process and hosted file server must use the same value. The independent public website uses `EPI_WWW_PORT` (default 3002).
 
-Vérification locale avec `npm --prefix server test`.
+Run local checks with `npm --prefix server test`.
 
 ## API
 
-Les corps POST sont envoyés en JSON avec `Content-Type: application/json`. Les routes de synchronisation utilisent `Authorization: Bearer <token>`.
+POST bodies use JSON with `Content-Type: application/json`. Synchronisation routes use `Authorization: Bearer <token>`.
 
-| Méthode et route | Corps | Réponse |
+| Method and route | Body | Response |
 | --- | --- | --- |
-| `POST /v1/accounts` | `{"email":"a@example.org","password":"mot-de-passe"}` | `201` et `{"email":"a@example.org"}`. `409 account_exists` si l'adresse existe déjà. |
-| `POST /v1/device-tokens` | `{"email":"a@example.org","password":"mot-de-passe","deviceId":"pc-1"}` | `200` avec notamment `{"token":"…","paid":false,"paidUntil":null}`. |
-| `GET /v1/account` | Jeton d’appareil. | Compte courant, UUID stable `accountId`, droits `paid`/`paidUntil`, langue et configuration Google. |
-| `GET /v1/dataset` | Jeton PRO. | `{accountId,files,summary,revision}` : état matérialisé et historique, avec `summary={count,from,to,hasData}`. |
-| `GET /v1/dataset/summary` | Jeton PRO. | Même résumé et révision, sans les fichiers. |
-| `POST /api/session` | Jeton d’appareil et `{action,args,datasetId}`. | Session hébergée du compte PRO authentifié ; `401` sans session valide, `403 pro_required` en FREE, `409 dataset_changed` si le compte demandé diffère. |
-| `DELETE /v1/device-tokens` | En-tête `Authorization: Bearer <token>` | `204`. Révoque ce jeton sans supprimer les accusés de l’appareil. |
-| `POST /v1/transactions` | Objet JSON `{"transactions":[…]}` ou une transaction JSON par ligne (`application/x-ndjson`). | `200` et `{"inserted":1,"uuids":["…"]}` avec les UUID confirmés. |
-| `GET /v1/transactions/pending` | Paramètre facultatif `after` | `200` et `{"transactions":[…],"next":null}`. Les transactions horodatées sont triées par nom de fichier UTC. Si `next` est renseigné, le client le transmet dans `after` pour lire la page suivante. |
-| `POST /v1/transactions/acknowledge` | `{"uuids":["…"]}` | `200` et `{"inserted":1}` pour un nouvel accusé. |
+| `POST /v1/accounts` | `{"email":"a@example.org","password":"example-password"}` | `201` and `{"email":"a@example.org"}`. `409 account_exists` if the address already exists. |
+| `POST /v1/device-tokens` | `{"email":"a@example.org","password":"example-password","deviceId":"pc-1"}` | `200`, including `{"token":"…","paid":false,"paidUntil":null}`. |
+| `GET /v1/account` | Device token. | Current account, stable `accountId` UUID, `paid`/`paidUntil` entitlements, language and Google configuration. |
+| `GET /v1/dataset` | PRO token. | `{accountId,files,summary,revision}`: materialised state and history, with `summary={count,from,to,hasData}`. |
+| `GET /v1/dataset/summary` | PRO token. | Same summary and revision, without files. |
+| `POST /api/session` | Device token and `{action,args,datasetId}`. | Authenticated PRO account's hosted session; `401` without a valid session, `403 pro_required` on FREE, `409 dataset_changed` if the requested account differs. |
+| `DELETE /v1/device-tokens` | `Authorization: Bearer <token>` header | `204`. Revokes this token without deleting device acknowledgements. |
+| `POST /v1/transactions` | JSON object `{"transactions":[…]}` or one JSON transaction per line (`application/x-ndjson`). | `200` and `{"inserted":1,"uuids":["…"]}` with confirmed UUIDs. |
+| `GET /v1/transactions/pending` | Optional `after` parameter | `200` and `{"transactions":[…],"next":null}`. Timestamped transactions sorted by UTC filename. If `next` is set, pass it as `after` for the next page. |
+| `POST /v1/transactions/acknowledge` | `{"uuids":["…"]}` | `200` and `{"inserted":1}` for a new acknowledgement. |
 
-Les erreurs ont la forme `{"error":"code"}`. L'inscription est ouverte. L'identifiant d'appareil est choisi par le client et doit rester stable pour cette instance. Il accepte 1 à 128 caractères parmi les lettres ASCII, chiffres, points, tirets et underscores. Chaque émission remplace le jeton précédent de l'appareil. Après plus de 30 jours sans utilisation, le jeton est effacé et l'API renvoie `401 token_expired` jusqu'à une nouvelle connexion par mot de passe ou avec Google. Les accusés de l'appareil sont conservés.
+Errors have the form `{"error":"code"}`. Registration is open. The client chooses a device identifier that must remain stable for that instance. It accepts 1–128 ASCII letters, digits, dots, hyphens and underscores. Each issuance replaces the device's previous token. After more than 30 days without use, the token is deleted and the API returns `401 token_expired` until a new password or Google login. Device acknowledgements are retained.
 
-Le format d’envoi JSON accepte jusqu’à 100 entrées et 4 Mio par requête. Le format NDJSON permet d’envoyer la file locale en une requête, avec la même limite de taille par transaction. Le serveur valide et enregistre le flux par groupes d’au plus 100 transactions et 4 Mio. Si l’envoi est interrompu, le client peut renvoyer le lot entier. Le serveur conserve le premier contenu déposé pour un UUID. Un renvoi équivalent confirme cet UUID et peut ajouter le nom horodaté lorsqu’il manque à l’entrée d’origine. Un UUID associé à un JSON différent reste absent de la liste des confirmations. Les UUID utilisent le format canonique en minuscules. Un accusé de téléchargement sur un UUID inconnu du compte est ignoré et peut être renvoyé après le dépôt.
+JSON uploads accept up to 100 entries and 4 MiB per request. NDJSON sends the local queue in one request, with the same per-transaction size limit. The server validates and saves groups of up to 100 transactions and 4 MiB. After interruption, the client can resend the entire batch. The server retains the first content submitted for a UUID. An equivalent retry confirms the UUID and can add its timestamped name if missing from the original entry. A UUID associated with different JSON is excluded from confirmations. UUIDs use canonical lowercase format. Download acknowledgements for UUIDs unknown to the account are ignored and can be resent after submission.
 
-## Gestion des abonnements par domun
+## Subscription management by domun
 
-L’API privée accepte le jeton de service défini par `EPI_DOMUN_API_TOKEN` sous forme de 64 caractères hexadécimaux minuscules. domun l’envoie via `Authorization: Bearer <token>`. Réservez `/v1/domun/` à la boucle locale en production. En l’absence de jeton, ces routes répondent `404`.
+The private API accepts the service token defined by `EPI_DOMUN_API_TOKEN` as 64 lowercase hexadecimal characters. domun sends it through `Authorization: Bearer <token>`. Restrict `/v1/domun/` to loopback in production. Without a configured token, these routes return `404`.
 
-| Méthode et route | Corps | Réponse |
+| Method and route | Body | Response |
 | --- | --- | --- |
-| `GET /v1/domun/accounts` | Aucun. Paramètre `after` facultatif. | `200` avec `{"accounts":[{"id":"…","email":"a@example.org","paidUntil":null}],"next":null}`. Transmettez `next` dans `after` pour lire la page suivante. |
-| `DELETE /v1/domun/account-deletion` | En-tête `X-Domun-Device` avec le jeton d’appareil du compte. | `204`. Marque le compte et bloque ses accès. |
-| `GET /v1/domun/accounts/purge` | Paramètre `after` facultatif. | `200` avec `accounts`, où chaque compte contient `id`, `email` et `deletedAt`, et le curseur `next`. |
-| `POST /v1/domun/accounts/purge` | `{"ids":["…"]}` | `200` avec le nombre de comptes purgés dans `purged`. Seuls les comptes listés et marqués depuis strictement plus d’un mois calendaire UTC sont éligibles. |
-| `PUT /v1/domun/accounts/<id>/entitlement` | `{"paidUntil":"2027-01-01T00:00:00.000Z"}` ou `{"paidUntil":null}` en JSON. | `204`. `404 account_not_found` si le compte a été supprimé. |
+| `GET /v1/domun/accounts` | None. Optional `after` parameter. | `200` with `{"accounts":[{"id":"…","email":"a@example.org","paidUntil":null}],"next":null}`. Pass `next` as `after` for the next page. |
+| `DELETE /v1/domun/account-deletion` | `X-Domun-Device` header with the account's device token. | `204`. Marks the account and blocks access. |
+| `GET /v1/domun/accounts/purge` | Optional `after` parameter. | `200` with `accounts`, each containing `id`, `email` and `deletedAt`, and a `next` cursor. |
+| `POST /v1/domun/accounts/purge` | `{"ids":["…"]}` | `200` with the purged account count in `purged`. Only listed accounts marked for strictly more than one UTC calendar month are eligible. |
+| `PUT /v1/domun/accounts/<id>/entitlement` | `{"paidUntil":"2027-01-01T00:00:00.000Z"}` or `{"paidUntil":null}` as JSON. | `204`. `404 account_not_found` if deleted. |
 
-Les contrôles PRO sont revérifiés après les attentes de traitement et avant de renvoyer un instantané ; une échéance survenue pendant la requête bloque le transfert restant.
+PRO checks are repeated after processing waits and before returning a snapshot; expiry during the request blocks the remaining transfer.
 
-Le serveur vérifie auprès de `EPI_DOMUN_BILLING_URL` (boucle locale, jeton `EPI_DOMUN_API_TOKEN`) les droits de chaque envoi, lecture et acquittement de transactions. Un compte FREE reçoit `403 pro_required`; une panne de l’admin donne `503 subscription_unavailable`. La connexion au compte et les données déjà stockées restent disponibles pour le prochain abonnement.
+The server checks entitlements with `EPI_DOMUN_BILLING_URL` (loopback, `EPI_DOMUN_API_TOKEN` token) for every transaction upload, read and acknowledgement. FREE accounts receive `403 pro_required`; an admin outage gives `503 subscription_unavailable`. Account login and stored data remain available for a future subscription.
 
-L’identifiant du compte, `domunId` dans `GET /v1/account`, reste stable. `accountId` exprime les mêmes 128 bits au format UUID canonique ; il est fourni par le serveur aux clients et sert à sélectionner leur dossier de données. Une réinscription reçoit un nouvel identifiant. Les réponses de connexion par mot de passe ou avec Google et `GET /v1/account` renvoient `paid` et `paidUntil`. `paidUntil` contient l’échéance UTC, même si elle est passée, ou `null` pour un compte sans échéance. `paid` vaut `true` tant que l’échéance est dans le futur.
+The account identifier, `domunId` in `GET /v1/account`, remains stable. `accountId` represents the same 128 bits as a canonical UUID; the server supplies it to clients to select their data directory. Reregistration receives a new identifier. Password and Google login responses and `GET /v1/account` return `paid` and `paidUntil`. `paidUntil` contains the UTC expiry, even if past, or `null` without an expiry. `paid` is `true` while expiry is in the future.
 
-## Comptes dans l’application
+## Accounts in the application
 
-Ouvrez « Compte » dans l’application web ou Tauri. La création du compte ouvre une session. La déconnexion explicite ferme l’accès local au jeu du compte même hors connexion ; la révocation distante du jeton est tentée quand le serveur est joignable. L’expiration d’un jeton conserve le dernier jeu actif sur une installation locale et dans le stockage navigateur ; le mode API hébergée exige une nouvelle connexion.
+Open **Account** in web or Tauri. Creating an account opens a session. Explicit logout closes local account dataset access even offline; remote token revocation is attempted when the server is reachable. Token expiry retains the last active dataset on local installations and in browser storage; hosted API mode requires a new login.
 
-Les clients web et Tauri accèdent aux comptes via `https://epi.domun.eu` dans tous les modes, y compris en développement. Le proxy doit transmettre les méthodes `GET`, `POST`, `DELETE` et `OPTIONS` des routes de compte, ainsi que les en-têtes CORS.
+Web and Tauri clients access accounts through `https://epi.domun.eu` in all modes, including development. The proxy must forward `GET`, `POST`, `DELETE` and `OPTIONS` on account routes, together with CORS headers.
 
-### Connexion Google
+### Google login
 
-1. Créez un client OAuth de type **Application Web** dans Google Cloud, configurez l’écran de consentement et ajoutez l’URI de redirection exacte, `https://epi.domun.eu/v1/google/callback` en production. En mode test, ajoutez les comptes Google autorisés.
-2. Avant de démarrer le serveur, définissez `EPI_GOOGLE_CLIENT_ID`, `EPI_GOOGLE_CLIENT_SECRET` et `EPI_GOOGLE_REDIRECT_URI`. Pour un essai sur le même ordinateur, vous pouvez enregistrer et utiliser `http://127.0.0.1:8787/v1/google/callback`. Le navigateur doit pouvoir joindre l’URI de retour. Le serveur doit pouvoir joindre les services Google en HTTPS.
-3. Relancez le serveur. Dans « Compte », l’action Google permet de se connecter, de créer un compte ou de gérer l’association. Pour se connecter, créer un compte ou associer Google, Tauri ouvre le navigateur système, y compris sur Android. Sur le web, le choix du compte s’affiche dans un nouvel onglet. Après validation, revenez dans éPI.
+1. Create a **Web application** OAuth client in Google Cloud, configure consent and add the exact redirect URI, `https://epi.domun.eu/v1/google/callback` in production. In test mode, add authorised Google accounts.
+2. Before starting the server, set `EPI_GOOGLE_CLIENT_ID`, `EPI_GOOGLE_CLIENT_SECRET` and `EPI_GOOGLE_REDIRECT_URI`. For testing on the same computer, register and use `http://127.0.0.1:8787/v1/google/callback`. The browser must reach the callback URI; the server must reach Google services over HTTPS.
+3. Restart the server. In **Account**, the Google action supports login, account creation and linking. Tauri opens the system browser for login, creation or linking, including on Android. On web, account selection opens in a new tab. Return to éPI after approval.
 
-Le serveur échange le code d’autorisation avec Google via PKCE, valide le jeton OpenID Connect reçu directement du serveur Google en HTTPS et conserve l’identifiant stable `sub`. Les jetons Google servent uniquement à cet échange. éPI délivre ensuite son jeton d’appareil habituel. Une adresse existante exige une connexion éPI et la confirmation du mot de passe pour associer Google.
+The server exchanges the authorisation code with Google using PKCE, validates the OpenID Connect token received directly from Google over HTTPS and retains the stable `sub` identifier. Google tokens are used only for this exchange. éPI then issues its usual device token. An existing email address requires éPI login and password confirmation to link Google.
 
-Pour délier Google, confirmez votre mot de passe éPI dans l’application. Si Google est votre seul moyen de connexion, choisissez et confirmez un nouveau mot de passe éPI dans le même écran. Le déliage utilise la session éPI et conserve les autorisations enregistrées chez Google.
+To unlink Google, confirm your éPI password in the application. If Google is your only login method, choose and confirm a new éPI password on the same screen. Unlinking uses the éPI session and preserves authorisations stored by Google.
 
-Les demandes Google expirent après cinq minutes et sont conservées en mémoire. Si vous utilisez plusieurs instances d’API, le début de la demande, le callback et sa finalisation doivent atteindre la même instance. Évitez de journaliser la chaîne de requête du callback, qui contient le code d’autorisation et le paramètre d’état. Sans configuration Google, les connexions par mot de passe restent disponibles.
+Google requests expire after five minutes and remain in memory. With multiple API instances, request initiation, callback and completion must reach the same instance. Avoid logging the callback query string, which contains the authorisation code and state parameter. Password login remains available without Google configuration.
 
-## Application web hébergée
+## Hosted web application
 
-Le serveur importe `web/hosted-api.js` au démarrage, depuis le dépôt complet. Les données de chaque compte sont matérialisées dans `server/data/accounts/<accountId>` ; l’UUID utilisé vient du jeton vérifié par le serveur, jamais du chemin ou du corps fournis par le navigateur. Les actions de synchronisation brutes ne sont pas exposées dans `/api/session`. Les actions PRO sont contrôlées côté serveur. Le stockage hébergé est réservé à PRO, y compris les actions de lecture simples. Un compte FREE utilise l’adapter localStorage du navigateur sans échange de données entre navigateurs ; le flag d’usage local est mémorisé dès confirmation FREE. Un navigateur PRO sans usage local accède directement à l’API. Les autres clients web PRO restent locaux et synchronisent leur journal. Une panne de vérification de l’abonnement ne doit pas confirmer FREE : les réponses de compte de secours portent `entitlementVerified: false`, et les sessions hébergées répondent `503 subscription_unavailable`. Voir [l’architecture de stockage](../docs/ARCHITECTURE-STOCKAGE.md).
+At startup, the server imports `web/hosted-api.js` from the complete repository. Each account's data is materialised in `server/data/accounts/<accountId>`; the UUID comes from the server-verified token, never a browser-supplied path or body. Raw synchronisation actions are not exposed through `/api/session`. PRO actions are checked server-side. Hosted storage is PRO-only, including simple reads. FREE uses the browser localStorage adapter without data exchange between browsers; the local-usage flag is recorded as soon as FREE is confirmed. A PRO browser without local usage accesses the API directly. Other PRO web clients remain local and synchronise their journal. Subscription verification failure must not confirm FREE: fallback account responses carry `entitlementVerified: false`, and hosted sessions return `503 subscription_unavailable`. See [storage architecture](../docs/ARCHITECTURE-STOCKAGE.md).
 
-Le journal SQLite est rejoué indépendamment des accusés des appareils pour reconstruire les données existantes. Une ancienne opération métier dépourvue de nom horodaté bloque la reconstruction avec `503 dataset_recovery_required` ; elle nécessite une migration explicite plutôt qu’une date de suppression inventée. Les anciennes enveloppes opaques sans opération métier sont ignorées par cette matérialisation. Les modifications web PRO sont ajoutées au même journal, sans créer un accusé de téléchargement pour le compte d’un appareil tiers. Si SQLite refuse temporairement la publication après une écriture de fichiers réussie, la session renvoie l’état sauvegardé avec `X-Epi-Sync: pending`. Le journal local reste durable et sa publication est retentée lors des requêtes web ou du prochain téléchargement PRO d’un appareil, y compris après redémarrage. Un instantané qui ne peut pas assurer cette publication répond `503 storage_saved_sync_pending`. Les historiques importés sont validés avant archivage : chemins autorisés, opérations non vides, valeurs objets et chemins uniques par transaction. Les dossiers de comptes refusent les liens symboliques imbriqués. Les suppressions restent mémorisées dans l’historique : une ancienne transaction ne recrée pas une fiche supprimée. La purge finale d’un compte supprime également son dossier hébergé.
+The SQLite journal is replayed independently of device acknowledgements to reconstruct existing data. An old domain operation without a timestamped name blocks reconstruction with `503 dataset_recovery_required`; it needs explicit migration rather than an invented deletion date. Old opaque envelopes without domain operations are ignored during materialisation. PRO web changes join the same journal without creating download acknowledgements on behalf of another device. If SQLite temporarily refuses publication after successful file writes, the session returns saved state with `X-Epi-Sync: pending`. The local journal remains durable and publication is retried on web requests or the next PRO device download, including after restart. A snapshot unable to guarantee publication returns `503 storage_saved_sync_pending`. Imported history is validated before archiving: allowed paths, non-empty operations, object values and unique paths per transaction. Account directories reject nested symbolic links. Deletions remain in history: an old transaction cannot recreate a deleted record. Final account purge also removes its hosted directory.
 
-Pour le premier rattachement local PRO, le client lit un instantané cohérent, montre les comptes de pesées et plages de dates, puis utilise éventuellement `If-Match: <revision>` au premier envoi. Une révision devenue obsolète donne `409 dataset_changed` avant écriture du lot. L’instantané inclut les historiques et l’index pour éviter de rejouer les opérations déjà appliquées. Les corps d’activation locale sont limités à 32 Mio ; un instantané dépassant cette limite doit être traité par une migration adaptée avant rattachement.
+For initial local PRO linking, the client reads a consistent snapshot, shows weigh-in counts and date ranges, then may use `If-Match: <revision>` on first upload. A stale revision returns `409 dataset_changed` before writing the batch. The snapshot includes history and index to avoid replaying operations already applied. Local activation bodies are limited to 32 MiB; larger snapshots require a suitable migration before linking.
 
-Le build `node web/build.mjs --hosted` produit les fichiers du client hébergé. Voir le [guide de build](../docs/BUILD.md) pour les cibles et les prérequis.
+`node web/build.mjs --hosted` produces hosted client files. See the [build guide](../docs/BUILD.md) for targets and prerequisites.
 
-## Boucle côté client
+## Client loop
 
-Les réponses de compte (connexion par mot de passe ou Google, lecture et mise à jour du compte) incluent `deviceCount`, le nombre d’identifiants d’installation distincts déjà connectés au compte. Les installations déconnectées ou expirées restent comptées ; une reconnexion avec le même identifiant ne l’incrémente pas. Ce compteur ne représente pas des lieux géographiques. Il est conservé dans les informations locales de compte avec l’abonnement. À partir de deux installations, un compte FREE voit sous ses pesées une invitation à découvrir la synchronisation PRO.
+Account responses (password or Google login, account reads and updates) include `deviceCount`, the number of distinct installation identifiers that have logged into the account. Logged-out or expired installations remain counted; reconnecting with the same identifier does not increment it. It does not represent geographical locations. It is retained in local account information alongside the subscription. From two installations onwards, FREE accounts see an invitation below their weigh-ins to discover PRO synchronisation.
 
-Le client télécharge les transactions au démarrage et lors d’un changement de session de compte. Il suit le curseur `next` et accuse les UUID intégrés ou déjà présents localement. Il envoie ensuite la file locale, avec relance en arrière-plan. Un dépôt accepté crée aussi le reçu de l’appareil expéditeur, qui évite de lui renvoyer sa propre transaction. Le [fonctionnement de la synchronisation et ses cas limites](../docs/SYNCHRONISATION.md) détaille le rejeu, les garanties de stockage et les conflits.
+The client downloads transactions at startup and on account session changes. It follows `next` and acknowledges integrated or already present local UUIDs. It then sends the local queue, retrying in the background. An accepted upload also creates the sending device's receipt to avoid returning its own transaction. [Synchronisation behaviour and edge cases](../docs/SYNCHRONISATION.md) details replay, storage guarantees and conflicts.
 
-La liste privée `GET /v1/domun/accounts` inclut `deletedAt` (horodatage UTC ou `null`) pour rendre les comptes Domun marqués pour suppression visibles dans l’administration avant leur purge.
+The private `GET /v1/domun/accounts` list includes `deletedAt` (UTC timestamp or `null`) so Domun accounts marked for deletion appear in administration before purging.
 
-La liste privée `GET /v1/domun/accounts` transmet aussi `createdAt`, la date UTC de création du compte source, y compris pour les comptes marqués pour suppression. Elle vaut `null` pour les comptes anciens dont la date est inconnue. L’admin peut ainsi distinguer deux comptes de même adresse e-mail.
+It also returns `createdAt`, the source account's UTC creation date, including accounts marked for deletion. This is `null` for older accounts with an unknown creation date. Administration can therefore distinguish accounts with the same email address.

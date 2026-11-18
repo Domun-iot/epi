@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-labelledby="title desc">
-<title id="title">Composition · trois panneaux synchronisés</title>
-<desc id="desc">Le poids reste à 78 kg, la masse grasse estimée passe de 22 à 21 kg et la masse maigre de 56 à 57 kg.</desc>
+<title id="title">Composition · three synchronised panels</title>
+<desc id="desc">Weight remains at 78 kg; estimated fat mass changes from 22 to 21 kg and fat-free mass from 56 to 57 kg.</desc>
 <rect x="1" y="1" width="798" height="448" rx="14" fill="#f9fbfe" stroke="#dbe3ed"/>
 <g font-family="system-ui, sans-serif">
-<text x="28" y="36" fill="#182a42" font-size="23" font-weight="650" text-anchor="start">Composition · trois panneaux synchronisés</text>
-<text x="28" y="61" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Même axe du temps · une ordonnée par métrique</text>
-<text x="73" y="95" fill="#182a42" font-size="14" font-weight="650" text-anchor="start">Poids (kg)</text>
+<text x="28" y="36" fill="#182a42" font-size="23" font-weight="650" text-anchor="start">Composition · three synchronised panels</text>
+<text x="28" y="61" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Shared time axis · one vertical axis per metric</text>
+<text x="73" y="95" fill="#182a42" font-size="14" font-weight="650" text-anchor="start">Weight (kg)</text>
 <line x1="73" y1="168" x2="766" y2="168" stroke="#dbe3ed" />
-<text x="62" y="173" fill="#455972" font-size="14" font-weight="400" text-anchor="end">77,5</text>
+<text x="62" y="173" fill="#455972" font-size="14" font-weight="400" text-anchor="end">77.5</text>
 <line x1="73" y1="137.5" x2="766" y2="137.5" stroke="#dbe3ed" />
 <text x="62" y="142.5" fill="#455972" font-size="14" font-weight="400" text-anchor="end">78</text>
 <line x1="73" y1="107" x2="766" y2="107" stroke="#dbe3ed" />
-<text x="62" y="112" fill="#455972" font-size="14" font-weight="400" text-anchor="end">78,5</text>
+<text x="62" y="112" fill="#455972" font-size="14" font-weight="400" text-anchor="end">78.5</text>
 <line x1="419.5" y1="107" x2="419.5" y2="168" stroke="#455972" stroke-dasharray="4 3"/>
 <polyline points="73,137.5 246.25,119.20000000000017 419.5,125.29999999999983 592.75,143.59999999999965 766,137.5" fill="none" stroke="#2855b0" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="73" cy="137.5" r="4" fill="#2855b0" stroke="white" stroke-width="1.5"/>
@@ -19,14 +19,14 @@
 <circle cx="419.5" cy="125.29999999999983" r="4" fill="#2855b0" stroke="white" stroke-width="1.5"/>
 <circle cx="592.75" cy="143.59999999999965" r="4" fill="#2855b0" stroke="white" stroke-width="1.5"/>
 <circle cx="766" cy="137.5" r="4" fill="#2855b0" stroke="white" stroke-width="1.5"/>
-<text x="429.5" y="116.29999999999983" fill="#2855b0" font-size="14" font-weight="650" text-anchor="start">78,2</text>
-<text x="73" y="200" fill="#182a42" font-size="14" font-weight="650" text-anchor="start">Masse grasse (kg)</text>
+<text x="429.5" y="116.29999999999983" fill="#2855b0" font-size="14" font-weight="650" text-anchor="start">78.2</text>
+<text x="73" y="200" fill="#182a42" font-size="14" font-weight="650" text-anchor="start">Fat mass (kg)</text>
 <line x1="73" y1="273" x2="766" y2="273" stroke="#dbe3ed" />
-<text x="62" y="278" fill="#455972" font-size="14" font-weight="400" text-anchor="end">20,5</text>
+<text x="62" y="278" fill="#455972" font-size="14" font-weight="400" text-anchor="end">20.5</text>
 <line x1="73" y1="242.5" x2="766" y2="242.5" stroke="#dbe3ed" />
-<text x="62" y="247.5" fill="#455972" font-size="14" font-weight="400" text-anchor="end">21,5</text>
+<text x="62" y="247.5" fill="#455972" font-size="14" font-weight="400" text-anchor="end">21.5</text>
 <line x1="73" y1="212" x2="766" y2="212" stroke="#dbe3ed" />
-<text x="62" y="217" fill="#455972" font-size="14" font-weight="400" text-anchor="end">22,5</text>
+<text x="62" y="217" fill="#455972" font-size="14" font-weight="400" text-anchor="end">22.5</text>
 <line x1="419.5" y1="212" x2="419.5" y2="273" stroke="#455972" stroke-dasharray="4 3"/>
 <polyline points="73,227.25 246.25,236.40000000000003 419.5,239.44999999999996 592.75,248.59999999999997 766,257.75" fill="none" stroke="#7744a5" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="73" cy="227.25" r="4" fill="#7744a5" stroke="white" stroke-width="1.5"/>
@@ -34,14 +34,14 @@
 <circle cx="419.5" cy="239.44999999999996" r="4" fill="#7744a5" stroke="white" stroke-width="1.5"/>
 <circle cx="592.75" cy="248.59999999999997" r="4" fill="#7744a5" stroke="white" stroke-width="1.5"/>
 <circle cx="766" cy="257.75" r="4" fill="#7744a5" stroke="white" stroke-width="1.5"/>
-<text x="429.5" y="230.44999999999996" fill="#7744a5" font-size="14" font-weight="650" text-anchor="start">21,6</text>
-<text x="73" y="305" fill="#182a42" font-size="14" font-weight="650" text-anchor="start">Masse maigre (kg)</text>
+<text x="429.5" y="230.44999999999996" fill="#7744a5" font-size="14" font-weight="650" text-anchor="start">21.6</text>
+<text x="73" y="305" fill="#182a42" font-size="14" font-weight="650" text-anchor="start">Fat-free mass (kg)</text>
 <line x1="73" y1="378" x2="766" y2="378" stroke="#dbe3ed" />
-<text x="62" y="383" fill="#455972" font-size="14" font-weight="400" text-anchor="end">55,5</text>
+<text x="62" y="383" fill="#455972" font-size="14" font-weight="400" text-anchor="end">55.5</text>
 <line x1="73" y1="347.5" x2="766" y2="347.5" stroke="#dbe3ed" />
-<text x="62" y="352.5" fill="#455972" font-size="14" font-weight="400" text-anchor="end">56,5</text>
+<text x="62" y="352.5" fill="#455972" font-size="14" font-weight="400" text-anchor="end">56.5</text>
 <line x1="73" y1="317" x2="766" y2="317" stroke="#dbe3ed" />
-<text x="62" y="322" fill="#455972" font-size="14" font-weight="400" text-anchor="end">57,5</text>
+<text x="62" y="322" fill="#455972" font-size="14" font-weight="400" text-anchor="end">57.5</text>
 <line x1="419.5" y1="317" x2="419.5" y2="378" stroke="#455972" stroke-dasharray="4 3"/>
 <polyline points="73,362.75 246.25,344.45000000000016 419.5,344.44999999999993 592.75,344.44999999999976 766,332.25" fill="none" stroke="#00796b" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="73" cy="362.75" r="4" fill="#00796b" stroke="white" stroke-width="1.5"/>
@@ -49,10 +49,10 @@
 <circle cx="419.5" cy="344.44999999999993" r="4" fill="#00796b" stroke="white" stroke-width="1.5"/>
 <circle cx="592.75" cy="344.44999999999976" r="4" fill="#00796b" stroke="white" stroke-width="1.5"/>
 <circle cx="766" cy="332.25" r="4" fill="#00796b" stroke="white" stroke-width="1.5"/>
-<text x="429.5" y="335.44999999999993" fill="#00796b" font-size="14" font-weight="650" text-anchor="start">56,6</text>
-<text x="73" y="403" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">1 juin</text>
-<text x="419.5" y="403" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">15 juin</text>
-<text x="766" y="403" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">29 juin</text>
-<text x="28" y="430" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Le curseur lit ici les trois valeurs du 15 juin.</text>
+<text x="429.5" y="335.44999999999993" fill="#00796b" font-size="14" font-weight="650" text-anchor="start">56.6</text>
+<text x="73" y="403" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">1 June</text>
+<text x="419.5" y="403" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">15 June</text>
+<text x="766" y="403" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">29 June</text>
+<text x="28" y="430" fill="#455972" font-size="14" font-weight="400" text-anchor="start">The cursor shows all three values for 15 June.</text>
 </g>
 </svg>

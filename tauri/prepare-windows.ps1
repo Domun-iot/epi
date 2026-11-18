@@ -28,7 +28,7 @@ function Install-Archive($url, $destination, $folder, $marker) {
         New-Item -ItemType Directory -Path (Split-Path $destination) -Force | Out-Null
         Move-Item -LiteralPath $source.FullName -Destination $destination
     } finally {
-        # $stage est un dossier temporaire enfant direct de $tools, cree ci-dessus.
+        # $stage is a temporary directory directly beneath $tools, created above.
         $resolved = (Resolve-Path -LiteralPath $stage).ProviderPath
         if ((Split-Path $resolved) -eq $tools) { Remove-Item -LiteralPath $resolved -Recurse -Force }
     }

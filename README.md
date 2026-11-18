@@ -1,38 +1,38 @@
 # éPI
 
-éPI reçoit les pesées Bluetooth de balances Xiaomi, de balances compatibles Weight Scale et de plusieurs familles qui diffusent leurs mesures en BLE. Voir le [catalogue des balances et protocoles BLE](docs/BALANCES-BLE.md).
+éPI receives Bluetooth weigh-ins from Xiaomi scales, Weight Scale-compatible scales and several families that broadcast measurements over BLE. See the [BLE scales and protocols catalogue](docs/BALANCES-BLE.md).
 
-| Version | Démarrage |
+| Version | Start command |
 | --- | --- |
-| Tauri de release | `run\tauri.bat` sous Windows ou `sh run/tauri.sh` sous Linux. `éPI.bat` et `sh éPI.sh` restent disponibles à la racine. |
-| Tauri en développement | `run\dev\tauri.bat` sous Windows ou `sh run/dev/tauri.sh` sous Linux |
-| CLI de release | `run\cli.bat` sous Windows ou `sh run/cli.sh` sous Linux. Le lanceur reconstruit la release si elle manque ou si ses sources ou sa configuration de build sont plus récentes. |
-| CLI en développement | `run\dev\cli.bat` sous Windows ou `sh run/dev/cli.sh` sous Linux |
-| Web de release | `run\web.bat` sous Windows ou `sh run/web.sh` sous Linux. Depuis la release, lance `npm start`. |
-| Web en développement | `run\dev\web.bat` sous Windows ou `sh run/dev/web.sh` sous Linux. Vite ouvre l’adresse locale dans le navigateur par défaut (port 1421 par défaut). |
-| Tests CLI | `npm --prefix cli test` |
-| Tests du domaine Tauri | `npm --prefix tauri test` |
-| Tests interactifs | `npm --prefix tauri run test:ui` |
+| Tauri release | `run\tauri.bat` on Windows or `sh run/tauri.sh` on Linux. `éPI.bat` and `sh éPI.sh` remain available at the root. |
+| Tauri development | `run\dev\tauri.bat` on Windows or `sh run/dev/tauri.sh` on Linux |
+| CLI release | `run\cli.bat` on Windows or `sh run/cli.sh` on Linux. The launcher rebuilds the release if missing or if its sources or build configuration are newer. |
+| CLI development | `run\dev\cli.bat` on Windows or `sh run/dev/cli.sh` on Linux |
+| Web release | `run\web.bat` on Windows or `sh run/web.sh` on Linux. Runs `npm start` from the release. |
+| Web development | `run\dev\web.bat` on Windows or `sh run/dev/web.sh` on Linux. Vite opens the local address in the default browser (default port 1421). |
+| CLI tests | `npm --prefix cli test` |
+| Tauri domain tests | `npm --prefix tauri test` |
+| Interactive tests | `npm --prefix tauri run test:ui` |
 
-Les [tests de démarrage](docs/TEST-DEMARRAGE.md) couvrent les lanceurs et décrivent les essais sur les paquets installés.
+[Startup tests](docs/TEST-DEMARRAGE.md) cover launchers and describe checks on installed packages.
 
-## Version web
+## Web version
 
-Lance `run\web.bat` ou `sh run/web.sh` depuis le dépôt. Le lanceur construit la version web si elle manque ou si ses sources sont plus récentes. Pour préparer ou construire manuellement, utilise `run\prep\web.bat` et `run\build\web.bat` sous Windows, ou `sh run/prep/web.sh` et `sh run/build/web.sh` sous Linux. Le build lance la préparation si son marqueur manque.
+Run `run\web.bat` or `sh run/web.sh` from the repository. The launcher builds the web version if missing or if its sources are newer. To prepare or build manually, use `run\prep\web.bat` and `run\build\web.bat` on Windows, or `sh run/prep/web.sh` and `sh run/build/web.sh` on Linux. The build runs preparation if its marker is missing.
 
-Sous Windows, le build web arrête les processus exécutant le fichier `tauri/node_modules/@esbuild/win32-x64/esbuild.exe` de ce dépôt avant `npm ci`, puis attend leur fin pour libérer le fichier.
+On Windows, the web build stops processes running this repository's `tauri/node_modules/@esbuild/win32-x64/esbuild.exe` before `npm ci`, then waits for them to exit and release the file.
 
-Copie le dossier `release/web/` sur le serveur Linux ou Windows, puis lance `npm start` depuis ce dossier. Node.js 20.19 ou supérieur et npm doivent être disponibles sur le serveur. La release contient le serveur et les fichiers statiques, sans installation npm à effectuer.
+Copy `release/web/` to a Linux or Windows server, then run `npm start` there. The server needs Node.js 20.19 or later and npm. The release includes the server and static files; no npm installation is needed.
 
-Pour installer éPI depuis le navigateur, ouvre la version web en HTTPS ou en local sur `localhost`, puis utilise le menu du navigateur.
+To install éPI from a browser, open the web version over HTTPS or locally on `localhost`, then use the browser menu.
 
-- Dans Chrome ou Edge sur ordinateur et Chrome sur Android, choisis **Installer** ou **Ajouter à l’écran d’accueil** selon la version.
-- Dans Safari sur iPhone ou iPad, utilise **Partager → Sur l’écran d’accueil**, puis active **Ouvrir comme app web** si l’option est proposée.
-- Dans Safari sur Mac (macOS Sonoma ou ultérieur), utilise **Fichier → Ajouter au Dock**.
+- In desktop Chrome or Edge and Chrome on Android, choose **Install** or **Add to Home Screen**, depending on the version.
+- In Safari on iPhone or iPad, use **Share → Add to Home Screen**, then enable **Open as Web App** if offered.
+- In Safari on Mac (macOS Sonoma or later), use **File → Add to Dock**.
 
-L’application web installée se lance dans sa propre fenêtre et utilise toujours le serveur éPI pour accéder aux données.
+The installed web application opens in its own window and still uses the éPI server to access data.
 
-Édite `config.js` à la racine de la release et redémarre le serveur après modification.
+Edit `config.js` at the release root and restart the server after changes.
 
 ```js
 export default {
@@ -41,91 +41,89 @@ export default {
 };
 ```
 
-Un nouveau build conserve la configuration et les données. Pour reprendre un dossier personnalisé auparavant défini par `dataDir`, indique son chemin absolu dans `EPI_DATA_DIR` au lancement.
+Rebuilding preserves configuration and data. To reuse a custom directory previously set through `dataDir`, provide its absolute path in `EPI_DATA_DIR` at startup.
 
-La release web personnelle et `dev-web` sélectionnent le même jeu de données que les autres versions PC. La capture Bluetooth reste disponible dans les applications installées. Sur une installation web personnelle, les navigateurs utilisent le jeu actif de cette installation. Le stockage distant du web public utilise une session PRO authentifiée et un dossier séparé pour chaque compte. Le bouton « Recharger » relit les fichiers, y compris après une modification dans Tauri ou le CLI. Pour ouvrir l’accès sur le réseau, choisis l’interface d’écoute voulue. La release personnelle ne doit pas être publiée directement sur Internet. Pour l’application publique multi-comptes, construire avec `node web/build.mjs --hosted`. La version hébergée permet aussi un usage anonyme dans le navigateur. FREE impose ce stockage local et ne partage aucune donnée entre navigateurs. Un compte PRO confirmé utilise directement l’API si ce navigateur n’a pas d’usage local mémorisé ; sinon, il conserve le stockage navigateur avec synchronisation PRO. Les [ports et adapters de stockage](docs/ARCHITECTURE-STOCKAGE.md) détaillent la sélection et les limites.
+The personal web release and `dev-web` select the same dataset as other desktop versions. Bluetooth capture remains available in installed applications. On a personal web installation, browsers use that installation's active dataset. Public web remote storage uses an authenticated PRO session and a separate directory per account. **Reload** rereads files, including changes made in Tauri or the CLI. To allow network access, select the required listening interface. The personal release must not be exposed directly to the Internet. Build the public multi-account application with `node web/build.mjs --hosted`. The hosted version also supports anonymous browser use. FREE requires this local storage and shares no data between browsers. A confirmed PRO account uses the API directly if the browser has no recorded local usage; otherwise, it retains browser storage with PRO synchronisation. [Storage ports and adapters](docs/ARCHITECTURE-STOCKAGE.md) explain selection and limitations.
 
-## Saisie manuelle
+## Manual entry
 
-Dans les applications Tauri (PC et Android) et web, le bouton **Saisir** en haut à droite des mesures permet d’enregistrer un poids en kg ou lb, avec une date/heure modifiable et un pourcentage de masse grasse facultatif. La pesée appartient au profil actif. Sans profil, un poids seul est accepté ; renseigner la masse grasse ouvre la création du profil nécessaire aux calculs. La saisie est conservée pendant cette création.
+In Tauri (desktop and Android) and web applications, **Enter** at the top right of measurements saves a weight in kg or lb, with an editable date/time and optional body fat percentage. The weigh-in belongs to the active profile. Without a profile, weight alone is accepted; entering body fat opens profile creation for the required calculations. The entry is preserved during creation.
 
-Ces relevés utilisent le même stockage, les mêmes exports et la même synchronisation que les pesées Bluetooth. Leur section appareil indique « Saisie manuelle » : le JSON conserve `device.source: "manual"`, sans créer de balance dans la liste des appareils. Le pourcentage d’origine est conservé dans `measures.fatPercent`. Si l’impédance manque, les calculs recherchent une impédance équivalente pour retrouver ce pourcentage avec la moyenne habituelle des formules, arrondie à une décimale. La recherche est bornée à 1–3000 Ω et à 48 itérations par intervalle monotone. Une solution est enregistrée uniquement dans `calculations.impedanceOhms` ; une impédance réellement reçue reste prioritaire. Si aucune solution n’existe dans ces limites, le pourcentage est conservé et l’impédance calculée reste absente. Les autres méthodes et leurs moyennes ne sont pas remplacées par la valeur saisie.
+These records use the same storage, exports and synchronisation as Bluetooth weigh-ins. Their device section shows **Manual entry**: JSON retains `device.source: "manual"` without creating a scale in the device list. The original percentage is retained in `measures.fatPercent`. If impedance is missing, calculations seek an equivalent impedance that reproduces this percentage using the usual average of formulae, rounded to one decimal place. The search is bounded to 1–3000 Ω and 48 iterations per monotonic interval. A solution is saved only in `calculations.impedanceOhms`; received impedance always takes priority. If no solution exists within these limits, the percentage is retained and calculated impedance remains absent. Other methods and their averages are not replaced by the entered value.
 
-## Données
+## Data
 
-Sur PC, le CLI, Tauri et le serveur web utilisent `EPI_DATA_DIR` quand la variable est définie avec un chemin absolu. Un chemin relatif est refusé pour éviter des jeux différents selon le dossier de lancement. Sinon, ils cherchent une racine `data/` reconnaissable par l’ancien jeu `devices/`, `measures/`, `profiles/`, le nouveau sous-dossier `local/`, les dossiers de comptes ou la configuration d’installation. La recherche remonte jusqu’à la racine depuis le dossier de l’exécutable, de l’AppImage ou du serveur web.
+On desktop, the CLI, Tauri and web server use `EPI_DATA_DIR` when set to an absolute path. Relative paths are rejected to prevent different datasets depending on the working directory. Otherwise, they look for a `data/` root recognised by the old `devices/`, `measures/`, `profiles/` dataset, the new `local/` subdirectory, account directories or installation configuration. The search proceeds upwards to the filesystem root from the executable, AppImage or web server directory.
 
-Si aucun dossier partagé n’est trouvé, ils utilisent ou créent le dossier de données utilisateur commun. Sous Windows, c’est `%APPDATA%\eu.domun.epi\data`. Sous Linux, c’est `${XDG_DATA_HOME:-$HOME/.local/share}/eu.domun.epi/data`.
+If no shared directory is found, they use or create the common user data directory: `%APPDATA%\eu.domun.epi\data` on Windows, or `${XDG_DATA_HOME:-$HOME/.local/share}/eu.domun.epi/data` on Linux.
 
-La racine contient `local/` pour les données anonymes, `accounts/<UUID>/` pour chaque compte, et `installation.json` pour le compte actif et les préférences propres à l’installation. Les anciennes données à la racine migrent une fois vers `local/`, avec sauvegarde de récupération. Sur mobile, Tauri utilise son répertoire privé. Dans chaque jeu, les trois sous-dossiers et le JSON sont les mêmes sur toutes les plateformes. Sans compte, une première installation utilise ses données anonymes. Après rattachement, l’application mémorise le dernier compte actif et conserve son accès local hors connexion, même si le jeton expire. Une déconnexion explicite désélectionne ce jeu et impose une nouvelle connexion pour rouvrir l’application ; les données des comptes restent séparées. Les données anonymes peuvent être rattachées à un compte, avec choix de fusion/remplacement quand des données distantes existent en PRO. En FREE, elles restent locales : aucun transfert de synchronisation n’est effectué. Le dernier profil chargé, le filtre BLE et les pesées en attente sont sauvegardés dans `data/prefs/global.json`. Les colonnes visibles et leur affichage groupé ou éclaté sont enregistrés dans `data/prefs/profil-<nom>.json` pour chaque profil personnalisé.
+The root contains `local/` for anonymous data, `accounts/<UUID>/` per account, and `installation.json` for the active account and installation preferences. Old root-level data migrates once to `local/`, with a recovery backup. On mobile, Tauri uses its private directory. Within each dataset, the three subdirectories and JSON are identical across platforms. A first installation without an account uses anonymous data. After linking, the application remembers the last active account and retains offline local access even when the token expires. Explicit logout deselects that dataset and requires a new login to reopen the application; account data remains separate. Anonymous data can be linked to an account, with merge/replacement choices when PRO remote data exists. On FREE, it remains local: no synchronisation transfer occurs. The last loaded profile, BLE filter and pending weigh-ins are saved in `data/prefs/global.json`. Visible columns and grouped or expanded display are saved in `data/prefs/profil-<name>.json` for each custom profile.
 
-Sur Tauri et sur le serveur web, le ZIP contient les fichiers de données sous `data/`, y compris les préférences globales et par profil, les configurations de vues, les notifications, le journal, la file d’envoi, les transactions entrantes, les transactions archivées et leur index lorsqu’ils existent. L’import fusionne les fichiers et les UUID avec les données locales en conservant les fichiers déjà présents. Les anciens ZIP avec les profils, appareils et pesées directement à la racine restent lisibles. Les profils et les balances sont enregistrés sous leur UUID. Les nouvelles pesées sont classées dans le dossier UUID du profil et nommées selon leur horodatage UTC, par exemple `2026-11-15T06-47-43.567Z.json`. Chaque pesée conserve son propre UUID ainsi que les UUID associés dans `profile.uuid` et `device.uuid`, avec les informations disponibles au moment de la mesure. Si le dossier de profil et l’horodatage correspondent à une pesée déjà présente, l’import conserve le fichier existant. Les anciens noms de fichiers restent lisibles. Sur PC, si le CLI écrit pendant que l’interface est ouverte, recharge les données de l’interface ou redémarre-la pour lire ces changements.
+In Tauri and on the web server, the ZIP contains data files under `data/`, including global and profile preferences, view configurations, notifications, the journal, outgoing queue, incoming transactions, archived transactions and their index where present. Import merges files and UUIDs with local data, preserving existing files. Older ZIPs with profiles, devices and weigh-ins directly at the root remain readable. Profiles and scales are stored under their UUIDs. New weigh-ins are filed in the profile UUID directory and named after their UTC timestamp, for example `2026-11-15T06-47-43.567Z.json`. Each weigh-in retains its own UUID and associated UUIDs in `profile.uuid` and `device.uuid`, with information available at measurement time. If the profile directory and timestamp match an existing weigh-in, import keeps the existing file. Older filenames remain readable. On desktop, if the CLI writes while the interface is open, reload or restart the interface to read the changes.
 
-### Journal des transactions
+### Transaction journal
 
-Le CLI, Tauri et le serveur web ajoutent un fichier JSON à `data/transactions/` pour chaque écriture journalisée. Le nom associe un horodatage UTC et l’UUID. L’enveloppe contient `uuid`, `type` et `data`. Une opération `create` ou `update` contient le chemin relatif et le document JSON. Une opération `delete` contient le chemin. Une opération `batch` regroupe plusieurs opérations. Le fichier `data/transactions.index` contient les UUID, un par ligne.
+The CLI, Tauri and web server add a JSON file to `data/transactions/` for each journalled write. The name combines a UTC timestamp and UUID. The envelope contains `uuid`, `type` and `data`. A `create` or `update` operation contains the relative path and JSON document. A `delete` operation contains the path. A `batch` operation groups several operations. `data/transactions.index` contains UUIDs, one per line.
 
-La fonction Node.js `replayTransactions(dataDir)` de `shared/transactions.cjs` traite `data/transactions.incoming/` par ordre de nom. Elle archive les transactions inédites sous leur nom d’origine et retire les doublons de la file d’attente. Cette fonction traite la file de rejeu manuelle. Au démarrage, les versions Tauri et web connectées à un compte éPI récupèrent les transactions serveur dans leur ordre de création, archivent celles qu’elles intègrent dans `data/transactions.sent/` et accusent les UUID intégrés ou déjà présents. Si un arrêt forcé laisse `data/transactions.replay.lock`, supprime ce fichier après avoir vérifié que le rejeu est arrêté.
+The Node.js `replayTransactions(dataDir)` function in `shared/transactions.cjs` processes `data/transactions.incoming/` in filename order. It archives unseen transactions under their original names and removes duplicates from the queue. This function handles the manual replay queue. At startup, Tauri and web versions logged into an éPI account retrieve server transactions in creation order, archive integrated transactions in `data/transactions.sent/` and acknowledge integrated or already present UUIDs. If a forced shutdown leaves `data/transactions.replay.lock`, delete it after checking that replay has stopped.
 
-Le [fonctionnement de la synchronisation et ses cas limites](docs/SYNCHRONISATION.md) décrit le parcours des transactions entre installations, la portée des accusés et les problèmes à arbitrer.
+[Synchronisation behaviour and edge cases](docs/SYNCHRONISATION.md) describes transaction flows between installations, acknowledgement scope and unresolved issues.
 
-Pour essayer l’historique, lance `run\fixture.bat` sous Windows ou `sh run/fixture.sh` sous Linux (Node.js requis). La fixture ajoute 48 pesées fictives sur 24 mois pour le profil `test`, avec 1 à 8 pesées par mois. Sur les six derniers mois de l’historique, le poids baisse progressivement d’environ 10 %, avec quelques remontées ponctuelles. La fixture conserve le profil et son historique s’ils existent déjà, et crée un appareil `test` seulement si aucun appareil n’est enregistré. Elle utilise le dossier de données habituel. Définis `EPI_DATA_DIR` pour générer le jeu dans un dossier distinct.
+To try the history, run `run\fixture.bat` on Windows or `sh run/fixture.sh` on Linux (Node.js required). The fixture adds 48 fictional weigh-ins over 24 months for profile `test`, with 1–8 weigh-ins per month. Over the final six months, weight gradually falls by about 10%, with occasional increases. The fixture preserves the profile and history if already present, and creates a `test` device only if none is registered. It uses the usual data directory. Set `EPI_DATA_DIR` to generate the dataset separately.
 
-## Compiler
+## Building
 
-Sur un PC x64, choisis le script de préparation correspondant au build.
+On an x64 PC, choose the preparation script for the build.
 
-| Cible | Préparation |
+| Target | Preparation |
 | --- | --- |
 | Windows 10/11 | `run\prep\windows.bat` |
-| Ubuntu et AppImage sur une base Ubuntu/Debian | `sh run/prep/linux.sh` ou `sh run/prep/ubuntu.sh` |
-| Android depuis Windows | `run\prep\android.bat` |
-| Android depuis Ubuntu/Debian | `sh run/prep/android.sh` |
-| CLI | `run\prep\cli.bat` sous Windows ou `sh run/prep/cli.sh` sous Linux |
+| Ubuntu and AppImage on Ubuntu/Debian | `sh run/prep/linux.sh` or `sh run/prep/ubuntu.sh` |
+| Android from Windows | `run\prep\android.bat` |
+| Android from Ubuntu/Debian | `sh run/prep/android.sh` |
+| CLI | `run\prep\cli.bat` on Windows or `sh run/prep/cli.sh` on Linux |
 
-La préparation de l’interface installe Node.js, Rust et les dépendances npm nécessaires. La préparation du CLI installe Node.js et vérifie sous Windows la présence du compilateur C# et des références WinRT. La préparation Android ajoute le JDK et le SDK/NDK et demande d’accepter les licences nécessaires. Sous Windows, elle vérifie aussi le Mode développeur et propose d’ouvrir les paramètres. Les composants système peuvent demander une élévation UAC sous Windows ou `sudo` sous Linux. Aucun installateur Git n’est lancé.
+Interface preparation installs Node.js, Rust and required npm dependencies. CLI preparation installs Node.js and checks for the C# compiler and WinRT references on Windows. Android preparation adds the JDK and SDK/NDK and asks you to accept required licences. On Windows, it also checks Developer Mode and offers to open settings. System components may require UAC elevation on Windows or `sudo` on Linux. No Git installer is launched.
 
-Tu peux lancer directement le script de build ou le lanceur de développement. Si le marqueur de sa cible manque dans `tmp/prep/`, le script lance la préparation correspondante. Chaque préparation vérifie les prérequis et réutilise ceux déjà installés. Elle enregistre son succès dans `tmp/prep/`, un dossier local ignoré par Git. Pour vérifier les prérequis à nouveau, relance le script de préparation ou supprime le marqueur de la cible avant le prochain build.
+You can run a build script or development launcher directly. If its target marker is missing from `tmp/prep/`, it runs the corresponding preparation. Each preparation checks prerequisites and reuses installed tools. Success is recorded in `tmp/prep/`, a local Git-ignored directory. To recheck prerequisites, rerun preparation or delete the target marker before the next build.
 
-Les lanceurs `run\tauri.bat` et `sh run/tauri.sh` ouvrent le binaire autonome dans `release/windows/` ou `release/linux/`. S’il manque, ils exécutent le build de bureau avec `--portable`. Les deux lanceurs reconstruisent aussi le binaire lorsque les sources ou la configuration du build sont plus récentes. Les lanceurs `run\dev\tauri.bat` et `sh run/dev/tauri.sh` démarrent la version de développement via `tauri dev`.
+`run\tauri.bat` and `sh run/tauri.sh` open the standalone binary in `release/windows/` or `release/linux/`. If missing, they run the desktop build with `--portable`. Both rebuild when sources or build configuration are newer. `run\dev\tauri.bat` and `sh run/dev/tauri.sh` start development through `tauri dev`.
 
-| Plateforme | Génération | Résultat |
+| Platform | Build | Output |
 | --- | --- | --- |
-| Windows | `run\build\windows.bat` | `release/windows/` contient `epi.exe` et les installateurs NSIS (EXE) et MSI. |
-| Ubuntu | `sh run/build/ubuntu.sh` | `release/linux/` contient le binaire `epi` et le paquet `.deb`. |
-| Linux, AppImage | `sh run/build/linux.sh` | `release/linux/` contient le binaire `epi` et l’AppImage. |
-| Android | `run\build\android.bat` ou `sh run/build/android.sh` | `release/android/epi-debug.apk` |
-| CLI | `run\build\cli.bat` ou `sh run/build/cli.sh` | `release/cli/windows/` ou `release/cli/linux/`. Un fichier par plateforme, `epi-cli.exe` sous Windows et `epi-cli` sous Linux, avec Node.js embarqué. Le scan Bluetooth du CLI est disponible sous Windows. |
+| Windows | `run\build\windows.bat` | `release/windows/` contains `epi.exe` and NSIS (EXE) and MSI installers. |
+| Ubuntu | `sh run/build/ubuntu.sh` | `release/linux/` contains the `epi` binary and `.deb` package. |
+| Linux, AppImage | `sh run/build/linux.sh` | `release/linux/` contains the `epi` binary and AppImage. |
+| Android | `run\build\android.bat` or `sh run/build/android.sh` | `release/android/epi-debug.apk` |
+| CLI | `run\build\cli.bat` or `sh run/build/cli.sh` | `release/cli/windows/` or `release/cli/linux/`. One file per platform, `epi-cli.exe` on Windows and `epi-cli` on Linux, with embedded Node.js. CLI Bluetooth scanning is available on Windows. |
 
-Le lanceur de développement du CLI utilise Node.js pour exécuter les sources.
+The CLI development launcher uses Node.js to execute sources.
 
-Sous Windows, active le [Mode développeur](https://learn.microsoft.com/windows/advanced-settings/developer-mode) pour permettre à Tauri de créer les liens symboliques de ses bibliothèques Android.
+On Windows, enable [Developer Mode](https://learn.microsoft.com/windows/advanced-settings/developer-mode) so Tauri can create symbolic links for its Android libraries.
 
-Le build Android Windows place le cache Rust dans `%LOCALAPPDATA%\epi-dev\cargo-target\android\<identifiant-du-dépôt>`, pour éviter les erreurs du linker NDK lorsque le chemin du dépôt contient un accent, comme `éPI`. Chaque emplacement du dépôt possède son propre cache. Le lanceur autorise également ce chemin dans Gradle avec `android.overridePathCheck=true`. Tu peux choisir un autre dossier avec `CARGO_TARGET_DIR` ; son chemin absolu doit contenir uniquement des caractères ASCII.
+The Windows Android build places the Rust cache in `%LOCALAPPDATA%\epi-dev\cargo-target\android\<repository-id>` to avoid NDK linker errors when the repository path contains an accent, such as `éPI`. Each repository location has its own cache. The launcher also permits this path in Gradle with `android.overridePathCheck=true`. Set `CARGO_TARGET_DIR` to choose another directory; its absolute path must contain ASCII characters only.
 
-Sans option, l’APK est signé avec la clé de débogage Gradle. Pour un APK de production, utiliser `run\build\android.bat --release` (ou `sh run/build/android.sh --release`), puis `run\build\sign-android.ps1` sous Windows : le fichier installable est `release/android/epi-release.apk`. La création des artefacts et la signature locale sont décrites dans le [guide de build](docs/BUILD.md). Le module Bluetooth requiert Android 8.0 ou plus récent.
+Without options, the APK uses the Gradle debug signing key. For a production APK, use `run\build\android.bat --release` (or `sh run/build/android.sh --release`), then `run\build\sign-android.ps1` on Windows: the installable file is `release/android/epi-release.apk`. Artefact creation and local signing are described in the [build guide](docs/BUILD.md). Bluetooth requires Android 8.0 or later.
 
-Sous Linux, `sh run/build/all.sh` construit successivement l’AppImage, le paquet Ubuntu `.deb`, Android, le CLI, le Web et le serveur. Il poursuit après une erreur, affiche le bilan de chaque cible et retourne un code d’échec si au moins une cible échoue. Sous Windows, utilise `run\build\all.bat`.
+On Linux, `sh run/build/all.sh` builds the AppImage, Ubuntu `.deb`, Android, CLI, Web and server in sequence. It continues after errors, reports each target and returns a failure code if any target fails. On Windows, use `run\build\all.bat`.
 
-Les lanceurs de bureau acceptent `--portable` pour compiler uniquement le binaire et un ou plusieurs noms de formats, par exemple `sh run/build/linux.sh rpm`.
+Desktop launchers accept `--portable` to build only the binary and one or more format names, for example `sh run/build/linux.sh rpm`.
 
-L’AppImage se lance directement sur des distributions compatibles de même architecture. Tauri recommande de compiler sur la plus ancienne distribution que tu veux prendre en charge, par exemple Ubuntu 22.04 ou Debian 12. La version de glibc du poste de build peut exclure les distributions plus anciennes. Pour la balance Bluetooth, BlueZ doit être disponible sur le poste qui exécute éPI. [Limites de l’AppImage Tauri](https://v2.tauri.app/distribute/appimage/#limitations)
+The AppImage runs directly on compatible distributions with the same architecture. Tauri recommends building on the oldest supported distribution, such as Ubuntu 22.04 or Debian 12. The build machine's glibc version may exclude older distributions. BlueZ must be available on the machine running éPI for Bluetooth scales. [Tauri AppImage limitations](https://v2.tauri.app/distribute/appimage/#limitations)
 
-Sur Android, transfère l’APK sur le téléphone et ouvre-le depuis le gestionnaire de fichiers. Si Android le demande, autorise l’installation depuis ce gestionnaire. Lance éPI et accorde-lui l’autorisation Bluetooth. Le SDK fournit `adb` dans `platform-tools`, sous `%LOCALAPPDATA%\epi-dev\android-sdk` sur Windows ou `~/.local/share/epi-dev/android-sdk` sur Linux. Avec le débogage USB activé et le téléphone autorisé, utilise `adb install -r release/android/epi-debug.apk`. Pour produire un AAB Android, utilise le build `--play` décrit dans le [guide de build](docs/BUILD.md).
+On Android, transfer the APK to the phone and open it in the file manager. If prompted, allow installation from that manager. Launch éPI and grant Bluetooth permission. The SDK provides `adb` in `platform-tools`, under `%LOCALAPPDATA%\epi-dev\android-sdk` on Windows or `~/.local/share/epi-dev/android-sdk` on Linux. With USB debugging enabled and the phone authorised, use `adb install -r release/android/epi-debug.apk`. To produce an Android AAB, use the `--play` build described in the [build guide](docs/BUILD.md).
 
-Sur iOS, depuis `tauri/` sous macOS avec Xcode, lance `npm ci`, `npm run tauri -- ios init`, puis `npm run tauri -- ios build`. Accorde l’autorisation Bluetooth. CoreBluetooth identifie l’appareil par un UUID local. Sur un iPhone, associe de nouveau la balance si les fiches importées proviennent d’un PC.
+On iOS, from `tauri/` on macOS with Xcode, run `npm ci`, `npm run tauri -- ios init`, then `npm run tauri -- ios build`. Grant Bluetooth permission. CoreBluetooth identifies devices by a local UUID. On iPhone, pair the scale again if imported records come from a PC.
 
-La [documentation détaillée du CLI](cli/README.md) décrit les mesures, la réception et les méthodes de composition. Le [plan et l’inventaire](docs/SPECIFICATIONS.md) décrivent leur transposition dans l’interface.
+The [detailed CLI documentation](cli/README.md) describes measurements, reception and composition methods. The [plan and inventory](docs/SPECIFICATIONS.md) describe their implementation in the interface.
 
 ## Builds
 
-Voir le [guide de build toutes cibles](docs/BUILD.md).
+See the [build guide for all targets](docs/BUILD.md).
 
 ## Licence
 
-Le code original éPI est sous [GNU LGPL version 3](LICENSE) (`LGPL-3.0-only`).
-Les logos et les marques éPI, Domun et Logisan sont la propriété de Baptiste
-Pillot et ne sont pas couverts par la licence LGPL v3 du code.
-Les ressources tierces conservent leurs licences et attributions.
-Les [crédits et sources tierces](THIRD_PARTY.md) distinguent les adaptations de
-code, les références de protocoles, les formules scientifiques et les dépendances.
+Original éPI code is licensed under [GNU LGPL version 3](LICENSE) (`LGPL-3.0-only`).
+The éPI, Domun and Logisan logos and trademarks belong to Baptiste Pillot and are not covered by the code's LGPL v3 licence.
+Third-party assets retain their licences and attributions.
+[Third-party credits and sources](THIRD_PARTY.md) distinguish code adaptations, protocol references, scientific formulae and dependencies.

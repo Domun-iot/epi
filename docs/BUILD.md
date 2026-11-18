@@ -1,34 +1,24 @@
-# Développer et construire éPI
+# Developing and building éPI
 
-Ce dépôt contient le CLI, l'application Tauri, le client web, l'API de synchronisation
-et le site de présentation. Les paiements sont traités par un service externe.
-Cette documentation couvre les sources, les tests et les artefacts locaux.
+This repository contains the CLI, Tauri application, web client, synchronisation API and public website. Payments are handled by an external service. This documentation covers sources, tests and local artefacts.
 
-## Prérequis
+## Prerequisites
 
-Cloner le dépôt et lancer les commandes depuis sa racine. Node.js 24 permet de
-travailler sur toutes les parties JavaScript ; le serveur exige au moins 22.13
-(`node:sqlite`), le web/Tauri au moins 20.19. Les fichiers de verrouillage npm et
-Cargo sont versionnés. Utiliser `npm ci` pour reproduire les dépendances.
+Clone the repository and run commands from its root. Node.js 24 supports all JavaScript components; the server requires at least 22.13 (`node:sqlite`), web/Tauri at least 20.19. npm and Cargo lockfiles are versioned. Use `npm ci` to reproduce dependencies.
 
-Les scripts `run/prep/` préparent Node.js, Rust, les dépendances système et les
-outils Android selon la cible. Lire les scripts avant exécution : ils peuvent
-installer des outils et demander sudo ou UAC. Les marqueurs sont dans `tmp/prep/`.
+The `run/prep/` scripts prepare Node.js, Rust, system dependencies and Android tools as required by the target. Read scripts before running them: they may install tools and request sudo or UAC. Markers are stored in `tmp/prep/`.
 
-| Cible | Préparation Windows | Préparation Linux |
+| Target | Windows preparation | Linux preparation |
 | --- | --- | --- |
-| Interface desktop | `run\prep\windows.bat` | `sh run/prep/linux.sh` ou `sh run/prep/ubuntu.sh` |
+| Desktop interface | `run\prep\windows.bat` | `sh run/prep/linux.sh` or `sh run/prep/ubuntu.sh` |
 | Android | `run\prep\android.bat` | `sh run/prep/android.sh` |
 | CLI | `run\prep\cli.bat` | `sh run/prep/cli.sh` |
 | Web | `run\prep\web.bat` | `sh run/prep/web.sh` |
 | API | `run\prep\server.bat` | `sh run/prep/server.sh` |
 
-## Développement et tests
+## Development and tests
 
-Les lanceurs `run/dev/{cli,tauri,web,server}.sh` et leurs équivalents `.bat`
-démarrent les versions de développement. Le CLI scanne le Bluetooth sous Windows.
-Le client web permet de développer les écrans sans acquisition Bluetooth.
-`www/` se lance indépendamment avec `npm --prefix www start`.
+The `run/dev/{cli,tauri,web,server}.sh` launchers and `.bat` equivalents start development versions. The CLI scans Bluetooth on Windows. The web client supports screen development without Bluetooth capture. `www/` runs independently with `npm --prefix www start`.
 
 ```sh
 npm --prefix cli test
@@ -39,95 +29,58 @@ npm --prefix www test
 node --test shared/*.test.cjs shared/scales/*.test.cjs web/*.test.js
 ```
 
-Les tests d'interface utilisent Playwright et Chromium. Installer le navigateur
-de test avec `cd tauri && npx playwright install chromium` si nécessaire, puis
-revenir à la racine. Les tests locaux remplacent les services de compte et de
-catalogue par des doublures. Les clients applicatifs configurent le service de
-compte dans `tauri/src/service.js` ; vérifier cette configuration avant un essai
-manuel. Utiliser uniquement des profils fictifs et un dossier temporaire pour les essais.
+Interface tests use Playwright and Chromium. Install the test browser with `cd tauri && npx playwright install chromium` if necessary, then return to the root. Local tests replace account and catalogue services with test doubles. Application clients configure the account service in `tauri/src/service.js`; check this before manual testing. Use only fictional profiles and a temporary directory for tests.
 
-## Configuration locale des services
+## Local service configuration
 
-Les valeurs par défaut sont destinées au développement : API sur 8787 (dans
-`server/config.js`), web personnel sur 3000 (`web/config.js`), fichiers du client
-hébergé sur 3001 (`EPI_WEB_PORT`) et site de présentation sur 3002 (`EPI_WWW_PORT`).
-Pour le client hébergé, fournir la même valeur de `EPI_WEB_PORT` au processus API
-et au serveur des fichiers statiques. Les paramètres propres à une installation
-et les outils d'exploitation sont conservés hors de ce dépôt public.
+Defaults are intended for development: API on 8787 (`server/config.js`), personal web on 3000 (`web/config.js`), hosted client files on 3001 (`EPI_WEB_PORT`) and public website on 3002 (`EPI_WWW_PORT`). For the hosted client, supply the same `EPI_WEB_PORT` to the API process and static file server. Installation-specific settings and operational tools are kept outside this public repository.
 
-## Artefacts par cible
+## Artefacts by target
 
-Les builds CLI et web joignent un dossier `legal/` contenant les licences éPI,
-les notices tierces et l'inventaire des composants concernés. Le frontend Tauri
-inclut également ces fichiers dans ses ressources web. Conserver ce dossier avec
-les artefacts. Les notices npm sont collectées depuis les versions installées
-correspondant au verrouillage ; lancer `npm ci` avant de construire.
+CLI and web builds bundle a `legal/` directory with éPI licences, third-party notices and the relevant component inventory. The Tauri frontend also includes these files in its web resources. Keep this directory with the artefacts. npm notices are collected from installed versions matching the lockfile; run `npm ci` before building.
 
-Le CLI copie la licence complète de la distribution Node utilisée pour le binaire
-SEA, avec les notices de ses composants embarqués. Si cette distribution place
-son fichier `LICENSE` ailleurs qu'à côté de `node` ou à la racine de son installation,
-définir `EPI_NODE_LICENSE` vers ce fichier complet avant le build.
+The CLI copies the full licence of the Node distribution used for the SEA binary, including embedded component notices. If that distribution places `LICENSE` somewhere other than alongside `node` or at its installation root, set `EPI_NODE_LICENSE` to that complete file before building.
 
-
-| Cible | Commande | Sortie |
+| Target | Command | Output |
 | --- | --- | --- |
-| Windows desktop | `run\build\windows.bat` | `release/windows/` : EXE, MSI, binaire autonome |
-| Linux DEB | `sh run/build/ubuntu.sh` | `release/linux/` : binaire et DEB |
-| Linux AppImage | `sh run/build/linux.sh` | `release/linux/` : binaire et AppImage |
-| CLI | `sh run/build/cli.sh` ou `run\build\cli.bat` | `release/cli/<plateforme>/epi-cli[.exe]` |
-| Web personnel | `sh run/build/web.sh` ou `run\build\web.bat` | `release/web/` |
-| Client web hébergé | `node web/build.mjs --hosted` | `release/web/` avec adapter hébergé |
-| API | `sh run/build/server.sh` ou `run\build\server.bat` | `server/dist/` |
-| Android debug | `sh run/build/android.sh` ou `run\build\android.bat` | `release/android/epi-debug.apk` |
-| Android release | mêmes scripts avec `--release` | `release/android/epi-release-unsigned.apk` |
-| Android AAB | mêmes scripts avec `--play` | `release/android/epi-play.aab` |
+| Windows desktop | `run\build\windows.bat` | `release/windows/`: EXE, MSI, standalone binary |
+| Linux DEB | `sh run/build/ubuntu.sh` | `release/linux/`: binary and DEB |
+| Linux AppImage | `sh run/build/linux.sh` | `release/linux/`: binary and AppImage |
+| CLI | `sh run/build/cli.sh` or `run\build\cli.bat` | `release/cli/<platform>/epi-cli[.exe]` |
+| Personal web | `sh run/build/web.sh` or `run\build\web.bat` | `release/web/` |
+| Hosted web client | `node web/build.mjs --hosted` | `release/web/` with hosted adapter |
+| API | `sh run/build/server.sh` or `run\build\server.bat` | `server/dist/` |
+| Android debug | `sh run/build/android.sh` or `run\build\android.bat` | `release/android/epi-debug.apk` |
+| Android release | Same scripts with `--release` | `release/android/epi-release-unsigned.apk` |
+| Android AAB | Same scripts with `--play` | `release/android/epi-play.aab` |
 
-Les scripts desktop acceptent `--portable` pour ne produire que le binaire.
-Le lanceur Linux accepte les formats `deb`, `rpm`, `appimage` ; le lanceur Windows
-accepte `nsis`, `msi`. Construire sur le système cible avec ses outils natifs.
-`sh run/build/all.sh` et `run\build\all.bat` parcourent les cibles de leur système
-et affichent un bilan ; une cible en échec ne valide pas ses anciens artefacts.
+Desktop scripts accept `--portable` to produce only the binary. The Linux launcher accepts `deb`, `rpm`, `appimage`; the Windows launcher accepts `nsis`, `msi`. Build on the target system with native tools. `sh run/build/all.sh` and `run\build\all.bat` run through their system's targets and display a report; a failed target does not validate its old artefacts.
 
-Le build Android utilise JDK 17, SDK Android, NDK et Rust. Les variantes release
-incluent ARM64 et x86-64. Un build debug utilise la signature de développement Gradle.
-Le build desktop Linux exige les dépendances WebKit/GTK et Bluetooth décrites par
-les scripts de préparation. Le binaire CLI Linux ne fournit pas le scan Windows.
+Android builds use JDK 17, Android SDK, NDK and Rust. Release variants include ARM64 and x86-64. Debug builds use Gradle's development signature. Linux desktop builds require the WebKit/GTK and Bluetooth dependencies described in preparation scripts. The Linux CLI binary does not provide Windows scanning.
 
-## Signature locale Android
+## Local Android signing
 
-Un APK release doit être signé avant installation. Garder la clé et son mot de
-passe hors du dépôt ; sauvegarder les deux dans un coffre indépendant.
-Une mise à jour exige la même clé de signature que l'installation existante.
+A release APK must be signed before installation. Keep the key and password outside the repository; back up both in an independent vault. Updates require the same signing key as the existing installation.
 
-Sous Windows, `run\build\sign-android.ps1` utilise un magasin PKCS12 dans
-`%USERPROFILE%\epi-keys`, alias `epi-upload`, et un fichier de mot de passe protégé
-par DPAPI. `-KeyDirectory` sélectionne un autre répertoire. Pour créer sa propre
-clé, adapter l'identité publique `-dname` du script, puis utiliser `-CreateKey`
-une seule fois. Réutiliser ensuite la même clé. Le XML DPAPI n'est lisible que par
-le même utilisateur sur le même ordinateur ; il ne remplace pas une sauvegarde portable.
-Le script vérifie la signature APK, l'alignement ZIP et la signature AAB.
+On Windows, `run\build\sign-android.ps1` uses a PKCS12 keystore in `%USERPROFILE%\epi-keys`, alias `epi-upload`, and a DPAPI-protected password file. `-KeyDirectory` selects another directory. To create your own key, adapt the script's public `-dname` identity, then use `-CreateKey` once. Reuse that key afterwards. The DPAPI XML is readable only by the same user on the same computer; it does not replace a portable backup. The script checks the APK signature, ZIP alignment and AAB signature.
 
-Sous Linux, créer sa propre clé hors du dépôt et utiliser les outils du JDK et du
-SDK Android. Exemple avec un mot de passe demandé par les outils :
+On Linux, create your own key outside the repository and use JDK and Android SDK tools. Example with passwords prompted by the tools:
 
 ```sh
-keytool -genkeypair -storetype PKCS12 -keystore /chemin/prive/upload.p12 -alias epi-upload -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Example Developer'
+keytool -genkeypair -storetype PKCS12 -keystore /private/path/upload.p12 -alias epi-upload -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Example Developer'
 zipalign -f -P 16 4 release/android/epi-release-unsigned.apk release/android/epi-release-aligned.apk
-apksigner sign --ks /chemin/prive/upload.p12 --ks-key-alias epi-upload --out release/android/epi-release.apk release/android/epi-release-aligned.apk
+apksigner sign --ks /private/path/upload.p12 --ks-key-alias epi-upload --out release/android/epi-release.apk release/android/epi-release-aligned.apk
 apksigner verify --verbose --print-certs release/android/epi-release.apk
 zipalign -c -P 16 4 release/android/epi-release.apk
-jarsigner -keystore /chemin/prive/upload.p12 -signedjar release/android/epi-play-signed.aab release/android/epi-play.aab epi-upload
+jarsigner -keystore /private/path/upload.p12 -signedjar release/android/epi-play-signed.aab release/android/epi-play.aab epi-upload
 jarsigner -verify release/android/epi-play-signed.aab
 ```
 
-Ajouter le JDK et le répertoire SDK `build-tools/<version>` au PATH.
-Le nom de certificat ci-dessus est fictif. Ne jamais placer un mot de passe dans
-une commande versionnée ni remplacer une clé existante pour reconstruire.
+Add the JDK and SDK `build-tools/<version>` directory to PATH. The certificate name above is fictional. Never put passwords in versioned commands or replace an existing key just to rebuild.
 
-## macOS et iOS
+## macOS and iOS
 
-Les lanceurs desktop fournis ciblent Windows et Linux. Sur macOS, utiliser la CLI
-Tauri depuis `tauri/`, avec Rust, Xcode et les outils Apple :
+The supplied desktop launchers target Windows and Linux. On macOS, use the Tauri CLI from `tauri/`, with Rust, Xcode and Apple tools:
 
 ```sh
 cd tauri
@@ -137,14 +90,8 @@ npm run tauri -- ios init
 npm run tauri -- ios build
 ```
 
-La cible iOS nécessite une configuration de signature Apple propre au développeur.
-Ces commandes ne constituent pas une validation matérielle : contrôler le support
-Bluetooth et les autorisations sur l'appareil cible. Voir aussi [TEST-DEMARRAGE.md](TEST-DEMARRAGE.md).
+The iOS target requires developer-specific Apple signing configuration. These commands do not constitute hardware validation: check Bluetooth support and permissions on the target device. See also [startup checks](TEST-DEMARRAGE.md).
 
-## Architecture et licence
+## Architecture and licence
 
-Voir [README](../README.md), [CLI](../cli/README.md), [API](../server/README.md),
-[stockage](ARCHITECTURE-STOCKAGE.md), [comptes](COMPTES-ET-DONNEES.md),
-[synchronisation](SYNCHRONISATION.md) et [protocoles BLE](BALANCES-BLE.md).
-Le code original éPI est distribué sous LGPL-3.0-only ; les ressources tierces
-conservent leurs licences et leurs attributions. Voir [LICENSE](../LICENSE).
+See [README](../README.md), [CLI](../cli/README.md), [API](../server/README.md), [storage](ARCHITECTURE-STOCKAGE.md), [accounts](COMPTES-ET-DONNEES.md), [synchronisation](SYNCHRONISATION.md) and [BLE protocols](BALANCES-BLE.md). Original éPI code is distributed under LGPL-3.0-only; third-party assets retain their licences and attributions. See [LICENSE](../LICENSE).

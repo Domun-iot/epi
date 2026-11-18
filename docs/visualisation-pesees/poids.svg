@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 330" role="img" aria-labelledby="title desc">
-<title id="title">Poids · points bruts et tendance</title>
-<desc id="desc">Le poids brut fluctue. La moyenne des sept pesées quotidiennes descend de 78,3 à 76,9 kg.</desc>
+<title id="title">Weight · raw points and trend</title>
+<desc id="desc">Raw weight fluctuates. The average of seven daily weigh-ins falls from 78.3 to 76.9 kg.</desc>
 <rect x="1" y="1" width="798" height="328" rx="14" fill="#f9fbfe" stroke="#dbe3ed"/>
 <g font-family="system-ui, sans-serif">
-<text x="28" y="36" fill="#182a42" font-size="23" font-weight="650" text-anchor="start">Poids · points bruts et tendance</text>
+<text x="28" y="36" fill="#182a42" font-size="23" font-weight="650" text-anchor="start">Weight · raw points and trend</text>
 <circle cx="36" cy="60" r="5" fill="#71859e" stroke="white" stroke-width="1.5"/>
-<text x="54" y="64" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Pesées brutes (kg)</text>
+<text x="54" y="64" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Raw weigh-ins (kg)</text>
 <line x1="249" y1="60" x2="267" y2="60" stroke="#2855b0" stroke-width="3"/>
-<text x="275" y="64" fill="#455972" font-size="14" font-weight="400" text-anchor="start">Moyenne mobile sur 7 jours</text>
+<text x="275" y="64" fill="#455972" font-size="14" font-weight="400" text-anchor="start">7-day moving average</text>
 <line x1="73" y1="251.42857142857142" x2="766" y2="251.42857142857142" stroke="#dbe3ed" />
 <text x="62" y="256.42857142857144" fill="#455972" font-size="14" font-weight="400" text-anchor="end">76</text>
 <line x1="73" y1="198.28571428571428" x2="766" y2="198.28571428571428" stroke="#dbe3ed" />
@@ -38,10 +38,10 @@
 <circle cx="696.7" cy="208.91428571428588" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
 <circle cx="731.35" cy="230.17142857142827" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
 <circle cx="766" cy="214.22857142857129" r="4" fill="#71859e" stroke="white" stroke-width="1.5"/>
-<text x="280.9" y="113.9224489795919" fill="#2855b0" font-size="14" font-weight="650" text-anchor="start">78,3</text>
-<text x="757" y="192.11836734693827" fill="#2855b0" font-size="14" font-weight="650" text-anchor="end">76,9</text>
-<text x="73" y="303" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">1 nov.</text>
-<text x="419.5" y="303" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">11 nov.</text>
-<text x="766" y="303" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">21 nov.</text>
+<text x="280.9" y="113.9224489795919" fill="#2855b0" font-size="14" font-weight="650" text-anchor="start">78.3</text>
+<text x="757" y="192.11836734693827" fill="#2855b0" font-size="14" font-weight="650" text-anchor="end">76.9</text>
+<text x="73" y="303" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">1 Nov</text>
+<text x="419.5" y="303" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">11 Nov</text>
+<text x="766" y="303" fill="#455972" font-size="14" font-weight="400" text-anchor="middle">21 Nov</text>
 </g>
 </svg>

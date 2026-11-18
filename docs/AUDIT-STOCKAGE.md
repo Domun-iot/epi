@@ -1,77 +1,77 @@
-# Audit du stockage éPI — 17 novembre 2026
+# éPI storage audit — 17 November 2026
 
-Audit réalisé après l'introduction des jeux par compte et avant la publication du client web. Les corrections sont accompagnées de tests de régression. Aucun compte ni jeu de test n'est créé en production.
+Audit conducted after account datasets were introduced and before web client publication. Fixes include regression tests. No test accounts or datasets are created in production.
 
-## Périmètre des variantes
+## Variant scope
 
-| Variante | Racine et accès | Vérification |
+| Variant | Root and access | Verification |
 | --- | --- | --- |
-| Windows installé ou portable, Tauri | EPI_DATA_DIR absolu, découverte de data en remontant depuis le programme, sinon dossier applicatif ; invoke vers Rust | Tests Rust Windows et scénarios Chrome simulant les commandes natives |
-| Linux, paquet ou AppImage | Même sélection ; APPIMAGE permet de partir du fichier original plutôt que du montage temporaire | Lecture des branches spécifiques, logique de découverte et lanceurs shell testés ; pas d'exécution d'un paquet Linux sur une distribution cible |
-| macOS Tauri | Dossier applicatif macOS ou racine portable/explicite | Lecture des chemins et de la logique partagée ; pas de machine macOS utilisée |
-| Android et iOS | Répertoire privé de l'application ; aucune racine PC partagée | Compilation Rust Android aarch64 hors ligne réussie ; branche iOS relue, sans compilation ni essai matériel iOS |
-| CLI de développement et exécutable autonome | Racine commune aux versions PC ; dossier du binaire pour SEA | Tests CLI et lanceurs, chemins avec espaces, sélection/génération du jeu actif |
-| Web personnel, développement Vite et release Node | Installation locale ; endpoint de fichiers /api/session ; usage anonyme initial permis | Tests API locale, release réellement construite et démarrée avec données temporaires |
-| Web hébergé | Racine serveur accounts/<UUID> ; compte vérifié côté API à chaque accès | Tests HTTP, Chrome et release hébergée réelle avec deux comptes fictifs isolés |
-| Aperçu de l'interface dans un navigateur | Stockage de simulation par navigateur ; aucun transfert de transactions | Tests d'interface ; la réparation distante et la synchronisation restent désactivées |
+| Installed or portable Windows, Tauri | Absolute EPI_DATA_DIR, upward data discovery from the program, otherwise application directory; invoke to Rust | Windows Rust tests and Chrome scenarios simulating native commands |
+| Linux package or AppImage | Same selection; APPIMAGE starts from the original file rather than temporary mount | Platform branches reviewed, discovery and shell launchers tested; no Linux package run on a target distribution |
+| macOS Tauri | macOS application directory or portable/explicit root | Paths and shared logic reviewed; no macOS machine used |
+| Android and iOS | Private application directory; no shared desktop root | Offline Android aarch64 Rust compilation succeeded; iOS branch reviewed without build or hardware test |
+| Development CLI and standalone executable | Common desktop root; binary directory for SEA | CLI and launcher tests, paths with spaces, active dataset selection/generation |
+| Personal web, Vite development and Node release | Local installation; /api/session file endpoint; initial anonymous use allowed | Local API tests, actual release built and started with temporary data |
+| Hosted web | Server accounts/<UUID> root; API verifies account on every access | HTTP, Chrome and actual hosted release tests with two isolated fictional accounts |
+| Browser interface preview | Per-browser simulation storage; no transaction transfers | Interface tests; remote repair and synchronisation remain disabled |
 
-Le web personnel et le web hébergé restent deux modes de build issus du même code. Le serveur hébergé n'expose jamais le gestionnaire d'installation du web personnel.
+Personal and hosted web remain two build modes from the same code. The hosted server never exposes the personal web installation manager.
 
-## Scénarios couverts
+## Covered scenarios
 
-- Racine ancienne, nouvelle, uniquement composée de comptes, absente, verrouillée ou explicitement configurée ; priorité du chemin explicite et refus d'un chemin relatif ambigu entre lanceurs.
-- Premier démarrage sans compte ; données anonymes ; rattachement FREE sans consultation du cloud ; rattachement PRO avec compte distant vide ou rempli ; comparaison des nombres et périodes ; fusion, remplacement et annulation.
-- Passage FREE vers PRO, retour en FREE, échéance PRO pendant une requête, expiration du jeton, panne réseau et reconnexion ; accès hors ligne au dernier jeu local et déconnexion volontaire durable.
-- A vers B puis A, plusieurs onglets, enregistrement/import/export en vol, réponses retardées, connexion Google annulée, échec de persistance des identifiants, fermeture et redémarrage.
-- Import ZIP et historique, doublons, champs invalides, chemins dangereux et liens symboliques ; versions concurrentes, suppression suivie d'une ancienne écriture, restauration volontaire.
-- Migration ou rattachement interrompu, reprise d'une bascule, verrou d'un autre processus, propriétaire mort, réclamation simultanée d'un verrou, sauvegarde et restauration.
-- Écriture web durable avec publication SQLite temporairement impossible ; reprise par le téléchargement d'un autre client après redémarrage ; instantané complet indépendant des accusés déjà présents.
-- Déploiement interrompu avant ou après les déplacements des builds ; restauration des scripts, marqueurs et anciens artefacts ; conservation des données actives.
+- Old, new, accounts-only, missing, locked or explicitly configured roots; explicit path priority and refusal of relative paths ambiguous between launchers.
+- First startup without an account; anonymous data; FREE linking without cloud access; PRO linking with empty or populated remote accounts; count and period comparison; merge, replacement and cancellation.
+- FREE to PRO upgrade, return to FREE, PRO expiry during a request, token expiry, network failure and reconnection; offline access to the last local dataset and durable explicit logout.
+- A to B then A, multiple tabs, saving/import/export in flight, delayed responses, cancelled Google login, credential persistence failure, closure and restart.
+- ZIP and history import, duplicates, invalid fields, unsafe paths and symbolic links; concurrent versions, deletion followed by an old write, intentional restoration.
+- Interrupted migration or linking, switch recovery, another process's lock, dead owner, simultaneous lock claims, backup and restoration.
+- Durable web writes with SQLite publication temporarily unavailable; recovery through another client's download after restart; complete snapshot independent of existing acknowledgements.
+- Deployment interrupted before or after build moves; restoration of scripts, markers and old artefacts; preservation of active data.
 
-## Défauts trouvés et corrigés
+## Defects found and fixed
 
-| Priorité | Défaut | Correction |
+| Priority | Defect | Fix |
 | --- | --- | --- |
-| P1 | La première révision distante validée était perdue au redémarrage avant émission. | Révision conservée dans la configuration d'installation ; seul l'accusé du même compte et de la même génération peut la retirer. |
-| P1 | Des droits PRO pouvaient expirer après l'autorisation initiale d'une requête lente ou en attente. | Vérifications au traitement, avant mutation et après export. |
-| P1 | Une annulation Google ou une réponse d'un ancien compte pouvait terminer une connexion tardive. | Époques d'interaction, annulation des requêtes, contrôle après chaque attente, nettoyage du compte en échec. |
-| P1 | Un jeton non effaçable pouvait rouvrir un jeu après déconnexion explicite. | Authentification mémoire supprimée même si le stockage échoue ; l'installation verrouillée ne reprend pas automatiquement ce jeton. |
-| P1 | Un arrêt entre publication d'un nouveau dossier de compte et sélection pouvait laisser un rattachement incomplet. | Journal de reprise également sur le premier rattachement, sauvegardes et contrôles des conteneurs. |
-| P1 | Certaines lectures CLI effectuaient une migration d'identité sans le verrou d'installation. | Lectures/migrations/écritures regroupées sous le même verrou. |
-| P1 | Deux récupérateurs pouvaient supprimer la réclamation récente d'un verrou abandonné. | Tickets de récupération immuables et choix non bloquant ; réentrance Node limitée au même contexte asynchrone. |
-| P1 | Une interruption entre un déplacement de build et la mise à jour d'un indicateur pouvait casser le rollback. | Restauration fondée sur les sauvegardes présentes et intention de remplacement enregistrée avant déplacement. |
-| P2 | Une publication SQLite échouée faisait annoncer un échec après une écriture web réussie. | Retour de l'état sauvegardé avec synchronisation en attente ; reprise du journal par la prochaine consultation web ou réception native. |
-| P2 | Les archives pouvaient porter des opérations invalides malgré un UUID correct. | Validation des opérations, valeurs, chemins et doublons avant toute écriture de l'historique. |
-| P2 | Les anciens fichiers interface/session et les JSON avec BOM n'étaient pas tous repris dans le journal initial. | Baseline complète et normalisation cohérente ; préférences de fenêtre exclues des échanges. |
-| P2 | Un compte contenant seulement des pesées en attente était présenté comme vide. | Détection de ces données sans les compter comme des pesées enregistrées. |
-| P2 | Une restauration d'ancien cache pouvait conserver des accusés masquant des données serveur plus récentes. | Réparation explicite par l'instantané complet du même compte, fusionnant les versions et conservant les suppressions. |
-| P2 | Un échec tardif d'installation pouvait laisser les nouveaux marqueurs de déploiement. | Restauration des marqueurs avec les scripts et tests d'échec injecté. |
+| P1 | First approved remote revision lost on restart before upload. | Revision retained in installation configuration; only acknowledgement for the same account and generation can remove it. |
+| P1 | PRO entitlements could expire after initial authorisation of a slow or queued request. | Checks during processing, before mutation and after export. |
+| P1 | Google cancellation or an old account response could complete a late login. | Interaction epochs, request cancellation, checks after each wait, failed-account cleanup. |
+| P1 | A token that could not be erased could reopen a dataset after explicit logout. | In-memory authentication removed even if storage fails; locked installation does not automatically reuse the token. |
+| P1 | Shutdown between publishing a new account directory and selection could leave incomplete linking. | Recovery journal also used for first linking, backups and container checks. |
+| P1 | Some CLI reads migrated identities without the installation lock. | Reads/migrations/writes grouped under one lock. |
+| P1 | Two recovery processes could delete a recent abandoned-lock claim. | Immutable recovery tickets and non-blocking selection; Node re-entrancy restricted to the same asynchronous context. |
+| P1 | Interruption between moving a build and updating a flag could break rollback. | Restoration based on existing backups; replacement intent recorded before moving. |
+| P2 | Failed SQLite publication reported failure after a successful web write. | Saved state returned with synchronisation pending; journal recovered on the next web request or native download. |
+| P2 | Archives could contain invalid operations despite a valid UUID. | Operations, values, paths and duplicates validated before any history write. |
+| P2 | Old interface/session files and BOM JSON were not all included in the initial journal. | Complete baseline and consistent normalisation; window preferences excluded from exchanges. |
+| P2 | An account containing only pending weigh-ins appeared empty. | Detect this data without counting it as saved weigh-ins. |
+| P2 | Restoring an old cache could retain acknowledgements hiding newer server data. | Explicit repair from the same account's complete snapshot, merging versions and preserving deletions. |
+| P2 | Late installation failure could leave new deployment markers. | Marker restoration alongside scripts and injected-failure tests. |
 
-Les bandeaux, détails, formulaires et journaux BLE d'un compte sont également supprimés de l'interface au passage à un autre. Les journaux BLE persistés restent rattachés à leur jeu. Une réparation du même compte conserve la vue et les dialogues utiles.
+Account banners, details, forms and BLE logs are also removed from the interface on account switch. Persisted BLE logs remain attached to their dataset. Same-account repair preserves useful views and dialogues.
 
-## Résultats des vérifications
+## Verification results
 
-| Suite | Résultat |
+| Suite | Result |
 | --- | --- |
-| Rust Windows | 29/29 |
-| Vérification de compilation Android aarch64 | Réussie hors ligne avec le NDK installé |
+| Windows Rust | 29/29 |
+| Android aarch64 compilation check | Passed offline with installed NDK |
 | CLI | 19/19 |
-| Gestion des comptes/fichiers Node | 17/17, y compris une jonction Windows réellement créée hors bac à sable |
-| Verrou interprocessus Node | 7/7, dont réclamations simultanées et contextes asynchrones indépendants |
-| Journal Node | 8/8 |
-| API serveur et sessions hébergées | 20/20 |
-| Installation et retour arrière | 4/4 |
-| Contrôleur de sélection et réparation | 10/10 |
-| Interface Chrome | 91/91 |
-| Lanceurs Windows et Git Bash | 16 variantes simulées et 2 parcours fixture |
-| Releases web réellement construites | Hébergée et personnelle démarrées avec stockage temporaire isolé |
+| Node account/file management | 17/17, including an actual Windows junction created outside the sandbox |
+| Node interprocess lock | 7/7, including simultaneous claims and independent asynchronous contexts |
+| Node journal | 8/8 |
+| Server API and hosted sessions | 20/20 |
+| Installation and rollback | 4/4 |
+| Selection and repair controller | 10/10 |
+| Chrome interface | 91/91 |
+| Windows and Git Bash launchers | 16 simulated variants and 2 fixture flows |
+| Actual web releases built | Hosted and personal started with isolated temporary storage |
 
-La dernière correction de séquencement de déconnexion invalide une transition en cours, attend sa fin, puis verrouille les données ; une arrivée d'un autre compte pendant cette attente ne peut pas être déconnectée par l'ancienne demande.
+The final logout sequencing fix invalidates an in-progress transition, waits for completion, then locks data; another account arriving during that wait cannot be logged out by the old request.
 
-## Limites de la validation
+## Validation limitations
 
-La compilation Android valide le chemin mobile et Unix du stockage ; elle ne produit pas un essai utilisateur sur téléphone. Le test de jonction Windows a été exécuté avec les permissions du poste et a réussi.
+Android compilation validates mobile and Unix storage paths; it is not a user test on a phone. The Windows junction test ran with host permissions and passed.
 
-Les tests automatisés ne remplacent pas les essais avec une balance réelle, un APK installé, un paquet Linux, macOS ou iOS. L'exécution Chrome locale vérifie le client compilé et les flux HTTP, pas les particularités d'une WebView mobile physique. Les fichiers locaux ne sont pas chiffrés : le verrouillage applicatif ne protège pas contre un utilisateur du système ayant accès au disque.
+Automated tests do not replace trials with a real scale, installed APK, Linux package, macOS or iOS. Local Chrome execution checks the compiled client and HTTP flows, not physical mobile WebView specifics. Local files are unencrypted: application locking does not protect against an operating system user with disk access.
 
-Le protocole conserve une comparaison temporelle des versions ; des horloges très décalées restent une limite. Les sauvegardes et journaux doivent faire l'objet d'une politique de rétention. Une restauration opérateur du serveur doit considérer à la fois SQLite et les fichiers de comptes ; le déploiement n'écrase jamais automatiquement les données actives avec une sauvegarde ancienne.
+The protocol retains time-based version comparison; severely skewed clocks remain a limitation. Backups and journals need a retention policy. Operator server restoration must consider both SQLite and account files; deployment never automatically overwrites active data with an old backup.

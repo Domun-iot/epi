@@ -1,51 +1,51 @@
-# Audit des traductions — 17 novembre 2026
+# Translation audit — 17 November 2026
 
-L’interface utilisateur commune aux versions Tauri (PC et Android), web personnelle et web hébergée utilise 26 variantes linguistiques. L’audit porte sur ses catalogues, ses écrans et les diagnostics applicatifs qui lui parviennent.
+The shared user interface for Tauri (desktop and Android), personal web and hosted web uses 26 language variants. This audit covers its catalogues, screens and incoming application diagnostics.
 
-## Résultat
+## Result
 
-| Contrôle | Résultat après correction |
+| Check | Result after corrections |
 | --- | --- |
-| Variantes linguistiques | 26 |
-| Clés par catalogue | 461 |
-| Valeurs au total | 11 986 |
-| Clés absentes, supplémentaires, dupliquées ou vides | Aucune détectée |
-| Paramètres de substitution | Identiques au catalogue anglais pour chaque clé |
-| Références littérales dans l’interface et les diagnostics natifs | Toutes présentes |
-| Clés calculées des méthodes et des indicateurs | Toutes présentes |
-| Copies anglaises identiques | Uniquement les termes communs et noms propres explicitement revus dans les tests |
-| Chargement et affichage dans le navigateur | Vérifiés pour les 26 variantes |
+| Language variants | 26 |
+| Keys per catalogue | 461 |
+| Total values | 11,986 |
+| Missing, extra, duplicate or empty keys | None detected |
+| Substitution parameters | Match the English catalogue for every key |
+| Literal references in interface and native diagnostics | All present |
+| Computed method and indicator keys | All present |
+| Identical English copies | Only shared terms and proper names explicitly reviewed in tests |
+| Browser loading and display | Checked for all 26 variants |
 
-582 valeurs existantes ont été corrigées. 18 clés ont été ajoutées dans les 26 catalogues, soit 468 nouvelles valeurs. Les noms des offres Free et Pro, les noms propres des méthodes scientifiques et certains termes identiques entre langues sont conservés intentionnellement.
+582 existing values were corrected. 18 keys were added to all 26 catalogues, giving 468 new values. Free and Pro plan names, scientific method proper names and some terms identical across languages are intentionally retained.
 
-## Écarts corrigés
+## Issues corrected
 
-- Les 443 clés initiales existaient partout, mais 16 messages étaient encore en anglais dans 22 langues. Ils concernaient le choix des données de compte, la connexion et les mesures remontées par les balances. Trois libellés techniques étaient également restés en anglais en français canadien.
-- Des traductions anglaises isolées ou partielles subsistaient notamment en italien, letton, maltais et slovaque.
-- La relecture des libellés de mesure a mis au jour des contresens sur la taille corporelle, le sexe utilisé pour les calculs, les profils et balances au moment de la pesée, et la masse maigre. En allemand, la masse maigre était notamment présentée comme une masse musculaire. Ces libellés ont été corrigés dans les 22 langues concernées.
-- Les badges des offres, tous les intitulés de méthodes scientifiques et les origines connues du modèle de balance passent maintenant par des clés. Le libellé technique updatedAt utilise celui de la dernière modification lorsqu’il apparaît dans les données supplémentaires.
-- 91 variantes de diagnostics de stockage, de migration, de transactions ou d’API ont été raccordées aux clés traduites. Les messages stockés restent lisibles avec les anciennes versions ; la traduction intervient à l’affichage. Plusieurs erreurs techniques proches partagent un message utilisateur commun. Les chemins ne sont pas traduits ; certains messages génériques n’en affichent pas le détail. Les diagnostics d’origine restent conservés dans les données et les messages externes inconnus restent intacts.
-- Sept diagnostics natifs pouvaient afficher un paramètre {detail} non renseigné. Les variantes sans détail utilisent désormais une clé sans paramètre ; les UUID de transaction invalides incluent le nom concerné.
-- Les compteurs de pesées et d’octets utilisent une formulation indépendante du pluriel : par exemple « Pesées : 1 » et « Reçus : 1 o ». Le choix entre deux formes seulement ne couvrait pas les règles de toutes les langues.
+- All 443 initial keys existed everywhere, but 16 messages were still English in 22 languages. They covered account dataset selection, login and scale measurements. Three technical labels also remained English in Canadian French.
+- Isolated or partial English translations remained, particularly in Italian, Latvian, Maltese and Slovak.
+- Reviewing measurement labels revealed mistranslations of body height, sex used for calculations, profile and scale snapshots at measurement time, and fat-free mass. In German, fat-free mass was notably described as muscle mass. These labels were corrected in the 22 affected languages.
+- Plan badges, all scientific method titles and known scale-model origins now use keys. The technical updatedAt label uses the last-modified label when shown in additional data.
+- 91 variants of storage, migration, transaction and API diagnostics were connected to translated keys. Stored messages remain readable by older versions; translation occurs on display. Several similar technical errors share a user-facing message. Paths are not translated; some generic messages omit their details. Original diagnostics remain in data and unknown external messages remain intact.
+- Seven native diagnostics could display an unfilled {detail} parameter. Variants without details now use a parameter-free key; invalid transaction UUIDs include the affected name.
+- Weigh-in and byte counters use wording independent of plural forms, such as “Weigh-ins: 1” and “Received: 1 B”. A choice between only two forms did not cover every language's rules.
 
-## Vérification et prévention
+## Verification and prevention
 
-Les tests dans tauri/test/i18n.test.js vérifient la couverture, les doublons, les paramètres, les copies anglaises non justifiées, les références littérales, les clés calculées et les correspondances des erreurs du domaine et du stockage. Une liste explicite précise les termes qui peuvent être identiques à l’anglais, langue par langue.
+Tests in tauri/test/i18n.test.js check coverage, duplicates, parameters, unjustified English copies, literal references, computed keys and domain/storage error mappings. An explicit list specifies terms allowed to match English for each language.
 
-Un test de navigateur charge chaque catalogue dans l’application construite et vérifie le titre, la navigation, les données de compte, les méthodes de calcul et le dialogue de compte. Les tests Bluetooth et de fusion de données vérifient les nouveaux compteurs.
+A browser test loads every catalogue in the built application and checks the title, navigation, account data, calculation methods and account dialogue. Bluetooth and data-merge tests check the new counters.
 
-Commandes de validation, depuis les répertoires indiqués :
+Validation commands, from the indicated directories:
 
-- Dans tauri : npm run test:ui
-- Dans tauri : npm test
-- Dans tauri/src-tauri : cargo test --offline --lib transactions
+- In tauri: npm run test:ui
+- In tauri: npm test
+- In tauri/src-tauri: cargo test --offline --lib transactions
 
-## Limites de la conclusion
+## Limits of the conclusion
 
-La couverture des clés et des paramètres est vérifiée automatiquement. La qualité linguistique a fait l’objet d’une relecture ciblée et de corrections, sans validation par un locuteur natif pour chacune des langues. Les tests ne constituent pas une certification linguistique exhaustive de chaque phrase.
+Key and parameter coverage is checked automatically. Linguistic quality received targeted review and corrections, without native-speaker validation for every language. Tests do not provide exhaustive linguistic certification of every sentence.
 
-Les données saisies par les utilisateurs, les noms de fabricants, les identifiants et les valeurs brutes de protocole Bluetooth ne sont pas traduits. Les diagnostics fournis directement par le système ou une bibliothèque externe peuvent conserver leur langue d’origine. Les champs supplémentaires inconnus restent présentés avec leur nom technique.
+User-entered data, manufacturer names, identifiers and raw Bluetooth protocol values are not translated. Diagnostics supplied directly by the system or external libraries may retain their original language. Unknown additional fields retain their technical names.
 
-La CLI est toujours en français et ne possède pas de couche de traduction : cli/index.cjs contient notamment l’aide et des messages codés en dur. Elle n’est donc pas couverte par les 26 langues de l’interface graphique. Le site vitrine www possède son propre mécanisme français/anglais ; il est distinct du logiciel audité ici.
+The CLI remains French and has no translation layer: cli/index.cjs contains hard-coded help and messages. It is therefore outside the graphical interface's 26 languages. The www public website has its own French/English mechanism, separate from the software audited here.
 
-Aucun déploiement n’a été effectué dans le cadre de cet audit.
+No deployment was performed as part of this audit.

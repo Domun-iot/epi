@@ -1,127 +1,126 @@
-# Balances BLE
+# BLE scales
 
-Inventaire des protocoles de pèse-personnes retrouvés au 16 novembre 2026. Le rapprochement part des catalogues publics et de leurs implémentations. Un nom commercial peut couvrir plusieurs cartes ou firmwares. Une publicité BLE ne garantit pas que la balance y transmet des pesées. [openScale][os] · [BLE Scale Sync][bss] · [Theengs][theengs] · [ESPHome][esp]
+Inventory of bathroom scale protocols identified as of 16 November 2026, based on public catalogues and implementations. A commercial name may cover several boards or firmware versions. BLE advertising does not guarantee that a scale broadcasts weigh-ins. [openScale][os] · [BLE Scale Sync][bss] · [Theengs][theengs] · [ESPHome][esp]
 
-- **Intégré** indique que le format est pris en charge par éPI. La validation de cette extension repose sur des trames rejouées et des vecteurs de test.
-- Les **protocoles complémentaires** ont une lecture publiée ailleurs ou des captures analysables. Les limites figurent dans le tableau. Le recensement suit les sources citées. Les variantes sans capture ou protocole public restent à identifier.
-- Une **impédance** est une mesure électrique. éPI peut en tirer des estimations de composition avec le profil. Certaines balances transmettent directement leurs propres résultats de composition. Les deux types de données ont des sources distinctes.
+- **Integrated** means éPI supports the format. Validation of this extension relies on replayed frames and test vectors.
+- **Additional protocols** have published decoders elsewhere or analysable captures. Limitations appear in the tables. The inventory follows cited sources. Variants without captures or public protocols remain to be identified.
+- **Impedance** is an electrical measurement. éPI can derive composition estimates using a profile. Some scales directly transmit their own composition results. These two types of data have distinct sources.
 
-## Formats intégrés
+## Integrated formats
 
-Les positions d'octets partent de 0. LE et BE indiquent l'ordre des octets. Dans une annonce de type fabricant, le scanner fournit l'identifiant sur 16 bits à part. Les positions sont relatives à la charge utile après cet identifiant, sauf mention contraire.
+Byte positions start at 0. LE and BE indicate byte order. For manufacturer advertisements, the scanner supplies the 16-bit identifier separately. Positions are relative to the payload after that identifier unless otherwise stated.
 
-| Port et modèles | Trame et données décodées | Source primaire |
+| Port and models | Frame and decoded data | Primary source |
 | --- | --- | --- |
-| [Xiaomi composition](../shared/scales/xiaomi.js) · Mi Body Composition Scale XMTZC02HM (`MIBCS`) et XMTZC05HM (`MIBFS`) | Données de service annoncées `181B`, 13 octets. Unité à 0, état à 1 (impédance `0x02`, stable `0x20`, retrait `0x80`). Date et heure locales à 2–8, impédance à 9–10 en Ω, poids à 11–12 en LE, ÷200 en kg ou ÷100 en lb. La composition est calculée à partir du poids, de l'impédance et du profil. | [Captures et décodage Xiaomi][xiaomi-capture] · [Décodeur ESPHome][esp-code] · [Theengs][theengs] |
-| [Xiaomi poids](../shared/scales/xiaomi-weight.js) · Mi Smart Scale XMTZC01HM (`MI_SCALE`) et XMTZC04HM (`MI SCALE2`) | Données de service annoncées `181D`, 10 octets. Unité et état à 0, poids LE à 1–2, date et heure locales à 3–9. Le bit `0x20` indique le poids stabilisé et `0x80` le retrait. Poids ÷200 en kg, ÷100 en lb. Le jin de Chine continentale est rendu en kg. La trame ne porte qu'une mesure de poids. | [Décodeur Xiaomi BLE][xiaomi-ble] · [Capture de publicité][xiaomi-v1] · [Theengs][theengs] |
-| [Weight Scale Bluetooth SIG](../shared/scales/weight-scale.js) · pèse-personnes qui indiquent la caractéristique standard | GATT `181D/2A9D`. Drapeaux à 0, poids LE à 1–2, pas de 0,005 kg ou 0,01 lb. Les bits 1, 2 puis 3 indiquent respectivement la présence de l'horodatage local (7 octets), de l'index utilisateur (1 octet), puis de l'IMC (LE, pas de 0,1) et de la taille (LE, pas de 1 mm ou 0,1 po). L'annonce Xiaomi `181D` et l'indication GATT `2A9D` ont des formats distincts. | [Bluetooth SIG · Weight Scale Service][wss] · [GATT Specification Supplement][gss] |
-| [Qingniu/QN AABB](../shared/scales/qn-broadcast.js) · FITINDEX FT-26R/FT-26R-W, certaines RENPHO ES-CS20M / Elis 1, ES-24M-B et ES-26M-W | Fabricant `FFFF`, préfixe `AA BB`, ≥19 octets. Poids LE à 17–18, ÷100 kg. Stabilité bit 5 à 15. Les FT-26R portant la signature `51 0E 03` à 19 acceptent aussi le bit 0. Le poids ES-24M-B est documenté avec le même format. Son indicateur de stabilité reste à vérifier sur cette révision. | [openScale · QN AABB][os-qn-adv] · [Capture ES-24M-B][es24] · [Capture ES-26M-W][es26] |
-| [Yunmai X](../shared/scales/yunmai-x.js) · YMBS-M268 et Mini 2S M1827CH (M1501) | 14 octets fabricant. ID LE et 0–3 reconstituent la MAC inversée. Signature à 4–6, `0B 74 17` ou `06 52 11`. Somme XOR de 7–12 à 13. État `03` à 8 pour le résultat final. Poids BE à 9–10 en centièmes de kg, impédance BE à 11–12 en Ω. | [openScale · Yunmai X][os-yunmai-x] |
-| [PICOOC Mini Lite](../shared/scales/picooc-mini-lite.js) · `PICOOC-L` | 14 octets fabricant. L'ID et les octets 0–3 constituent la MAC dans l'ordre d'affichage. Somme sur 8 bits égale à `FF`, ID et checksum compris. État `39` à 4 pour le résultat, poids BE à 6–7 ÷20 kg, impédance BE à 8–9 ÷10 Ω. `FFFF` indique une impédance absente. | [openScale · PICOOC Mini Lite][os-picooc] |
-| [Etekcity Fit 8S](../shared/scales/etekcity-fit-8s.js) | Fabricant `06D0`, 20 octets. En-tête `01`, MAC inversée à 1–6, signature `C0 A8` ou `C0 A9` à 7–8. Poids LE sur 3 octets à 10–12 en grammes, impédance LE à 13–14 en Ω lorsqu'elle est disponible, état stable `01` à 15. | [Décodeur Fit 8S][etekcity-fit8s] · [openScale · Fit 8S][os-fit8s] · [Captures Fit 8S][fit8s-capture] |
-| [Scale Up](../shared/scales/scale-up.js) · nom annoncé `da` | 9 octets fabricant. L'ID contient l'état `D0` ou `E0` (stable) et l'octet haut du poids. L'octet bas est à 0, pas de 0,01 kg. MAC à 3–8. L'unité de la lecture électrique à 1–2 reste inconnue. | [openScale · Scale Up][os-scaleup] |
-| [Fitdays/ICOMON AAA](../shared/scales/silvergear.js) · Silvergear Smart Scale 108, INSMART `AAA006`, Foryond FG263LB `AAA002`, beatXP SMARTPLUS BXPBMI1004 `AAA041`, `AAA007`, `AAA013` et `AAA07A` (Posture FG220LB) | 12 octets fabricant, MAC inversée à 0–5. En `A0AC`, type `0D` à 10 et somme modulo 32 de 6–10 vérifiée à 11. Sur les variantes AAA identifiées, l'octet haut de l'ID masque par XOR les six derniers octets, qui contiennent le type `AD` et la somme de contrôle après décodage. Une fois le masque retiré, bit 7 à 6 pour la stabilité, poids en grammes dans les 18 bits bas de 7–9 en BE. | [Captures Silvergear][silvergear] · [Protocole beatXP][beatxp] · [openScale · AAA][os-aaa] |
-| [Senssun IF_B7](../shared/scales/senssun-if-b7.js) · Grifema GA2001 | Fabricant `0100`, 17 octets. En-tête `02 03 11`, MAC à 3–8, poids BE à 10–11 en centièmes de kg. État final `A1` ou `A2` à 14, somme des octets 9–15 à 16. Le poids est en kg pour les affichages kg et lb. | [Captures IF_B7][senssun] |
-| [OKOK / Chipsea annonces](../shared/scales/okok.js) · C0 (`Yoda0`, `Yoda1` ou sans nom), Fitelo FIT PRO 2025-1 (`tzc`), V11, V20 (`ADV`), VF0 | C0, 13 octets, poids BE à 0–1, état et échelle à 6, écho MAC ou signature Yoda. V20, ID `20CA`, 19 octets, poids BE à 8–9, état à 6 et XOR de contrôle à 12. V11, ID `11CA`, 23 octets, poids à 3–4, unité et échelle à 9, XOR à 16. VF0, ID `F0FF`, poids LE à 2–3, relevé visible dans le diagnostic. Un indicateur de stabilité documenté reste nécessaire pour enregistrer VF0. Le port enregistre le poids. Sur Fitelo, le champ BE à 2–3 renseigne le contact avec les électrodes. L'adresse de la balance peut changer au redémarrage. | [openScale · OKOK][os-okok] · [Captures OKOK][ble-okok] · [Capture Fitelo][fitelo] |
-| [Eufy](../shared/scales/eufy.js) · C1 T9146/P1 T9147, P2 T9148/P2 Pro T9149, C20 T9130/P3 T9150 | Annonces fabricant en trois dispositions. C1/P1, 18 octets, `CF` à 4, poids LE à 7–8, état à 13, XOR à 14. P2/P2 Pro, 19 octets, `CF` à 6, poids LE à 9–10, état à 15. Sur P2 Pro, fréquence cardiaque à 7 lorsque 8 la signale. C20/P3, au moins 18 octets, poids LE à 12–13, état à 10 (par exemple `01` en direct, `05` verrouillé). Lorsque le modèle est identifié, les drapeaux permettent de lire la fréquence cardiaque à 15 et l'impédance LE à 17–18 ÷10 Ω. Poids en centièmes de kg pour les trois dispositions. | [Client Eufy][eufy-code] · [Captures C20/P3][eufy-capture] · [C20][eufy-c20] · [P3][eufy-p3] |
-| [AiLink/eLink EL1](../shared/scales/ailink.js) · AiLink Body Fat EL1 (CID/VID/PID `01/03/01`) | Fabricant `0301`, 18 octets. PID à 0, MAC inversée à 1–6, somme de 8–17 à 7. Bloc TEA à 8–15. Une fois déchiffré, état à 1 (`FF` final), unité et décimales à 2, poids BE à 3–4, impédance BE à 5–6. Le port accepte le kg et utilise l'impédance de la trame finale si elle est présente. | [Protocole EL1 vérifié en réception][os-ailink-lib] · [Vecteurs de test synthétiques][os-ailink-test] |
+| [Xiaomi composition](../shared/scales/xiaomi.js) · Mi Body Composition Scale XMTZC02HM (`MIBCS`) and XMTZC05HM (`MIBFS`) | Advertised service data `181B`, 13 bytes. Unit at 0, status at 1 (impedance `0x02`, stable `0x20`, removed `0x80`). Local date/time at 2–8, impedance at 9–10 in Ω, LE weight at 11–12, ÷200 for kg or ÷100 for lb. Composition calculated from weight, impedance and profile. | [Xiaomi captures and decoding][xiaomi-capture] · [ESPHome decoder][esp-code] · [Theengs][theengs] |
+| [Xiaomi weight](../shared/scales/xiaomi-weight.js) · Mi Smart Scale XMTZC01HM (`MI_SCALE`) and XMTZC04HM (`MI SCALE2`) | Advertised service data `181D`, 10 bytes. Unit and status at 0, LE weight at 1–2, local date/time at 3–9. Bit `0x20` indicates stable weight and `0x80` load removal. Weight ÷200 for kg, ÷100 for lb. Mainland Chinese jin is converted to kg. Weight only. | [Xiaomi BLE decoder][xiaomi-ble] · [Advertisement capture][xiaomi-v1] · [Theengs][theengs] |
+| [Bluetooth SIG Weight Scale](../shared/scales/weight-scale.js) · bathroom scales indicating the standard characteristic | GATT `181D/2A9D`. Flags at 0, LE weight at 1–2, increments of 0.005 kg or 0.01 lb. Bits 1, 2 and 3 indicate optional local timestamp (7 bytes), user index (1 byte), then BMI (LE, 0.1 increments) and height (LE, 1 mm or 0.1 inch increments). Xiaomi `181D` advertisements and GATT `2A9D` indications have distinct formats. | [Bluetooth SIG · Weight Scale Service][wss] · [GATT Specification Supplement][gss] |
+| [Qingniu/QN AABB](../shared/scales/qn-broadcast.js) · FITINDEX FT-26R/FT-26R-W, some RENPHO ES-CS20M / Elis 1, ES-24M-B and ES-26M-W | Manufacturer `FFFF`, prefix `AA BB`, ≥19 bytes. LE weight at 17–18, ÷100 kg. Stability bit 5 at 15. FT-26R devices with signature `51 0E 03` at 19 also accept bit 0. ES-24M-B weight is documented with the same format; its stability flag still needs checking on this revision. | [openScale · QN AABB][os-qn-adv] · [ES-24M-B capture][es24] · [ES-26M-W capture][es26] |
+| [Yunmai X](../shared/scales/yunmai-x.js) · YMBS-M268 and Mini 2S M1827CH (M1501) | 14 manufacturer bytes. LE ID and 0–3 reconstruct the reversed MAC. Signature at 4–6, `0B 74 17` or `06 52 11`. XOR checksum of 7–12 at 13. Status `03` at 8 for final result. BE weight at 9–10 in hundredths of kg, BE impedance at 11–12 in Ω. | [openScale · Yunmai X][os-yunmai-x] |
+| [PICOOC Mini Lite](../shared/scales/picooc-mini-lite.js) · `PICOOC-L` | 14 manufacturer bytes. ID and bytes 0–3 form the MAC in display order. 8-bit sum equals `FF`, including ID and checksum. Result status `39` at 4, BE weight at 6–7 ÷20 kg, BE impedance at 8–9 ÷10 Ω. `FFFF` indicates missing impedance. | [openScale · PICOOC Mini Lite][os-picooc] |
+| [Etekcity Fit 8S](../shared/scales/etekcity-fit-8s.js) | Manufacturer `06D0`, 20 bytes. Header `01`, reversed MAC at 1–6, signature `C0 A8` or `C0 A9` at 7–8. Three-byte LE weight at 10–12 in grams, LE impedance at 13–14 in Ω where available, stable status `01` at 15. | [Fit 8S decoder][etekcity-fit8s] · [openScale · Fit 8S][os-fit8s] · [Fit 8S captures][fit8s-capture] |
+| [Scale Up](../shared/scales/scale-up.js) · advertised name `da` | 9 manufacturer bytes. ID contains status `D0` or `E0` (stable) and the high weight byte. Low byte at 0, 0.01 kg increments. MAC at 3–8. Unit of electrical reading at 1–2 remains unknown. | [openScale · Scale Up][os-scaleup] |
+| [Fitdays/ICOMON AAA](../shared/scales/silvergear.js) · Silvergear Smart Scale 108, INSMART `AAA006`, Foryond FG263LB `AAA002`, beatXP SMARTPLUS BXPBMI1004 `AAA041`, `AAA007`, `AAA013` and `AAA07A` (Posture FG220LB) | 12 manufacturer bytes, reversed MAC at 0–5. For `A0AC`, type `0D` at 10 and modulo-32 sum of 6–10 checked at 11. On identified AAA variants, the ID's high byte XOR-masks the final six bytes, containing decoded type `AD` and checksum. After unmasking: stability bit 7 at 6, weight in grams in the lower 18 bits of BE bytes 7–9. | [Silvergear captures][silvergear] · [beatXP protocol][beatxp] · [openScale · AAA][os-aaa] |
+| [Senssun IF_B7](../shared/scales/senssun-if-b7.js) · Grifema GA2001 | Manufacturer `0100`, 17 bytes. Header `02 03 11`, MAC at 3–8, BE weight at 10–11 in hundredths of kg. Final status `A1` or `A2` at 14, sum of bytes 9–15 at 16. Weight uses kg for both kg and lb displays. | [IF_B7 captures][senssun] |
+| [OKOK / Chipsea advertisements](../shared/scales/okok.js) · C0 (`Yoda0`, `Yoda1` or unnamed), Fitelo FIT PRO 2025-1 (`tzc`), V11, V20 (`ADV`), VF0 | C0: 13 bytes, BE weight at 0–1, status and scale factor at 6, MAC echo or Yoda signature. V20: ID `20CA`, 19 bytes, BE weight at 8–9, status at 6 and XOR checksum at 12. V11: ID `11CA`, 23 bytes, weight at 3–4, unit and scale factor at 9, XOR at 16. VF0: ID `F0FF`, LE weight at 2–3, reading visible in diagnostics. Saving VF0 still requires a documented stability flag. The port records weight. On Fitelo, the BE field at 2–3 indicates electrode contact. The scale address may change on restart. | [openScale · OKOK][os-okok] · [OKOK captures][ble-okok] · [Fitelo capture][fitelo] |
+| [Eufy](../shared/scales/eufy.js) · C1 T9146/P1 T9147, P2 T9148/P2 Pro T9149, C20 T9130/P3 T9150 | Three manufacturer advertisement layouts. C1/P1: 18 bytes, `CF` at 4, LE weight at 7–8, status at 13, XOR at 14. P2/P2 Pro: 19 bytes, `CF` at 6, LE weight at 9–10, status at 15. P2 Pro heart rate at 7 when flagged by 8. C20/P3: at least 18 bytes, LE weight at 12–13, status at 10 (e.g. `01` live, `05` locked). When the model is identified, flags allow heart rate at 15 and LE impedance at 17–18 ÷10 Ω. Weight in hundredths of kg in all three layouts. | [Eufy client][eufy-code] · [C20/P3 captures][eufy-capture] · [C20][eufy-c20] · [P3][eufy-p3] |
+| [AiLink/eLink EL1](../shared/scales/ailink.js) · AiLink Body Fat EL1 (CID/VID/PID `01/03/01`) | Manufacturer `0301`, 18 bytes. PID at 0, reversed MAC at 1–6, sum of 8–17 at 7. TEA block at 8–15. After decryption: status at 1 (`FF` final), unit and decimals at 2, BE weight at 3–4, BE impedance at 5–6. The port accepts kg and uses final-frame impedance if present. | [EL1 protocol verified on reception][os-ailink-lib] · [Synthetic test vectors][os-ailink-test] |
 
+On Android, the current scanner provides cached snapshots. éPI ignores identical advertisements remaining in that cache. Two consecutive weigh-ins with exactly the same frame and no observable transition may therefore be confused. On macOS, a peripheral identifier may replace the MAC. Ports checking a MAC echo then use their other documented signature where available.
 
-Sur Android, le scanner actuel fournit des instantanés mis en cache. éPI ignore les annonces identiques qui restent présentes dans ce cache. Deux pesées consécutives dont la balance rediffuse exactement la même trame sans transition observable peuvent donc être confondues. Sur macOS, un identifiant de périphérique peut remplacer la MAC. Les ports qui vérifient un écho de MAC utilisent alors leur autre signature documentée lorsqu’elle existe.
+In a weigh-in record, `measures.deviceMetrics` retains additional device fields, including GATT height and BMI, heart rate or contact status depending on format. `calculations` contains éPI-calculated values. Reception retains provenance and frames where available.
 
-Dans une fiche de pesée, `measures.deviceMetrics` conserve les champs supplémentaires de l'appareil, dont la taille et l'IMC GATT, la fréquence cardiaque ou l'état du contact selon le format. `calculations` contient les valeurs calculées par éPI. La réception garde la provenance et la trame lorsque celles-ci sont disponibles.
+## Additional protocols identified
 
-## Protocoles complémentaires repérés
+### Advertisements
 
-### Annonces
-
-| Famille et modèles | Données et condition de lecture | Source primaire |
+| Family and models | Data and reading requirements | Primary source |
 | --- | --- | --- |
-| Xiaomi S400 (MJTZC01YM) | MiBeacon chiffré. Poids, impédance et fréquence cardiaque selon la trame. Le déchiffrement authentifié et l'association des identifiants nécessitent une clé de liaison fournie par le propriétaire et l'adresse de la balance. | [openScale][os] · [BLE Scale Sync][bss-ha] |
-| Xiaomi S800 (ms116), S200 | MiBeacon chiffré. Poids décodé par les projets cités selon le modèle. Clé de liaison requise. L'impédance et la composition S800 restent à qualifier sur capture. | [XiaomiS800Handler][os-s800] · [BLE Scale Sync][bss-ha] |
-| AiLink/eLink · Healthgenie HB-411 (CID `16`) | Variante de chiffrement LingYang. Poids et mesure électrique brute. La composition est estimée par le client compatible. Le port EL1 vise une autre variante. | [LocalScale][localscale] |
-| Fitdays/ICOMON AAA · beatXP SMARTPLUS BXPBMI1004 | Le poids passe par le port AAA. Une trame séparée de type `06` porte l'impédance. Relier cette trame au poids de la même pesée reste à faire. | [Spécification issue des captures][beatxp] |
-| Sinocare et IFIT | Poids dans les annonces fabricant. La stabilisation par répétition utilisée par le décodeur public demande de distinguer les nouvelles trames des annonces en cache. | [openScale · Sinocare][os-sinocare] |
+| Xiaomi S400 (MJTZC01YM) | Encrypted MiBeacon. Weight, impedance and heart rate depending on frame. Authenticated decryption and identifier association require an owner-supplied bind key and scale address. | [openScale][os] · [BLE Scale Sync][bss-ha] |
+| Xiaomi S800 (ms116), S200 | Encrypted MiBeacon. Cited projects decode weight depending on model. Bind key required. S800 impedance and composition still need capture-based verification. | [XiaomiS800Handler][os-s800] · [BLE Scale Sync][bss-ha] |
+| AiLink/eLink · Healthgenie HB-411 (CID `16`) | LingYang encryption variant. Weight and raw electrical measurement. Compatible clients estimate composition. EL1 targets a different variant. | [LocalScale][localscale] |
+| Fitdays/ICOMON AAA · beatXP SMARTPLUS BXPBMI1004 | Weight uses the AAA port. A separate type `06` frame carries impedance. Linking it to weight from the same weigh-in remains to be implemented. | [Capture-derived specification][beatxp] |
+| Sinocare and IFIT | Weight in manufacturer advertisements. Repetition-based stabilisation in the public decoder requires distinguishing new frames from cached advertisements. | [openScale · Sinocare][os-sinocare] |
 
-### Connexion et services Bluetooth standard
+### Connections and standard Bluetooth services
 
-| Famille et modèles | Données et condition de lecture | Source primaire |
+| Family and models | Data and reading requirements | Primary source |
 | --- | --- | --- |
-| Bluetooth SIG Body Composition Service, appareil conforme au profil WSP | `181B/2A9C` indique le taux de graisse et des champs facultatifs tels que l'impédance, les masses musculaire, maigre et hydrique. Le profil WSP utilise une indication de poids séparée sur `181D/2A9D`. Il faut associer les indications de la même pesée par appareil et utilisateur et réassembler les indications de composition fragmentées. | [Bluetooth SIG · Body Composition Service][bcs] · [GATT Specification Supplement][gss] |
-| A&D UC-352BLE, Samsung Smart Scale GP-BELAD001BP0 | Poids standard. Selon le modèle, liaison appairée ou réglage de l'heure avant la réception. La prise en charge de `2A9D` ne vérifie pas à elle seule le dialogue d'appairage. | [openScale · PlainSigScaleHandler][os-sig] · [BLE Scale Sync][bss] |
-| RENPHO ES-WBE28 et variante A-R003 | Poids via la famille Weight Scale standard. Certains firmwares requièrent des étapes supplémentaires, et A-R003 est expérimental dans la source. | [Guide RENPHO][bss-renpho] |
-| Beurer BF105, BF500, BF600, BF720, BF788, BF950, BF1000 | Services SIG plus gestion des utilisateurs. Le PIN ou consentement GATT, le lien appairé et le créneau selon le modèle conditionnent le résultat. | [Guide Beurer][bss-beurer] · [openScale][os] |
-| Beurer BF450 et Beurer BF915 / Sanitas SBF72 / SBF73 | BF450 possède son propre dialogue. BF915 partage un gestionnaire Sanitas dans openScale. Les SBF72/SBF73 demandent notamment un utilisateur préconfiguré. | [openScale][os] · [Guide Beurer/Sanitas][bss-beurer] |
-| Omron BCM-500, HBF-222T, HBF-227T, HBF-228T, HBF-230T, HBF-702T, KRD-703T et VIVA | Un gestionnaire WLC commun dans openScale. L'association et les commandes de consentement précèdent la lecture. | [openScale][os] |
-| Soehnle Shape 50/100/200 et Style 100 | Poids et résultats de composition documentés, conditionnés par la préconfiguration du premier utilisateur. | [openScale][os] · [BLE Scale Sync][bss] |
-| Salter Health SA00656 / SA00432 | Poids. La balance cesse d'émettre rapidement après la pesée. | [BLE Scale Sync][bss] |
+| Bluetooth SIG Body Composition Service, WSP-compliant device | `181B/2A9C` indicates body fat percentage and optional fields such as impedance, muscle, fat-free and water mass. WSP uses a separate weight indication on `181D/2A9D`. Indications from the same weigh-in must be matched by device and user, and fragmented composition indications reassembled. | [Bluetooth SIG · Body Composition Service][bcs] · [GATT Specification Supplement][gss] |
+| A&D UC-352BLE, Samsung Smart Scale GP-BELAD001BP0 | Standard weight. Depending on model, bonded connection or clock setup before reception. Supporting `2A9D` alone does not verify the pairing dialogue. | [openScale · PlainSigScaleHandler][os-sig] · [BLE Scale Sync][bss] |
+| RENPHO ES-WBE28 and A-R003 variant | Weight through the standard Weight Scale family. Some firmware requires additional steps; A-R003 is experimental in the source. | [RENPHO guide][bss-renpho] |
+| Beurer BF105, BF500, BF600, BF720, BF788, BF950, BF1000 | SIG services plus user management. PIN or GATT consent, bonded connection and model-specific user slot determine results. | [Beurer guide][bss-beurer] · [openScale][os] |
+| Beurer BF450 and Beurer BF915 / Sanitas SBF72 / SBF73 | BF450 has its own dialogue. BF915 shares a Sanitas handler in openScale. SBF72/SBF73 notably require a preconfigured user. | [openScale][os] · [Beurer/Sanitas guide][bss-beurer] |
+| Omron BCM-500, HBF-222T, HBF-227T, HBF-228T, HBF-230T, HBF-702T, KRD-703T and VIVA | Shared WLC handler in openScale. Pairing and consent commands precede reading. | [openScale][os] |
+| Soehnle Shape 50/100/200 and Style 100 | Documented weight and composition results, requiring preconfiguration of the first user. | [openScale][os] · [BLE Scale Sync][bss] |
+| Salter Health SA00656 / SA00432 | Weight. The scale stops transmitting quickly after weighing. | [BLE Scale Sync][bss] |
 
-### Autres connexions GATT publiées
+### Other published GATT connections
 
-Les familles ci-dessous demandent une session GATT avec leurs caractéristiques et, selon le cas, des écritures pour initialiser la pesée. La notation **composition** indique que le projet récupère ou calcule ces résultats. Quand la source identifie les champs transmis, le tableau les précise.
+These families require a GATT session with their characteristics and, where applicable, writes to initialise weighing. **Composition** means the project retrieves or calculates these results. Where the source identifies transmitted fields, the table specifies them.
 
-| Famille / modèles | Données et particularité du protocole | Source primaire |
+| Family / models | Data and protocol specifics | Primary source |
 | --- | --- | --- |
-| Qingniu/QN connecté · RENPHO ES-CS20M, ES-30M, ES-32MD, Elis 1, Kamtron CS20M, FITINDEX, Elektra et Sencor | Poids et impédance sur plusieurs dialectes. Les variantes RENPHO de même nom avec annonce AABB ou service GATT `1A10` suivent d'autres branches. | [Guide QN][bss-qn] · [Décodage des échanges QN][qn] |
-| QN étendu · Arboleaf 19/20 octets, CS10E, CS10G, CS10K, GE Fit Plus CS 10 G | Poids, parfois impédance et résultats de composition transmis. Le profil utilisateur, le dialecte et la clé de profil conditionnent les champs. | [Guide QN][bss-qn] |
-| RENPHO ES-CS20M (service `1A10`) | Protocole propriétaire de certaines révisions. Poids et résistance dans la trame de résultat. | [Guide RENPHO][bss-renpho] |
-| RENPHO ES-26BB-B, Elis Solar R-A012/R-A020 | Même famille de gestionnaires, poids et impédance. | [openScale][os] · [Guide RENPHO][bss-renpho] |
-| RENPHO R-MSC04 MorphoScan Nova | Poids, taux de graisse transmis lorsque l'octet de profil attendu est fourni. | [Guide RENPHO][bss-renpho] |
-| 1byone classique, Eufy T9120 A1, T9146 C1 et T9147 P1 | Poids et impédance à l'issue de la pesée selon modèle. | [openScale][os] · [Client Eufy][eufy] |
-| 1byone nouvelle version | Gestionnaire distinct de la famille classique. Poids et composition, historique selon la source. | [openScale][os] |
-| Terraillon 1BODY CONNECT et 1X-LINE | Gestionnaire BodyConnect commun, poids et composition, historique. | [openScale][os] |
-| Eufy P2 (T9148) / P2 Pro (T9149) | Impédance et événements supplémentaires sur GATT, avec dialogue authentifié. Le P2 Pro peut rapporter la fréquence cardiaque. | [Client Eufy][eufy] · [BLE Scale Sync][bss] |
-| Eufy Smart Scale T9140 | Le client Eufy répertorie ce numéro. La révision de protocole à réutiliser reste à confirmer dans éPI. | [Client Eufy][eufy] |
-| Yunmai Signal / Mini / Mini 2 / SE | Poids. Impédance et parfois taux de graisse calculé par la balance sur certains firmwares. La SE ne fournit pas l'impédance dans BLE Scale Sync. | [openScale][os] · [BLE Scale Sync][bss] |
-| Beurer BF700/BF710/BF800, Runtastic Libra, Sanitas SBF70, SilverCrest SBF75 et Crane | Dialogue Beurer/Sanitas commun. Composition et historique selon modèle. BF710 peut demander un profil créé auparavant dans l'application constructeur. | [openScale][os] · [Guide Beurer/Sanitas][bss-beurer] |
-| Medisana BS430 / BS440 / BS444 | Gestionnaire commun. Poids, composition et historique stocké selon révision. | [openScale][os] · [BLE Scale Sync][bss] |
-| Huawei AH100 et CH100 | Poids et résultats de composition pour le profil transmis. Le dialogue de certaines révisions dépend de l'adresse BLE réelle. | [openScale][os] · [BLE Scale Sync][bss] |
-| Honor CH100S | Gestionnaire spécifique. Poids et composition après dialogue. | [openScale][os] |
-| Huawei Scale 2 Pro / 3 / 3 Pro | Dialogue Hagrid avec identifiants préexistants CAK, C1 et C2, à fournir par le propriétaire. | [openScale][os] |
-| Wyze WHSCL1 et iHealth HS2S / HS2S Pro | Gestionnaire réutilisé. La Wyze WHSCL1 exige sa clé d'appareil. Les iHealth sont indiquées comme non testées matériellement par openScale. | [openScale][os] |
-| Wyze Scale X | Gestionnaire distinct, poids et composition, historique selon openScale. | [openScale][os] |
-| PICOOC Latin-S, PICOOC-CC/CQ/S3, Mini Pro et S3 Lite V2.0 | Poids et impédance. Le même gestionnaire traite des trames de 13 ou 16 octets selon version. | [openScale][os] |
-| QardioBase B100 / QardioBase 2 | Poids et résultats envoyés après identification du profil sur la balance, dont graisse, eau, muscle et os. Dialogue en GATT propriétaire. Le modèle QardioBase X constitue un protocole à confirmer. | [openScale][os] · [Captures LibreBase][librebase] |
-| Withings Body Smart WBS13 et Body Comp WBS12 | GATT local, poids, masses grasse, maigre, musculaire, osseuse et hydrique, fréquence cardiaque et autres champs selon modèle. La Withings Body WBS06 (Nokia Body) exige une connexion Bluetooth Classic pour délivrer le poids. | [Withings Local][withings] |
-| Realme Smart Scale RMH2011 | Poids et composition, lecture de l'historique dans le gestionnaire public. | [openScale][os] |
-| REDMOND SkyBalance RS-73S / RS-744S / RS-745S / RS-762S / RS-773S / RS-78S | Poids transmis dans le dialogue SkyBalance commun. | [openScale][os] |
-| ALPHA Smart Scale PRO 3, Meditive UIP-50, Taylor 5331891 BIA et Urikar Aero I | Gestionnaire Taylor BIA commun. Poids et composition avec contact sur les électrodes. | [openScale][os] |
-| Active Era BF-06/BS-06 et famille AC 27 (Fitdays, Starfit ou Femmto) | Poids et impédance après initialisation et envoi du profil. Les références et variantes AC 27 doivent être confirmées avant d'appliquer le même dialogue. | [openScale][os] · [BLE Scale Sync][bss] |
-| Fitdays FG2202WB, Hoffen HO-36, Lescale F4P, Runstar R6, Sacoma Ultra | Gestionnaire R6 commun dans openScale. L'impédance dépend du contact avec les poignées sur les modèles à 8 électrodes. | [openScale][os] |
-| Runstar R5 | Gestionnaire distinct. Poids et commandes de profil. Les champs de composition restent partiellement interprétés. | [openScale][os] |
-| SWAN / Icomon (MGB, YG), Hutbit 218008/WL292 | Poids et composition dans les implémentations publiées. Hutbit est aussi vendu sous marque SWAN. Vérifier le dialecte avant de fusionner les ports. | [openScale][os] · [BLE Scale Sync][bss] |
-| Robi S9 et Healthkeep S11 / Speediance FG2211WBF | Poids sur Robi et S11. La branche Speediance du même ensemble Lefu/Icomon ajoute des données de composition. | [openScale][os] · [BLE Scale Sync][bss] |
-| HealthKeep 280 | Gestionnaire distinct. Poids et composition selon openScale. | [openScale][os] |
-| Hoffen BBS-8107 / ProfiCare PC-PW 3008 BT | Même firmware Chipsea « WeChat », poids et composition dans le gestionnaire commun. | [openScale][os] · [BLE Scale Sync][bss] |
-| Chipsea-BLE / OKOK International (GATT `FFF0`) | Poids et composition avec connexion. Les modèles diffusant en OKOK sans connexion emploient un autre protocole. | [openScale][os] |
-| Senssun Fat modèle A | GATT `FFF0` propriétaire. Poids et composition. Le modèle B demande une investigation séparée. L'annonce IF_B7 relève d'une autre famille. | [openScale][os] · [BLE Scale Sync][bss] |
-| Excelvan CF36xBLE (CF366/CF369) | Poids et composition. Le gestionnaire commun propose aussi la configuration d'unité. | [openScale][os] · [BLE Scale Sync][bss] |
-| Digoo DG-SO38H (Mengii) | Poids et composition. Initialisation préalable via l'application d'origine selon openScale. | [openScale][os] |
-| Etekcity ESF-551 (dont variante japonaise), ESF-17/18/24, EFS-A591S Apex HR, EFS-C651 | Poids et impédance en connecté. ESF-17/18/24 ont le même protocole dans le client public. Apex HR ajoute la fréquence cardiaque. Les modèles autres qu'ESF-551 sont expérimentaux dans le client. | [Client Etekcity][etekcity] · [openScale][os] |
-| Trisa Body Analyze 4.0 et ADE BA 1600 (fitvigo) | Poids ainsi qu'une résistance dans le protocole, dont l'échelle n'est pas établie comme étant l'ohm. | [Protocole Trisa][os-trisa] · [BLE Scale Sync][bss] |
-| Inlife (FatScale) | Poids et composition dans le dialogue GATT publié. | [openScale][os] · [BLE Scale Sync][bss] |
-| Hesley (YunChen) | Poids et composition dans le dialogue publié. | [openScale][os] · [BLE Scale Sync][bss] |
-| Exingtech Y1 (VScale) | Poids et composition, profils selon openScale. | [openScale][os] · [BLE Scale Sync][bss] |
-| Koogeek S1 | Poids et composition d'après BLE Scale Sync, avec découverte GATT instable dans les essais publiés. | [BLE Scale Sync][bss] |
-| AFU-BH-TZ-B1, Belter/Ebelter Body Fat-B2 (EF-916B4), Dr. Trust SSW532 | Trois gestionnaires distincts. Poids et composition selon le catalogue public. | [openScale][os] |
-| EEBBL Body Fat P1 (8 électrodes), Body Pod 2 | Deux gestionnaires distincts. Poids, avec composition partiellement interprétée dans le catalogue. | [openScale][os] |
-| Cult Smart Scale Pro | GATT `FFF0`, poids et impédance exploitables. La trame de composition propriétaire reste partiellement interprétée. | [openScale][os] · [Captures Cult][cult] |
-| FitTrack Dara 2.0, Hume Health Dara 2.0 | Gestionnaires distincts dans openScale malgré les noms proches. Poids et composition selon variante. | [openScale][os] |
-| Keep S3, Relaxmedic, RyFit (云悦), Vitafit VT701, Weight Gurus 0376 | Gestionnaires distincts dans openScale. Poids et composition, historique seulement selon le modèle. | [openScale][os] |
-| Custom openScale | Profil du pèse-personne DIY, poids et mesures fournies par l'implémentation du périphérique. | [openScale · Custom Bluetooth Scale][os-custom] |
-| Xiaomi Mi Scale v1/v2 en connecté | Lecture de l'historique selon modèle. Ce dialogue s'ajoute au poids déjà lu via les annonces de ces générations. | [openScale][os] |
-| e.volve Fitdays (EAN 8720828067765) | Dialogue GATT avec profil et trames de résultat. Poids et impédance segmentaire à deux fréquences. | [Documentation issue des captures Fitman][fitman] |
-| Activ8rlives Body Analyser | Acceptation d'un profil, poids et champs de composition aux niveaux de confiance documentés. | [Protocole Activ8rlives][activ] |
-| Mondeer et OEM du service `CC08` | Échanges GATT propriétaires, réassemblage des fragments. Poids et composition dans les enregistrements. Les autres marques demandent une capture. | [Mondeer Bluetooth Scale][mondeer] |
-| Tanita BC-401 | Captures publiques du dialogue, du poids et de la composition affichée. L'identification de tous les champs sur le fil reste à confirmer. | [Captures ouvertes Tanita][tanita] |
+| Connected Qingniu/QN · RENPHO ES-CS20M, ES-30M, ES-32MD, Elis 1, Kamtron CS20M, FITINDEX, Elektra and Sencor | Weight and impedance across several dialects. Same-name RENPHO variants with AABB advertisements or GATT `1A10` use other branches. | [QN guide][bss-qn] · [QN exchange decoding][qn] |
+| Extended QN · Arboleaf 19/20 bytes, CS10E, CS10G, CS10K, GE Fit Plus CS 10 G | Weight, sometimes transmitted impedance and composition results. User profile, dialect and profile key determine fields. | [QN guide][bss-qn] |
+| RENPHO ES-CS20M (`1A10` service) | Proprietary protocol on some revisions. Weight and resistance in the result frame. | [RENPHO guide][bss-renpho] |
+| RENPHO ES-26BB-B, Elis Solar R-A012/R-A020 | Same handler family, weight and impedance. | [openScale][os] · [RENPHO guide][bss-renpho] |
+| RENPHO R-MSC04 MorphoScan Nova | Weight and transmitted fat percentage when the expected profile byte is supplied. | [RENPHO guide][bss-renpho] |
+| Classic 1byone, Eufy T9120 A1, T9146 C1 and T9147 P1 | Weight and impedance after weighing depending on model. | [openScale][os] · [Eufy client][eufy] |
+| New-version 1byone | Separate handler from classic family. Weight and composition, history according to source. | [openScale][os] |
+| Terraillon 1BODY CONNECT and 1X-LINE | Shared BodyConnect handler, weight, composition and history. | [openScale][os] |
+| Eufy P2 (T9148) / P2 Pro (T9149) | Impedance and additional GATT events with authenticated dialogue. P2 Pro may report heart rate. | [Eufy client][eufy] · [BLE Scale Sync][bss] |
+| Eufy Smart Scale T9140 | Listed by the Eufy client. Protocol revision to reuse in éPI remains to be confirmed. | [Eufy client][eufy] |
+| Yunmai Signal / Mini / Mini 2 / SE | Weight. Impedance and sometimes scale-calculated fat percentage on some firmware. SE does not provide impedance in BLE Scale Sync. | [openScale][os] · [BLE Scale Sync][bss] |
+| Beurer BF700/BF710/BF800, Runtastic Libra, Sanitas SBF70, SilverCrest SBF75 and Crane | Shared Beurer/Sanitas dialogue. Composition and history depending on model. BF710 may require a profile previously created in the manufacturer's application. | [openScale][os] · [Beurer/Sanitas guide][bss-beurer] |
+| Medisana BS430 / BS440 / BS444 | Shared handler. Weight, composition and stored history depending on revision. | [openScale][os] · [BLE Scale Sync][bss] |
+| Huawei AH100 and CH100 | Weight and composition results for the supplied profile. Some revisions depend on the real BLE address. | [openScale][os] · [BLE Scale Sync][bss] |
+| Honor CH100S | Specific handler. Weight and composition after dialogue. | [openScale][os] |
+| Huawei Scale 2 Pro / 3 / 3 Pro | Hagrid dialogue with existing CAK, C1 and C2 credentials supplied by the owner. | [openScale][os] |
+| Wyze WHSCL1 and iHealth HS2S / HS2S Pro | Reused handler. Wyze WHSCL1 requires its device key. openScale marks iHealth models as not hardware-tested. | [openScale][os] |
+| Wyze Scale X | Separate handler, weight, composition and history according to openScale. | [openScale][os] |
+| PICOOC Latin-S, PICOOC-CC/CQ/S3, Mini Pro and S3 Lite V2.0 | Weight and impedance. The same handler processes 13- or 16-byte frames depending on version. | [openScale][os] |
+| QardioBase B100 / QardioBase 2 | Weight and results after profile identification on the scale, including fat, water, muscle and bone. Proprietary GATT dialogue. QardioBase X protocol remains to be confirmed. | [openScale][os] · [LibreBase captures][librebase] |
+| Withings Body Smart WBS13 and Body Comp WBS12 | Local GATT: weight, fat, fat-free, muscle, bone and water masses, heart rate and other model-dependent fields. Withings Body WBS06 (Nokia Body) requires Bluetooth Classic to deliver weight. | [Withings Local][withings] |
+| Realme Smart Scale RMH2011 | Weight and composition, history reading in the public handler. | [openScale][os] |
+| REDMOND SkyBalance RS-73S / RS-744S / RS-745S / RS-762S / RS-773S / RS-78S | Weight transmitted in the shared SkyBalance dialogue. | [openScale][os] |
+| ALPHA Smart Scale PRO 3, Meditive UIP-50, Taylor 5331891 BIA and Urikar Aero I | Shared Taylor BIA handler. Weight and composition with electrode contact. | [openScale][os] |
+| Active Era BF-06/BS-06 and AC 27 family (Fitdays, Starfit or Femmto) | Weight and impedance after initialisation and profile transmission. AC 27 references and variants must be confirmed before applying the same dialogue. | [openScale][os] · [BLE Scale Sync][bss] |
+| Fitdays FG2202WB, Hoffen HO-36, Lescale F4P, Runstar R6, Sacoma Ultra | Shared R6 handler in openScale. Impedance depends on handle contact on eight-electrode models. | [openScale][os] |
+| Runstar R5 | Separate handler. Weight and profile commands. Composition fields remain partly interpreted. | [openScale][os] |
+| SWAN / Icomon (MGB, YG), Hutbit 218008/WL292 | Weight and composition in published implementations. Hutbit is also sold as SWAN. Check dialect before merging ports. | [openScale][os] · [BLE Scale Sync][bss] |
+| Robi S9 and Healthkeep S11 / Speediance FG2211WBF | Weight on Robi and S11. The Speediance branch of the same Lefu/Icomon group adds composition data. | [openScale][os] · [BLE Scale Sync][bss] |
+| HealthKeep 280 | Separate handler. Weight and composition according to openScale. | [openScale][os] |
+| Hoffen BBS-8107 / ProfiCare PC-PW 3008 BT | Same Chipsea “WeChat” firmware, weight and composition in the shared handler. | [openScale][os] · [BLE Scale Sync][bss] |
+| Chipsea-BLE / OKOK International (GATT `FFF0`) | Connected weight and composition. Connectionless OKOK broadcast models use another protocol. | [openScale][os] |
+| Senssun Fat model A | Proprietary GATT `FFF0`. Weight and composition. Model B needs separate investigation. IF_B7 advertisements belong to another family. | [openScale][os] · [BLE Scale Sync][bss] |
+| Excelvan CF36xBLE (CF366/CF369) | Weight and composition. Shared handler also provides unit configuration. | [openScale][os] · [BLE Scale Sync][bss] |
+| Digoo DG-SO38H (Mengii) | Weight and composition. Prior initialisation through the original application according to openScale. | [openScale][os] |
+| Etekcity ESF-551 (including Japanese variant), ESF-17/18/24, EFS-A591S Apex HR, EFS-C651 | Connected weight and impedance. ESF-17/18/24 share a protocol in the public client. Apex HR adds heart rate. Models other than ESF-551 are experimental in the client. | [Etekcity client][etekcity] · [openScale][os] |
+| Trisa Body Analyze 4.0 and ADE BA 1600 (fitvigo) | Weight and protocol resistance whose scale has not been established as ohms. | [Trisa protocol][os-trisa] · [BLE Scale Sync][bss] |
+| Inlife (FatScale) | Weight and composition in published GATT dialogue. | [openScale][os] · [BLE Scale Sync][bss] |
+| Hesley (YunChen) | Weight and composition in published dialogue. | [openScale][os] · [BLE Scale Sync][bss] |
+| Exingtech Y1 (VScale) | Weight, composition and profiles according to openScale. | [openScale][os] · [BLE Scale Sync][bss] |
+| Koogeek S1 | Weight and composition according to BLE Scale Sync, with unstable GATT discovery in published tests. | [BLE Scale Sync][bss] |
+| AFU-BH-TZ-B1, Belter/Ebelter Body Fat-B2 (EF-916B4), Dr. Trust SSW532 | Three separate handlers. Weight and composition according to public catalogue. | [openScale][os] |
+| EEBBL Body Fat P1 (8 electrodes), Body Pod 2 | Two separate handlers. Weight, with partly interpreted composition in the catalogue. | [openScale][os] |
+| Cult Smart Scale Pro | GATT `FFF0`, usable weight and impedance. Proprietary composition frame remains partly interpreted. | [openScale][os] · [Cult captures][cult] |
+| FitTrack Dara 2.0, Hume Health Dara 2.0 | Separate openScale handlers despite similar names. Weight and composition depending on variant. | [openScale][os] |
+| Keep S3, Relaxmedic, RyFit (云悦), Vitafit VT701, Weight Gurus 0376 | Separate openScale handlers. Weight and composition, history only on some models. | [openScale][os] |
+| Custom openScale | DIY bathroom scale profile, weight and measurements supplied by the peripheral implementation. | [openScale · Custom Bluetooth Scale][os-custom] |
+| Connected Xiaomi Mi Scale v1/v2 | History reading depending on model, in addition to weight already read through these generations' advertisements. | [openScale][os] |
+| e.volve Fitdays (EAN 8720828067765) | GATT dialogue with profile and result frames. Weight and dual-frequency segmental impedance. | [Fitman capture-derived documentation][fitman] |
+| Activ8rlives Body Analyser | Profile acceptance, weight and composition fields at documented confidence levels. | [Activ8rlives protocol][activ] |
+| Mondeer and `CC08` service OEMs | Proprietary GATT exchanges with fragment reassembly. Weight and composition in records. Other brands need captures. | [Mondeer Bluetooth Scale][mondeer] |
+| Tanita BC-401 | Public captures of dialogue, weight and displayed composition. Identification of all on-wire fields remains to be confirmed. | [Open Tanita captures][tanita] |
 
-Le catalogue openScale comporte aussi des entrées historiques telles que Beurer BF850, SilverCrest SBF77, Easy Home 64050, Accuway, Vigorun et Quanta QTBL10. Leur référence de firmware, leur transport et leur format restent à recouper avec les gestionnaires actuels ou une capture avant de leur attribuer un port. [Catalogue historique openScale][os]
+The openScale catalogue also contains historical entries such as Beurer BF850, SilverCrest SBF77, Easy Home 64050, Accuway, Vigorun and Quanta QTBL10. Firmware references, transport and format still need cross-checking against current handlers or captures before assigning a port. [Historical openScale catalogue][os]
 
-Le périmètre d'éPI est le pèse-personne. Bluetooth classique (par exemple iHealth HS3), Wi-Fi comme seul canal de pesée et balances de cuisine (par exemple Atomax Skale I/II) relèvent d'autres usages ou transports. [openScale][os] · [Theengs · Atomax][atomax]
+éPI covers bathroom scales. Bluetooth Classic (e.g. iHealth HS3), Wi-Fi as the sole weighing channel and kitchen scales (e.g. Atomax Skale I/II) involve other uses or transports. [openScale][os] · [Theengs · Atomax][atomax]
 
-## Ajouter un modèle
+## Adding a model
 
-Pour un format existant, rattacher la signature ou l'alias au port du protocole dans [shared/scales](../shared/scales/). Pour un nouveau format, ajouter un port et documenter son transport, la signature, les longueurs, l'ordre des octets, les unités et les drapeaux d'état. Utiliser une trame stable et des trames incomplètes ou étrangères pour vérifier le rejet des faux positifs. Une balance peut nécessiter une capture sur chaque révision matérielle.
+For an existing format, attach the signature or alias to the protocol port in [shared/scales](../shared/scales/). For a new format, add a port and document transport, signature, lengths, byte order, units and status flags. Use a stable frame and incomplete or unrelated frames to check false-positive rejection. A scale may require a capture for each hardware revision.
 
 [es26]: https://github.com/oliexdev/openScale/pull/1522#issuecomment-5768356209
 [eufy-c20]: https://github.com/Skriipt/eufy-smart-scale-ble/blob/main/custom_components/eufy_smart_scale_ble/protocols/c20.py

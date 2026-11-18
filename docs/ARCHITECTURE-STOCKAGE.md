@@ -1,50 +1,50 @@
-# Ports et adapters de stockage
+# Storage ports and adapters
 
-Le choix d’un stockage se fait dans tauri/src/storage/adapters.js, via createStorageAdapter. L’interface utilise un port de session stable, sans décider elle-même où écrire chaque objet. Le moteur métier conserve son port de persistance load()/save(state, previous).
+Storage is selected in tauri/src/storage/adapters.js through createStorageAdapter. The interface uses a stable session port without deciding where to write each object. The domain engine retains its persistence port, load()/save(state, previous).
 
-## Stockages séparés
+## Separate storage backends
 
-| Adapter | Déploiements | Persistance et comportement |
+| Adapter | Deployments | Persistence and behaviour |
 | --- | --- | --- |
-| native-files | APK/iOS et applications Windows, Linux, macOS | Commandes Tauri vers les fichiers Rust. Répertoire privé mobile, dossier applicatif ou portable sur PC. Chemins, verrous, jeux par compte et fonctionnement hors connexion conservés. |
-| personal-api | Web personnel, dev-web et release Node personnelle | Actions HTTP vers l’installation Node locale, qui conserve ses fichiers et son jeu actif commun avec Tauri/CLI. Aucun choix automatique de localStorage sur ce déploiement. |
-| hosted-api | Web partagé, compte PRO confirmé et navigateur sans usage local | Actions HTTP vers le jeu du compte sur le serveur. Authentification et abonnement PRO contrôlés côté serveur avant lecture ou écriture. Pas de file de synchronisation cliente. |
-| preview | Aperçu de développement du client Tauri dans un navigateur | Simulation historique dans localStorage, sans synchronisation. Comportement conservé, isolé du nouveau mode utilisateur. |
-| browser-local | Web partagé anonyme, FREE ou déjà utilisé localement | localStorage de cette origine et de ce navigateur. Jeux séparés par compte, journal durable et synchronisation exclusivement PRO. |
+| native-files | APK/iOS and Windows, Linux and macOS applications | Tauri commands access files through Rust. Private mobile directory, application or portable directory on desktop. Paths, locks, account datasets and offline behaviour are preserved. |
+| personal-api | Personal web, dev-web and personal Node release | HTTP actions against the local Node installation, retaining its files and the active dataset shared with Tauri/CLI. No automatic localStorage selection in this deployment. |
+| hosted-api | Shared web, confirmed PRO account and browser without local usage | HTTP actions against the account dataset on the server. Authentication and PRO subscription checked by the server before reading or writing. No client synchronisation queue. |
+| preview | Development preview of the Tauri client in a browser | Existing localStorage simulation without synchronisation. Behaviour preserved and isolated from the new user mode. |
+| browser-local | Anonymous, FREE or previously used locally on shared web | localStorage for this origin and browser. Separate account datasets, durable journal and PRO-only synchronisation. |
 
-Les trois premiers modes et la simulation existaient avant cette extraction. browser-local est le nouveau mode utilisateur. Le CLI garde ses modules de fichiers Node et le même protocole JSON ; il ne passe pas par la façade de session de l’interface graphique. Le serveur utilise toujours web/file-storage.js pour la persistance et SQLite pour les comptes et échanges de synchronisation.
+The first three modes and the simulation existed before this extraction. browser-local is the new user mode. The CLI retains its Node file modules and the same JSON protocol; it does not use the graphical interface's session façade. The server still uses web/file-storage.js for persistence and SQLite for accounts and synchronisation exchanges.
 
-## Contrats
+## Contracts
 
-- **SessionPort** : open(options) retourne les actions du moteur métier avec les mêmes retours et notifications, ainsi que les imports/exports de fichiers lorsque disponibles. Les adapters HTTP exécutent ces actions côté serveur ; les adapters locaux injectent leur persistance dans le moteur du client.
-- **DatasetPort** : context, prepare, activate, logout, et confirmSync pour les stockages synchronisables. Il sépare la sélection d’un compte de sa persistance et de son jeton. Le web partagé ajoute select(info) après confirmation des droits.
-- **PersistencePort** : load, save, exportFiles, importFiles, pendingTransactions, archiveTransactions, integrateTransactions pour les données locales complètes. Le moteur n’exige que load/save, avec l’intégration de transactions en capacité supplémentaire. Les API ne simulent pas une sauvegarde d’instantané : leurs garanties de concurrence restent côté serveur.
+- **SessionPort**: open(options) returns domain engine actions with the same return values and notifications, plus file imports/exports where available. HTTP adapters execute these actions on the server; local adapters inject their persistence into the client engine.
+- **DatasetPort**: context, prepare, activate, logout and confirmSync for storage that supports synchronisation. Separates account selection from persistence and its token. Shared web adds select(info) after entitlements are confirmed.
+- **PersistencePort**: load, save, exportFiles, importFiles, pendingTransactions, archiveTransactions and integrateTransactions for complete local data. The engine requires only load/save, with transaction integration as an additional capability. APIs do not simulate snapshot saving: concurrency guarantees remain on the server.
 
-Les propriétés kind, remote et synchronizes expriment les capacités de l’adapter. La connexion au compte, les dialogues de fusion, les protections de génération et le transfert PRO des transactions restent distincts. Un autre support fournit les mêmes contrats et s’inscrit dans la composition, sans disperser des branches de stockage dans l’interface.
+The kind, remote and synchronizes properties express adapter capabilities. Account login, merge dialogues, generation safeguards and PRO transaction transfers remain separate. Another backend implements the same contracts and joins the composition without scattering storage branches throughout the interface.
 
-## Sélection du web partagé
+## Shared web selection
 
-| Situation | Résultat |
+| Situation | Result |
 | --- | --- |
-| Visite anonyme sans enregistrement | Adapter navigateur, sans flag par la seule visite. |
-| Premier enregistrement anonyme | Adapter navigateur ; mémorisation durable de l’usage local. |
-| Compte confirmé FREE, même sans données | Adapter navigateur ; mémorisation immédiate de l’usage local. Aucun accès aux données serveur ni transfert entre navigateurs. |
-| Compte confirmé PRO sans usage local | Adapter API hébergée. Les autres navigateurs PRO en mode API accèdent au même jeu serveur. |
-| Compte PRO avec usage local mémorisé | Adapter navigateur conservé ; première réconciliation puis synchronisation PRO existante. |
-| Passage FREE vers PRO | Reste local ; réconciliation des données distantes comme pour les applications installées. |
-| Passage API PRO vers FREE dans un écran ouvert | Le dernier état chargé de ce compte devient un jeu navigateur et l’usage local est mémorisé. Les fichiers serveur restent conservés et deviennent inaccessibles en FREE. |
-| Vérification d’abonnement indisponible | Ne confirme pas FREE et ne crée pas de flag par erreur. Le serveur fournit entitlementVerified: false pour ses droits de secours ; une panne de l’API ne déclenche pas de bascule implicite. |
+| Anonymous visit without saving | Browser adapter; visiting alone sets no flag. |
+| First anonymous save | Browser adapter; local usage recorded durably. |
+| Confirmed FREE account, even without data | Browser adapter; local usage recorded immediately. No server data access or transfer between browsers. |
+| Confirmed PRO account without local usage | Hosted API adapter. Other PRO browsers in API mode access the same server dataset. |
+| PRO account with recorded local usage | Browser adapter retained; initial reconciliation followed by existing PRO synchronisation. |
+| FREE to PRO upgrade | Remains local; remote data reconciled as in installed applications. |
+| PRO API to FREE downgrade in an open screen | The account's last loaded state becomes a browser dataset and local usage is recorded. Server files are retained but inaccessible on FREE. |
+| Subscription verification unavailable | Does not confirm FREE or accidentally create a flag. The server returns entitlementVerified: false for fallback entitlements; an API outage causes no implicit switch. |
 
-La sélection automatique concerne uniquement le build hosted. Les builds natifs et le web personnel conservent leur fonctionnement.
+Automatic selection applies only to the hosted build. Native builds and personal web retain their behaviour.
 
-Le document epi-browser-storage-v1 contient le flag usageLocal, la sélection et sa génération, les données par compte, les journaux, les suppressions et les copies de récupération. La présence de données empêche aussi une bascule automatique si un flag a été retiré manuellement. Un nouveau compte ne récupère jamais les données locales d’un autre compte. Après rattachement, la déconnexion désélectionne le compte et verrouille ses données sans les effacer.
+The epi-browser-storage-v1 document contains the usageLocal flag, selection and generation, account data, journals, deletions and recovery copies. Existing data also prevents an automatic switch if a flag has been removed manually. A new account never inherits another account's local data. After linking, logout deselects the account and locks its data without deleting it.
 
-## Durabilité et limites
+## Durability and limitations
 
-Une mutation navigateur écrit données et journal dans un seul localStorage.setItem. Un dépassement de quota ou une indisponibilité fait échouer l’action sans annoncer de succès ni remplacer le document précédent. Les écritures vérifient le jeu, sa génération et l’état chargé ; une modification concurrente déclenche le rechargement plutôt qu’un écrasement. Les Web Locks sérialisent les mutations entre onglets quand disponibles ; les autres navigateurs conservent le contrôle optimiste, sans garantie de sérialisation entre processus.
+A browser mutation writes data and journal in a single localStorage.setItem. Quota exhaustion or unavailable storage fails the action without reporting success or replacing the previous document. Writes check the dataset, generation and loaded state; concurrent changes trigger a reload rather than an overwrite. Web Locks serialise mutations between tabs where available; other browsers retain optimistic checks without guaranteed serialisation between processes.
 
-Le journal utilise les mêmes chemins, UUID, versions et noms de transactions que les fichiers Node/Rust. Les suppressions empêchent la réapparition d’une ancienne écriture. Les ZIP incluent préférences, notifications, pesées en attente, vues et historique ; les entrées entrantes validées sont rejouées et remises en attente. Le premier transfert garde la révision distante revue. Une réparation du même compte conserve les écritures locales plus récentes et les suppressions.
+The journal uses the same paths, UUIDs, versions and transaction names as Node/Rust files. Deletions prevent old writes from reappearing. ZIPs include preferences, notifications, pending weigh-ins, views and history; validated incoming entries are replayed and queued again. The first transfer retains the reviewed remote revision. Repairing the same account preserves newer local writes and deletions.
 
-Les données locales sont soumises au quota et à l’effacement du navigateur, à son profil et à l’origine web ; ce mode n’est pas une sauvegarde externe ni un chiffrement. Journaux et copies de récupération consomment aussi du quota. FREE ne partage rien entre navigateurs. PRO conserve les droits et la synchronisation des autres clients locaux. L’API commune évite une file cliente ; un écran déjà affiché doit encore être rechargé pour refléter une modification distante.
+Local data is subject to browser quota and clearing, browser profile and web origin; this mode provides neither an external backup nor encryption. Journals and recovery copies also consume quota. FREE shares nothing between browsers. PRO retains the entitlements and synchronisation of other local clients. The shared API avoids a client queue; an already displayed screen still needs reloading to reflect a remote change.
 
-Les tests couvrent sélection, redémarrage, séparation des comptes, quotas, concurrence, échanges avec le stockage Node et parcours du client hébergé compilé dans Chrome. Les exécutables et appareils physiques gardent leur validation propre ; cette refactorisation ne modifie pas le code Rust.
+Tests cover selection, restart, account separation, quotas, concurrency, exchanges with Node storage and compiled hosted-client flows in Chrome. Executables and physical devices require their own validation; this refactoring does not change Rust code.

@@ -1,32 +1,32 @@
-# Spécifications éPI Tauri 2
+# éPI Tauri 2 specifications
 
-## Inventaire CLI
+## CLI inventory
 
-| Fonction CLI | Interface Tauri |
+| CLI feature | Tauri interface |
 | --- | --- |
-| Scanner Windows, annonces Xiaomi et indications GATT, messages d’état | Écoute continue dès le lancement, via le Bluetooth natif |
-| Pesées stables uniquement, trames déchargées et doublons écartés, 15 s d’attente de l’impédance Xiaomi, GATT immédiat | Même décodage et règles, pour plusieurs pesées par lancement |
-| `--mac` ou appareil nommé, identification BLE `--identify`, trames `--raw`, enregistrement JSON | Filtre d’adresse, liste d’appareils et journal Bluetooth, historique et détail des trames |
-| `--seconds`, aide et redirection de la sortie | Options propres au terminal. L’interface reste ouverte et propose le détail des données ainsi que l’export ZIP |
-| Création de fiche par nom ou après détection, reconnaissance par adresse, enrichissement BLE et modèle de balance | Création et actualisation par pesée reçue, édition du nom affiché, champs issus du Bluetooth en lecture seule |
-| Choix du profil par nom, préfixe sans casse ni accents, clarification interactive, profil imposé par argument | Sélecteur de profil, choix mémorisé et utilisé pour l’affichage |
-| Création et modification du sexe utilisé par les formules, date de naissance ou âge entier, taille, profil de session sans nom | Formulaire de profil, nom de fiche conservé pour maintenir le lien avec l’historique. Attribution manuelle des pesées sans correspondance |
-| Plus proche dernier poids à ±10 %, proposition de choisir ou créer un profil | Même règle automatique. La sélection bascule vers le profil identifié ou confirmé |
-| Poids en kg/lb, impédance, date locale/UTC, provenance et trame brute, copie instantanée de la fiche, comparaison des 13 méthodes | Historique du profil avec date et poids fixes, choix des colonnes, méthodes côte à côte avec icône et couleur, accès aux éléments de réception |
-| Fichiers JSON de profils, balances et mesures horodatées, suffixe en cas de collision | Répertoire et formats partagés sur PC, stockage privé sur mobile, fusion et sauvegarde ZIP |
+| Windows scanner, Xiaomi advertisements and GATT indications, status messages | Continuous listening from startup through native Bluetooth |
+| Stable weigh-ins only, unloaded frames and duplicates discarded, 15-second wait for Xiaomi impedance, immediate GATT | Same decoding and rules, with multiple weigh-ins per launch |
+| `--mac` or named device, `--identify` BLE identification, `--raw` frames, JSON recording | Address filter, device list and Bluetooth log, frame history and details |
+| `--seconds`, help and output redirection | Terminal-specific options. The interface stays open and provides data details and ZIP export |
+| Record creation by name or after detection, address recognition, BLE enrichment and scale model | Creation and update on received weigh-ins, display-name editing, read-only Bluetooth fields |
+| Profile selection by name, case- and accent-insensitive prefix, interactive clarification, profile forced by argument | Profile selector, remembered choice used for display |
+| Creating and editing sex used by formulae, date of birth or integer age, height, unnamed session profile | Profile form, record name preserved to retain history links. Manual assignment of unmatched weigh-ins |
+| Closest latest weight within ±10%, choice to select or create a profile | Same automatic rule. Selection switches to the identified or confirmed profile |
+| Weight in kg/lb, impedance, local/UTC date, provenance and raw frame, record snapshot, comparison of 13 methods | Profile history with fixed date and weight, column selection, methods side by side with icons and colours, access to reception details |
+| JSON files for profiles, scales and timestamped measurements, collision suffix | Shared desktop directory and formats, private mobile storage, ZIP merge and backup |
 
-Les estimations affichées réutilisent les valeurs déjà écrites dans chaque pesée. Une modification du profil s’applique aux futures pesées. Les méthodes IMC, Mi, Sun, Janssen, Deurenberg 1990/1991, CUN-BAE, Watson, Hume–Weyers, Mifflin–St Jeor, Harris–Benedict, Owen et Cunningham gardent les calculs du CLI.
+Displayed estimates reuse values already written into each weigh-in. Profile changes apply to future weigh-ins. BMI, Mi, Sun, Janssen, Deurenberg 1990/1991, CUN-BAE, Watson, Hume–Weyers, Mifflin–St Jeor, Harris–Benedict, Owen and Cunningham retain CLI calculations.
 
-## Historique et détail des pesées
+## Weigh-in history and details
 
-- Dans l’historique, les en-têtes et les cellules permettent de déplacer une colonne ou un groupe de colonnes. Un clic sur un en-tête compatible alterne entre les modes rassemblé et éclaté. Le mode éclaté affiche la moyenne avant les méthodes.
-- Dans le détail, le tableau s’affiche sur toute sa hauteur et la fenêtre assure le défilement vertical. L’en-tête reste visible tant que le tableau défile sous lui. La colonne « Donnée » reste visible lors du défilement horizontal du tableau.
-- À la souris et au toucher, les en-têtes permettent de réordonner les colonnes de méthodes et les sections du détail. La légende « Méthodes de calcul » suit l’ordre des colonnes. Les deux ordres sont mémorisés pour le profil actif. Un clic ou un appui simple ouvre le lien de la méthode ou bascule la section.
+- In history, headers and cells allow moving a column or column group. Clicking a compatible header toggles grouped and expanded modes. Expanded mode displays the average before individual methods.
+- In details, the table displays at full height and the window scrolls vertically. The header remains visible while the table scrolls beneath it. The **Metric** column remains visible during horizontal table scrolling.
+- With mouse or touch, headers reorder method columns and detail sections. The **Calculation methods** legend follows column order. Both orders are remembered for the active profile. A click or tap opens the method link or toggles the section.
 
-## Développement et vérification
+## Development and verification
 
-1. Isoler le CLI dans `cli/`. Déplacer en modules communs le décodage, les métadonnées, les profils et les calculs. Vérifier la suite du CLI et l’aide.
-2. Implémenter l’acquisition et l’attribution dans un domaine JavaScript indépendant de l’interface, avec stockage injecté. Simuler Xiaomi et GATT, la stabilisation, l’enregistrement, l’identification, les nouvelles fiches et les erreurs de stockage.
-3. Brancher le Bluetooth dans Tauri par plateforme, lier l’interface et les JSON CLI via IPC, puis tester le stockage et la fusion ZIP.
-4. Tester dans un navigateur les parcours de gestion, la confirmation manuelle et automatique, la persistance, les colonnes et la mise en page mobile.
-5. Vérifier le build par cible et lancer les essais physiques avec les balances en dernier.
+1. Isolate the CLI in `cli/`. Move decoding, metadata, profiles and calculations into shared modules. Check the CLI suite and help.
+2. Implement acquisition and assignment in a JavaScript domain independent of the interface, with injected storage. Simulate Xiaomi and GATT, stabilisation, saving, identification, new records and storage errors.
+3. Connect platform Bluetooth in Tauri, link the interface and CLI JSON through IPC, then test storage and ZIP merging.
+4. Test management flows, manual and automatic confirmation, persistence, columns and mobile layout in a browser.
+5. Check builds per target and perform physical scale tests last.

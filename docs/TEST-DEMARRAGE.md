@@ -1,18 +1,18 @@
-# Vérifier le démarrage d’éPI
+# Checking éPI startup
 
-Depuis la racine du dépôt, lance `node scripts/test-launchers.cjs`. Le test exécute les lanceurs de production de la plateforme dans des dossiers temporaires dont le chemin contient des espaces. Il couvre le binaire absent, à jour ou périmé, ainsi que l’échec d’un build avec un ancien binaire encore présent. Il vérifie le dossier de démarrage, la transmission d’un argument contenant des espaces et le code de sortie du CLI. La fixture doit produire 48 pesées et conserver ce total au second lancement.
+From the repository root, run `node scripts/test-launchers.cjs`. The test executes the platform's production launchers in temporary directories whose paths contain spaces. It covers missing, current and stale binaries, and a failed build with an old binary still present. It checks the working directory, forwarding an argument containing spaces and the CLI exit code. The fixture must produce 48 weigh-ins and retain that total on a second run.
 
-Pour exercer aussi les scripts shell sous Windows, utilise Git Bash avec `$env:EPI_SMOKE_BASH = 'C:/Program Files/Git/bin/bash.exe'` avant de relancer la commande. Les exécutables et les builds de cette suite sont simulés.
+To exercise shell scripts on Windows too, use Git Bash by setting `$env:EPI_SMOKE_BASH = 'C:/Program Files/Git/bin/bash.exe'` before rerunning the command. Executables and builds in this suite are simulated.
 
-## Essai sur un poste Linux
+## Testing on Linux
 
-1. Dans un terminal, crée un dossier de données séparé avec `export EPI_DATA_DIR="$(mktemp -d)"`, puis lance `sh run/fixture.sh`.
-2. Lance `sh éPI.sh`, puis ferme l’application et lance `sh run/dev/tauri.sh`. Dans chaque fenêtre, vérifie les styles dès l’ouverture, sélectionne le profil `test` et vérifie les 48 pesées.
-3. Lance `sh run/cli.sh --help` et `sh run/dev/cli.sh --help`. Chaque commande doit afficher l’aide et sortir avec le code 0.
-4. Installe le paquet `.deb` ou lance l’AppImage sur une distribution compatible. Vérifie le démarrage depuis un dossier extérieur au dépôt avec le même `EPI_DATA_DIR`, puis ouvre le profil de test.
+1. In a terminal, create a separate data directory with `export EPI_DATA_DIR="$(mktemp -d)"`, then run `sh run/fixture.sh`.
+2. Run `sh éPI.sh`, close the application, then run `sh run/dev/tauri.sh`. In each window, check styling on startup, select the `test` profile and verify the 48 weigh-ins.
+3. Run `sh run/cli.sh --help` and `sh run/dev/cli.sh --help`. Each command must display help and exit with code 0.
+4. Install the `.deb` package or run the AppImage on a compatible distribution. Check startup from a directory outside the repository with the same `EPI_DATA_DIR`, then open the test profile.
 
-## Paquets et balance
+## Packages and scales
 
-- Sous Windows, valide le MSI ou le programme NSIS sur un poste ou une VM de test. Ouvre éPI depuis son raccourci, importe un ZIP de données de test et vérifie les styles et les 48 pesées.
-- Sur un appareil Android de test, installe l’APK avec `adb install -r release/android/epi-debug.apk`. Ouvre éPI depuis le lanceur Android, accepte les permissions Bluetooth, importe le ZIP de test et vérifie le même profil.
-- Sous Windows, lance `run\cli.bat --identify --seconds 30`, puis `run\dev\cli.bat --identify --seconds 30`. Réveille la balance pendant chaque écoute et vérifie qu’une annonce correspond à la balance. Le mode identification permet de vérifier la réception sans enregistrer de pesée.
+- On Windows, validate the MSI or NSIS installer on a test machine or VM. Open éPI from its shortcut, import a test data ZIP and check styling and the 48 weigh-ins.
+- On a test Android device, install the APK with `adb install -r release/android/epi-debug.apk`. Open éPI from the Android launcher, accept Bluetooth permissions, import the test ZIP and check the same profile.
+- On Windows, run `run\cli.bat --identify --seconds 30`, then `run\dev\cli.bat --identify --seconds 30`. Wake the scale during each listening period and check that an advertisement matches it. Identification mode checks reception without saving a weigh-in.

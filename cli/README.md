@@ -1,52 +1,52 @@
 # éPI
 
-éPI collecte les pesées Bluetooth Low Energy (BLE) des appareils à proximité. Il décode les annonces Xiaomi et celles de plusieurs fabricants. Pour les balances standard, il reçoit la caractéristique Weight Measurement (2A9D) du service GATT Weight Scale (181D). Voir le [catalogue des balances et protocoles](../docs/BALANCES-BLE.md).
+éPI collects Bluetooth Low Energy (BLE) weigh-ins from nearby devices. It decodes Xiaomi advertisements and those of several manufacturers. For standard scales, it receives the Weight Measurement characteristic (2A9D) of the GATT Weight Scale service (181D). See the [scales and protocols catalogue](../docs/BALANCES-BLE.md).
 
-## Démarrer
+## Getting started
 
-Sous Windows 10 ou 11 x64, lance `release/cli/windows/epi-cli.exe`. Tu peux copier ce fichier seul. Il embarque Node.js et le scanner Bluetooth, qui utilise les composants .NET Framework et WinRT fournis par Windows.
+On Windows 10 or 11 x64, run `release/cli/windows/epi-cli.exe`. You can copy this file alone. It embeds Node.js and the Bluetooth scanner, which uses the .NET Framework and WinRT components supplied by Windows.
 
-Sous Linux, lance `./release/cli/linux/epi-cli --help`. Le binaire embarque Node.js. Le scan Bluetooth du CLI reste réservé à Windows.
+On Linux, run `./release/cli/linux/epi-cli --help`. The binary embeds Node.js. CLI Bluetooth scanning remains Windows-only.
 
-Le CLI suit le même [ordre de recherche des données](../README.md#données) que l’interface de bureau.
+The CLI follows the same [data discovery order](../README.md#data) as the desktop interface.
 
-Dans le dépôt, lance `run/cli.bat` depuis la racine du dépôt. Au premier lancement, le script prépare Node.js, vérifie les composants .NET Framework et WinRT fournis par Windows et compile le lecteur Bluetooth. La release se trouve dans `release/cli/windows/`.
+In the repository, run `run/cli.bat` from the root. On first launch, it prepares Node.js, checks Windows-supplied .NET Framework and WinRT components and compiles the Bluetooth reader. The release is in `release/cli/windows/`.
 
-Utilise `run/prep/cli.bat` pour vérifier ou installer les prérequis séparément, `run/build/cli.bat` pour reconstruire la release et `run/dev/cli.bat` pour lancer les sources. Le lanceur de développement compile le lecteur Windows dans un dossier temporaire quand il démarre le scan. La construction de la release utilise npm pour installer les outils de compilation.
+Use `run/prep/cli.bat` to check or install prerequisites separately, `run/build/cli.bat` to rebuild the release and `run/dev/cli.bat` to run sources. The development launcher compiles the Windows reader in a temporary directory when scanning starts. Release builds use npm to install build tools.
 
-Sous Linux, `sh run/prep/cli.sh` prépare Node.js, `sh run/build/cli.sh` construit `release/cli/linux/epi-cli` et `sh run/cli.sh --help` lance la release. `sh run/dev/cli.sh --help` lance les sources. Le scan Bluetooth du CLI utilise l’API Windows.
+On Linux, `sh run/prep/cli.sh` prepares Node.js, `sh run/build/cli.sh` builds `release/cli/linux/epi-cli` and `sh run/cli.sh --help` runs the release. `sh run/dev/cli.sh --help` runs sources. CLI Bluetooth scanning uses the Windows API.
 
-Attends « Écoute Bluetooth active », puis monte sur la balance à proximité du PC. Reste pieds nus sur les électrodes jusqu'à la fin de la mesure si tu veux récupérer l'impédance. Quitte avec Ctrl+C.
+Wait for “Écoute Bluetooth active” (Bluetooth listening active), then step onto the scale near the PC. Stay barefoot on the electrodes until measurement ends to receive impedance. Quit with Ctrl+C.
 
-Le programme enregistre automatiquement un relevé par lancement dans `data/measures/<profil>/AAAA-MM-JJ-HH-MM-SS.json`, y compris en mode `--raw`. Le nom du fichier est en UTC. Les relevés reçus dans la même seconde prennent un suffixe (`-2`, `-3`, etc.). Chaque fichier contient `receivedAt` (heure de réception du PC en UTC), `profile`, `device` (copie de la fiche de la balance), puis `measures` (poids, unité et impédance), `calculations` et enfin `reception`. Cette section commence par `raw.hex` (octets de la charge utile Xiaomi dans leur ordre d’origine), puis contient `bluetooth` (`serviceUuid`, nom `service`, adresse de provenance et puissance `rssiDbm`) et `scale` (poids stabilisé `stable`, charge retirée `removed` et horloge de la balance `scaleTime`). Les données indisponibles dans les anciens relevés valent `null`. Un profil temporaire sans nom utilise le dossier `_sans-profil`. Un premier relevé avec impédance est enregistré immédiatement. Un relevé Weight Scale est enregistré dès réception. Pour la Xiaomi, un relevé sans impédance attend jusqu’à quinze secondes avant d’être écrit. Si un relevé avec impédance arrive dans ce délai avec la même adresse, le même horodatage de balance, le même poids et la même unité, seul le relevé complet est enregistré. Il écarte les annonces qui suivent le retrait de la charge et regroupe les mesures identiques pour une même adresse et un même horodatage de la balance dans une fenêtre glissante de 30 secondes. À l’expiration du délai, le programme enregistre le poids seul si nécessaire. Il rend la main dès que la pesée est enregistrée.
+The program automatically saves one record per run in `data/measures/<profile>/YYYY-MM-DD-HH-MM-SS.json`, including in `--raw` mode. Filenames use UTC. Records received in the same second receive a suffix (`-2`, `-3`, etc.). Each file contains `receivedAt` (PC reception time in UTC), `profile`, `device` (a copy of the scale record), `measures` (weight, unit and impedance), `calculations` and finally `reception`. This section starts with `raw.hex` (Xiaomi payload bytes in original order), followed by `bluetooth` (`serviceUuid`, `service` name, source address and `rssiDbm` signal strength) and `scale` (stabilised weight `stable`, load removed `removed` and scale clock `scaleTime`). Data unavailable in older records is `null`. An unnamed temporary profile uses `_sans-profil`. A first record with impedance is saved immediately. A Weight Scale record is saved on receipt. For Xiaomi, a record without impedance waits up to fifteen seconds before writing. If a record with impedance arrives within that period with the same address, scale timestamp, weight and unit, only the complete record is saved. Advertisements following load removal are discarded; identical measurements for the same address and scale timestamp are grouped within a sliding 30-second window. At timeout, weight alone is saved if necessary. The program exits once the weigh-in is saved.
 
-- `weight` et `unit` : poids et unité émise (`kg` ou `lb`).
-- `impedanceOhms` : impédance en ohms, ou `null` si elle n'est pas disponible. Les pourcentages de graisse ou de muscle ne sont pas dans ces annonces.
-- `receivedAt` : date de réception du PC en UTC. `scaleTime` est l'horloge embarquée, sans fuseau ; elle peut ne pas être à l'heure.
-- `address` et `rssi` : adresse Bluetooth et puissance du signal en dBm.
+- `weight` and `unit`: weight and transmitted unit (`kg` or `lb`).
+- `impedanceOhms`: impedance in ohms, or `null` if unavailable. Fat and muscle percentages are not in these advertisements.
+- `receivedAt`: PC reception date in UTC. `scaleTime` is the onboard clock, without a time zone; it may be inaccurate.
+- `address` and `rssi`: Bluetooth address and signal strength in dBm.
 
 ```powershell
 node index.cjs --seconds 30
 node index.cjs --mac AA:BB:CC:DD:EE:FF
 node index.cjs --raw --seconds 30
-node index.cjs > sortie-console.txt
+node index.cjs > console-output.txt
 npm test
 ```
 
-`--raw` montre les trames des ports de pesée reconnus, y compris celles en cours de pesée et les doublons. En cas de silence, vérifie que le Bluetooth est activé, rapproche la balance et relance une pesée. Si l'application du téléphone se connecte à la balance, ferme-la le temps de l'essai.
+`--raw` shows frames from recognised scale ports, including measurements in progress and duplicates. If nothing appears, check Bluetooth is enabled, move the scale closer and start another measurement. If the phone application connects to the scale, close it during testing.
 
-## Enregistrer ou sélectionner une balance
+## Registering or selecting a scale
 
 ```powershell
-node index.cjs -d "Salle de bain"
-node index.cjs Malik --appareil "Salle de bain"
+node index.cjs -d "Bathroom"
+node index.cjs Malik --appareil "Bathroom"
 ```
 
-La première pesée faite avec un nouveau nom crée une fiche dans `data/devices/`. Utilise uniquement la nouvelle balance pendant cet enregistrement. Quand le nom existe déjà, seules les annonces de son adresse Bluetooth sont acceptées. Sans option, le programme reconnaît les balances enregistrées par leur adresse. Si la pesée provient d’une balance inconnue, il demande son nom après réception, avant de demander le profil utilisateur. Les réponses BLE enrichissent la fiche par adresse Bluetooth. Le nom annoncé et les identifiants fabricant sont mis à jour quand ils sont reçus. La pesée conserve une copie de la fiche au moment de l’écriture. La table hors ligne `bluetooth-companies.json` est reconstruite depuis [Nordic Bluetooth Numbers Database](https://github.com/nordicsemi/bluetooth-numbers-database), sous BSD-3-Clause, en conservant les 4 075 entrées du catalogue. Les [crédits et notices](../THIRD_PARTY.md#tables-de-fabricants-et-de-services) précisent la révision et la sélection. Quand aucun identifiant fabricant connu n’est annoncé, éPI cherche le titulaire du préfixe MAC dans une copie hors ligne des [registres IEEE MA-L, MA-M, MA-S et IAB](https://standards.ieee.org/products-programs/regauth/) téléchargés le 15 novembre 2026. Le titulaire peut être le fournisseur du module radio. Le modèle Xiaomi est déduit du nom `MIBFS` et de l’identifiant Huami. Chaque mesure stable distincte est signalée dans le terminal avec le nom de la balance ou son adresse, et l’impédance lorsqu’elle est disponible. `--mac` peut restreindre l’écoute à une adresse connue à l’avance.
+The first weigh-in with a new name creates a record in `data/devices/`. Use only the new scale during registration. If the name already exists, only advertisements from its Bluetooth address are accepted. Without an option, registered scales are recognised by address. For an unknown scale, the program asks for its name after reception, before asking for the user profile. BLE responses enrich the record by Bluetooth address. The advertised name and manufacturer identifiers are updated when received. The weigh-in retains a copy of the record at write time. The offline `bluetooth-companies.json` table is rebuilt from [Nordic Bluetooth Numbers Database](https://github.com/nordicsemi/bluetooth-numbers-database), under BSD-3-Clause, preserving all 4,075 catalogue entries. [Credits and notices](../THIRD_PARTY.md#manufacturer-and-service-tables) specify the revision and selection. If no known manufacturer identifier is advertised, éPI looks up the MAC prefix holder in an offline copy of the [IEEE MA-L, MA-M, MA-S and IAB registries](https://standards.ieee.org/products-programs/regauth/), downloaded on 15 November 2026. The holder may be the radio module supplier. The Xiaomi model is inferred from `MIBFS` and the Huami identifier. Each distinct stable measurement is reported in the terminal with the scale name or address and impedance if available. `--mac` restricts listening to a known address.
 
-La fiche contient l’adresse, le service BLE, le nom annoncé s’il figure dans la trame et le type d’annonce. Le service et le nom annoncé ne suffisent pas à distinguer deux balances identiques. Si une balance change d’adresse, il faut l’enregistrer sous un nouveau nom. Le RSSI reste une donnée de réception de chaque pesée.
+The record contains the address, BLE service, advertised name if present in the frame, and advertisement type. The service and advertised name cannot distinguish two identical scales. If a scale changes address, register it under a new name. RSSI remains reception data for each weigh-in.
 
-## Comparer les estimations de composition
+## Comparing body composition estimates
 
 ```powershell
 node index.cjs Camille --sexe F --naissance 15/06/1991 --taille 170
@@ -55,37 +55,37 @@ node index.cjs Camille --taille 171
 node index.cjs
 ```
 
-Les options acceptent les formes suivantes.
+Options accept the following forms.
 
-| Paramètre | Options |
+| Parameter | Options |
 | --- | --- |
-| Utilisateur | `-u`, `--user`, `--utilisateur` |
-| Sexe | `-s`, `--sex`, `--sexe` |
-| Âge | `-a`, `--age`, `--âge` |
-| Date de naissance | `-b`, `-n`, `--birthdate`, `--birthday`, `--birth`, `--naissance` |
-| Taille | `-t`, `--height`, `--taille` |
-| Aide | `-h`, `--help`, `--aide` |
+| User | `-u`, `--user`, `--utilisateur` |
+| Sex | `-s`, `--sex`, `--sexe` |
+| Age | `-a`, `--age`, `--âge` |
+| Date of birth | `-b`, `-n`, `--birthdate`, `--birthday`, `--birth`, `--naissance` |
+| Height | `-t`, `--height`, `--taille` |
+| Help | `-h`, `--help`, `--aide` |
 
-Les profils sont conservés dans `data/profiles/`. Le nom peut être donné sans option et abrégé avec un préfixe qui ignore la casse et les accents. Le terminal propose un choix si le nom est ambigu ou introuvable. Si le nom est introuvable, tape `0` pour créer le profil avec ce nom. Tu peux aussi fournir ses informations en arguments. La date de naissance accepte `JJ/MM/AAAA` ou `AAAA-MM-JJ`. Tu peux aussi saisir un âge fixe. Avec une date de naissance, l’âge est calculé à la date de chaque pesée en heure de Paris et enregistré avec les résultats. Si un profil est incomplet, le programme demande les valeurs manquantes dans le terminal avant d’ouvrir le Bluetooth. Hors terminal interactif, il indique quels paramètres ajouter. Les trois caractéristiques peuvent aussi être fournies sans nom pour une seule session.
+Profiles are kept in `data/profiles/`. Names can be supplied without an option and abbreviated using a prefix that ignores case and accents. The terminal offers a choice if a name is ambiguous or missing. For an unknown name, enter `0` to create that profile. You can also supply its details as arguments. Dates of birth accept `DD/MM/YYYY` or `YYYY-MM-DD`; a fixed age is also accepted. With a date of birth, age is calculated at each weigh-in in Paris time and saved with the results. If a profile is incomplete, the terminal requests missing values before opening Bluetooth. In non-interactive mode, it lists parameters to add. All three characteristics can also be supplied without a name for one session.
 
-Le tableau de la pesée retenue affiche une donnée par ligne, avec la moyenne des valeurs disponibles suivie des colonnes par méthode. Le poids et l’impédance sont signalés dès leur réception. Le mode `--raw` affiche les trames en JSON. Un profil passé en argument s’applique à toute la session. Sans argument de profil, le programme compare le poids au dernier relevé de chaque profil et choisit le plus faible écart en pourcentage parmi les profils à ±10 %. Si aucun ne correspond, il liste les profils et propose aussi `0. Créer un profil`. Tape `0`, puis renseigne le nom, le sexe, la date de naissance ou l’âge, et la taille. La pesée en cours est enregistrée sous ce nouveau profil. Le relevé enregistré devient la nouvelle référence du profil. Le catalogue local `bluetooth-services.json` conserve 820 identifiants et leurs libellés pour les diagnostics hors ligne. Les tables sont générées depuis les références et compléments décrits dans les [crédits des tables](../THIRD_PARTY.md#tables-de-fabricants-et-de-services). La reconstruction reproductible utilise `python3 scripts/rebuild-bluetooth-catalogs.py` depuis la racine du dépôt.
+The selected weigh-in table shows one metric per row, with the average of available values followed by method columns. Weight and impedance are reported on receipt. `--raw` displays JSON frames. A profile argument applies throughout the session. Without one, the program compares weight with each profile's latest record and selects the smallest percentage difference among profiles within ±10%. If none matches, it lists profiles and offers “0. Créer un profil” (Create a profile). Enter `0`, then name, sex, date of birth or age, and height. The current weigh-in is saved under that new profile. The saved record becomes its new reference. The local `bluetooth-services.json` catalogue retains 820 identifiers and labels for offline diagnostics. Tables are generated from references and additions described in the [table credits](../THIRD_PARTY.md#manufacturer-and-service-tables). Reproduce them with `python3 scripts/rebuild-bluetooth-catalogs.py` from the repository root.
 
-| Colonne | Méthode | Données nécessaires |
+| Column | Method | Required data |
 | --- | --- | --- |
-| IMC | Poids divisé par la taille au carré | Poids, taille |
-| Mi | Formules communautaires [Mi Fit](https://github.com/lolouk44/xiaomi_mi_scale/blob/master/src/Xiaomi_Scale_Body_Metrics.py), avec les seuils du code source | Poids, taille, âge, sexe et, selon la ligne, impédance |
-| Sun* | [Sun et al. (2003)](https://pubmed.ncbi.nlm.nih.gov/12540391/), masse maigre et eau totale | Poids, taille, sexe, impédance |
-| Jan* | [Janssen et al. (2000)](https://pubmed.ncbi.nlm.nih.gov/10926627/), muscle squelettique | Taille, âge, sexe, impédance |
-| D60* | [Deurenberg et al. (1990)](https://www.inner-image.com/assets/2015/05/4.-Deurenberg-van-der-Kooij-Evers-Hulshof-1990.pdf), masse maigre après 60 ans | Poids, taille, sexe, impédance |
-| Deu | [Deurenberg et al. (1991)](https://pubmed.ncbi.nlm.nih.gov/2043597/), formule adulte de masse grasse | IMC, âge, sexe |
-| CUN | [Gómez-Ambrosi et al. (2012)](https://pubmed.ncbi.nlm.nih.gov/22179957/), CUN-BAE | IMC, âge, sexe |
-| Wat | [Watson et al. (1980)](https://doi.org/10.1093/ajcn/33.1.27), eau totale | Poids, taille, âge, sexe |
-| HW | [Hume et Weyers (1971)](https://pmc.ncbi.nlm.nih.gov/articles/PMC476961/), eau totale | Poids, taille, sexe |
-| MSJ | [Mifflin–St Jeor et al. (1990)](https://doi.org/10.1093/ajcn/51.2.241), dépense au repos | Poids, taille, âge, sexe |
-| HB | [Roza et Shizgal (1984)](https://pubmed.ncbi.nlm.nih.gov/6741850/), révision de Harris–Benedict | Poids, taille, âge, sexe |
-| Owe | Owen et al., dépense au repos selon le poids pour les [hommes](https://pubmed.ncbi.nlm.nih.gov/3687821/) et les [femmes non athlètes](https://pubmed.ncbi.nlm.nih.gov/3728346/) | Poids, sexe |
-| Cun* | [Cunningham (1980)](https://pubmed.ncbi.nlm.nih.gov/7435418/), dépense au repos estimée à partir de la masse maigre de Sun | Masse maigre Sun |
+| IMC | Weight divided by height squared (BMI) | Weight, height |
+| Mi | Community [Mi Fit](https://github.com/lolouk44/xiaomi_mi_scale/blob/master/src/Xiaomi_Scale_Body_Metrics.py) formulae, with source-code thresholds | Weight, height, age, sex and, depending on the row, impedance |
+| Sun* | [Sun et al. (2003)](https://pubmed.ncbi.nlm.nih.gov/12540391/), fat-free mass and total body water | Weight, height, sex, impedance |
+| Jan* | [Janssen et al. (2000)](https://pubmed.ncbi.nlm.nih.gov/10926627/), skeletal muscle | Height, age, sex, impedance |
+| D60* | [Deurenberg et al. (1990)](https://www.inner-image.com/assets/2015/05/4.-Deurenberg-van-der-Kooij-Evers-Hulshof-1990.pdf), fat-free mass after 60 | Weight, height, sex, impedance |
+| Deu | [Deurenberg et al. (1991)](https://pubmed.ncbi.nlm.nih.gov/2043597/), adult body fat formula | BMI, age, sex |
+| CUN | [Gómez-Ambrosi et al. (2012)](https://pubmed.ncbi.nlm.nih.gov/22179957/), CUN-BAE | BMI, age, sex |
+| Wat | [Watson et al. (1980)](https://doi.org/10.1093/ajcn/33.1.27), total body water | Weight, height, age, sex |
+| HW | [Hume and Weyers (1971)](https://pmc.ncbi.nlm.nih.gov/articles/PMC476961/), total body water | Weight, height, sex |
+| MSJ | [Mifflin–St Jeor et al. (1990)](https://doi.org/10.1093/ajcn/51.2.241), resting energy expenditure | Weight, height, age, sex |
+| HB | [Roza and Shizgal (1984)](https://pubmed.ncbi.nlm.nih.gov/6741850/), revised Harris–Benedict | Weight, height, age, sex |
+| Owe | Owen et al., weight-based resting expenditure for [men](https://pubmed.ncbi.nlm.nih.gov/3687821/) and [non-athletic women](https://pubmed.ncbi.nlm.nih.gov/3728346/) | Weight, sex |
+| Cun* | [Cunningham (1980)](https://pubmed.ncbi.nlm.nih.gov/7435418/), resting expenditure estimated from Sun fat-free mass | Sun fat-free mass |
 
-Ces comparaisons sont destinées aux adultes. Dans les colonnes marquées d’un astérisque, l’impédance Xiaomi pieds à pieds remplace la résistance mesurée avec les appareils de référence. Cette substitution n’a pas été validée pour ce modèle de balance. La masse musculaire Mi Fit et le muscle squelettique Janssen sont affichés sur deux lignes, car les modèles estiment des grandeurs différentes. Le score viscéral Mi Fit est sans unité et dépend du poids et du profil. L’âge métabolique et les protéines sont des estimations communautaires. Les valeurs osseuses ne donnent pas une densité minérale. Des formules comme [Kyle et al.](https://www.sciencedirect.com/science/article/pii/S0899900700005530) demandent la réactance, absente de la trame Bluetooth.
+These comparisons are intended for adults. In starred columns, Xiaomi foot-to-foot impedance replaces resistance measured with reference devices. This substitution has not been validated for this scale model. Mi Fit muscle mass and Janssen skeletal muscle appear on separate rows because the models estimate different quantities. The Mi Fit visceral score is unitless and depends on weight and profile. Metabolic age and protein are community estimates. Bone values do not provide mineral density. Formulae such as [Kyle et al.](https://www.sciencedirect.com/science/article/pii/S0899900700005530) require reactance, which is absent from the Bluetooth frame.
 
-Le décodage s'appuie sur le [code ESPHome](https://github.com/esphome/esphome/blob/dev/esphome/components/xiaomi_miscale/xiaomi_miscale.cpp) et est vérifié avec une [capture réelle de la XMTZC05HM](https://github.com/lolouk44/hassio-addons/issues/14).
+Decoding is based on [ESPHome code](https://github.com/esphome/esphome/blob/dev/esphome/components/xiaomi_miscale/xiaomi_miscale.cpp) and checked against a [real XMTZC05HM capture](https://github.com/lolouk44/hassio-addons/issues/14).
