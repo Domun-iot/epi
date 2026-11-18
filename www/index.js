@@ -93,6 +93,8 @@ function render(path, page, locale, retention, prices, releases, browser, userAg
       '<p>éPI — Copyright © 2026 Baptiste Pillot</p><p>' +
       text('Le code original des logiciels et du site éPI est sous licence GNU LGPL version 3 (LGPL-3.0-only).',
         'The original code of the éPI software and website is licensed under the GNU LGPL version 3 (LGPL-3.0-only).') + '</p><p>' +
+      text('Les logos et les marques éPI, Domun et Logisan sont la propriété de Baptiste Pillot et ne sont pas couverts par la licence LGPL du code.',
+        'The éPI, Domun and Logisan logos and trademarks are the property of Baptiste Pillot and are not covered by the LGPL license of the code.') + '</p><p>' +
       text('Les composants, données, illustrations et marques tiers conservent leurs propres conditions et mentions.',
         'Third-party components, data, artwork and trademarks retain their own terms and notices.') + '</p><ul>' +
       '<li><a href="/epi/licenses/LICENSE">' + text('Notice de licence éPI', 'éPI license notice') + '</a></li>' +

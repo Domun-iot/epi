@@ -124,6 +124,8 @@ Voir le [guide de build toutes cibles](docs/BUILD.md).
 ## Licence
 
 Le code original éPI est sous [GNU LGPL version 3](LICENSE) (`LGPL-3.0-only`).
+Les logos et les marques éPI, Domun et Logisan sont la propriété de Baptiste
+Pillot et ne sont pas couverts par la licence LGPL du code.
 Les ressources tierces conservent leurs licences et attributions.
 Les [crédits et sources tierces](THIRD_PARTY.md) distinguent les adaptations de
 code, les références de protocoles, les formules scientifiques et les dépendances.
