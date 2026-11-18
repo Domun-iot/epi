@@ -29,9 +29,10 @@ async function handle(request, response) {
   const { pathname } = new URL(request.url, 'http://localhost');
   if (pathname === '/api/session' || pathname === '/api/installation') return localApi.handle(request, response, pathname);
   const file = pathname === '/' ? '/index.html' : pathname;
-  const type = types.get(extname(file));
+  const legal = /^\/legal\/(?:[\w@][\w@.-]*\/)*[\w@][\w@.-]*$/.test(file);
+  const type = legal ? 'text/plain; charset=utf-8' : types.get(extname(file));
   if (!['GET', 'HEAD'].includes(request.method) || !type
-      || (!rootFiles.has(file) && !/^\/assets\/[\w.-]+$/.test(file)
+      || (!legal && !rootFiles.has(file) && !/^\/assets\/[\w.-]+$/.test(file)
           && !/^\/app-icons\/[\w-]+\.png$/.test(file))) {
     return json(response, 404, { error: 'Page introuvable.' });
   }

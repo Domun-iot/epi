@@ -2,6 +2,7 @@
 name = "epi"
 version = "1.0.0"
 edition = "2021"
+license = "LGPL-3.0-only"
 
 [lib]
 name = "epi_lib"

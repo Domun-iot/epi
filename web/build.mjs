@@ -3,6 +3,7 @@ import { constants } from 'node:fs';
 import { copyFile, cp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import notices from '../scripts/build-notices.cjs';
 
 const source = fileURLToPath(new URL('.', import.meta.url));
 const tauri = fileURLToPath(new URL('../tauri/', import.meta.url));
@@ -36,4 +37,5 @@ await cp(join(tauri, 'domain'), join(output, 'tauri', 'domain'), {
 await cp(join(source, '..', 'shared'), join(output, 'shared'), {
   recursive: true, filter: path => !path.endsWith('.test.cjs'),
 });
+notices.writeBuildNotices(output, { frontend: true });
 await writeFile(marker, 'ok\n');

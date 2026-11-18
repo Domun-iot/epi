@@ -2,7 +2,7 @@ param([ValidateSet('desktop', 'cli', 'web')][string]$Target = 'desktop')
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$inputs = @('shared')
+$inputs = @('shared', 'LICENSE', 'COPYING', 'COPYING.LESSER', 'THIRD_PARTY.md', 'licenses', 'scripts/build-notices.cjs')
 if ($Target -eq 'web') {
     foreach ($file in @('build.ok', 'package.json', 'config.js', 'server.js', 'actions.js', 'session-api.js', 'public/index.html')) {
         if (!(Test-Path -LiteralPath (Join-Path $root "release/web/$file") -PathType Leaf)) { exit 1 }

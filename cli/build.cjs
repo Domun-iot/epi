@@ -6,6 +6,7 @@ const { build } = require('esbuild');
 const { inject } = require('postject');
 const { join } = require('node:path');
 const { compileScanner } = require('./scanner.cjs');
+const { writeBuildNotices } = require('../scripts/build-notices.cjs');
 
 const platform = { win32: 'windows', linux: 'linux' }[process.platform];
 if (!platform) throw new Error('Le build du CLI est disponible sous Windows et Linux.');
@@ -20,6 +21,7 @@ async function buildRelease() {
   const previous = join(temporary, 'previous');
   try {
     mkdirSync(next);
+    writeBuildNotices(next, { nodeRuntime: true });
     const main = join(temporary, 'cli.cjs');
     const blob = join(temporary, 'cli.blob');
     const config = join(temporary, 'sea.json');

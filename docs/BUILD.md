@@ -57,6 +57,18 @@ et les outils d'exploitation sont conservés hors de ce dépôt public.
 
 ## Artefacts par cible
 
+Les builds CLI et web joignent un dossier `legal/` contenant les licences éPI,
+les notices tierces et l'inventaire des composants concernés. Le frontend Tauri
+inclut également ces fichiers dans ses ressources web. Conserver ce dossier avec
+les artefacts. Les notices npm sont collectées depuis les versions installées
+correspondant au verrouillage ; lancer `npm ci` avant de construire.
+
+Le CLI copie la licence complète de la distribution Node utilisée pour le binaire
+SEA, avec les notices de ses composants embarqués. Si cette distribution place
+son fichier `LICENSE` ailleurs qu'à côté de `node` ou à la racine de son installation,
+définir `EPI_NODE_LICENSE` vers ce fichier complet avant le build.
+
+
 | Cible | Commande | Sortie |
 | --- | --- | --- |
 | Windows desktop | `run\build\windows.bat` | `release/windows/` : EXE, MSI, binaire autonome |

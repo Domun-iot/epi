@@ -27,6 +27,7 @@ case "$1" in
     *) exit 1 ;;
 esac
 
+set -- "$@" LICENSE COPYING COPYING.LESSER THIRD_PARTY.md licenses scripts/build-notices.cjs
 case "$exe" in *.ok) ;; *) [ -x "$exe" ] || exit 1 ;; esac
 for input do
     case "$input" in cli/*.test.cjs) continue ;; esac

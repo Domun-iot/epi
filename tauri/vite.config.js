@@ -9,12 +9,23 @@ import { createLocalApi } from '../web/local-api.js';
 import { accountApi } from '../web/account-api.js';
 
 const appPath = import.meta.url;
+const notices = createRequire(appPath)('../scripts/build-notices.cjs');
 const macPrefixesId = 'virtual:epi-mac-prefixes';
 const macPrefixesPath = fileURLToPath(new URL('../shared/mac-prefixes.json', appPath));
 const modules = {
   'virtual:epi-domain': './domain/browser.js',
   'virtual:epi-composition': '../shared/composition.cjs',
 };
+
+function buildNotices() {
+  let output;
+  return {
+    name: 'epi-build-notices',
+    apply: 'build',
+    configResolved(config) { output = resolve(config.root, config.build.outDir); },
+    writeBundle() { notices.writeBuildNotices(output, { frontend: true }); },
+  };
+}
 
 function sharedModules() {
   const directory = fileURLToPath(new URL('.', appPath));
@@ -145,7 +156,7 @@ export default defineConfig(({ command, mode }) => ({
   define: { __DEV_ACCOUNT_API__: JSON.stringify(accountApi) },
   clearScreen: false,
   optimizeDeps: { entries: ['index.html'] },
-  plugins: [sharedModules(), ...(command === 'serve' && mode === 'web' ? [webSessionApi()] : [])],
+  plugins: [sharedModules(), buildNotices(), ...(command === 'serve' && mode === 'web' ? [webSessionApi()] : [])],
   server: {
     host: process.env.TAURI_DEV_HOST || '127.0.0.1',
     port: mode === 'web' ? 1421 : 1420,

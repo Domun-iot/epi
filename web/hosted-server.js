@@ -20,8 +20,9 @@ const server = createServer(async (request, response) => {
     }
     const pathname = new URL(request.url, 'http://localhost').pathname;
     const file = pathname === '/' ? '/index.html' : pathname;
-    const allowed = files.has(file) || /^\/assets\/[\w.-]+$/.test(file) || /^\/app-icons\/[\w-]+\.png$/.test(file);
-    const type = types.get(extname(file));
+    const legal = /^\/legal\/(?:[\w@][\w@.-]*\/)*[\w@][\w@.-]*$/.test(file);
+    const allowed = legal || files.has(file) || /^\/assets\/[\w.-]+$/.test(file) || /^\/app-icons\/[\w-]+\.png$/.test(file);
+    const type = legal ? 'text/plain; charset=utf-8' : types.get(extname(file));
     if (!['GET', 'HEAD'].includes(request.method) || !allowed || !type) {
       response.writeHead(404); return response.end();
     }
