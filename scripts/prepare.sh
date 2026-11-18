@@ -41,9 +41,14 @@ for package in "$@"; do
     fi
 done
 if [ -n "$missing" ]; then
+    printf 'Paquets système manquants :%s\n' "$missing" >&2
     # Les noms proviennent uniquement de la liste de paquets ci-dessus.
     set -- $missing
     if [ "$(id -u)" -ne 0 ]; then
+        if [ ! -t 0 ] && ! sudo -n true 2>/dev/null; then
+            printf 'Exécute dans un terminal : sudo apt-get update && sudo apt-get install -y%s\nPuis relance la préparation ou le build.\n' "$missing" >&2
+            exit 1
+        fi
         sudo apt-get update
         sudo apt-get install -y "$@"
     else
@@ -90,13 +95,14 @@ if ! "$desktop_only"; then
     fi
     export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
     export ANDROID_HOME="$sdk"
-    set -- --install platform-tools 'platforms;android-34' 'platforms;android-37.0' 'build-tools;36.0.0' 'ndk;28.2.13676358'
+    set -- --install platform-tools 'platforms;android-34' 'platforms;android-36' 'platforms;android-37.0' 'build-tools;36.0.0' 'ndk;28.2.13676358'
     if "$accept_licenses"; then
         yes | "$manager" "$@"
     else
         "$manager" "$@"
     fi
     if [ ! -x "$sdk/platform-tools/adb" ] || [ ! -f "$sdk/platforms/android-34/android.jar" ] ||
+        [ ! -f "$sdk/platforms/android-36/android.jar" ] ||
         [ ! -f "$sdk/platforms/android-37.0/android.jar" ] ||
         [ ! -x "$sdk/build-tools/36.0.0/apksigner" ] || [ ! -f "$sdk/ndk/28.2.13676358/source.properties" ]; then
         printf 'Paquets Android manquants. Relance prepare et accepte les licences requises.\n' >&2

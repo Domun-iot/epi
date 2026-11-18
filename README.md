@@ -105,6 +105,8 @@ Le build Android Windows place le cache Rust dans `%LOCALAPPDATA%\epi-dev\cargo-
 
 Sans option, l’APK est signé avec la clé de débogage Gradle. Pour un APK de production, utiliser `run\build\android.bat --release` (ou `sh run/build/android.sh --release`), puis `run\build\sign-android.ps1` sous Windows : le fichier installable est `release/android/epi-release.apk`. La création des artefacts et la signature locale sont décrites dans le [guide de build](docs/BUILD.md). Le module Bluetooth requiert Android 8.0 ou plus récent.
 
+Sous Linux, `sh run/build/all.sh` construit successivement l’AppImage, le paquet Ubuntu `.deb`, Android, le CLI, le Web et le serveur. Il poursuit après une erreur, affiche le bilan de chaque cible et retourne un code d’échec si au moins une cible échoue. Sous Windows, utilise `run\build\all.bat`.
+
 Les lanceurs de bureau acceptent `--portable` pour compiler uniquement le binaire et un ou plusieurs noms de formats, par exemple `sh run/build/linux.sh rpm`.
 
 L’AppImage se lance directement sur des distributions compatibles de même architecture. Tauri recommande de compiler sur la plus ancienne distribution que tu veux prendre en charge, par exemple Ubuntu 22.04 ou Debian 12. La version de glibc du poste de build peut exclure les distributions plus anciennes. Pour la balance Bluetooth, BlueZ doit être disponible sur le poste qui exécute éPI. [Limites de l’AppImage Tauri](https://v2.tauri.app/distribute/appimage/#limitations)
