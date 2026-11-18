@@ -40,7 +40,7 @@ export function renderHome(base, intro, locale, escape) {
   const { copy, lang } = features;
   const scenes = Object.entries(copy.scenes).map(([id, [title, description, label]]) => {
     const path = paths[id];
-    const linkLabel = label || (id === 'source' ? 'Open source / ' + (lang === 'fr' ? 'Développeurs' : 'Developers') : '');
+    const linkLabel = label || (id === 'source' ? 'Open source / ' + (lang.startsWith('fr') ? 'Développeurs' : 'Developers') : '');
     const link = linkLabel ? '<a class="feature-link" href="' + (path.startsWith('#') ? path : base + path) + '">' +
       escape(linkLabel) + ' <span aria-hidden="true">→</span></a>' : '';
     const proDetail = copy.proDetails[id];
