@@ -1,3 +1,4 @@
+import { logo } from './platform-icons.js';
 import { catalog, locales } from './locales.js';
 
 export const playUrl = 'https://play.google.com/store/apps/details?id=eu.domun.epi';
@@ -128,9 +129,13 @@ export function renderHeader(base, path, locale, home) {
   return '<header><div class="header-brand"><a class="brand" href="' + base +
     '"><img src="' + base + '/assets/epi.svg" alt="" width="35" height="35">éPI</a>' +
     (home ? '' : '<a class="back-link" href="' + base + '"><span aria-hidden="true">← </span>' + back + '</a>') +
-    '</div><div class="header-actions"><a class="header-account" href="https://domun.eu/account?lang=' + locale +
-    '">' + accountLabels[locale.split('-')[0]] + '</a><a class="header-play" href="' + playUrl +
+    '</div><div class="header-actions"><a class="header-download" href="' + base + '/download"' +
+    (path === base + '/download' ? ' aria-current="page"' : '') + '>' + logo('download') +
+    '<span>' + (locale.startsWith('fr') ? 'Téléchargements' : 'Downloads') + '</span></a>' +
+    '<a class="header-play" href="' + playUrl +
     '" aria-label="éPI · Google Play" title="Google Play">' + playIcon(base) + '</a>' +
+    '<a class="header-account" href="https://domun.eu/account?lang=' + locale +
+    '">' + accountLabels[locale.split('-')[0]] + '</a>' +
     renderLanguagePicker(base, path, locale) + '</div></header>';
 }
 

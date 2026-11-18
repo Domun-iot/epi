@@ -89,7 +89,7 @@ a { color: #18594c; text-underline-offset: .2em; }
 h1 { font-size: clamp(2rem, 5.8vw, 4.8rem); line-height: 1.04; letter-spacing: -.045em; margin: 0 0 1.3rem; overflow-wrap: break-word; }
 .hero p { max-width: 38ch; font-size: clamp(1rem, 2.2vw, 1.35rem); margin: 0; color: #dde9df; }
 .chart { display: block; width: min(100%, 15.5rem); height: auto; margin-inline: auto; border: .35rem solid #f0e2c4; border-radius: 1.3rem; }
-.document { max-width: 46rem; margin-block: clamp(2.5rem, 8vw, 6rem); font-size: 1.1rem; overflow-wrap: anywhere; }
+.document { max-width: 46rem; margin-block: 1.5rem; font-size: 1.1rem; overflow-wrap: anywhere; }
 .document h1 { font-size: clamp(2rem, 5vw, 3.4rem); }
 address { font-style: normal; }
 .button { margin-top: .35rem; padding: .7rem 1rem; border: 0; border-radius: .55rem; background: #18594c; color: white; font: inherit; cursor: pointer; }
@@ -520,13 +520,50 @@ footer nav { display: flex; gap: .7rem 1.3rem; flex-wrap: wrap; }
   .feature:nth-of-type(even) .feature-art, .feature:nth-of-type(even) .feature-copy { grid-area: auto; }
 }
 
-.download-section { max-width: 76rem; margin: 3rem auto; padding: 0 clamp(1rem, 4vw, 3rem); }
-.download-section h2 { margin-top: 2.5rem; }
-.download-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
-.download-card { border: 1px solid #b9cec4; border-radius: 1rem; padding: 1.4rem; background: #f5faf6; }
-.download-card h3 { margin-top: 0; }
+.downloads-page { margin-block: 1.5rem 3rem; overflow-wrap: anywhere; }
+.download-section { margin: 0; padding: 0; }
+.download-heading { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+.download-heading h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.4rem); }
+.download-heading > .platform-logo { width: 2.75rem; height: 2.75rem; }
+.download-section h2 { margin: 1.8rem 0 .8rem; font-size: 1.35rem; }
+.download-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1rem; }
+.download-card { border: 1px solid #c6d7cd; border-radius: 1rem; padding: 1.3rem; background: #fcfdf9; }
+.platform-logos { display: flex; align-items: center; gap: .65rem; margin-bottom: 1rem; min-height: 3rem; }
+.platform-logo { display: block; flex: none; width: 3rem; height: 3rem; object-fit: contain; }
+.platform-logos .platform-logo:not(:first-child) { width: 2.25rem; height: 2.25rem; }
+.download-card h3 { margin: 0 0 .5rem; font-size: 1.15rem; }
+.download-card p { margin: .5rem 0 1rem; }
+.download-card .button { display: inline-flex; text-decoration: none; font-weight: 650; }
+.download-section > .download-card { display: grid; grid-template-columns: 3rem minmax(0, 1fr) auto; align-items: center; column-gap: 1.2rem; background: #e8f0e7; }
+.download-section > .download-card .platform-logos { grid-row: 1 / 3; margin: 0; }
+.download-section > .download-card h3 { grid-column: 2; }
+.download-section > .download-card p { grid-column: 2; margin: 0; }
+.download-section > .download-card > .button { grid-column: 3; grid-row: 1 / 3; margin: 0; }
 .download-file { margin-top: 1rem; }
 .download-file small { display: block; margin: .6rem 0; }
 .download-file code { overflow-wrap: anywhere; font-size: .8rem; }
-.download-pending { opacity: .7; }
+.download-file details { font-size: .85rem; }
+.download-pending { color: #63756d; font-size: .9rem; }
 .release-guide { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; }
+.developer-tile { display: flex; align-items: center; gap: 1.2rem; margin-block: 1.5rem; padding: 1.4rem 1.6rem; border: 1px solid #a3bfae; border-radius: 1rem; background: #e5eee2; text-decoration: none; }
+.developer-tile:hover { background: #d8e7d4; border-color: #18594c; }
+.developer-tile > span:not(.tile-arrow) { display: grid; gap: .2rem; }
+.developer-tile strong { font-size: 1.2rem; }
+.developer-tile span span { font-size: .95rem; color: #3e5c50; }
+.tile-arrow { margin-inline-start: auto; font-size: 1.5rem; }
+.resource-links { display: flex; gap: 1rem; }
+.header-download { display: inline-flex; align-items: center; gap: .4rem; padding: .45rem .7rem; border-radius: .5rem; background: #18594c; color: white; font-weight: 700; text-decoration: none; }
+.header-download:hover, .header-download[aria-current] { background: #103f35; }
+.header-download .platform-logo { width: 1.1rem; height: 1.1rem; filter: brightness(0) invert(1); }
+.home-download .platform-logo { filter: brightness(0) invert(1); }
+@media (max-width: 42rem) {
+  .header-actions { width: 100%; justify-content: space-between; gap: .35rem; }
+  .header-download, .header-account { font-size: .85rem; padding: .4rem .5rem; }
+  .header-play { width: 2rem; height: 2rem; }
+  .downloads-page { margin-block-start: 1.2rem; }
+  .download-heading { gap: .7rem; }
+  .download-heading > .platform-logo { width: 2rem; height: 2rem; }
+  .download-section > .download-card { grid-template-columns: 2.5rem minmax(0, 1fr); }
+  .download-section > .download-card > .button { grid-column: 2; grid-row: 3; justify-self: start; margin-top: .8rem; }
+  .developer-tile { padding: 1.1rem; gap: .8rem; }
+}

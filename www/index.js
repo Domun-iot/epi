@@ -1,3 +1,4 @@
+import { logoNames, logo, developerTile, browserLogo } from './platform-icons.js';
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -5,14 +6,14 @@ import { pathToFileURL } from 'node:url';
 import { formatCatalog, loadPrices, planCopy, planLanguage, renderPro } from './pro.js';
 import { catalog, locales, selectLocale } from './locales.js';
 import { referenceTitle, renderHome, renderReference } from './features.js';
-import { deletionUrl, flags, playIcon, playUrl, renderFooter, renderHeader } from './layout.js';
+import { deletionUrl, flags, renderFooter, renderHeader } from './layout.js';
 
 import { manifests, serveDownload, renderDownloads } from './downloads.js';
 
 const base = '/epi';
 const homeActionsCopy = {
-  fr: ['Télécharger sur', 'Gratuite et sans pub', 'Découvrir la version Pro', 'Synchronisation, vues enregistrées et sauvegardes ZIP'],
-  en: ['Get it on', 'Free and ad-free', 'Explore the Pro version', 'Sync, saved views and ZIP backups'],
+  fr: ['Découvrir la version Pro', 'Synchronisation, vues enregistrées et sauvegardes ZIP'],
+  en: ['Explore the Pro version', 'Sync, saved views and ZIP backups'],
 };
 const illustratedPages = new Set(['home', 'pro']);
 const routes = new Map([
@@ -20,12 +21,14 @@ const routes = new Map([
   [base + '/compatible-scales', 'scales'],
   [base + '/pro', 'pro'],
   [base + '/developers', 'developers'],
+  [base + '/download', 'download'],
   [base + '/developers/guide', 'guide'],
   [base + '/calculation-methods', 'methods'],
   [base + '/privacy-policy', 'privacy'],
   [base + '/legal-notice', 'legal'],
 ]);
 const assets = new Map(Object.entries({
+  ...Object.fromEntries(logoNames.map(name => ['logos/' + name + '.svg', 'image/svg+xml'])),
   ...Object.fromEntries(Object.values(flags).map(code => ['flags/' + code + '.svg', 'image/svg+xml'])),
   'style.css': 'text/css; charset=utf-8',
   'scenes.js': 'text/javascript; charset=utf-8',
@@ -48,29 +51,31 @@ const escape = value => value.replace(/[&<>"']/g, character => ({
 
 function renderHomeActions(locale) {
   const language = locale.startsWith('fr-') ? 'fr' : 'en';
-  const [download, free, pro, benefits] = homeActionsCopy[language];
+  const [pro, benefits] = homeActionsCopy[language];
   return '<div class="home-actions" lang="' + language + '">' +
-    '<a class="home-action home-download" href="' + playUrl + '">' + playIcon(base) +
-    '<span><small>' + download + '</small><strong>Google Play</strong><span>' + free + '</span></span>' +
+    '<a class="home-action home-download" href="' + base + '/download">' + logo('download') +
+    '<span><strong>' + (language === 'fr' ? 'Téléchargements' : 'Downloads') + '</strong><span>' + (language === 'fr' ? 'Choisissez votre version d’éPI' : 'Choose your version of éPI') + '</span></span>' +
     '<span class="home-action-arrow" aria-hidden="true">↗</span></a>' +
     '<a class="home-action home-pro" href="' + base + '/pro"><span class="pro-badge" aria-hidden="true">PRO</span>' +
     '<span><strong>' + pro + '</strong><span>' + benefits + '</span></span>' +
     '<span class="home-action-arrow" aria-hidden="true">→</span></a></div>';
 }
 
-function render(path, page, locale, retention, prices, releases) {
+function render(path, page, locale, retention, prices, releases, browser) {
   const t = catalog[locale];
   const contactLink = '<a href="https://logisan.fr/contact/">Logisan</a>';
   const retentionText = retention[locale] ? '<p>' + escape(retention[locale]) + '</p>' : '';
   const titles = {
     pro: planCopy(locale).title,
-    developers: 'Open source / Developers', guide: 'Build & release guide',
+    download: locale.startsWith('fr') ? 'Téléchargements' : 'Downloads',
+    developers: locale.startsWith('fr') ? 'Open source / Développeurs' : 'Open source / Developers', guide: 'Build & release guide',
     home: t.headline, privacy: t.privacy, legal: t.legal, missing: '404',
     scales: referenceTitle('scales', locale), methods: referenceTitle('methods', locale),
   };
   const content = {
-    home: () => renderHome(base, t, locale, escape) + renderHomeActions(locale) + renderDownloads(locale, releases),
-    developers: () => renderDownloads(locale, releases, true),
+    home: () => renderHome(base, t, locale, escape) + renderHomeActions(locale) + developerTile(locale),
+    download: () => renderDownloads(locale, releases, false, browser),
+    developers: () => renderDownloads(locale, releases, true, browser),
     guide: () => '<h1>Build & release guide</h1><p><a href="/epi/developers">← Developers</a></p><pre class="release-guide">' + escape(readFileSync(new URL('../docs/PUBLICATION-RELEASES.md', import.meta.url), 'utf8')) + '</pre>',
     pro: () => renderPro(base, locale, prices, escape),
     scales: () => renderReference(base, page, locale, escape),
@@ -91,7 +96,7 @@ function render(path, page, locale, retention, prices, releases) {
     stylePath + '?v=' + styleVersion + '">' +
     (illustratedPages.has(page) ? '<script defer src="' + scenesPath + '?v=' + scenesVersion + '"></script>' : '') +
     '</head><body>' + renderHeader(base, path, locale, home) +
-    '<main' + (illustratedPages.has(page) ? '' : ' class="document"') + '>' + content[page]() + '</main>' +
+    '<main' + (['download', 'developers', 'guide'].includes(page) ? ' class="downloads-page"' : illustratedPages.has(page) ? '' : ' class="document"') + '>' + content[page]() + '</main>' +
     renderFooter(base, locale) + '</body></html>';
 }
 
@@ -138,7 +143,7 @@ export function createSite({
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
       'Cache-Control': 'private, no-store',
-      Vary: 'Accept-Language, Cookie',
+      Vary: 'Accept-Language, Cookie, User-Agent',
     };
     if (chosen && page !== 'missing') {
       headers['Set-Cookie'] = 'epi_lang=' + locale + '; Path=/epi; Max-Age=31536000; HttpOnly; SameSite=Lax' +
@@ -150,7 +155,7 @@ export function createSite({
     }
     const prices = page === 'pro' ? await loadPrices(catalogUrl) : undefined;
     res.writeHead(page === 'missing' ? 404 : page === 'pro' && !formatCatalog(prices, locale) ? 503 : 200, headers);
-    res.end(req.method === 'HEAD' ? undefined : render(page === 'missing' ? base : path, page, locale, retention, prices, await manifests(downloadsDir)));
+    res.end(req.method === 'HEAD' ? undefined : render(page === 'missing' ? base : path, page, locale, retention, prices, await manifests(downloadsDir), browserLogo(req.headers['user-agent'])));
   });
 }
 

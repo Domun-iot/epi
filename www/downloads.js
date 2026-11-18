@@ -1,3 +1,4 @@
+import { logo, developerTile } from './platform-icons.js';
 import { createReadStream } from 'node:fs';
 import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -38,13 +39,13 @@ export async function serveDownload(req, res, pathname, root = downloadsRoot) {
   } catch { res.writeHead(404, headers).end(); }
   return true;
 }
-export function renderDownloads(locale, list, developer = false) {
+export function renderDownloads(locale, list, developer = false, browser = 'browser') {
   const fr = locale.startsWith('fr');
   const text = (a, b) => fr ? a : b;
   const link = (url, label) => '<a class="button" href="' + esc(url) + '">' + esc(label) + '</a>';
   const webNote = text('Saisie, consultation et synchronisation (version PRO). Sans connexion aux balances connectées.', 'Manual entry, viewing and synchronisation (PRO version). No connection to smart scales.');
   const noScale = text('Sans connexion aux balances connectées.', 'No connection to smart scales.');
-  const card = (title, note, body) => '<article class="download-card"><h3>' + title + '</h3><p>' + note + '</p>' + body + '</article>';
+  const card = (title, note, body, icons = 'browser') => '<article class="download-card"><div class="platform-logos">' + icons.split(' ').map(name => logo(name)).join('') + '</div><h3>' + title + '</h3><p>' + note + '</p>' + body + '</article>';
   function files(group, kinds) {
     const release = list.find(m => m.group === group);
     const selected = release?.files.filter(f => kinds.includes(f.kind)) ?? [];
@@ -54,30 +55,30 @@ export function renderDownloads(locale, list, developer = false) {
       '<details><summary>SHA-256</summary><code>' + esc(f.sha256) + '</code></details></div>').join('');
   }
   let body = '<section class="download-section" lang="' + (fr ? 'fr' : 'en') + '">' +
-    (developer ? '<h1>' + text('Open source / Développeurs', 'Open source / Developers') + '</h1>' : '') +
+    '<div class="download-heading">' + logo(developer ? 'opensource' : 'download') + '<h1>' + (developer ? text('Open source / Développeurs', 'Open source / Developers') : text('Téléchargements', 'Downloads')) + '</h1></div>' +
     '<h2>' + text('Utiliser immédiatement', 'Use now') + '</h2>' +
-    card(text('Application web', 'Web application'), webNote, link('https://epi.domun.eu/', text('Ouvrir éPI', 'Open éPI'))) +
+    card(text('Application web', 'Web application'), webNote, link('https://epi.domun.eu/', text('Ouvrir éPI', 'Open éPI')), browser) +
     '<h2>' + text('Installer', 'Install') + '</h2><div class="download-grid">' +
-    card('Android', text('Lancez l’app, puis pesez-vous : c’est enregistré.', 'Launch the app, then weigh yourself: it’s saved.'), link('https://play.google.com/store/apps/details?id=eu.domun.epi', 'Google Play')) +
-    card('Windows', text('Reliez votre PC à votre balance connectée.', 'Connect your PC to your smart scale.'), files('windows', ['public'])) +
-    card('Linux', text('Linux Debian/Ubuntu/Mint compatibles. Reliez votre PC à votre balance connectée.', 'Compatible Debian/Ubuntu/Mint Linux. Connect your PC to your smart scale.'), files('linux', ['public'])) +
+    card('Android', text('Lancez l’app, puis pesez-vous : c’est enregistré.', 'Launch the app, then weigh yourself: it’s saved.'), link('https://play.google.com/store/apps/details?id=eu.domun.epi', 'Google Play'), 'android') +
+    card('Windows', text('Reliez votre PC à votre balance connectée.', 'Connect your PC to your smart scale.'), files('windows', ['public']), 'windows') +
+    card('Linux', text('Linux Debian/Ubuntu/Mint compatibles. Reliez votre PC à votre balance connectée.', 'Compatible Debian/Ubuntu/Mint Linux. Connect your PC to your smart scale.'), files('linux', ['public']), 'linux ubuntu mint') +
     card(text('Application web installée (PWA)', 'Installed web application (PWA)'), noScale,
       '<details><summary>' + text('Comment l’installer', 'How to install') + '</summary><p>' +
       text('Ouvrez éPI dans votre navigateur. Chrome/Edge : menu → Installer l’application. iPhone/iPad : Safari → Partager → Sur l’écran d’accueil. Mac : Safari → Fichier → Ajouter au Dock.',
-        'Open éPI in your browser. Chrome/Edge: menu → Install app. iPhone/iPad: Safari → Share → Add to Home Screen. Mac: Safari → File → Add to Dock.') + '</p></details>') + '</div>';
+        'Open éPI in your browser. Chrome/Edge: menu → Install app. iPhone/iPad: Safari → Share → Add to Home Screen. Mac: Safari → File → Add to Dock.') + '</p></details>', browser) + '</div>';
   if (developer) {
     body += '<h2>' + text('Autres formats', 'Other formats') + '</h2><div class="download-grid">' +
-      card('Windows MSI', text('Déploiements administrés. WebView2 installé si nécessaire (connexion Internet requise).', 'Managed deployments. Installs WebView2 when needed (Internet required).'), files('windows', ['msi'])) +
-      card('Windows portable', text('Nécessite WebView2 déjà installé. Données dans le dossier utilisateur d’éPI.', 'Requires WebView2 already installed. Data lives in the éPI user directory.'), files('windows', ['portable'])) +
-      card('Linux AppImage', text('Distribution compatible requise. BlueZ requis pour le Bluetooth ; FUSE selon le système.', 'Requires a compatible distribution. BlueZ required for Bluetooth; FUSE depending on the system.'), files('linux', ['appimage'])) +
-      card(text('Linux — binaire brut', 'Linux — raw binary'), text('Nécessite WebKitGTK 4.1, GTK 3, BlueZ et les bibliothèques liées au build. Données dans le dossier utilisateur d’éPI. Vérifiez les dépendances avec ldd ./epi.', 'Requires WebKitGTK 4.1, GTK 3, BlueZ and build-linked libraries. Data lives in the éPI user directory. Check dependencies with ldd ./epi.'), files('linux', ['portable'])) +
-      card('Android APK', text('APK de production signé. Android 8 ou ultérieur. Autorisez l’installation depuis le gestionnaire de fichiers.', 'Signed production APK. Android 8 or later. Allow installation from your file manager.'), files('android', ['apk'])) +
-      card('CLI Windows / Linux', text('Node.js embarqué. Scan Bluetooth sous Windows uniquement.', 'Node.js included. Bluetooth scanning on Windows only.'), files('cli-windows', ['cli']) + files('cli-linux', ['cli'])) +
-      card(text('Web personnel', 'Personal web server'), text('Node.js 20.19 ou ultérieur et npm requis. Démarrer avec npm start. Sans réception Bluetooth. Ne pas exposer directement sur Internet.', 'Requires Node.js 20.19 or later and npm. Start with npm start. No Bluetooth reception. Do not expose directly to the Internet.'), files('web', ['web'])) + '</div>' +
-      '<h2>' + text('Sources et documentation', 'Source and documentation') + '</h2><p>' +
+      card('Windows MSI', text('Déploiements administrés. WebView2 installé si nécessaire (connexion Internet requise).', 'Managed deployments. Installs WebView2 when needed (Internet required).'), files('windows', ['msi']), 'windows') +
+      card('Windows portable', text('Nécessite WebView2 déjà installé. Données dans le dossier utilisateur d’éPI.', 'Requires WebView2 already installed. Data lives in the éPI user directory.'), files('windows', ['portable']), 'windows') +
+      card('Linux AppImage', text('Distribution compatible requise. BlueZ requis pour le Bluetooth ; FUSE selon le système.', 'Requires a compatible distribution. BlueZ required for Bluetooth; FUSE depending on the system.'), files('linux', ['appimage']), 'linux') +
+      card(text('Linux — binaire brut', 'Linux — raw binary'), text('Nécessite WebKitGTK 4.1, GTK 3, BlueZ et les bibliothèques liées au build. Données dans le dossier utilisateur d’éPI. Vérifiez les dépendances avec ldd ./epi.', 'Requires WebKitGTK 4.1, GTK 3, BlueZ and build-linked libraries. Data lives in the éPI user directory. Check dependencies with ldd ./epi.'), files('linux', ['portable']), 'linux') +
+      card('Android APK', text('APK de production signé. Android 8 ou ultérieur. Autorisez l’installation depuis le gestionnaire de fichiers.', 'Signed production APK. Android 8 or later. Allow installation from your file manager.'), files('android', ['apk']), 'android') +
+      card('CLI Windows / Linux', text('Node.js embarqué. Scan Bluetooth sous Windows uniquement.', 'Node.js included. Bluetooth scanning on Windows only.'), files('cli-windows', ['cli']) + files('cli-linux', ['cli']), 'terminal windows linux') +
+      card(text('Web personnel', 'Personal web server'), text('Node.js 20.19 ou ultérieur et npm requis. Démarrer avec npm start. Sans réception Bluetooth. Ne pas exposer directement sur Internet.', 'Requires Node.js 20.19 or later and npm. Start with npm start. No Bluetooth reception. Do not expose directly to the Internet.'), files('web', ['web']), 'server') + '</div>' +
+      '<h2>' + text('Sources et documentation', 'Source and documentation') + '</h2><div class="resource-links">' + logo('code') + logo('archive') + '</div><p>' +
       '<a href="/epi/developers/guide">' + text('Compilation et publication des releases', 'Build and release publication') + '</a> · ' +
       '<a href="/epi/downloads/">' + text('Parcourir les téléchargements et l’historique', 'Browse downloads and version history') + '</a></p>' +
       '<p>' + text('Dépôt source :', 'Source repository:') + ' <code>git clone https://github.com/domun-iot/epi.git</code></p>';
-  } else body += '<p><a href="/epi/developers">' + text('Open source / Développeurs', 'Open source / Developers') + '</a></p>';
+  } else body += developerTile(locale);
   return body + '</section>';
 }
