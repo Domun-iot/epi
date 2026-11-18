@@ -2,7 +2,7 @@ import { featureCopy } from './features-copy.js';
 import { calculationMethods, scaleFamilies } from './feature-catalog.js';
 
 const compatibilityAnchor = '#bluetooth';
-const paths = { bluetooth: '/compatible-scales', multiscale: compatibilityAnchor, composition: '/calculation-methods' };
+const paths = { bluetooth: '/compatible-scales', multiscale: compatibilityAnchor, composition: '/calculation-methods', source: '/developers' };
 const sourceLines = ['éPI/', '├─ shared/scales/', '├─ tauri/', '├─ cli/', '├─ web/', '└─ docs/'];
 const scale = (lang, weight) => '<div class="scale"><samp>' +
   new Intl.NumberFormat(lang).format(weight) + ' kg</samp><i></i><i></i></div>';
@@ -40,8 +40,9 @@ export function renderHome(base, intro, locale, escape) {
   const { copy, lang } = features;
   const scenes = Object.entries(copy.scenes).map(([id, [title, description, label]]) => {
     const path = paths[id];
-    const link = label ? '<a class="feature-link" href="' + (path.startsWith('#') ? path : base + path) + '">' +
-      escape(label) + ' <span aria-hidden="true">→</span></a>' : '';
+    const linkLabel = label || (id === 'source' ? 'Open source / ' + (lang === 'fr' ? 'Développeurs' : 'Developers') : '');
+    const link = linkLabel ? '<a class="feature-link" href="' + (path.startsWith('#') ? path : base + path) + '">' +
+      escape(linkLabel) + ' <span aria-hidden="true">→</span></a>' : '';
     const proDetail = copy.proDetails[id];
     const proNote = proDetail ? '<p class="feature-pro-note"><a class="pro-badge" href="' + base +
       '/pro#compare" aria-label="' + escape(copy.proComparison) + '">PRO <span aria-hidden="true">→</span></a> ' +

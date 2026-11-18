@@ -7,6 +7,8 @@ import { catalog, locales, selectLocale } from './locales.js';
 import { referenceTitle, renderHome, renderReference } from './features.js';
 import { deletionUrl, flags, playIcon, playUrl, renderFooter, renderHeader } from './layout.js';
 
+import { manifests, serveDownload, renderDownloads } from './downloads.js';
+
 const base = '/epi';
 const homeActionsCopy = {
   fr: ['Télécharger sur', 'Gratuite et sans pub', 'Découvrir la version Pro', 'Synchronisation, vues enregistrées et sauvegardes ZIP'],
@@ -17,6 +19,8 @@ const routes = new Map([
   [base, 'home'],
   [base + '/compatible-scales', 'scales'],
   [base + '/pro', 'pro'],
+  [base + '/developers', 'developers'],
+  [base + '/developers/guide', 'guide'],
   [base + '/calculation-methods', 'methods'],
   [base + '/privacy-policy', 'privacy'],
   [base + '/legal-notice', 'legal'],
@@ -54,17 +58,20 @@ function renderHomeActions(locale) {
     '<span class="home-action-arrow" aria-hidden="true">→</span></a></div>';
 }
 
-function render(path, page, locale, retention, prices) {
+function render(path, page, locale, retention, prices, releases) {
   const t = catalog[locale];
   const contactLink = '<a href="https://logisan.fr/contact/">Logisan</a>';
   const retentionText = retention[locale] ? '<p>' + escape(retention[locale]) + '</p>' : '';
   const titles = {
     pro: planCopy(locale).title,
+    developers: 'Open source / Developers', guide: 'Build & release guide',
     home: t.headline, privacy: t.privacy, legal: t.legal, missing: '404',
     scales: referenceTitle('scales', locale), methods: referenceTitle('methods', locale),
   };
   const content = {
-    home: () => renderHome(base, t, locale, escape) + renderHomeActions(locale),
+    home: () => renderHome(base, t, locale, escape) + renderHomeActions(locale) + renderDownloads(locale, releases),
+    developers: () => renderDownloads(locale, releases, true),
+    guide: () => '<h1>Build & release guide</h1><p><a href="/epi/developers">← Developers</a></p><pre class="release-guide">' + escape(readFileSync(new URL('../docs/PUBLICATION-RELEASES.md', import.meta.url), 'utf8')) + '</pre>',
     pro: () => renderPro(base, locale, prices, escape),
     scales: () => renderReference(base, page, locale, escape),
     methods: () => renderReference(base, page, locale, escape),
@@ -89,7 +96,7 @@ function render(path, page, locale, retention, prices) {
 }
 
 export function createSite({
-  retention = {}, secureCookie = false, catalogUrl,
+  retention = {}, secureCookie = false, catalogUrl, downloadsDir,
 } = {}) {
   for (const [locale, value] of Object.entries(retention)) {
     if (!Object.hasOwn(locales, locale) || typeof value !== 'string' || !value.trim()) {
@@ -109,6 +116,7 @@ export function createSite({
       res.writeHead(405, { Allow: 'GET, HEAD' }).end();
       return;
     }
+    if (await serveDownload(req, res, url.pathname, downloadsDir)) return;
     const asset = assets.get(url.pathname);
     if (asset) {
       res.writeHead(200, { 'Content-Type': asset.type, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'public, max-age=3600' });
@@ -142,7 +150,7 @@ export function createSite({
     }
     const prices = page === 'pro' ? await loadPrices(catalogUrl) : undefined;
     res.writeHead(page === 'missing' ? 404 : page === 'pro' && !formatCatalog(prices, locale) ? 503 : 200, headers);
-    res.end(req.method === 'HEAD' ? undefined : render(page === 'missing' ? base : path, page, locale, retention, prices));
+    res.end(req.method === 'HEAD' ? undefined : render(page === 'missing' ? base : path, page, locale, retention, prices, await manifests(downloadsDir)));
   });
 }
 

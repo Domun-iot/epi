@@ -116,3 +116,7 @@ Sur Android, transfère l’APK sur le téléphone et ouvre-le depuis le gestion
 Sur iOS, depuis `tauri/` sous macOS avec Xcode, lance `npm ci`, `npm run tauri -- ios init`, puis `npm run tauri -- ios build`. Accorde l’autorisation Bluetooth. CoreBluetooth identifie l’appareil par un UUID local. Sur un iPhone, associe de nouveau la balance si les fiches importées proviennent d’un PC.
 
 La [documentation détaillée du CLI](cli/README.md) décrit les mesures, la réception et les méthodes de composition. Le [plan et l’inventaire](docs/SPECIFICATIONS.md) décrivent leur transposition dans l’interface.
+
+## Builds
+
+Voir le [guide de build toutes cibles](docs/BUILD.md).

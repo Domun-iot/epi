@@ -519,3 +519,14 @@ footer nav { display: flex; gap: .7rem 1.3rem; flex-wrap: wrap; }
   .feature, .feature:nth-of-type(even) { grid-template-columns: minmax(0, 1fr); min-height: 0; gap: 1.4rem; }
   .feature:nth-of-type(even) .feature-art, .feature:nth-of-type(even) .feature-copy { grid-area: auto; }
 }
+
+.download-section { max-width: 76rem; margin: 3rem auto; padding: 0 clamp(1rem, 4vw, 3rem); }
+.download-section h2 { margin-top: 2.5rem; }
+.download-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
+.download-card { border: 1px solid #b9cec4; border-radius: 1rem; padding: 1.4rem; background: #f5faf6; }
+.download-card h3 { margin-top: 0; }
+.download-file { margin-top: 1rem; }
+.download-file small { display: block; margin: .6rem 0; }
+.download-file code { overflow-wrap: anywhere; font-size: .8rem; }
+.download-pending { opacity: .7; }
+.release-guide { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; }
